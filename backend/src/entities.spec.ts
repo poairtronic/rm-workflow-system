@@ -5,8 +5,13 @@ import { User } from './users/entities/user.entity.js';
 import { Customer } from './customers/entities/customer.entity.js';
 import { PurchaseOrder } from './po/entities/po.entity.js';
 import { SalesOrderComponent, ScStatus } from './sc/entities/sc.entity.js';
-import { RmRequest } from './rm/entities/rm-request.entity.js';
+import {
+  RmRequest,
+  FormType,
+  RmRequestStatus,
+} from './rm/entities/rm-request.entity.js';
 import { RmItem } from './rm/entities/rm-item.entity.js';
+import { RmFormSc } from './rm/entities/rm-form-sc.entity.js';
 import { SeniorVerificationLog } from './verification/entities/verification-log.entity.js';
 import {
   MaterialIssue,
@@ -27,8 +32,8 @@ import { Notification } from './notifications/entities/notification.entity.js';
 import { AuditLog } from './audit/entities/audit-log.entity.js';
 
 describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
-  it('should register exactly 15 domain entities in ALL_ENTITIES', () => {
-    expect(ALL_ENTITIES).toHaveLength(15);
+  it('should register exactly 16 domain entities in ALL_ENTITIES', () => {
+    expect(ALL_ENTITIES).toHaveLength(16);
     expect(ALL_ENTITIES).toContain(Role);
     expect(ALL_ENTITIES).toContain(User);
     expect(ALL_ENTITIES).toContain(Customer);
@@ -36,6 +41,7 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     expect(ALL_ENTITIES).toContain(SalesOrderComponent);
     expect(ALL_ENTITIES).toContain(RmRequest);
     expect(ALL_ENTITIES).toContain(RmItem);
+    expect(ALL_ENTITIES).toContain(RmFormSc);
     expect(ALL_ENTITIES).toContain(SeniorVerificationLog);
     expect(ALL_ENTITIES).toContain(MaterialIssue);
     expect(ALL_ENTITIES).toContain(ProductionReceipt);
@@ -60,21 +66,41 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     expect(sc.completionRemarks).toContain('zero scrap');
   });
 
-  it('should support flexible dimensions on RmItem', () => {
-    const item = new RmItem();
-    item.materialGrade = 'EN31';
-    item.profileType = 'ROUND_BAR';
-    item.size = 'Ø110 x 35 mm';
-    item.requiredQuantity = 55;
-    item.unit = 'NOS';
-    item.diameterMm = 110;
-    item.lengthMm = 35;
-    item.unitWeightKg = 2.65;
-    item.totalWeightKg = 145.75;
+  it('should support Option A (SC RM) and Option B (PO RM) form architectures', () => {
+    const scForm = new RmRequest();
+    scForm.formType = FormType.SC;
+    scForm.status = RmRequestStatus.SUBMITTED;
 
-    expect(item.materialGrade).toBe('EN31');
-    expect(item.diameterMm).toBe(110);
-    expect(item.totalWeightKg).toBe(145.75);
+    const poForm = new RmRequest();
+    poForm.formType = FormType.PO;
+    poForm.status = RmRequestStatus.DRAFT;
+
+    const link = new RmFormSc();
+    link.rmFormId = 'form-po-1';
+    link.scId = 'sc-001';
+
+    expect(scForm.formType).toBe(FormType.SC);
+    expect(poForm.formType).toBe(FormType.PO);
+    expect(link.rmFormId).toBe('form-po-1');
+  });
+
+  it('should support flexible dimensions on RmItem matching paper form requirements', () => {
+    const item = new RmItem();
+    item.material = 'EN31';
+    item.materialType = 'ROUND_BAR';
+    item.grade = 'IS:5517';
+    item.quantity = 55;
+    item.size = 'Ø110 x 35 mm';
+    item.diameter = 110;
+    item.length = 35;
+    item.weight = 145.75;
+    item.weightUnit = 'KG';
+
+    expect(item.material).toBe('EN31');
+    expect(item.grade).toBe('IS:5517');
+    expect(item.size).toBe('Ø110 x 35 mm');
+    expect(item.diameter).toBe(110);
+    expect(item.weight).toBe(145.75);
   });
 
   it('should track append-only material movement accounting across issue, receipt, and consumption', () => {

@@ -10,6 +10,7 @@ import {
   Index,
 } from 'typeorm';
 import { RmRequest } from './rm-request.entity.js';
+import { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
 import { MaterialIssue } from '../../material-issue/entities/material-issue.entity.js';
 import { MaterialConsumption } from '../../production/entities/material-consumption.entity.js';
 import { MaterialReturn } from '../../production/entities/material-return.entity.js';
@@ -20,92 +21,93 @@ export class RmItem {
   id!: string;
 
   @Index()
-  @Column({ name: 'rm_request_id' })
-  rmRequestId!: string;
+  @Column({ name: 'rm_form_id' })
+  rmFormId!: string;
 
   @ManyToOne(() => RmRequest, (req) => req.items, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'rm_request_id' })
+  @JoinColumn({ name: 'rm_form_id' })
   rmRequest!: RmRequest;
 
   @Index()
   @Column({ name: 'sc_id', nullable: true })
   scId?: string;
 
-  @Index()
-  @Column({ name: 'material_grade', length: 100 })
-  materialGrade!: string;
+  @ManyToOne(() => SalesOrderComponent, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'sc_id' })
+  salesOrderComponent?: SalesOrderComponent;
 
-  @Column({ name: 'profile_type', length: 50, default: 'ROUND_BAR' })
-  profileType!: string;
+  /* Required Fields */
+  @Index()
+  @Column({ length: 100 })
+  material!: string;
+
+  @Column({ name: 'material_type', length: 50, default: 'ROUND_BAR' })
+  materialType!: string;
+
+  @Column({ length: 100 })
+  grade!: string;
+
+  @Column({
+    type: 'numeric',
+    precision: 12,
+    scale: 3,
+  })
+  quantity!: number;
 
   @Column({ length: 100 })
   size!: string;
 
+  /* Optional Flexible Dimensional Fields */
   @Column({
-    name: 'required_quantity',
-    type: 'numeric',
-    precision: 12,
-    scale: 3,
-  })
-  requiredQuantity!: number;
-
-  @Column({ length: 20, default: 'NOS' })
-  unit!: string;
-
-  /* Flexible Dimensional Attributes */
-  @Column({
-    name: 'diameter_mm',
+    name: 'length',
     type: 'numeric',
     precision: 10,
     scale: 2,
     nullable: true,
   })
-  diameterMm?: number;
+  length?: number;
 
   @Column({
-    name: 'length_mm',
+    name: 'width',
     type: 'numeric',
     precision: 10,
     scale: 2,
     nullable: true,
   })
-  lengthMm?: number;
+  width?: number;
 
   @Column({
-    name: 'width_mm',
+    name: 'thickness',
     type: 'numeric',
     precision: 10,
     scale: 2,
     nullable: true,
   })
-  widthMm?: number;
+  thickness?: number;
 
   @Column({
-    name: 'thickness_mm',
+    name: 'diameter',
     type: 'numeric',
     precision: 10,
     scale: 2,
     nullable: true,
   })
-  thicknessMm?: number;
+  diameter?: number;
 
   @Column({
-    name: 'unit_weight_kg',
-    type: 'numeric',
-    precision: 10,
-    scale: 3,
-    nullable: true,
-  })
-  unitWeightKg?: number;
-
-  @Column({
-    name: 'total_weight_kg',
+    name: 'weight',
     type: 'numeric',
     precision: 12,
     scale: 3,
     nullable: true,
   })
-  totalWeightKg?: number;
+  weight?: number;
+
+  @Column({ name: 'weight_unit', length: 20, default: 'KG' })
+  weightUnit!: string;
 
   @Column({ type: 'text', nullable: true })
   remarks?: string;

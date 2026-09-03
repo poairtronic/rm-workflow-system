@@ -114,30 +114,44 @@ export class InitialSchema1700000000000 implements MigrationInterface {
       CREATE INDEX "idx_rm_requests_status" ON "rm_requests"("status");
     `);
 
-    // 8. RM Items Table
+    // 8. RM Form ↔ SC Linking Table (For PO-level forms)
+    await queryRunner.query(`
+      CREATE TABLE "rm_form_scs" (
+        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        "rm_form_id" uuid NOT NULL REFERENCES "rm_requests"("id") ON DELETE CASCADE,
+        "sc_id" uuid NOT NULL REFERENCES "sales_order_components"("id") ON DELETE CASCADE,
+        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        CONSTRAINT "uq_rm_form_sc" UNIQUE ("rm_form_id", "sc_id")
+      );
+      CREATE INDEX "idx_rm_form_scs_form_id" ON "rm_form_scs"("rm_form_id");
+      CREATE INDEX "idx_rm_form_scs_sc_id" ON "rm_form_scs"("sc_id");
+    `);
+
+    // 9. RM Items Table
     await queryRunner.query(`
       CREATE TABLE "rm_items" (
         "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-        "rm_request_id" uuid NOT NULL REFERENCES "rm_requests"("id") ON DELETE CASCADE,
+        "rm_form_id" uuid NOT NULL REFERENCES "rm_requests"("id") ON DELETE CASCADE,
         "sc_id" uuid REFERENCES "sales_order_components"("id") ON DELETE SET NULL,
-        "material_grade" varchar(100) NOT NULL,
-        "profile_type" varchar(50) NOT NULL DEFAULT 'ROUND_BAR',
+        "material" varchar(100) NOT NULL,
+        "material_type" varchar(50) NOT NULL DEFAULT 'ROUND_BAR',
+        "grade" varchar(100) NOT NULL,
+        "quantity" numeric(12,3) NOT NULL,
         "size" varchar(100) NOT NULL,
-        "required_quantity" numeric(12,3) NOT NULL,
-        "unit" varchar(20) NOT NULL DEFAULT 'NOS',
-        "diameter_mm" numeric(10,2),
-        "length_mm" numeric(10,2),
-        "width_mm" numeric(10,2),
-        "thickness_mm" numeric(10,2),
-        "unit_weight_kg" numeric(10,3),
-        "total_weight_kg" numeric(12,3),
+        "length" numeric(10,2),
+        "width" numeric(10,2),
+        "thickness" numeric(10,2),
+        "diameter" numeric(10,2),
+        "weight" numeric(12,3),
+        "weight_unit" varchar(20) NOT NULL DEFAULT 'KG',
         "remarks" text,
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
       );
-      CREATE INDEX "idx_rm_items_request_id" ON "rm_items"("rm_request_id");
+      CREATE INDEX "idx_rm_items_form_id" ON "rm_items"("rm_form_id");
       CREATE INDEX "idx_rm_items_sc_id" ON "rm_items"("sc_id");
-      CREATE INDEX "idx_rm_items_grade" ON "rm_items"("material_grade");
+      CREATE INDEX "idx_rm_items_material" ON "rm_items"("material");
+      CREATE INDEX "idx_rm_items_grade" ON "rm_items"("grade");
     `);
 
     // 9. Senior Verification Logs Table
@@ -291,6 +305,7 @@ export class InitialSchema1700000000000 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE IF EXISTS "material_issues" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "senior_verification_logs" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "rm_items" CASCADE;`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "rm_form_scs" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "rm_requests" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "sales_order_components" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "purchase_orders" CASCADE;`);
