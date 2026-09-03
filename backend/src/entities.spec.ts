@@ -45,6 +45,7 @@ import { AdditionalMaterialRequestItem } from './additional-request/entities/add
 import { Notification } from './notifications/entities/notification.entity.js';
 import { AuditLog } from './audit/entities/audit-log.entity.js';
 import { MaterialMathUtil } from './production/utils/material-math.util.js';
+import { MaterialReconciliationUtil } from './production/utils/material-reconciliation.util.js';
 
 describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
   it('should register exactly 21 domain entities in ALL_ENTITIES', () => {
@@ -70,6 +71,112 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     expect(ALL_ENTITIES).toContain(AdditionalMaterialRequestItem);
     expect(ALL_ENTITIES).toContain(Notification);
     expect(ALL_ENTITIES).toContain(AuditLog);
+  });
+
+  describe('Independent SC Completion Lifecycle (Section 23)', () => {
+    it('should complete an SC independently without closing parent PO or sibling SCs', () => {
+      const po = new PurchaseOrder();
+      po.poNumber = 'PO-001';
+
+      const sc1 = new SalesOrderComponent();
+      sc1.scNumber = 'SC-001';
+      sc1.poId = 'po-001';
+      sc1.status = ScStatus.COMPLETED;
+      sc1.completedAt = new Date();
+      sc1.completedById = 'user-prod-lead';
+      sc1.completionRemarks = 'Batch machining and QA inspection passed.';
+
+      const sc2 = new SalesOrderComponent();
+      sc2.scNumber = 'SC-002';
+      sc2.poId = 'po-001';
+      sc2.status = ScStatus.IN_PRODUCTION;
+
+      const sc3 = new SalesOrderComponent();
+      sc3.scNumber = 'SC-003';
+      sc3.poId = 'po-001';
+      sc3.status = ScStatus.STORES_PENDING;
+
+      expect(sc1.status).toBe(ScStatus.COMPLETED);
+      expect(sc2.status).toBe(ScStatus.IN_PRODUCTION);
+      expect(sc3.status).toBe(ScStatus.STORES_PENDING);
+      expect(sc1.completionRemarks).toContain('QA inspection passed');
+    });
+  });
+
+  describe('Final Material Reconciliation Analytics (Section 24)', () => {
+    it('should reconcile multi-material lifecycle ledger accurately matching workshop example', () => {
+      // Line 1: EN31 (Req 10kg, Initial Issued 8kg, Add Issued 2kg, Rec 10kg, Cons 7kg, Ret 1kg -> Loss/Scrap 2kg)
+      const en31 = MaterialReconciliationUtil.reconcileLine({
+        rmItemId: 'item-en31',
+        material: 'EN31',
+        grade: 'IS:5517',
+        size: 'Ø110X35',
+        unit: 'KG',
+        requestedQuantity: 10,
+        initialIssuedQuantity: 8,
+        additionalIssuedQuantity: 2,
+        receivedQuantity: 10,
+        consumedQuantity: 7,
+        returnedQuantity: 1,
+      });
+
+      // Line 2: OHNS (Req 5kg, Issued 5kg, Rec 5kg, Cons 4kg, Ret 1kg -> Loss 0kg)
+      const ohns = MaterialReconciliationUtil.reconcileLine({
+        rmItemId: 'item-ohns',
+        material: 'OHNS',
+        grade: 'T215Cr12',
+        size: 'Ø70X18',
+        unit: 'KG',
+        requestedQuantity: 5,
+        initialIssuedQuantity: 5,
+        receivedQuantity: 5,
+        consumedQuantity: 4,
+        returnedQuantity: 1,
+      });
+
+      // Line 3: MS (Req 8kg, Issued 8kg, Rec 8kg, Cons 6kg, Ret 2kg -> Loss 0kg)
+      const ms = MaterialReconciliationUtil.reconcileLine({
+        rmItemId: 'item-ms',
+        material: 'MS',
+        grade: 'IS:2062',
+        size: 'Ø150X15',
+        unit: 'KG',
+        requestedQuantity: 8,
+        initialIssuedQuantity: 8,
+        receivedQuantity: 8,
+        consumedQuantity: 6,
+        returnedQuantity: 2,
+      });
+
+      const report = MaterialReconciliationUtil.generateScReport(
+        {
+          id: 'sc-001',
+          scNumber: 'SC-001',
+          productName: 'Gearbox Housing Set',
+          status: 'COMPLETED',
+          completedAt: new Date(),
+        },
+        [en31, ohns, ms],
+      );
+
+      expect(en31.totalIssuedQuantity).toBe(10);
+      expect(en31.scrapOrUnaccountedQuantity).toBe(2);
+      expect(en31.status).toBe('SCRAP_LOGGED');
+
+      expect(ohns.totalIssuedQuantity).toBe(5);
+      expect(ohns.scrapOrUnaccountedQuantity).toBe(0);
+      expect(ohns.isFullyBalanced).toBe(true);
+
+      expect(ms.totalIssuedQuantity).toBe(8);
+      expect(ms.scrapOrUnaccountedQuantity).toBe(0);
+      expect(ms.isFullyBalanced).toBe(true);
+
+      expect(report.summary.totalRequested).toBe(23); // 10 + 5 + 8
+      expect(report.summary.totalIssued).toBe(23); // 10 + 5 + 8
+      expect(report.summary.totalConsumed).toBe(17); // 7 + 4 + 6
+      expect(report.summary.totalReturned).toBe(4); // 1 + 1 + 2
+      expect(report.summary.totalScrapOrLoss).toBe(2); // 2 + 0 + 0
+    });
   });
 
   describe('Material Conservation & Calculation Rules (Section 19)', () => {
@@ -112,13 +219,11 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
 
   describe('Additional Material Requests & Additional Issues (Sections 20, 21, 22)', () => {
     it('should manage additional request lifecycle without mutating original RM requirement', () => {
-      // 1. Original RM baseline requirement remains untouched
       const originalItem = new RmItem();
       originalItem.id = 'rm-item-01';
       originalItem.material = 'EN31';
       originalItem.quantity = 10;
 
-      // 2. Additional request transaction
       const addReq = new AdditionalMaterialRequest();
       addReq.id = 'add-req-01';
       addReq.reason = AdditionalReason.DAMAGE;
@@ -131,7 +236,6 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
       addReqItem.quantityRequested = 2;
       addReqItem.quantityApproved = 2;
 
-      // 3. Additional Issue generated by Stores referencing the request
       const addIssue = new MaterialIssue();
       addIssue.issueNumber = 'ISS-8801-01-ADD-1';
       addIssue.issueType = MaterialIssueType.ADDITIONAL_ISSUE;
@@ -142,7 +246,7 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
       addIssueItem.quantityIssued = 2;
       addIssueItem.heatNumber = 'HT-990';
 
-      expect(originalItem.quantity).toBe(10); // Baseline preserved!
+      expect(originalItem.quantity).toBe(10);
       expect(addReqItem.quantityRequested).toBe(2);
       expect(addReqItem.quantityApproved).toBe(2);
       expect(addIssue.issueType).toBe(MaterialIssueType.ADDITIONAL_ISSUE);
@@ -247,20 +351,6 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
 
     expect(verification.status).toBe(VerificationStatus.REVISED);
     expect(verification.remarks).toContain('spindle tolerances');
-  });
-
-  it('should instantiate an SC with independent completion status and attributes', () => {
-    const sc = new SalesOrderComponent();
-    sc.scNumber = 'SC-8801-01';
-    sc.productName = 'Spindle Shaft';
-    sc.targetQuantity = 50;
-    sc.status = ScStatus.COMPLETED;
-    sc.completedAt = new Date();
-    sc.completionRemarks = 'Batch completed with zero scrap.';
-
-    expect(sc.scNumber).toBe('SC-8801-01');
-    expect(sc.status).toBe(ScStatus.COMPLETED);
-    expect(sc.completionRemarks).toContain('zero scrap');
   });
 
   it('should support Option A (SC RM) and Option B (PO RM) form architectures', () => {

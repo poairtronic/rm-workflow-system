@@ -16,6 +16,7 @@ import { MaterialIssue } from '../../material-issue/entities/material-issue.enti
 import { MaterialConsumption } from '../../production/entities/material-consumption.entity.js';
 import { MaterialReturn } from '../../production/entities/material-return.entity.js';
 import { AdditionalMaterialRequest } from '../../additional-request/entities/additional-request.entity.js';
+import { User } from '../../users/entities/user.entity.js';
 
 export enum ScStatus {
   DRAFT = 'DRAFT',
@@ -101,6 +102,10 @@ export class SalesOrderComponent {
 
   @Column({ name: 'completed_by_id', nullable: true })
   completedById?: string;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'completed_by_id' })
+  completedBy?: User;
 
   @Column({ name: 'completion_remarks', type: 'text', nullable: true })
   completionRemarks?: string;
