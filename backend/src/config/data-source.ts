@@ -17,6 +17,7 @@ import { MaterialConsumption } from '../production/entities/material-consumption
 import { MaterialReturn } from '../production/entities/material-return.entity.js';
 import { MaterialReturnItem } from '../production/entities/material-return-item.entity.js';
 import { AdditionalMaterialRequest } from '../additional-request/entities/additional-request.entity.js';
+import { AdditionalMaterialRequestItem } from '../additional-request/entities/additional-request-item.entity.js';
 import { Notification } from '../notifications/entities/notification.entity.js';
 import { AuditLog } from '../audit/entities/audit-log.entity.js';
 
@@ -39,6 +40,7 @@ export const ALL_ENTITIES = [
   MaterialReturn,
   MaterialReturnItem,
   AdditionalMaterialRequest,
+  AdditionalMaterialRequestItem,
   Notification,
   AuditLog,
 ];

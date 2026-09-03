@@ -5,27 +5,28 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   Index,
 } from 'typeorm';
 import { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
-import { RmItem } from '../../rm/entities/rm-item.entity.js';
 import { User } from '../../users/entities/user.entity.js';
+import { AdditionalMaterialRequestItem } from './additional-request-item.entity.js';
 
-export enum AdditionalReasonCode {
-  TOOL_BREAKAGE = 'TOOL_BREAKAGE',
-  DEFECTIVE_RAW_MATERIAL = 'DEFECTIVE_RAW_MATERIAL',
-  OPERATOR_ERROR = 'OPERATOR_ERROR',
-  DESIGN_REVISION = 'DESIGN_REVISION',
-  MACHINE_BREAKDOWN = 'MACHINE_BREAKDOWN',
+export enum AdditionalReason {
+  ADDITIONAL_REQUIREMENT = 'ADDITIONAL_REQUIREMENT',
+  DAMAGE = 'DAMAGE',
+  WASTAGE = 'WASTAGE',
+  MANUFACTURING_ERROR = 'MANUFACTURING_ERROR',
   OTHER = 'OTHER',
 }
 
 export enum AdditionalRequestStatus {
   REQUESTED = 'REQUESTED',
   APPROVED = 'APPROVED',
-  ISSUED = 'ISSUED',
   REJECTED = 'REJECTED',
+  ISSUED = 'ISSUED',
+  CANCELLED = 'CANCELLED',
 }
 
 @Entity('additional_material_requests')
@@ -43,35 +44,12 @@ export class AdditionalMaterialRequest {
   @JoinColumn({ name: 'sc_id' })
   salesOrderComponent!: SalesOrderComponent;
 
-  @Index()
-  @Column({ name: 'rm_item_id' })
-  rmItemId!: string;
+  @Column({ name: 'requested_by_id' })
+  requestedById!: string;
 
-  @ManyToOne(() => RmItem, { onDelete: 'RESTRICT' })
-  @JoinColumn({ name: 'rm_item_id' })
-  rmItem!: RmItem;
-
-  @Column({
-    name: 'requested_quantity',
-    type: 'numeric',
-    precision: 12,
-    scale: 3,
-  })
-  requestedQuantity!: number;
-
-  @Column({ length: 20, default: 'NOS' })
-  unit!: string;
-
-  @Column({
-    name: 'reason_code',
-    type: 'varchar',
-    length: 50,
-    default: AdditionalReasonCode.TOOL_BREAKAGE,
-  })
-  reasonCode!: AdditionalReasonCode;
-
-  @Column({ name: 'reason_description', type: 'text' })
-  reasonDescription!: string;
+  @ManyToOne(() => User, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'requested_by_id' })
+  requestedBy!: User;
 
   @Column({
     type: 'varchar',
@@ -80,12 +58,41 @@ export class AdditionalMaterialRequest {
   })
   status!: AdditionalRequestStatus;
 
-  @Column({ name: 'requested_by_id' })
-  requestedById!: string;
+  @Column({
+    type: 'varchar',
+    length: 50,
+    default: AdditionalReason.ADDITIONAL_REQUIREMENT,
+  })
+  reason!: AdditionalReason;
 
-  @ManyToOne(() => User, { onDelete: 'RESTRICT' })
-  @JoinColumn({ name: 'requested_by_id' })
-  requestedBy!: User;
+  @Column({ type: 'text', nullable: true })
+  remarks?: string;
+
+  @Column({
+    name: 'requested_at',
+    type: 'timestamp with time zone',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
+  requestedAt!: Date;
+
+  @Column({
+    name: 'approved_at',
+    type: 'timestamp with time zone',
+    nullable: true,
+  })
+  approvedAt?: Date;
+
+  @Column({ name: 'approved_by_id', nullable: true })
+  approvedById?: string;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'approved_by_id' })
+  approvedBy?: User;
+
+  @OneToMany(() => AdditionalMaterialRequestItem, (item) => item.request, {
+    cascade: true,
+  })
+  items!: AdditionalMaterialRequestItem[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;

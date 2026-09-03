@@ -11,6 +11,12 @@ import {
 import { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
 import { User } from '../../users/entities/user.entity.js';
 import { MaterialIssueItem } from './material-issue-item.entity.js';
+import { AdditionalMaterialRequest } from '../../additional-request/entities/additional-request.entity.js';
+
+export enum MaterialIssueType {
+  INITIAL_ISSUE = 'INITIAL_ISSUE',
+  ADDITIONAL_ISSUE = 'ADDITIONAL_ISSUE',
+}
 
 @Entity('material_issues')
 export class MaterialIssue {
@@ -30,6 +36,25 @@ export class MaterialIssue {
   @Index({ unique: true })
   @Column({ name: 'issue_number', length: 100, unique: true })
   issueNumber!: string;
+
+  @Column({
+    name: 'issue_type',
+    type: 'varchar',
+    length: 50,
+    default: MaterialIssueType.INITIAL_ISSUE,
+  })
+  issueType!: MaterialIssueType;
+
+  @Index()
+  @Column({ name: 'additional_request_id', nullable: true })
+  additionalRequestId?: string;
+
+  @ManyToOne(() => AdditionalMaterialRequest, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'additional_request_id' })
+  additionalRequest?: AdditionalMaterialRequest;
 
   @Column({ name: 'issued_by_id' })
   issuedById!: string;
