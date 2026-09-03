@@ -1,33 +1,58 @@
-# Database Architecture & Migration Strategy
+# Database Architecture & Migration Management
 
-This directory contains database documentation, migration strategies, seed data, and schema definitions for the RMRIT application.
+This directory manages TypeORM migrations, seed data, and schema utility scripts for the RMRIT PostgreSQL database.
 
-## Database Engine
-- **Engine**: PostgreSQL 15+ (Hosted on Neon / Supabase or local instance)
-- **ORM / Driver**: TypeORM with `pg` driver
+> **Roadmap Notice**: Full domain schema and table creation is scheduled for the dedicated Database Design phase. Phase 5 establishes the structural directory layout and tooling workflows.
+
+---
 
 ## Directory Structure
+
 ```text
 database/
-├── migrations/        # TypeORM migration files (.ts / .sql)
-├── seeds/             # Seed data scripts for development & testing
-├── schemas/           # Entity schema references & ER diagrams
-└── README.md          # Database guide & migration instructions
+├── migrations/        # TypeORM migration classes (.ts)
+├── seeds/             # Seed data scripts for development & staging
+├── scripts/           # Migration runners & diagnostic utilities
+└── README.md          # Database guide & TypeORM CLI instructions
 ```
 
-## Migration Workflow
-1. Generate migration:
-   ```bash
-   npm --prefix backend run migration:generate -- database/migrations/InitSchema
-   ```
-2. Run migrations:
-   ```bash
-   npm --prefix backend run migration:run
-   ```
-3. Revert migration:
-   ```bash
-   npm --prefix backend run migration:revert
-   ```
+---
 
-## Entity Planning (Phase 5)
-- Core Entities: `User`, `Customer`, `PurchaseOrder`, `SalesOrderComponent` (SC), `RawMaterialRequirement`, `MaterialIssue`, `ProductionReceipt`, `MaterialConsumption`, `MaterialReturn`, `AdditionalMaterialRequest`, `AuditLog`.
+## Migration Commands (TypeORM CLI)
+
+When creating or running migrations in later phases, use the following workspace scripts from project root:
+
+### 1. Generate Migration from Entities
+```bash
+npm --prefix backend run migration:generate -- database/migrations/<MigrationName>
+```
+
+### 2. Create Blank Migration
+```bash
+npm --prefix backend run migration:create -- database/migrations/<MigrationName>
+```
+
+### 3. Run Pending Migrations
+```bash
+npm --prefix backend run migration:run
+```
+
+### 4. Revert Last Migration
+```bash
+npm --prefix backend run migration:revert
+```
+
+---
+
+## Planned Entities for Database Design Phase
+- `User` & `Role` (Authentication & Security)
+- `Customer` (Client Master Data)
+- `PurchaseOrder` (External Commercial Reference)
+- `SalesOrderComponent` (SC - Primary Workflow Unit)
+- `RawMaterialRequirement` (Immutable RM List)
+- `MaterialIssue` (Stores Issuance Ledger)
+- `ProductionReceipt` (Production Acknowledgment)
+- `MaterialMovement` (Append-Only Accounting Ledger)
+- `AdditionalMaterialRequest` (Shortage & Extra Requests)
+- `Notification` (Event Alerts)
+- `AuditLog` (Immutable Compliance History)
