@@ -73,6 +73,42 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     expect(ALL_ENTITIES).toContain(AuditLog);
   });
 
+  describe('Audit Logging & Digital Paper Trail (Section 25)', () => {
+    it('should log immutable event transitions with old and new values', () => {
+      const log = new AuditLog();
+      log.entityName = 'RM_ITEM';
+      log.entityId = 'item-en31-01';
+      log.actionType = 'SENIOR_REVISION';
+      log.actorId = 'user-senior-01';
+      log.oldValues = { size: 'Ø110X35', quantity: 2 };
+      log.newValues = { size: 'Ø110X40', quantity: 3 };
+      log.metadata = { reason: 'Facing allowance buffer' };
+
+      expect(log.entityName).toBe('RM_ITEM');
+      expect(log.actionType).toBe('SENIOR_REVISION');
+      expect(log.oldValues.quantity).toBe(2);
+      expect(log.newValues.quantity).toBe(3);
+      expect(log.metadata?.reason).toBe('Facing allowance buffer');
+    });
+  });
+
+  describe('Lightweight Notifications Foundation (Section 26)', () => {
+    it('should create targeted notifications with read tracking', () => {
+      const notification = new Notification();
+      notification.userId = 'user-stores-01';
+      notification.title = 'Material Issue Required';
+      notification.message = 'RM Form RM-PO-996-01 verified by Senior Manager.';
+      notification.type = 'ACTION_REQUIRED';
+      notification.targetEntity = 'RM_REQUEST';
+      notification.targetId = 'rm-req-01';
+      notification.isRead = false;
+
+      expect(notification.title).toBe('Material Issue Required');
+      expect(notification.isRead).toBe(false);
+      expect(notification.targetEntity).toBe('RM_REQUEST');
+    });
+  });
+
   describe('Independent SC Completion Lifecycle (Section 23)', () => {
     it('should complete an SC independently without closing parent PO or sibling SCs', () => {
       const po = new PurchaseOrder();
@@ -105,7 +141,6 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
 
   describe('Final Material Reconciliation Analytics (Section 24)', () => {
     it('should reconcile multi-material lifecycle ledger accurately matching workshop example', () => {
-      // Line 1: EN31 (Req 10kg, Initial Issued 8kg, Add Issued 2kg, Rec 10kg, Cons 7kg, Ret 1kg -> Loss/Scrap 2kg)
       const en31 = MaterialReconciliationUtil.reconcileLine({
         rmItemId: 'item-en31',
         material: 'EN31',
@@ -120,7 +155,6 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
         returnedQuantity: 1,
       });
 
-      // Line 2: OHNS (Req 5kg, Issued 5kg, Rec 5kg, Cons 4kg, Ret 1kg -> Loss 0kg)
       const ohns = MaterialReconciliationUtil.reconcileLine({
         rmItemId: 'item-ohns',
         material: 'OHNS',
@@ -134,7 +168,6 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
         returnedQuantity: 1,
       });
 
-      // Line 3: MS (Req 8kg, Issued 8kg, Rec 8kg, Cons 6kg, Ret 2kg -> Loss 0kg)
       const ms = MaterialReconciliationUtil.reconcileLine({
         rmItemId: 'item-ms',
         material: 'MS',
@@ -171,11 +204,11 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
       expect(ms.scrapOrUnaccountedQuantity).toBe(0);
       expect(ms.isFullyBalanced).toBe(true);
 
-      expect(report.summary.totalRequested).toBe(23); // 10 + 5 + 8
-      expect(report.summary.totalIssued).toBe(23); // 10 + 5 + 8
-      expect(report.summary.totalConsumed).toBe(17); // 7 + 4 + 6
-      expect(report.summary.totalReturned).toBe(4); // 1 + 1 + 2
-      expect(report.summary.totalScrapOrLoss).toBe(2); // 2 + 0 + 0
+      expect(report.summary.totalRequested).toBe(23);
+      expect(report.summary.totalIssued).toBe(23);
+      expect(report.summary.totalConsumed).toBe(17);
+      expect(report.summary.totalReturned).toBe(4);
+      expect(report.summary.totalScrapOrLoss).toBe(2);
     });
   });
 
