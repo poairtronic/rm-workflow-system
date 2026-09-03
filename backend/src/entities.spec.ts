@@ -20,10 +20,8 @@ import {
   RmVerification,
   VerificationStatus,
 } from './verification/entities/verification-log.entity.js';
-import {
-  MaterialIssue,
-  IssueType,
-} from './material-issue/entities/material-issue.entity.js';
+import { MaterialIssue } from './material-issue/entities/material-issue.entity.js';
+import { MaterialIssueItem } from './material-issue/entities/material-issue-item.entity.js';
 import { ProductionReceipt } from './production/entities/production-receipt.entity.js';
 import { MaterialConsumption } from './production/entities/material-consumption.entity.js';
 import {
@@ -39,8 +37,8 @@ import { Notification } from './notifications/entities/notification.entity.js';
 import { AuditLog } from './audit/entities/audit-log.entity.js';
 
 describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
-  it('should register exactly 17 domain entities in ALL_ENTITIES', () => {
-    expect(ALL_ENTITIES).toHaveLength(17);
+  it('should register exactly 18 domain entities in ALL_ENTITIES', () => {
+    expect(ALL_ENTITIES).toHaveLength(18);
     expect(ALL_ENTITIES).toContain(Role);
     expect(ALL_ENTITIES).toContain(User);
     expect(ALL_ENTITIES).toContain(Customer);
@@ -52,6 +50,7 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     expect(ALL_ENTITIES).toContain(RmItemSnapshot);
     expect(ALL_ENTITIES).toContain(RmVerification);
     expect(ALL_ENTITIES).toContain(MaterialIssue);
+    expect(ALL_ENTITIES).toContain(MaterialIssueItem);
     expect(ALL_ENTITIES).toContain(ProductionReceipt);
     expect(ALL_ENTITIES).toContain(MaterialConsumption);
     expect(ALL_ENTITIES).toContain(MaterialReturn);
@@ -60,8 +59,31 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     expect(ALL_ENTITIES).toContain(AuditLog);
   });
 
+  it('should accurately calculate multi-issue partial quantities and remaining pending without overwriting requested quantity', () => {
+    // 1. Original requirement
+    const rmItem = new RmItem();
+    rmItem.material = 'EN31';
+    rmItem.quantity = 10;
+
+    // 2. Issue #1 (Partial)
+    const issue1 = new MaterialIssueItem();
+    issue1.quantityIssued = 6;
+    issue1.heatNumber = 'HT-901';
+
+    // 3. Issue #2 (Partial)
+    const issue2 = new MaterialIssueItem();
+    issue2.quantityIssued = 2;
+    issue2.heatNumber = 'HT-902';
+
+    const totalIssued = issue1.quantityIssued + issue2.quantityIssued;
+    const pendingQuantity = rmItem.quantity - totalIssued;
+
+    expect(rmItem.quantity).toBe(10); // Original requested remains untouched
+    expect(totalIssued).toBe(8);
+    expect(pendingQuantity).toBe(2);
+  });
+
   it('should preserve original designer submission vs senior revised state through snapshot', () => {
-    // 1. Original Designer Input
     const originalSnapshot = new RmItemSnapshot();
     originalSnapshot.material = 'EN31';
     originalSnapshot.materialType = 'ROUND_BAR';
@@ -71,7 +93,6 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     originalSnapshot.revisionNumber = 1;
     originalSnapshot.changeType = SnapshotChangeType.ORIGINAL_SUBMISSION;
 
-    // 2. Senior Revised Item
     const currentItem = new RmItem();
     currentItem.material = 'EN31';
     currentItem.materialType = 'ROUND_BAR';
@@ -79,7 +100,6 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     currentItem.size = 'Ø110X40';
     currentItem.quantity = 3;
 
-    // 3. Senior Revision Snapshot
     const seniorSnapshot = new RmItemSnapshot();
     seniorSnapshot.material = currentItem.material;
     seniorSnapshot.size = currentItem.size;
@@ -158,14 +178,13 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
   });
 
   it('should track append-only material movement accounting across issue, receipt, and consumption', () => {
-    const initialIssue = new MaterialIssue();
-    initialIssue.issueQuantity = 500;
-    initialIssue.issueType = IssueType.INITIAL;
-    initialIssue.heatNumber = 'HT-4482';
+    const issueItem = new MaterialIssueItem();
+    issueItem.quantityIssued = 500;
+    issueItem.heatNumber = 'HT-4482';
 
     const receipt = new ProductionReceipt();
     receipt.receivedQuantity = 500;
-    receipt.materialIssue = initialIssue;
+    receipt.materialIssueItem = issueItem;
 
     const consumption = new MaterialConsumption();
     consumption.consumedQuantity = 400;
@@ -174,7 +193,7 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     ret.returnQuantity = 100;
     ret.status = ReturnStatus.PENDING_STORE_ACK;
 
-    const totalIssued = initialIssue.issueQuantity;
+    const totalIssued = issueItem.quantityIssued;
     const netConsumed = totalIssued - ret.returnQuantity;
     expect(totalIssued).toBe(500);
     expect(receipt.receivedQuantity).toBe(500);

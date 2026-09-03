@@ -8,7 +8,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { MaterialIssue } from '../../material-issue/entities/material-issue.entity.js';
+import { MaterialIssueItem } from '../../material-issue/entities/material-issue-item.entity.js';
 import { User } from '../../users/entities/user.entity.js';
 
 @Entity('production_receipts')
@@ -17,14 +17,14 @@ export class ProductionReceipt {
   id!: string;
 
   @Index({ unique: true })
-  @Column({ name: 'material_issue_id', unique: true })
-  materialIssueId!: string;
+  @Column({ name: 'material_issue_item_id', unique: true })
+  materialIssueItemId!: string;
 
-  @OneToOne(() => MaterialIssue, (issue) => issue.productionReceipt, {
+  @OneToOne(() => MaterialIssueItem, (item) => item.productionReceipt, {
     onDelete: 'RESTRICT',
   })
-  @JoinColumn({ name: 'material_issue_id' })
-  materialIssue!: MaterialIssue;
+  @JoinColumn({ name: 'material_issue_item_id' })
+  materialIssueItem!: MaterialIssueItem;
 
   @Column({
     name: 'received_quantity',

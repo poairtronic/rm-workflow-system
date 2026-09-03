@@ -10,6 +10,7 @@ import { RmFormSc } from '../rm/entities/rm-form-sc.entity.js';
 import { RmItemSnapshot } from '../rm/entities/rm-item-snapshot.entity.js';
 import { RmVerification } from '../verification/entities/verification-log.entity.js';
 import { MaterialIssue } from '../material-issue/entities/material-issue.entity.js';
+import { MaterialIssueItem } from '../material-issue/entities/material-issue-item.entity.js';
 import { ProductionReceipt } from '../production/entities/production-receipt.entity.js';
 import { MaterialConsumption } from '../production/entities/material-consumption.entity.js';
 import { MaterialReturn } from '../production/entities/material-return.entity.js';
@@ -29,6 +30,7 @@ export const ALL_ENTITIES = [
   RmItemSnapshot,
   RmVerification,
   MaterialIssue,
+  MaterialIssueItem,
   ProductionReceipt,
   MaterialConsumption,
   MaterialReturn,

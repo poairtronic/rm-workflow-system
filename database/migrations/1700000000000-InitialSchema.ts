@@ -197,37 +197,48 @@ export class InitialSchema1700000000000 implements MigrationInterface {
       CREATE INDEX "idx_rm_snapshots_form_id" ON "rm_item_snapshots"("rm_form_id");
     `);
 
-    // 10. Material Issues Table
+    // 12. Material Issues Table (Header)
     await queryRunner.query(`
       CREATE TABLE "material_issues" (
         "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
         "sc_id" uuid NOT NULL REFERENCES "sales_order_components"("id") ON DELETE RESTRICT,
-        "rm_item_id" uuid NOT NULL REFERENCES "rm_items"("id") ON DELETE RESTRICT,
-        "issue_quantity" numeric(12,3) NOT NULL,
-        "unit" varchar(20) NOT NULL DEFAULT 'NOS',
-        "issue_type" varchar(50) NOT NULL DEFAULT 'INITIAL',
-        "heat_number" varchar(100),
-        "batch_number" varchar(100),
+        "issue_number" varchar(100) NOT NULL UNIQUE,
         "issued_by_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE RESTRICT,
+        "issue_date" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "remarks" text,
-        "issued_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
       );
       CREATE INDEX "idx_issues_sc_id" ON "material_issues"("sc_id");
-      CREATE INDEX "idx_issues_rm_item_id" ON "material_issues"("rm_item_id");
-      CREATE INDEX "idx_issues_heat_number" ON "material_issues"("heat_number");
+      CREATE INDEX "idx_issues_issue_number" ON "material_issues"("issue_number");
     `);
 
-    // 11. Production Receipts Table
+    // 13. Material Issue Items Table (Line Items with quantities)
+    await queryRunner.query(`
+      CREATE TABLE "material_issue_items" (
+        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        "material_issue_id" uuid NOT NULL REFERENCES "material_issues"("id") ON DELETE CASCADE,
+        "rm_item_id" uuid NOT NULL REFERENCES "rm_items"("id") ON DELETE RESTRICT,
+        "quantity_issued" numeric(12,3) NOT NULL,
+        "heat_number" varchar(100),
+        "batch_number" varchar(100),
+        "remarks" text,
+        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+      );
+      CREATE INDEX "idx_issue_items_issue_id" ON "material_issue_items"("material_issue_id");
+      CREATE INDEX "idx_issue_items_rm_item_id" ON "material_issue_items"("rm_item_id");
+    `);
+
+    // 14. Production Receipts Table
     await queryRunner.query(`
       CREATE TABLE "production_receipts" (
         "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-        "material_issue_id" uuid NOT NULL UNIQUE REFERENCES "material_issues"("id") ON DELETE RESTRICT,
+        "material_issue_item_id" uuid NOT NULL UNIQUE REFERENCES "material_issue_items"("id") ON DELETE RESTRICT,
         "received_quantity" numeric(12,3) NOT NULL,
         "received_by_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE RESTRICT,
         "remarks" text,
         "received_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
       );
-      CREATE INDEX "idx_receipts_issue_id" ON "production_receipts"("material_issue_id");
+      CREATE INDEX "idx_receipts_item_id" ON "production_receipts"("material_issue_item_id");
     `);
 
     // 12. Material Consumptions Table
@@ -330,6 +341,8 @@ export class InitialSchema1700000000000 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE IF EXISTS "material_returns" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "material_consumptions" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "production_receipts" CASCADE;`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "material_issue_items" CASCADE;`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "material_issues" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "rm_item_snapshots" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "rm_verifications" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "rm_items" CASCADE;`);

@@ -11,7 +11,7 @@ import {
 } from 'typeorm';
 import { RmRequest } from './rm-request.entity.js';
 import { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
-import { MaterialIssue } from '../../material-issue/entities/material-issue.entity.js';
+import { MaterialIssueItem } from '../../material-issue/entities/material-issue-item.entity.js';
 import { MaterialConsumption } from '../../production/entities/material-consumption.entity.js';
 import { MaterialReturn } from '../../production/entities/material-return.entity.js';
 
@@ -112,8 +112,8 @@ export class RmItem {
   @Column({ type: 'text', nullable: true })
   remarks?: string;
 
-  @OneToMany(() => MaterialIssue, (issue) => issue.rmItem)
-  materialIssues!: MaterialIssue[];
+  @OneToMany(() => MaterialIssueItem, (item) => item.rmItem)
+  materialIssues!: MaterialIssueItem[];
 
   @OneToMany(() => MaterialConsumption, (cons) => cons.rmItem)
   materialConsumptions!: MaterialConsumption[];

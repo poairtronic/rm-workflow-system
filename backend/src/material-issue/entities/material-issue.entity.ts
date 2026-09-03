@@ -4,20 +4,13 @@ import {
   Column,
   CreateDateColumn,
   ManyToOne,
-  OneToOne,
+  OneToMany,
   JoinColumn,
   Index,
 } from 'typeorm';
 import { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
-import { RmItem } from '../../rm/entities/rm-item.entity.js';
 import { User } from '../../users/entities/user.entity.js';
-import { ProductionReceipt } from '../../production/entities/production-receipt.entity.js';
-
-export enum IssueType {
-  INITIAL = 'INITIAL',
-  ADDITIONAL = 'ADDITIONAL',
-  EXTRA = 'EXTRA',
-}
+import { MaterialIssueItem } from './material-issue-item.entity.js';
 
 @Entity('material_issues')
 export class MaterialIssue {
@@ -34,35 +27,9 @@ export class MaterialIssue {
   @JoinColumn({ name: 'sc_id' })
   salesOrderComponent!: SalesOrderComponent;
 
-  @Index()
-  @Column({ name: 'rm_item_id' })
-  rmItemId!: string;
-
-  @ManyToOne(() => RmItem, (item) => item.materialIssues, {
-    onDelete: 'RESTRICT',
-  })
-  @JoinColumn({ name: 'rm_item_id' })
-  rmItem!: RmItem;
-
-  @Column({ name: 'issue_quantity', type: 'numeric', precision: 12, scale: 3 })
-  issueQuantity!: number;
-
-  @Column({ length: 20, default: 'NOS' })
-  unit!: string;
-
-  @Column({
-    name: 'issue_type',
-    type: 'varchar',
-    length: 50,
-    default: IssueType.INITIAL,
-  })
-  issueType!: IssueType;
-
-  @Column({ name: 'heat_number', nullable: true, length: 100 })
-  heatNumber?: string;
-
-  @Column({ name: 'batch_number', nullable: true, length: 100 })
-  batchNumber?: string;
+  @Index({ unique: true })
+  @Column({ name: 'issue_number', length: 100, unique: true })
+  issueNumber!: string;
 
   @Column({ name: 'issued_by_id' })
   issuedById!: string;
@@ -71,12 +38,21 @@ export class MaterialIssue {
   @JoinColumn({ name: 'issued_by_id' })
   issuedBy!: User;
 
+  @Column({
+    name: 'issue_date',
+    type: 'timestamp with time zone',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
+  issueDate!: Date;
+
   @Column({ type: 'text', nullable: true })
   remarks?: string;
 
-  @OneToOne(() => ProductionReceipt, (receipt) => receipt.materialIssue)
-  productionReceipt?: ProductionReceipt;
+  @OneToMany(() => MaterialIssueItem, (item) => item.materialIssue, {
+    cascade: true,
+  })
+  items!: MaterialIssueItem[];
 
-  @CreateDateColumn({ name: 'issued_at' })
-  issuedAt!: Date;
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt!: Date;
 }
