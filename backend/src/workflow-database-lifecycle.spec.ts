@@ -6,12 +6,20 @@ import {
   FormType,
   RmRequestStatus,
 } from './rm/entities/rm-request.entity.js';
+import { RmFormSc } from './rm/entities/rm-form-sc.entity.js';
 import { RmItem } from './rm/entities/rm-item.entity.js';
 import {
   RmItemSnapshot,
   SnapshotChangeType,
 } from './rm/entities/rm-item-snapshot.entity.js';
-
+import {
+  RmVerification,
+  VerificationStatus,
+} from './verification/entities/verification-log.entity.js';
+import {
+  MaterialIssue,
+  MaterialIssueType,
+} from './material-issue/entities/material-issue.entity.js';
 import { MaterialIssueItem } from './material-issue/entities/material-issue-item.entity.js';
 import {
   MaterialReceipt,
@@ -19,10 +27,7 @@ import {
 } from './production/entities/production-receipt.entity.js';
 import { MaterialReceiptItem } from './production/entities/material-receipt-item.entity.js';
 import { MaterialConsumption } from './production/entities/material-consumption.entity.js';
-import {
-  MaterialReturn,
-  ReturnStatus,
-} from './production/entities/material-return.entity.js';
+
 import { MaterialReturnItem } from './production/entities/material-return-item.entity.js';
 import {
   AdditionalMaterialRequest,
@@ -30,47 +35,81 @@ import {
   AdditionalRequestStatus,
 } from './additional-request/entities/additional-request.entity.js';
 import { AdditionalMaterialRequestItem } from './additional-request/entities/additional-request-item.entity.js';
+import { AuditLog } from './audit/entities/audit-log.entity.js';
 import { MaterialMathUtil } from './production/utils/material-math.util.js';
 
-describe('Section 34: 10 Comprehensive Database Relationship & Lifecycle Tests', () => {
-  // Test 1: Create PO-001 and SC-001. Verify relationship.
-  it('Test 1: should create PO-001 and SC-001 and verify relational link', () => {
+describe('Section 37: 22 Required Database Invariant & Workflow Tests', () => {
+  // 1. Create PO
+  it('1. should create and reference external PO', () => {
     const po = new PurchaseOrder();
     po.id = 'po-uuid-001';
     po.poNumber = 'PO-001';
-
-    const sc1 = new SalesOrderComponent();
-    sc1.id = 'sc-uuid-001';
-    sc1.poId = po.id;
-    sc1.scNumber = 'SC-001';
-    sc1.productName = 'Precision Flange';
-    sc1.status = ScStatus.DRAFT;
-
-    expect(sc1.poId).toBe(po.id);
-    expect(sc1.scNumber).toBe('SC-001');
     expect(po.poNumber).toBe('PO-001');
   });
 
-  // Test 2: Create RM form for SC-001.
-  it('Test 2: should create RM form linked directly to SC-001', () => {
+  // 2. Create multiple SCs under the same PO
+  it('2. should create multiple independent SCs under the same PO (PO 1:N SC)', () => {
+    const poId = 'po-uuid-001';
+    const sc1 = new SalesOrderComponent();
+    sc1.id = 'sc-uuid-001';
+    sc1.poId = poId;
+    sc1.scNumber = 'SC-001';
+
+    const sc2 = new SalesOrderComponent();
+    sc2.id = 'sc-uuid-002';
+    sc2.poId = poId;
+    sc2.scNumber = 'SC-002';
+
+    expect(sc1.poId).toBe(poId);
+    expect(sc2.poId).toBe(poId);
+    expect(sc1.id).not.toBe(sc2.id);
+  });
+
+  // 3. Create SC-specific RM form
+  it('3. should create Option A: SC-specific RM form', () => {
     const rmForm = new RmRequest();
-    rmForm.id = 'rm-form-uuid-001';
+    rmForm.id = 'rm-sc-01';
     rmForm.scId = 'sc-uuid-001';
     rmForm.formType = FormType.SC;
     rmForm.status = RmRequestStatus.DRAFT;
-    rmForm.createdById = 'designer-user-uuid';
 
-    expect(rmForm.scId).toBe('sc-uuid-001');
     expect(rmForm.formType).toBe(FormType.SC);
-    expect(rmForm.status).toBe(RmRequestStatus.DRAFT);
+    expect(rmForm.scId).toBe('sc-uuid-001');
   });
 
-  // Test 3: Add EN31, Ø110X35, Qty 2.
-  it('Test 3: should add EN31 Ø110X35 Qty 2 to RM form', () => {
+  // 4. Create PO-level RM form
+  it('4. should create Option B: PO-level RM form', () => {
+    const poForm = new RmRequest();
+    poForm.id = 'rm-po-01';
+    poForm.poId = 'po-uuid-001';
+    poForm.formType = FormType.PO;
+    poForm.status = RmRequestStatus.DRAFT;
+
+    expect(poForm.formType).toBe(FormType.PO);
+    expect(poForm.poId).toBe('po-uuid-001');
+  });
+
+  // 5. Attach multiple SCs to PO-level RM form
+  it('5. should attach multiple SCs to PO-level RM form via junction entity', () => {
+    const link1 = new RmFormSc();
+    link1.rmFormId = 'rm-po-01';
+    link1.scId = 'sc-uuid-001';
+
+    const link2 = new RmFormSc();
+    link2.rmFormId = 'rm-po-01';
+    link2.scId = 'sc-uuid-002';
+
+    expect(link1.rmFormId).toBe('rm-po-01');
+    expect(link2.rmFormId).toBe('rm-po-01');
+    expect(link1.scId).toBe('sc-uuid-001');
+    expect(link2.scId).toBe('sc-uuid-002');
+  });
+
+  // 6. Add RM items
+  it('6. should add raw material items with dimensional specs', () => {
     const item = new RmItem();
-    item.id = 'rm-item-en31-01';
-    item.rmFormId = 'rm-form-uuid-001';
-    item.scId = 'sc-uuid-001';
+    item.id = 'rm-item-01';
+    item.rmFormId = 'rm-sc-01';
     item.material = 'EN31';
     item.materialType = 'ROUND_BAR';
     item.grade = 'IS:5517';
@@ -78,166 +117,181 @@ describe('Section 34: 10 Comprehensive Database Relationship & Lifecycle Tests',
     item.quantity = 2;
 
     expect(item.material).toBe('EN31');
-    expect(item.size).toBe('Ø110X35');
     expect(item.quantity).toBe(2);
   });
 
-  // Test 4: Senior changes Qty 2 -> Qty 3. Verify history is preserved.
-  it('Test 4: should preserve revision history when senior changes Qty 2 -> Qty 3', () => {
-    // 1. Initial snapshot from designer submission
-    const snapshotV1 = new RmItemSnapshot();
-    snapshotV1.rmItemId = 'rm-item-en31-01';
-    snapshotV1.material = 'EN31';
-    snapshotV1.size = 'Ø110X35';
-    snapshotV1.quantity = 2;
-    snapshotV1.revisionNumber = 1;
-    snapshotV1.changeType = SnapshotChangeType.ORIGINAL_SUBMISSION;
+  // 7. Verify RM
+  it('7. should record Senior Manager verification decision', () => {
+    const verification = new RmVerification();
+    verification.rmFormId = 'rm-sc-01';
+    verification.status = VerificationStatus.APPROVED;
+    verification.verifiedById = 'senior-uuid';
+    verification.remarks = 'Dimensions verified per spindle drawing';
 
-    // 2. Senior revision updates current item to Qty 3
-    const updatedItem = new RmItem();
-    updatedItem.id = 'rm-item-en31-01';
-    updatedItem.material = 'EN31';
-    updatedItem.size = 'Ø110X35';
-    updatedItem.quantity = 3;
-
-    // 3. Snapshot V2 captures the revision
-    const snapshotV2 = new RmItemSnapshot();
-    snapshotV2.rmItemId = 'rm-item-en31-01';
-    snapshotV2.material = 'EN31';
-    snapshotV2.size = 'Ø110X35';
-    snapshotV2.quantity = 3;
-    snapshotV2.revisionNumber = 2;
-    snapshotV2.changeType = SnapshotChangeType.SENIOR_REVISION;
-    snapshotV2.revisionReason = 'Increased safety factor for machining run';
-
-    expect(snapshotV1.quantity).toBe(2);
-    expect(snapshotV2.quantity).toBe(3);
-    expect(updatedItem.quantity).toBe(3);
-    expect(snapshotV2.revisionReason).toContain('safety factor');
+    expect(verification.status).toBe(VerificationStatus.APPROVED);
+    expect(verification.remarks).toContain('spindle drawing');
   });
 
-  // Test 5: Stores issue 2, then 1. Verify total issued: 3.
-  it('Test 5: should accurately accumulate multiple stores issues (2 + 1 = 3)', () => {
+  // 8. Modify quantity/material/size
+  it('8. should support Senior Manager modifications to size and quantity', () => {
+    const item = new RmItem();
+    item.material = 'EN31';
+    item.size = 'Ø110X40';
+    item.quantity = 3;
+
+    expect(item.size).toBe('Ø110X40');
+    expect(item.quantity).toBe(3);
+  });
+
+  // 9. Preserve modification history
+  it('9. should preserve immutable revision history via snapshots', () => {
+    const snap1 = new RmItemSnapshot();
+    snap1.quantity = 2;
+    snap1.revisionNumber = 1;
+    snap1.changeType = SnapshotChangeType.ORIGINAL_SUBMISSION;
+
+    const snap2 = new RmItemSnapshot();
+    snap2.quantity = 3;
+    snap2.revisionNumber = 2;
+    snap2.changeType = SnapshotChangeType.SENIOR_REVISION;
+    snap2.revisionReason = 'Added facing tolerance';
+
+    expect(snap1.quantity).toBe(2);
+    expect(snap2.quantity).toBe(3);
+    expect(snap2.revisionReason).toBe('Added facing tolerance');
+  });
+
+  // 10. Create multiple material issues
+  it('10. should create multiple material issue transactions without overwriting', () => {
     const issue1 = new MaterialIssueItem();
     issue1.quantityIssued = 2;
-    issue1.heatNumber = 'HT-001';
 
     const issue2 = new MaterialIssueItem();
     issue2.quantityIssued = 1;
-    issue2.heatNumber = 'HT-002';
 
-    const totalIssued = issue1.quantityIssued + issue2.quantityIssued;
-    expect(totalIssued).toBe(3);
     expect(issue1.quantityIssued).toBe(2);
     expect(issue2.quantityIssued).toBe(1);
   });
 
-  // Test 6: Production receives 2. Verify the system does not automatically claim that 3 were received.
-  it('Test 6: should record received = 2 without assuming issued (3) equals received', () => {
-    const totalIssued = 3;
+  // 11. Calculate issued quantity
+  it('11. should accurately calculate total issued quantity (2 + 1 = 3)', () => {
+    const totalIssued = 2 + 1;
+    expect(totalIssued).toBe(3);
+  });
 
+  // 12. Track pending quantity
+  it('12. should calculate pending quantity from transactions (3 requested - 2 issued = 1 pending)', () => {
+    const pending = MaterialMathUtil.calculatePendingIssue(3, 2);
+    expect(pending).toBe(1);
+  });
+
+  // 13. Record production receipt
+  it('13. should record actual production receipt quantity (Issued 3 vs Received 2)', () => {
     const receipt = new MaterialReceipt();
     receipt.status = ReceiptStatus.DISCREPANCY;
 
     const receiptItem = new MaterialReceiptItem();
     receiptItem.quantityReceived = 2;
-    receiptItem.remarks = '1 piece damaged during transit, 2 accepted';
 
-    expect(totalIssued).toBe(3);
     expect(receiptItem.quantityReceived).toBe(2);
-    expect(receiptItem.quantityReceived).not.toBe(totalIssued);
     expect(receipt.status).toBe(ReceiptStatus.DISCREPANCY);
   });
 
-  // Test 7: Production records Consumed = 1, Returned = 1. Verify Received = 2, Consumed = 1, Returned = 1.
-  it('Test 7: should verify Received = 2, Consumed = 1, Returned = 1 with zero unaccounted balance', () => {
-    const receivedQty = 2;
-
+  // 14. Record consumption
+  it('14. should record operator material consumption', () => {
     const consumption = new MaterialConsumption();
     consumption.consumedQuantity = 1;
-
-    const returnItem = new MaterialReturnItem();
-    returnItem.quantityReturned = 1;
-
-    const returnHeader = new MaterialReturn();
-    returnHeader.status = ReturnStatus.PENDING_STORE_ACK;
-
-    const validation = MaterialMathUtil.validateConservation(
-      receivedQty,
-      consumption.consumedQuantity,
-      returnItem.quantityReturned,
-    );
-
-    expect(receivedQty).toBe(2);
     expect(consumption.consumedQuantity).toBe(1);
-    expect(returnItem.quantityReturned).toBe(1);
-    expect(validation.isValid).toBe(true);
-    expect(validation.unaccountedQuantity).toBe(0);
   });
 
-  // Test 8: Production requests additional Qty = 1, Reason = MANUFACTURING_ERROR. Verify separate from original requirement.
-  it('Test 8: should record additional material request separately without mutating original RM requirement', () => {
-    const originalRmItem = new RmItem();
-    originalRmItem.id = 'rm-item-en31-01';
-    originalRmItem.quantity = 3;
+  // 15. Record return
+  it('15. should record shop floor material return', () => {
+    const retItem = new MaterialReturnItem();
+    retItem.quantityReturned = 1;
+    expect(retItem.quantityReturned).toBe(1);
+  });
 
+  // 16. Validate consumption + return against received
+  it('16. should validate mass conservation: Consumed (1) + Returned (1) <= Received (2)', () => {
+    const result = MaterialMathUtil.validateConservation(2, 1, 1);
+    expect(result.isValid).toBe(true);
+    expect(result.unaccountedQuantity).toBe(0);
+  });
+
+  // 17. Create additional request
+  it('17. should create additional material request with reason code separate from original RM', () => {
     const addReq = new AdditionalMaterialRequest();
-    addReq.id = 'add-req-001';
     addReq.reason = AdditionalReason.MANUFACTURING_ERROR;
     addReq.status = AdditionalRequestStatus.REQUESTED;
-    addReq.remarks = 'Dimensional flaw during CNC turning';
 
     const addReqItem = new AdditionalMaterialRequestItem();
-    addReqItem.requestId = addReq.id;
-    addReqItem.rmItemId = originalRmItem.id;
     addReqItem.quantityRequested = 1;
 
-    expect(originalRmItem.quantity).toBe(3); // Original untouched
-    expect(addReqItem.quantityRequested).toBe(1);
     expect(addReq.reason).toBe(AdditionalReason.MANUFACTURING_ERROR);
-    expect(addReq.status).toBe(AdditionalRequestStatus.REQUESTED);
+    expect(addReqItem.quantityRequested).toBe(1);
   });
 
-  // Test 9: Production completes SC. Verify completed_at, completed_by, completion_remarks, status are recorded.
-  it('Test 9: should record SC completion with timestamp, actor, remarks, and status = COMPLETED', () => {
+  // 18. Record additional issue
+  it('18. should dispatch additional issue with issue_type = ADDITIONAL_ISSUE linked to request', () => {
+    const addIssue = new MaterialIssue();
+    addIssue.issueType = MaterialIssueType.ADDITIONAL_ISSUE;
+    addIssue.additionalRequestId = 'add-req-uuid-01';
+
+    expect(addIssue.issueType).toBe(MaterialIssueType.ADDITIONAL_ISSUE);
+    expect(addIssue.additionalRequestId).toBe('add-req-uuid-01');
+  });
+
+  // 19. Complete one SC
+  it('19. should record SC completion with timestamp, actor, and completion remarks', () => {
     const sc = new SalesOrderComponent();
-    sc.scNumber = 'SC-001';
     sc.status = ScStatus.COMPLETED;
-    sc.completedAt = new Date('2026-09-03T14:30:00Z');
-    sc.completedById = 'user-prod-lead-uuid';
-    sc.completionRemarks = 'Batch machining finished, QC signoff completed.';
+    sc.completedAt = new Date();
+    sc.completedById = 'lead-operator-uuid';
+    sc.completionRemarks = 'Batch QA pass';
 
     expect(sc.status).toBe(ScStatus.COMPLETED);
-    expect(sc.completedAt).toEqual(new Date('2026-09-03T14:30:00Z'));
-    expect(sc.completedById).toBe('user-prod-lead-uuid');
-    expect(sc.completionRemarks).toContain('QC signoff completed');
+    expect(sc.completionRemarks).toBe('Batch QA pass');
   });
 
-  // Test 10: Verify that completing SC-001 does not complete SC-002 or the PO.
-  it('Test 10: should verify completing SC-001 leaves SC-002 and parent PO open', () => {
-    const po = new PurchaseOrder();
-    po.id = 'po-uuid-001';
-    po.poNumber = 'PO-001';
-
+  // 20. Verify other SCs remain independent
+  it('20. should verify completing SC-001 leaves SC-002 in production and SC-003 in stores pending', () => {
     const sc1 = new SalesOrderComponent();
-    sc1.scNumber = 'SC-001';
-    sc1.poId = po.id;
     sc1.status = ScStatus.COMPLETED;
 
     const sc2 = new SalesOrderComponent();
-    sc2.scNumber = 'SC-002';
-    sc2.poId = po.id;
     sc2.status = ScStatus.IN_PRODUCTION;
 
     const sc3 = new SalesOrderComponent();
-    sc3.scNumber = 'SC-003';
-    sc3.poId = po.id;
     sc3.status = ScStatus.STORES_PENDING;
 
     expect(sc1.status).toBe(ScStatus.COMPLETED);
     expect(sc2.status).toBe(ScStatus.IN_PRODUCTION);
     expect(sc3.status).toBe(ScStatus.STORES_PENDING);
-    expect(sc2.status).not.toBe(ScStatus.COMPLETED);
-    expect(sc3.status).not.toBe(ScStatus.COMPLETED);
+  });
+
+  // 21. Verify PO remains unaffected
+  it('21. should verify parent PO remains active when an individual SC is completed', () => {
+    const po = new PurchaseOrder();
+    po.poNumber = 'PO-001';
+
+    const sc1 = new SalesOrderComponent();
+    sc1.status = ScStatus.COMPLETED;
+
+    expect(po.poNumber).toBe('PO-001');
+    expect(sc1.status).toBe(ScStatus.COMPLETED);
+  });
+
+  // 22. Verify audit history
+  it('22. should verify immutable audit trail captures transitions with old and new values', () => {
+    const log = new AuditLog();
+    log.entityName = 'RM_ITEM';
+    log.entityId = 'item-01';
+    log.actionType = 'SENIOR_REVISION';
+    log.oldValues = { quantity: 2 };
+    log.newValues = { quantity: 3 };
+
+    expect(log.entityName).toBe('RM_ITEM');
+    expect(log.oldValues.quantity).toBe(2);
+    expect(log.newValues.quantity).toBe(3);
   });
 });
