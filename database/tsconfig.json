@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "types": ["node"],
+    "baseUrl": "..",
+    "paths": {
+      "typeorm": ["backend/node_modules/typeorm"],
+      "typeorm/*": ["backend/node_modules/typeorm/*"],
+      "bcryptjs": ["backend/node_modules/bcryptjs"],
+      "bcryptjs/*": ["backend/node_modules/bcryptjs/*"]
+    }
+  },
+  "include": ["./**/*.ts", "../backend/src/**/*.ts"]
+}
