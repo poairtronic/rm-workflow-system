@@ -40,6 +40,7 @@ import {
 } from './additional-request/entities/additional-request.entity.js';
 import { Notification } from './notifications/entities/notification.entity.js';
 import { AuditLog } from './audit/entities/audit-log.entity.js';
+import { MaterialMathUtil } from './production/utils/material-math.util.js';
 
 describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
   it('should register exactly 20 domain entities in ALL_ENTITIES', () => {
@@ -64,6 +65,44 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     expect(ALL_ENTITIES).toContain(AdditionalMaterialRequest);
     expect(ALL_ENTITIES).toContain(Notification);
     expect(ALL_ENTITIES).toContain(AuditLog);
+  });
+
+  describe('Material Conservation & Calculation Rules (Section 19)', () => {
+    it('should validate conservation when Consumed + Returned <= Received', () => {
+      const result = MaterialMathUtil.validateConservation(10, 7, 3);
+      expect(result.isValid).toBe(true);
+      expect(result.unaccountedQuantity).toBe(0);
+    });
+
+    it('should calculate unaccounted remaining quantity when Consumed + Returned < Received', () => {
+      const result = MaterialMathUtil.validateConservation(10, 6, 2);
+      expect(result.isValid).toBe(true);
+      expect(result.unaccountedQuantity).toBe(2);
+      expect(MaterialMathUtil.calculateUnaccounted(10, 6, 2)).toBe(2);
+    });
+
+    it('should flag inconsistency and block impossible quantities when Consumed + Returned > Received', () => {
+      const result = MaterialMathUtil.validateConservation(10, 8, 4);
+      expect(result.isValid).toBe(false);
+      expect(result.unaccountedQuantity).toBe(-2);
+      expect(result.errorMessage).toContain('Material conservation error');
+      expect(result.errorMessage).toContain('exceeds Received (10)');
+    });
+
+    it('should auto-derive Consumed = Received - Returned when returned directly at batch closure', () => {
+      const derivedConsumed = MaterialMathUtil.deriveConsumedFromReturn(10, 3);
+      expect(derivedConsumed).toBe(7);
+
+      expect(() =>
+        MaterialMathUtil.deriveConsumedFromReturn(10, 15),
+      ).toThrowError(/cannot exceed/);
+    });
+
+    it('should calculate pending issue quantity accurately', () => {
+      expect(MaterialMathUtil.calculatePendingIssue(10, 6)).toBe(4);
+      expect(MaterialMathUtil.calculatePendingIssue(10, 10)).toBe(0);
+      expect(MaterialMathUtil.calculatePendingIssue(10, 12)).toBe(0); // Clamped to 0
+    });
   });
 
   it('should distinguish Stores issued quantity vs Production received quantity (capturing discrepancy)', () => {
