@@ -4,6 +4,22 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AuthModule } from './auth/auth.module.js';
+import { UsersModule } from './users/users.module.js';
+import { RolesModule } from './roles/roles.module.js';
+import { PermissionsModule } from './permissions/permissions.module.js';
+import { CustomersModule } from './customers/customers.module.js';
+import { PoModule } from './po/po.module.js';
+import { ScModule } from './sc/sc.module.js';
+import { RmModule } from './rm/rm.module.js';
+import { VerificationModule } from './verification/verification.module.js';
+import { StoresModule } from './stores/stores.module.js';
+import { MaterialIssueModule } from './material-issue/material-issue.module.js';
+import { ProductionModule } from './production/production.module.js';
+import { MaterialMovementModule } from './material-movement/material-movement.module.js';
+import { AdditionalRequestModule } from './additional-request/additional-request.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
+import { AnalyticsModule } from './analytics/analytics.module.js';
+import { AuditModule } from './audit/audit.module.js';
 
 @Module({
   imports: [
@@ -35,6 +51,22 @@ import { AuthModule } from './auth/auth.module.js';
       },
     }),
     AuthModule,
+    UsersModule,
+    RolesModule,
+    PermissionsModule,
+    CustomersModule,
+    PoModule,
+    ScModule,
+    RmModule,
+    VerificationModule,
+    StoresModule,
+    MaterialIssueModule,
+    ProductionModule,
+    MaterialMovementModule,
+    AdditionalRequestModule,
+    NotificationsModule,
+    AnalyticsModule,
+    AuditModule,
   ],
   controllers: [AppController],
   providers: [AppService],
