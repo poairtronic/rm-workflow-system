@@ -9,6 +9,7 @@ import {
 } from '../../backend/src/sc/entities/sc.entity.js';
 import {
   RmRequest,
+  FormType,
   RmRequestStatus,
 } from '../../backend/src/rm/entities/rm-request.entity.js';
 import { RmItem } from '../../backend/src/rm/entities/rm-item.entity.js';
@@ -117,7 +118,8 @@ export async function runSeeds() {
           salesOrderComponent: sc,
           createdBy: designerUser,
           verifiedBy: seniorUser,
-          status: RmRequestStatus.SENIOR_VERIFIED,
+          formType: FormType.SC,
+          status: RmRequestStatus.VERIFIED,
           submittedAt: new Date(),
           verifiedAt: new Date(),
         });
@@ -126,6 +128,7 @@ export async function runSeeds() {
         for (const itemData of scData.rmItems) {
           const rmItem = rmItemRepo.create({
             rmRequest: rmReq,
+            scId: sc.id,
             ...itemData,
           });
           await rmItemRepo.save(rmItem);

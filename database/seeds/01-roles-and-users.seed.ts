@@ -7,7 +7,7 @@ export const SEED_ROLES = [
       'System Administrator with full access to user management and audit logs',
   },
   {
-    name: 'DESIGN_USER',
+    name: 'DESIGNER',
     description: 'Design Engineer creating and editing Raw Material requirement lists',
   },
   {
@@ -21,17 +21,9 @@ export const SEED_ROLES = [
       'Stores Manager checking material availability and issuing raw materials',
   },
   {
-    name: 'PRODUCTION_USER',
+    name: 'PRODUCTION',
     description:
       'Production Operator confirming receipts, logging consumption, returns and exceptions',
-  },
-  {
-    name: 'ACCOUNTS',
-    description: 'Accounts & Commercial governance observer',
-  },
-  {
-    name: 'MANAGEMENT',
-    description: 'Executive management observer for shop floor metrics and throughput',
   },
 ];
 
@@ -50,7 +42,7 @@ export async function getSeedUsers() {
       name: 'Rajesh Sharma',
       email: 'designer@airtronic.com',
       passwordHash: defaultPasswordHash,
-      roleName: 'DESIGN_USER',
+      roleName: 'DESIGNER',
       department: 'Design',
     },
     {
@@ -71,7 +63,7 @@ export async function getSeedUsers() {
       name: 'Suresh Patel',
       email: 'production.user@airtronic.com',
       passwordHash: defaultPasswordHash,
-      roleName: 'PRODUCTION_USER',
+      roleName: 'PRODUCTION',
       department: 'Machining Shop Floor',
     },
   ];
