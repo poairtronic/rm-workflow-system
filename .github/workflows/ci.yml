@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     name: Build and Test
@@ -21,27 +24,15 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      - name: Install backend dependencies
-        run: |
-          cd backend
-          npm ci
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Run backend tests
+      - name: Run test suite
         run: |
-          cd backend
-          npm test
+          npm --prefix backend run test
+          npm --prefix frontend run test
 
-      - name: Build backend
+      - name: Build projects
         run: |
-          cd backend
-          npm run build
-
-      - name: Install frontend dependencies
-        run: |
-          cd frontend
-          npm ci
-
-      - name: Build frontend
-        run: |
-          cd frontend
-          npm run build
+          npm --prefix backend run build
+          npm --prefix frontend run build
