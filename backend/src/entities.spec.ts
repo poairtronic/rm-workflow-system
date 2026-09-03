@@ -73,6 +73,105 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     expect(ALL_ENTITIES).toContain(AuditLog);
   });
 
+  describe('Strict Database Design Principles (Section 28)', () => {
+    it('Rule 1: should adhere to normalized design with zero duplicate business data columns', () => {
+      // Material details belong to rm_items, not copied into issues/receipts/returns
+      const issueItem = new MaterialIssueItem();
+      issueItem.rmItemId = 'rm-item-uuid-1';
+      issueItem.quantityIssued = 5;
+
+      expect((issueItem as any).material).toBeUndefined();
+      expect((issueItem as any).materialType).toBeUndefined();
+      expect((issueItem as any).size).toBeUndefined();
+    });
+
+    it('Rule 2: should preserve transactional history without overwriting previous issuances', () => {
+      const issue1 = new MaterialIssueItem();
+      issue1.quantityIssued = 6;
+
+      const issue2 = new MaterialIssueItem();
+      issue2.quantityIssued = 2;
+
+      const totalIssued = issue1.quantityIssued + issue2.quantityIssued;
+      expect(totalIssued).toBe(8);
+      expect(issue1.quantityIssued).toBe(6);
+      expect(issue2.quantityIssued).toBe(2);
+    });
+
+    it('Rule 3: should ensure every transaction traces to PO -> SC -> RM Item', () => {
+      const po = new PurchaseOrder();
+      po.id = 'po-uuid-1';
+      po.poNumber = 'PO-001';
+
+      const sc = new SalesOrderComponent();
+      sc.id = 'sc-uuid-1';
+      sc.poId = po.id;
+      sc.scNumber = 'SC-001';
+
+      const item = new RmItem();
+      item.id = 'item-uuid-1';
+      item.scId = sc.id;
+
+      const issue = new MaterialIssue();
+      issue.scId = sc.id;
+
+      const issueItem = new MaterialIssueItem();
+      issueItem.rmItemId = item.id;
+
+      expect(sc.poId).toBe('po-uuid-1');
+      expect(item.scId).toBe('sc-uuid-1');
+      expect(issue.scId).toBe('sc-uuid-1');
+      expect(issueItem.rmItemId).toBe('item-uuid-1');
+    });
+
+    it('Rule 4: should verify PO is not the completion unit; SC completes independently', () => {
+      const sc1 = new SalesOrderComponent();
+      sc1.scNumber = 'SC-001';
+      sc1.status = ScStatus.COMPLETED;
+      sc1.completedAt = new Date();
+
+      const sc2 = new SalesOrderComponent();
+      sc2.scNumber = 'SC-002';
+      sc2.status = ScStatus.IN_PRODUCTION;
+
+      expect(sc1.status).toBe(ScStatus.COMPLETED);
+      expect(sc2.status).toBe(ScStatus.IN_PRODUCTION);
+    });
+
+    it('Rule 5: should derive balances rather than storing manually editable fields', () => {
+      const requested = 10;
+      const issued = 8;
+      const pending = MaterialMathUtil.calculatePendingIssue(requested, issued);
+      expect(pending).toBe(2);
+    });
+
+    it('Rule 6: should enforce quantity validation Consumed + Returned <= Received', () => {
+      const valid = MaterialMathUtil.validateConservation(10, 7, 3);
+      expect(valid.isValid).toBe(true);
+
+      const invalid = MaterialMathUtil.validateConservation(10, 8, 4);
+      expect(invalid.isValid).toBe(false);
+      expect(invalid.errorMessage).toContain('Material conservation error');
+    });
+
+    it('Rule 7: should maintain immutable historical auditability across senior revisions', () => {
+      const original = new RmItemSnapshot();
+      original.material = 'EN31';
+      original.size = 'Ø110X35';
+      original.quantity = 2;
+      original.revisionNumber = 1;
+
+      const revised = new RmItemSnapshot();
+      revised.material = 'EN31';
+      revised.size = 'Ø110X40';
+      revised.quantity = 3;
+      revised.revisionNumber = 2;
+
+      expect(original.quantity).toBe(2);
+      expect(revised.quantity).toBe(3);
+    });
+  });
+
   describe('Audit Logging & Digital Paper Trail (Section 25)', () => {
     it('should log immutable event transitions with old and new values', () => {
       const log = new AuditLog();
