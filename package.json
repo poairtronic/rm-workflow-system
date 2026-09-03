@@ -11,10 +11,9 @@
     "dev": "npm --prefix backend run start:dev",
     "dev:backend": "npm --prefix backend run start:dev",
     "dev:frontend": "npm --prefix frontend run dev",
-    "build": "npm --prefix backend run build && npm --prefix frontend run build",
-    "test": "npm --prefix backend test",
-    "test:backend": "npm --prefix backend test",
-    "lint": "npm --prefix backend run lint && npm --prefix frontend run lint"
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces"
   },
   "keywords": [
     "rm-workflow",

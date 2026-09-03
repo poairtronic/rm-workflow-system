@@ -15,8 +15,17 @@
     "outDir": "./dist",
     "incremental": true,
     "skipLibCheck": true,
+
+    /* Strict Type-Checking */
     "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
     "strictPropertyInitialization": false,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+
     "types": ["vitest/globals", "node"]
   }
 }
