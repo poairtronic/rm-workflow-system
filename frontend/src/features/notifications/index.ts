@@ -1,4 +1,4 @@
-// Feature Module: production
+// Feature Module: notifications
 export * from './types';
 export * from './services';
 export * from './hooks';

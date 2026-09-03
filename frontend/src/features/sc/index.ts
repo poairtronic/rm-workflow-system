@@ -1,4 +1,4 @@
-// Feature Module: production
+// Feature Module: sc
 export * from './types';
 export * from './services';
 export * from './hooks';
