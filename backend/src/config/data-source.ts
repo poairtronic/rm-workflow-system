@@ -7,7 +7,8 @@ import { SalesOrderComponent } from '../sc/entities/sc.entity.js';
 import { RmRequest } from '../rm/entities/rm-request.entity.js';
 import { RmItem } from '../rm/entities/rm-item.entity.js';
 import { RmFormSc } from '../rm/entities/rm-form-sc.entity.js';
-import { SeniorVerificationLog } from '../verification/entities/verification-log.entity.js';
+import { RmItemSnapshot } from '../rm/entities/rm-item-snapshot.entity.js';
+import { RmVerification } from '../verification/entities/verification-log.entity.js';
 import { MaterialIssue } from '../material-issue/entities/material-issue.entity.js';
 import { ProductionReceipt } from '../production/entities/production-receipt.entity.js';
 import { MaterialConsumption } from '../production/entities/material-consumption.entity.js';
@@ -25,7 +26,8 @@ export const ALL_ENTITIES = [
   RmRequest,
   RmItem,
   RmFormSc,
-  SeniorVerificationLog,
+  RmItemSnapshot,
+  RmVerification,
   MaterialIssue,
   ProductionReceipt,
   MaterialConsumption,

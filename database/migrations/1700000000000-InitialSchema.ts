@@ -154,19 +154,47 @@ export class InitialSchema1700000000000 implements MigrationInterface {
       CREATE INDEX "idx_rm_items_grade" ON "rm_items"("grade");
     `);
 
-    // 9. Senior Verification Logs Table
+    // 10. RM Verifications Table
     await queryRunner.query(`
-      CREATE TABLE "senior_verification_logs" (
+      CREATE TABLE "rm_verifications" (
         "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-        "rm_request_id" uuid NOT NULL REFERENCES "rm_requests"("id") ON DELETE CASCADE,
+        "rm_form_id" uuid NOT NULL REFERENCES "rm_requests"("id") ON DELETE CASCADE,
         "verified_by_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE RESTRICT,
-        "action" varchar(50) NOT NULL,
+        "status" varchar(50) NOT NULL DEFAULT 'PENDING',
+        "remarks" text,
+        "verified_at" TIMESTAMP WITH TIME ZONE,
+        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+      );
+      CREATE INDEX "idx_rm_verifications_form_id" ON "rm_verifications"("rm_form_id");
+      CREATE INDEX "idx_rm_verifications_status" ON "rm_verifications"("status");
+    `);
+
+    // 11. RM Item Snapshots / Revisions Table (Preserves historical requested vs verified state)
+    await queryRunner.query(`
+      CREATE TABLE "rm_item_snapshots" (
+        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        "rm_item_id" uuid NOT NULL REFERENCES "rm_items"("id") ON DELETE CASCADE,
+        "rm_form_id" uuid NOT NULL REFERENCES "rm_requests"("id") ON DELETE CASCADE,
+        "revision_number" int NOT NULL DEFAULT 1,
+        "change_type" varchar(50) NOT NULL DEFAULT 'ORIGINAL_SUBMISSION',
+        "changed_by_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE RESTRICT,
+        "material" varchar(100) NOT NULL,
+        "material_type" varchar(50) NOT NULL,
+        "grade" varchar(100) NOT NULL,
+        "quantity" numeric(12,3) NOT NULL,
+        "size" varchar(100) NOT NULL,
+        "length" numeric(10,2),
+        "width" numeric(10,2),
+        "thickness" numeric(10,2),
+        "diameter" numeric(10,2),
+        "weight" numeric(12,3),
+        "weight_unit" varchar(20) NOT NULL DEFAULT 'KG',
         "revision_reason" text,
-        "rejection_notes" text,
-        "changes_json" jsonb,
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
       );
-      CREATE INDEX "idx_verification_request_id" ON "senior_verification_logs"("rm_request_id");
+      CREATE INDEX "idx_rm_snapshots_item_id" ON "rm_item_snapshots"("rm_item_id");
+      CREATE INDEX "idx_rm_snapshots_form_id" ON "rm_item_snapshots"("rm_form_id");
     `);
 
     // 10. Material Issues Table
@@ -302,8 +330,8 @@ export class InitialSchema1700000000000 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE IF EXISTS "material_returns" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "material_consumptions" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "production_receipts" CASCADE;`);
-    await queryRunner.query(`DROP TABLE IF EXISTS "material_issues" CASCADE;`);
-    await queryRunner.query(`DROP TABLE IF EXISTS "senior_verification_logs" CASCADE;`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "rm_item_snapshots" CASCADE;`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "rm_verifications" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "rm_items" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "rm_form_scs" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "rm_requests" CASCADE;`);

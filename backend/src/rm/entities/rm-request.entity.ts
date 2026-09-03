@@ -14,7 +14,7 @@ import { PurchaseOrder } from '../../po/entities/po.entity.js';
 import { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
 import { User } from '../../users/entities/user.entity.js';
 import { RmItem } from './rm-item.entity.js';
-import { SeniorVerificationLog } from '../../verification/entities/verification-log.entity.js';
+import { RmVerification } from '../../verification/entities/verification-log.entity.js';
 
 export enum FormType {
   SC = 'SC',
@@ -110,8 +110,8 @@ export class RmRequest {
   @OneToMany(() => RmItem, (item) => item.rmRequest, { cascade: true })
   items!: RmItem[];
 
-  @OneToMany(() => SeniorVerificationLog, (log) => log.rmRequest)
-  verificationLogs!: SeniorVerificationLog[];
+  @OneToMany(() => RmVerification, (log) => log.rmForm)
+  verificationLogs!: RmVerification[];
 
   @Column({ type: 'text', nullable: true })
   remarks?: string;

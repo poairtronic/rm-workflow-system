@@ -3,6 +3,7 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  UpdateDateColumn,
   ManyToOne,
   JoinColumn,
   Index,
@@ -10,26 +11,27 @@ import {
 import { RmRequest } from '../../rm/entities/rm-request.entity.js';
 import { User } from '../../users/entities/user.entity.js';
 
-export enum VerificationAction {
-  APPROVE = 'APPROVE',
-  EDIT_AND_APPROVE = 'EDIT_AND_APPROVE',
-  REJECT = 'REJECT',
+export enum VerificationStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REVISED = 'REVISED',
+  REJECTED = 'REJECTED',
 }
 
-@Entity('senior_verification_logs')
-export class SeniorVerificationLog {
+@Entity('rm_verifications')
+export class RmVerification {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
   @Index()
-  @Column({ name: 'rm_request_id' })
-  rmRequestId!: string;
+  @Column({ name: 'rm_form_id' })
+  rmFormId!: string;
 
   @ManyToOne(() => RmRequest, (req) => req.verificationLogs, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'rm_request_id' })
-  rmRequest!: RmRequest;
+  @JoinColumn({ name: 'rm_form_id' })
+  rmForm!: RmRequest;
 
   @Column({ name: 'verified_by_id' })
   verifiedById!: string;
@@ -41,18 +43,23 @@ export class SeniorVerificationLog {
   @Column({
     type: 'varchar',
     length: 50,
+    default: VerificationStatus.PENDING,
   })
-  action!: VerificationAction;
+  status!: VerificationStatus;
 
-  @Column({ name: 'revision_reason', type: 'text', nullable: true })
-  revisionReason?: string;
+  @Column({ type: 'text', nullable: true })
+  remarks?: string;
 
-  @Column({ name: 'rejection_notes', type: 'text', nullable: true })
-  rejectionNotes?: string;
-
-  @Column({ name: 'changes_json', type: 'jsonb', nullable: true })
-  changesJson?: Record<string, any>;
+  @Column({
+    name: 'verified_at',
+    type: 'timestamp with time zone',
+    nullable: true,
+  })
+  verifiedAt?: Date;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt!: Date;
 }

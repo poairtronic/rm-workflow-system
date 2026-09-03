@@ -12,7 +12,14 @@ import {
 } from './rm/entities/rm-request.entity.js';
 import { RmItem } from './rm/entities/rm-item.entity.js';
 import { RmFormSc } from './rm/entities/rm-form-sc.entity.js';
-import { SeniorVerificationLog } from './verification/entities/verification-log.entity.js';
+import {
+  RmItemSnapshot,
+  SnapshotChangeType,
+} from './rm/entities/rm-item-snapshot.entity.js';
+import {
+  RmVerification,
+  VerificationStatus,
+} from './verification/entities/verification-log.entity.js';
 import {
   MaterialIssue,
   IssueType,
@@ -32,8 +39,8 @@ import { Notification } from './notifications/entities/notification.entity.js';
 import { AuditLog } from './audit/entities/audit-log.entity.js';
 
 describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
-  it('should register exactly 16 domain entities in ALL_ENTITIES', () => {
-    expect(ALL_ENTITIES).toHaveLength(16);
+  it('should register exactly 17 domain entities in ALL_ENTITIES', () => {
+    expect(ALL_ENTITIES).toHaveLength(17);
     expect(ALL_ENTITIES).toContain(Role);
     expect(ALL_ENTITIES).toContain(User);
     expect(ALL_ENTITIES).toContain(Customer);
@@ -42,7 +49,8 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     expect(ALL_ENTITIES).toContain(RmRequest);
     expect(ALL_ENTITIES).toContain(RmItem);
     expect(ALL_ENTITIES).toContain(RmFormSc);
-    expect(ALL_ENTITIES).toContain(SeniorVerificationLog);
+    expect(ALL_ENTITIES).toContain(RmItemSnapshot);
+    expect(ALL_ENTITIES).toContain(RmVerification);
     expect(ALL_ENTITIES).toContain(MaterialIssue);
     expect(ALL_ENTITIES).toContain(ProductionReceipt);
     expect(ALL_ENTITIES).toContain(MaterialConsumption);
@@ -50,6 +58,52 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     expect(ALL_ENTITIES).toContain(AdditionalMaterialRequest);
     expect(ALL_ENTITIES).toContain(Notification);
     expect(ALL_ENTITIES).toContain(AuditLog);
+  });
+
+  it('should preserve original designer submission vs senior revised state through snapshot', () => {
+    // 1. Original Designer Input
+    const originalSnapshot = new RmItemSnapshot();
+    originalSnapshot.material = 'EN31';
+    originalSnapshot.materialType = 'ROUND_BAR';
+    originalSnapshot.grade = 'IS:5517';
+    originalSnapshot.size = 'Ø110X35';
+    originalSnapshot.quantity = 2;
+    originalSnapshot.revisionNumber = 1;
+    originalSnapshot.changeType = SnapshotChangeType.ORIGINAL_SUBMISSION;
+
+    // 2. Senior Revised Item
+    const currentItem = new RmItem();
+    currentItem.material = 'EN31';
+    currentItem.materialType = 'ROUND_BAR';
+    currentItem.grade = 'IS:5517';
+    currentItem.size = 'Ø110X40';
+    currentItem.quantity = 3;
+
+    // 3. Senior Revision Snapshot
+    const seniorSnapshot = new RmItemSnapshot();
+    seniorSnapshot.material = currentItem.material;
+    seniorSnapshot.size = currentItem.size;
+    seniorSnapshot.quantity = currentItem.quantity;
+    seniorSnapshot.revisionNumber = 2;
+    seniorSnapshot.changeType = SnapshotChangeType.SENIOR_REVISION;
+    seniorSnapshot.revisionReason =
+      'Increased facing allowance and safety buffer';
+
+    expect(originalSnapshot.size).toBe('Ø110X35');
+    expect(originalSnapshot.quantity).toBe(2);
+    expect(seniorSnapshot.size).toBe('Ø110X40');
+    expect(seniorSnapshot.quantity).toBe(3);
+    expect(seniorSnapshot.revisionReason).toContain('facing allowance');
+  });
+
+  it('should record senior verification decisions accurately', () => {
+    const verification = new RmVerification();
+    verification.status = VerificationStatus.REVISED;
+    verification.remarks = 'Dimensions updated per machine spindle tolerances';
+    verification.verifiedAt = new Date();
+
+    expect(verification.status).toBe(VerificationStatus.REVISED);
+    expect(verification.remarks).toContain('spindle tolerances');
   });
 
   it('should instantiate an SC with independent completion status and attributes', () => {
