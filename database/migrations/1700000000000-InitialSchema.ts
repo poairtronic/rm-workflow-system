@@ -228,53 +228,79 @@ export class InitialSchema1700000000000 implements MigrationInterface {
       CREATE INDEX "idx_issue_items_rm_item_id" ON "material_issue_items"("rm_item_id");
     `);
 
-    // 14. Production Receipts Table
+    // 14. Material Receipts Table (Production confirmation header)
     await queryRunner.query(`
-      CREATE TABLE "production_receipts" (
+      CREATE TABLE "material_receipts" (
         "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-        "material_issue_item_id" uuid NOT NULL UNIQUE REFERENCES "material_issue_items"("id") ON DELETE RESTRICT,
-        "received_quantity" numeric(12,3) NOT NULL,
+        "material_issue_id" uuid NOT NULL REFERENCES "material_issues"("id") ON DELETE RESTRICT,
         "received_by_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE RESTRICT,
+        "status" varchar(50) NOT NULL DEFAULT 'RECEIVED',
         "remarks" text,
-        "received_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+        "received_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
       );
-      CREATE INDEX "idx_receipts_item_id" ON "production_receipts"("material_issue_item_id");
+      CREATE INDEX "idx_receipts_issue_id" ON "material_receipts"("material_issue_id");
     `);
 
-    // 12. Material Consumptions Table
+    // 15. Material Receipt Items Table
+    await queryRunner.query(`
+      CREATE TABLE "material_receipt_items" (
+        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        "material_receipt_id" uuid NOT NULL REFERENCES "material_receipts"("id") ON DELETE CASCADE,
+        "rm_item_id" uuid NOT NULL REFERENCES "rm_items"("id") ON DELETE RESTRICT,
+        "quantity_received" numeric(12,3) NOT NULL,
+        "remarks" text,
+        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+      );
+      CREATE INDEX "idx_receipt_items_receipt_id" ON "material_receipt_items"("material_receipt_id");
+      CREATE INDEX "idx_receipt_items_rm_item_id" ON "material_receipt_items"("rm_item_id");
+    `);
+
+    // 16. Material Consumptions Table
     await queryRunner.query(`
       CREATE TABLE "material_consumptions" (
         "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
         "sc_id" uuid NOT NULL REFERENCES "sales_order_components"("id") ON DELETE RESTRICT,
         "rm_item_id" uuid NOT NULL REFERENCES "rm_items"("id") ON DELETE RESTRICT,
         "consumed_quantity" numeric(12,3) NOT NULL,
-        "unit" varchar(20) NOT NULL DEFAULT 'NOS',
         "recorded_by_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE RESTRICT,
         "remarks" text,
-        "recorded_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+        "recorded_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
       );
       CREATE INDEX "idx_consumptions_sc_id" ON "material_consumptions"("sc_id");
       CREATE INDEX "idx_consumptions_rm_item_id" ON "material_consumptions"("rm_item_id");
     `);
 
-    // 13. Material Returns Table
+    // 17. Material Returns Table (Header)
     await queryRunner.query(`
       CREATE TABLE "material_returns" (
         "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
         "sc_id" uuid NOT NULL REFERENCES "sales_order_components"("id") ON DELETE RESTRICT,
-        "rm_item_id" uuid NOT NULL REFERENCES "rm_items"("id") ON DELETE RESTRICT,
-        "return_quantity" numeric(12,3) NOT NULL,
-        "unit" varchar(20) NOT NULL DEFAULT 'NOS',
         "status" varchar(50) NOT NULL DEFAULT 'PENDING_STORE_ACK',
         "returned_by_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE RESTRICT,
         "confirmed_by_id" uuid REFERENCES "users"("id") ON DELETE RESTRICT,
         "confirmed_at" TIMESTAMP WITH TIME ZONE,
         "remarks" text,
-        "returned_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+        "returned_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
       );
       CREATE INDEX "idx_returns_sc_id" ON "material_returns"("sc_id");
-      CREATE INDEX "idx_returns_rm_item_id" ON "material_returns"("rm_item_id");
       CREATE INDEX "idx_returns_status" ON "material_returns"("status");
+    `);
+
+    // 18. Material Return Items Table (Line Items)
+    await queryRunner.query(`
+      CREATE TABLE "material_return_items" (
+        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+        "material_return_id" uuid NOT NULL REFERENCES "material_returns"("id") ON DELETE CASCADE,
+        "rm_item_id" uuid NOT NULL REFERENCES "rm_items"("id") ON DELETE RESTRICT,
+        "quantity_returned" numeric(12,3) NOT NULL,
+        "remarks" text,
+        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+      );
+      CREATE INDEX "idx_return_items_return_id" ON "material_return_items"("material_return_id");
+      CREATE INDEX "idx_return_items_rm_item_id" ON "material_return_items"("rm_item_id");
     `);
 
     // 14. Additional Material Requests Table
@@ -338,9 +364,11 @@ export class InitialSchema1700000000000 implements MigrationInterface {
     await queryRunner.query(
       `DROP TABLE IF EXISTS "additional_material_requests" CASCADE;`
     );
+    await queryRunner.query(`DROP TABLE IF EXISTS "material_return_items" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "material_returns" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "material_consumptions" CASCADE;`);
-    await queryRunner.query(`DROP TABLE IF EXISTS "production_receipts" CASCADE;`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "material_receipt_items" CASCADE;`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "material_receipts" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "material_issue_items" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "material_issues" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "rm_item_snapshots" CASCADE;`);

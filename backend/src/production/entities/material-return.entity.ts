@@ -4,12 +4,13 @@ import {
   Column,
   CreateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   Index,
 } from 'typeorm';
 import { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
-import { RmItem } from '../../rm/entities/rm-item.entity.js';
 import { User } from '../../users/entities/user.entity.js';
+import { MaterialReturnItem } from './material-return-item.entity.js';
 
 export enum ReturnStatus {
   PENDING_STORE_ACK = 'PENDING_STORE_ACK',
@@ -31,22 +32,6 @@ export class MaterialReturn {
   })
   @JoinColumn({ name: 'sc_id' })
   salesOrderComponent!: SalesOrderComponent;
-
-  @Index()
-  @Column({ name: 'rm_item_id' })
-  rmItemId!: string;
-
-  @ManyToOne(() => RmItem, (item) => item.materialReturns, {
-    onDelete: 'RESTRICT',
-  })
-  @JoinColumn({ name: 'rm_item_id' })
-  rmItem!: RmItem;
-
-  @Column({ name: 'return_quantity', type: 'numeric', precision: 12, scale: 3 })
-  returnQuantity!: number;
-
-  @Column({ length: 20, default: 'NOS' })
-  unit!: string;
 
   @Column({
     type: 'varchar',
@@ -79,6 +64,18 @@ export class MaterialReturn {
   @Column({ type: 'text', nullable: true })
   remarks?: string;
 
-  @CreateDateColumn({ name: 'returned_at' })
+  @OneToMany(() => MaterialReturnItem, (item) => item.materialReturn, {
+    cascade: true,
+  })
+  items!: MaterialReturnItem[];
+
+  @Column({
+    name: 'returned_at',
+    type: 'timestamp with time zone',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   returnedAt!: Date;
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt!: Date;
 }

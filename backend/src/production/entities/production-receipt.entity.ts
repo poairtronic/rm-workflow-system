@@ -3,36 +3,33 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  OneToOne,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   Index,
 } from 'typeorm';
-import { MaterialIssueItem } from '../../material-issue/entities/material-issue-item.entity.js';
+import { MaterialIssue } from '../../material-issue/entities/material-issue.entity.js';
 import { User } from '../../users/entities/user.entity.js';
+import { MaterialReceiptItem } from './material-receipt-item.entity.js';
 
-@Entity('production_receipts')
-export class ProductionReceipt {
+export enum ReceiptStatus {
+  RECEIVED = 'RECEIVED',
+  PARTIAL = 'PARTIAL',
+  DISCREPANCY = 'DISCREPANCY',
+}
+
+@Entity('material_receipts')
+export class MaterialReceipt {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Index({ unique: true })
-  @Column({ name: 'material_issue_item_id', unique: true })
-  materialIssueItemId!: string;
+  @Index()
+  @Column({ name: 'material_issue_id' })
+  materialIssueId!: string;
 
-  @OneToOne(() => MaterialIssueItem, (item) => item.productionReceipt, {
-    onDelete: 'RESTRICT',
-  })
-  @JoinColumn({ name: 'material_issue_item_id' })
-  materialIssueItem!: MaterialIssueItem;
-
-  @Column({
-    name: 'received_quantity',
-    type: 'numeric',
-    precision: 12,
-    scale: 3,
-  })
-  receivedQuantity!: number;
+  @ManyToOne(() => MaterialIssue, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'material_issue_id' })
+  materialIssue!: MaterialIssue;
 
   @Column({ name: 'received_by_id' })
   receivedById!: string;
@@ -41,9 +38,28 @@ export class ProductionReceipt {
   @JoinColumn({ name: 'received_by_id' })
   receivedBy!: User;
 
+  @Column({
+    type: 'varchar',
+    length: 50,
+    default: ReceiptStatus.RECEIVED,
+  })
+  status!: ReceiptStatus;
+
   @Column({ type: 'text', nullable: true })
   remarks?: string;
 
-  @CreateDateColumn({ name: 'received_at' })
+  @OneToMany(() => MaterialReceiptItem, (item) => item.materialReceipt, {
+    cascade: true,
+  })
+  items!: MaterialReceiptItem[];
+
+  @Column({
+    name: 'received_at',
+    type: 'timestamp with time zone',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   receivedAt!: Date;
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt!: Date;
 }

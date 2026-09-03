@@ -11,9 +11,11 @@ import { RmItemSnapshot } from '../rm/entities/rm-item-snapshot.entity.js';
 import { RmVerification } from '../verification/entities/verification-log.entity.js';
 import { MaterialIssue } from '../material-issue/entities/material-issue.entity.js';
 import { MaterialIssueItem } from '../material-issue/entities/material-issue-item.entity.js';
-import { ProductionReceipt } from '../production/entities/production-receipt.entity.js';
+import { MaterialReceipt } from '../production/entities/production-receipt.entity.js';
+import { MaterialReceiptItem } from '../production/entities/material-receipt-item.entity.js';
 import { MaterialConsumption } from '../production/entities/material-consumption.entity.js';
 import { MaterialReturn } from '../production/entities/material-return.entity.js';
+import { MaterialReturnItem } from '../production/entities/material-return-item.entity.js';
 import { AdditionalMaterialRequest } from '../additional-request/entities/additional-request.entity.js';
 import { Notification } from '../notifications/entities/notification.entity.js';
 import { AuditLog } from '../audit/entities/audit-log.entity.js';
@@ -31,9 +33,11 @@ export const ALL_ENTITIES = [
   RmVerification,
   MaterialIssue,
   MaterialIssueItem,
-  ProductionReceipt,
+  MaterialReceipt,
+  MaterialReceiptItem,
   MaterialConsumption,
   MaterialReturn,
+  MaterialReturnItem,
   AdditionalMaterialRequest,
   Notification,
   AuditLog,

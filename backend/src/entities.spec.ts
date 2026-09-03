@@ -22,12 +22,17 @@ import {
 } from './verification/entities/verification-log.entity.js';
 import { MaterialIssue } from './material-issue/entities/material-issue.entity.js';
 import { MaterialIssueItem } from './material-issue/entities/material-issue-item.entity.js';
-import { ProductionReceipt } from './production/entities/production-receipt.entity.js';
+import {
+  MaterialReceipt,
+  ReceiptStatus,
+} from './production/entities/production-receipt.entity.js';
+import { MaterialReceiptItem } from './production/entities/material-receipt-item.entity.js';
 import { MaterialConsumption } from './production/entities/material-consumption.entity.js';
 import {
   MaterialReturn,
   ReturnStatus,
 } from './production/entities/material-return.entity.js';
+import { MaterialReturnItem } from './production/entities/material-return-item.entity.js';
 import {
   AdditionalMaterialRequest,
   AdditionalReasonCode,
@@ -37,8 +42,8 @@ import { Notification } from './notifications/entities/notification.entity.js';
 import { AuditLog } from './audit/entities/audit-log.entity.js';
 
 describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
-  it('should register exactly 18 domain entities in ALL_ENTITIES', () => {
-    expect(ALL_ENTITIES).toHaveLength(18);
+  it('should register exactly 20 domain entities in ALL_ENTITIES', () => {
+    expect(ALL_ENTITIES).toHaveLength(20);
     expect(ALL_ENTITIES).toContain(Role);
     expect(ALL_ENTITIES).toContain(User);
     expect(ALL_ENTITIES).toContain(Customer);
@@ -51,26 +56,59 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     expect(ALL_ENTITIES).toContain(RmVerification);
     expect(ALL_ENTITIES).toContain(MaterialIssue);
     expect(ALL_ENTITIES).toContain(MaterialIssueItem);
-    expect(ALL_ENTITIES).toContain(ProductionReceipt);
+    expect(ALL_ENTITIES).toContain(MaterialReceipt);
+    expect(ALL_ENTITIES).toContain(MaterialReceiptItem);
     expect(ALL_ENTITIES).toContain(MaterialConsumption);
     expect(ALL_ENTITIES).toContain(MaterialReturn);
+    expect(ALL_ENTITIES).toContain(MaterialReturnItem);
     expect(ALL_ENTITIES).toContain(AdditionalMaterialRequest);
     expect(ALL_ENTITIES).toContain(Notification);
     expect(ALL_ENTITIES).toContain(AuditLog);
   });
 
+  it('should distinguish Stores issued quantity vs Production received quantity (capturing discrepancy)', () => {
+    const issueItem = new MaterialIssueItem();
+    issueItem.quantityIssued = 10;
+
+    const receiptItem = new MaterialReceiptItem();
+    receiptItem.quantityReceived = 8;
+    receiptItem.remarks = '2 pieces short delivered by Stores cart';
+
+    const receiptHeader = new MaterialReceipt();
+    receiptHeader.status = ReceiptStatus.DISCREPANCY;
+
+    expect(issueItem.quantityIssued).toBe(10);
+    expect(receiptItem.quantityReceived).toBe(8);
+    expect(receiptHeader.status).toBe(ReceiptStatus.DISCREPANCY);
+    expect(issueItem.quantityIssued - receiptItem.quantityReceived).toBe(2);
+  });
+
+  it('should calculate material consumption balance (Received = 10, Consumed = 7, Returned = 3 -> Remaining = 0)', () => {
+    const receivedQty = 10;
+    const consumedQty = 7;
+    const returnedQty = 3;
+
+    const consumption = new MaterialConsumption();
+    consumption.consumedQuantity = consumedQty;
+
+    const retItem = new MaterialReturnItem();
+    retItem.quantityReturned = returnedQty;
+
+    const remainingFloorBalance = receivedQty - consumedQty - returnedQty;
+    expect(remainingFloorBalance).toBe(0);
+    expect(consumption.consumedQuantity).toBe(7);
+    expect(retItem.quantityReturned).toBe(3);
+  });
+
   it('should accurately calculate multi-issue partial quantities and remaining pending without overwriting requested quantity', () => {
-    // 1. Original requirement
     const rmItem = new RmItem();
     rmItem.material = 'EN31';
     rmItem.quantity = 10;
 
-    // 2. Issue #1 (Partial)
     const issue1 = new MaterialIssueItem();
     issue1.quantityIssued = 6;
     issue1.heatNumber = 'HT-901';
 
-    // 3. Issue #2 (Partial)
     const issue2 = new MaterialIssueItem();
     issue2.quantityIssued = 2;
     issue2.heatNumber = 'HT-902';
@@ -78,7 +116,7 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     const totalIssued = issue1.quantityIssued + issue2.quantityIssued;
     const pendingQuantity = rmItem.quantity - totalIssued;
 
-    expect(rmItem.quantity).toBe(10); // Original requested remains untouched
+    expect(rmItem.quantity).toBe(10);
     expect(totalIssued).toBe(8);
     expect(pendingQuantity).toBe(2);
   });
@@ -177,28 +215,29 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     expect(item.weight).toBe(145.75);
   });
 
-  it('should track append-only material movement accounting across issue, receipt, and consumption', () => {
+  it('should track append-only material movement accounting across issue, receipt, and consumption (500 kg received, 400 consumed, 100 returned)', () => {
     const issueItem = new MaterialIssueItem();
     issueItem.quantityIssued = 500;
     issueItem.heatNumber = 'HT-4482';
 
-    const receipt = new ProductionReceipt();
-    receipt.receivedQuantity = 500;
-    receipt.materialIssueItem = issueItem;
+    const receiptItem = new MaterialReceiptItem();
+    receiptItem.quantityReceived = 500;
 
     const consumption = new MaterialConsumption();
     consumption.consumedQuantity = 400;
 
-    const ret = new MaterialReturn();
-    ret.returnQuantity = 100;
-    ret.status = ReturnStatus.PENDING_STORE_ACK;
+    const returnItem = new MaterialReturnItem();
+    returnItem.quantityReturned = 100;
 
-    const totalIssued = issueItem.quantityIssued;
-    const netConsumed = totalIssued - ret.returnQuantity;
-    expect(totalIssued).toBe(500);
-    expect(receipt.receivedQuantity).toBe(500);
+    const returnHeader = new MaterialReturn();
+    returnHeader.status = ReturnStatus.PENDING_STORE_ACK;
+
+    const netConsumed =
+      receiptItem.quantityReceived - returnItem.quantityReturned;
+    expect(receiptItem.quantityReceived).toBe(500);
     expect(netConsumed).toBe(400);
     expect(consumption.consumedQuantity).toBe(netConsumed);
+    expect(returnHeader.status).toBe(ReturnStatus.PENDING_STORE_ACK);
   });
 
   it('should enforce structured reason codes on additional material requests', () => {
