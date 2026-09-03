@@ -1,75 +1,81 @@
-# RM Workflow System
+# RM Workflow System (RMRIT)
 
-Internal manufacturing raw-material workflow application.
+Internal manufacturing raw-material workflow and traceability application.
 
 ## Purpose
 
-Digitize the RM material workflow from Design through Stores and Production.
+Digitize the Raw Material (RM) workflow from Design through Stores and Production, creating a complete, immutable chain of custody for raw materials.
 
-## Current workflow
+## Current Workflow
 
-Design
-→ Senior Verification
-→ Stores
-→ Material Issue
-→ Production Receipt
-→ Consumption/Return
-→ Additional Request
-→ SC Completion
+```text
+Customer → PO Reference → SC / Component (Active Unit)
+  ↓
+Design RM List Creation
+  ↓
+Senior Verification (Approval / Rejection)
+  ↓
+Stores Material Issue (Full / Partial / Extra)
+  ↓
+Production Receipt Confirmation
+  ↓
+Production Consumption / Return / Scrap
+  ↓
+Additional Material Request (if needed)
+  ↓
+SC Production Completion
+```
 
-## Technology
+## Technology Stack
 
 - **Frontend**: React + TypeScript (Vite)
 - **Backend**: Node.js + NestJS + TypeScript
-- **Database**: PostgreSQL
+- **Database**: PostgreSQL (Neon / Supabase free tier or local)
 - **ORM**: TypeORM
-- **Authentication**: JWT & Passport
+- **Authentication**: JWT & Passport Strategy
 - **Deployment**: Render
-- **Version Control**: GitHub
+- **Version Control**: Git & GitHub
 
-## Project Structure
+## Root Directory Structure
 
 ```text
 rm-workflow-system/
-├── frontend/          # React + TypeScript + Vite UI
-│   ├── src/
-│   ├── public/
-│   ├── package.json
-│   └── tsconfig.json
 │
-├── backend/           # NestJS + TypeORM + PostgreSQL API
-│   ├── src/
-│   ├── package.json
-│   └── tsconfig.json
-│
-├── .gitignore         # Ignores .env, node_modules, build outputs
-├── .env.example       # Template environment variables
-└── README.md          # Project documentation
+├── frontend/          # React application (UI & client state)
+├── backend/           # Node/NestJS API (business logic & security)
+├── database/          # Database documentation & migration strategy
+├── docs/              # Requirements, architecture & workflow documentation
+├── scripts/           # Utility & development scripts
+├── .github/           # GitHub workflows (CI) & PR templates
+├── .agent/            # AI Agent guidelines, rules & UI skills
+├── .gitignore         # Excludes .env, node_modules, build artifacts
+├── .env.example       # Safe environment variable reference
+├── README.md          # Project overview & documentation
+└── package.json       # Root workspaces & development scripts
 ```
 
 ## Quick Start
 
-### 1. Environment Setup
+### 1. Environment Configuration
 
-Copy `.env.example` to create your local `.env`:
 ```bash
 cp .env.example .env
 ```
 
-### 2. Backend
+### 2. Run Backend (Port 3000)
 
 ```bash
 cd backend
 npm install
 npm run start:dev
 ```
-Backend API will be accessible at: `http://localhost:3000` (Health check: `http://localhost:3000/api/health`)
+Health Check: [http://localhost:3000/api/health](http://localhost:3000/api/health)
 
-### 3. Frontend
+### 3. Run Frontend (Port 5173)
 
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Frontend web application will be accessible at: `http://localhost:5173`
+Web Application: [http://localhost:5173](http://localhost:5173)

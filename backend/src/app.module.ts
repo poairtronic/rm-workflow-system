@@ -15,9 +15,12 @@ import { AuthModule } from './auth/auth.module.js';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const dbUrl = configService.get<string>('DATABASE_URL');
+        const dbUrl =
+          configService.get<string>('DATABASE_URL') ||
+          process.env.DATABASE_URL ||
+          'postgresql://postgres:postgres@localhost:5432/rm_workflow_db';
         const isSsl =
-          dbUrl?.includes('sslmode=require') ||
+          dbUrl.includes('sslmode=require') ||
           configService.get<string>('NODE_ENV') === 'production';
 
         return {
@@ -26,7 +29,7 @@ import { AuthModule } from './auth/auth.module.js';
           autoLoadEntities: true,
           synchronize: configService.get<string>('NODE_ENV') !== 'production',
           ssl: isSsl ? { rejectUnauthorized: false } : false,
-          retryAttempts: dbUrl ? 3 : 0,
+          retryAttempts: 2,
           retryDelay: 3000,
         };
       },
