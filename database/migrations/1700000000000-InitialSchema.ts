@@ -58,6 +58,7 @@ export class InitialSchema1700000000000 implements MigrationInterface {
         "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
         "po_number" varchar(100) NOT NULL UNIQUE,
         "customer_id" uuid NOT NULL REFERENCES "customers"("id") ON DELETE RESTRICT,
+        "external_reference" varchar(150),
         "reference_date" date,
         "remarks" varchar(255),
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),

@@ -30,6 +30,9 @@ export class PurchaseOrder {
   @JoinColumn({ name: 'customer_id' })
   customer!: Customer;
 
+  @Column({ name: 'external_reference', nullable: true, length: 150 })
+  externalReference?: string;
+
   @Column({ name: 'reference_date', type: 'date', nullable: true })
   referenceDate?: Date;
 
