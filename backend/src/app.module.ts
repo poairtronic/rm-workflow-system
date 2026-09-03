@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
+import { ALL_ENTITIES } from './config/data-source.js';
 import { AuthModule } from './auth/auth.module.js';
 import { UsersModule } from './users/users.module.js';
 import { RolesModule } from './roles/roles.module.js';
@@ -42,6 +43,7 @@ import { AuditModule } from './audit/audit.module.js';
         return {
           type: 'postgres',
           url: dbUrl,
+          entities: ALL_ENTITIES,
           autoLoadEntities: true,
           synchronize: configService.get<string>('NODE_ENV') !== 'production',
           ssl: isSsl ? { rejectUnauthorized: false } : false,

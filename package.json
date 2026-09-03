@@ -15,7 +15,9 @@
     "test": "npm run test --workspaces",
     "lint": "npm run lint --workspaces",
     "format": "npx prettier --write \"**/*.{ts,tsx,js,json,md,css}\"",
-    "format:check": "npx prettier --check \"**/*.{ts,tsx,js,json,md,css}\""
+    "format:check": "npx prettier --check \"**/*.{ts,tsx,js,json,md,css}\"",
+    "db:migrate": "npm --prefix backend run migration:run",
+    "db:seed": "npm --prefix backend run seed"
   },
   "keywords": [
     "rm-workflow",
