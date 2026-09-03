@@ -3,4 +3,3 @@ export interface IadminFeature {
   id: string;
   name: string;
 }
-

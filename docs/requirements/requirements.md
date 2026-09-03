@@ -1,9 +1,11 @@
 # RMRIT System Requirements
 
 ## 1. Project Scope & Objective
+
 RMRIT is an internal manufacturing **raw-material workflow and traceability application** designed to replace manual, physical paper-based RM tracking with an immutable, verified digital chain of custody.
 
 ## 2. Core Functional Requirements
+
 1. **PO & SC Structure**:
    - PO is a commercial reference.
    - SC (Sales Order Component) is the operational unit of work, approval, and completion.

@@ -3,4 +3,3 @@ export interface IscFeature {
   id: string;
   name: string;
 }
-

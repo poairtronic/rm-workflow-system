@@ -8,6 +8,7 @@ description: Never use lorem ipsum or generic placeholders; always use believabl
 Never use `lorem ipsum`, "John Doe", "Product A", "Material 01", or other meaningless placeholders anywhere in the UI or seed data.
 
 ## Realistic Manufacturing Context
+
 - **Customer Names**: Indo-MIM, Velan Valves, Precision Metrology, Turbo Machining, Aerotek Systems.
 - **Grades**: `EN31`, `OHNS`, `MS`, `SS304`, `SS316`, `D2`, `EN8`, `C45`, `AL6061`.
 - **Sizes & Dimensions**: `Ø110×35`, `Ø70×18`, `Ø150×15`, `50×50×300`, `100×25×150`.

@@ -5,12 +5,14 @@ description: Design around what the employee needs to do next, not around databa
 
 # Human-Centered Workflow Design
 
-Design around what the employee needs to **do next**, not around database tables or feature lists. Before building a screen, ask: *"What is the user trying to accomplish here?"*
+Design around what the employee needs to **do next**, not around database tables or feature lists. Before building a screen, ask: _"What is the user trying to accomplish here?"_
 
 ## Anti-Pattern (Generic AI-Style)
+
 Equal-weight stat cards (`Total PO` / `Total SC` / `Materials` / `Pending` / `Completed`) plus generic "Recent Activities" and "Analytics" blocks — everything looks equally important, nothing tells the user what to do.
 
 ## Good Operational Pattern
+
 A Stores screen that leads with the SC, shows material-by-material availability, and ends in one clear, prominent call to action:
 
 ```text
@@ -28,6 +30,7 @@ MS     Ø150×15   Required 1   ⚠ Pending
 ```
 
 ## Guiding Principles
+
 1. Start with the user's immediate job-to-be-done.
 2. Group related items by operational context (e.g. materials for an active SC).
 3. Always provide a clear, unambiguous next action button at the conclusion of the workflow stage.

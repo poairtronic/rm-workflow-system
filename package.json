@@ -13,7 +13,9 @@
     "dev:frontend": "npm --prefix frontend run dev",
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",
-    "lint": "npm run lint --workspaces"
+    "lint": "npm run lint --workspaces",
+    "format": "npx prettier --write \"**/*.{ts,tsx,js,json,md,css}\"",
+    "format:check": "npx prettier --check \"**/*.{ts,tsx,js,json,md,css}\""
   },
   "keywords": [
     "rm-workflow",
@@ -23,5 +25,8 @@
     "react"
   ],
   "author": "",
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "prettier": "^3.9.6"
+  }
 }

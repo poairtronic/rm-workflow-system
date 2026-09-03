@@ -44,10 +44,7 @@ export function DataTable<T>({
           {data.map((item) => (
             <tr key={keyExtractor(item)}>
               {columns.map((col) => (
-                <td
-                  key={col.key}
-                  style={{ textAlign: col.align || 'left' }}
-                >
+                <td key={col.key} style={{ textAlign: col.align || 'left' }}>
                   {col.render ? col.render(item) : (item as any)[col.key]}
                 </td>
               ))}

@@ -8,6 +8,7 @@ description: Render chronological, immutable material movement event trails clea
 Every physical raw material movement must be traceable. Never collapse a complex lifecycle down to a single static badge without historical trace.
 
 ## Chronological Audit Trail Format
+
 ```text
 SC-003 — MATERIAL HISTORY
 09:10  DESIGN SUBMITTED · Raghav · RM list submitted
@@ -24,6 +25,7 @@ SC-003 — MATERIAL HISTORY
 ```
 
 ## Immutable Audit Rules
-- An event log answers *"What happened to the material?"* instantly.
+
+- An event log answers _"What happened to the material?"_ instantly.
 - Show **Who** (user role/name), **What** (action & quantity), and **When** (timestamp).
 - Never overwrite past logs; display subsequent corrections as append-only reconciliation entries.

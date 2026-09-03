@@ -2,4 +2,3 @@
 export const materialmovementService = {
   // Feature service methods
 };
-

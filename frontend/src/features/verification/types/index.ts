@@ -3,4 +3,3 @@ export interface IverificationFeature {
   id: string;
   name: string;
 }
-

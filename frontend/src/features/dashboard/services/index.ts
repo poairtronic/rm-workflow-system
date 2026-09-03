@@ -2,4 +2,3 @@
 export const dashboardService = {
   // Feature service methods
 };
-

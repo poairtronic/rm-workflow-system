@@ -24,7 +24,9 @@ class ApiClient {
       headers: this.getHeaders(),
     });
     if (!response.ok) {
-      throw new Error(`GET ${endpoint} failed: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `GET ${endpoint} failed: ${response.status} ${response.statusText}`
+      );
     }
     return response.json();
   }
@@ -36,7 +38,9 @@ class ApiClient {
       body: body ? JSON.stringify(body) : undefined,
     });
     if (!response.ok) {
-      throw new Error(`POST ${endpoint} failed: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `POST ${endpoint} failed: ${response.status} ${response.statusText}`
+      );
     }
     return response.json();
   }

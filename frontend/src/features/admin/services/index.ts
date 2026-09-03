@@ -2,4 +2,3 @@
 export const adminService = {
   // Feature service methods
 };
-

@@ -5,6 +5,7 @@ A clean, high-density manufacturing design system focused on rapid data scanning
 ## Color Tokens & Semantics
 
 ### Neutral Grayscale
+
 - **Background App**: `#0F172A` (Dark) / `#F8FAFC` (Light)
 - **Card / Surface**: `#1E293B` (Dark) / `#FFFFFF` (Light)
 - **Border Default**: `#334155` (Dark) / `#E2E8F0` (Light)
@@ -12,6 +13,7 @@ A clean, high-density manufacturing design system focused on rapid data scanning
 - **Text Muted**: `#94A3B8` (Dark) / `#64748B` (Light)
 
 ### Semantic Workflow Status Colors
+
 - **Draft / Neutral**: Slate (`#64748B`)
 - **Pending Action**: Amber / Warning (`#D97706`)
 - **In Progress / Active**: Blue / Info (`#2563EB`)
@@ -19,6 +21,7 @@ A clean, high-density manufacturing design system focused on rapid data scanning
 - **Discrepancy / Rejected / Urgent**: Rose / Red (`#E11D48`)
 
 ## Typography Hierarchy
+
 - **Font Family**: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif
 - **Monospace (for Numbers, Codes, SCs, Materials)**: "JetBrains Mono", "SF Mono", Consolas, monospace
 - **Headings**:
@@ -29,6 +32,7 @@ A clean, high-density manufacturing design system focused on rapid data scanning
 - **Dense Data Cells**: 12px–13px tabular numbers
 
 ## Component Guidelines
+
 - **Data Tables**: Striped/bordered, dense row padding (`8px 12px`), sticky header on scrollable containers.
 - **Badges**: High contrast, pairing symbol with text (e.g. `● Active`, `✓ Issued`, `⚠ Shortage`).
 - **Action Buttons**: One primary action per workflow pane (`bg-blue-600` or accent), neutral secondary actions (`border-slate-300`).

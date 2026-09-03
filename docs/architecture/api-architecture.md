@@ -1,11 +1,13 @@
 # API Architecture & Endpoint Standards
 
 ## Standard Route Conventions
+
 - Global health probe: `GET /api/health`
 - Auth endpoints: `POST /api/auth/token`, `GET /api/auth/roles`, `GET /api/auth/me`
 - Resource routes: `/api/<resource-name>` (e.g. `/api/customers`, `/api/sc`, `/api/material-issue`)
 
 ## Response Envelope
+
 ```json
 {
   "data": { ... },
@@ -14,6 +16,7 @@
 ```
 
 ## Error Envelope
+
 ```json
 {
   "statusCode": 400,

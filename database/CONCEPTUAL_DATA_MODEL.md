@@ -44,6 +44,7 @@ SYSTEM (Platform Services)
 ---
 
 ## Core Relational Principles (For Phase 7)
+
 1. **SC Independence**: All operational entities (`rm_lists`, `material_issues`, `receipts`, `movements`) attach directly to `sc_id`, **not** `po_id`.
 2. **Immutable Transactions**: Records in `MATERIAL CONTROL` and `SYSTEM` are append-only.
 3. **No Premature Constraints**: Entity foreign keys, indexing strategies, and column constraints will be designed and migrated in Phase 7.

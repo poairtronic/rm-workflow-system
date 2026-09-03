@@ -9,9 +9,7 @@ export const materialIssueService = {
   /**
    * Post material issue transaction to backend API
    */
-  async submitMaterialIssue(
-    payload: IssueMaterialPayload
-  ): Promise<MaterialIssueResult> {
+  async submitMaterialIssue(payload: IssueMaterialPayload): Promise<MaterialIssueResult> {
     return api.post<MaterialIssueResult>('/api/material-issues', payload);
   },
 
@@ -19,9 +17,7 @@ export const materialIssueService = {
    * Fetch stores availability for a specific SC
    */
   async getAvailability(scNumber: string): Promise<StoresAvailabilityStatus> {
-    return api.get<StoresAvailabilityStatus>(
-      `/api/stores/availability/${scNumber}`
-    );
+    return api.get<StoresAvailabilityStatus>(`/api/stores/availability/${scNumber}`);
   },
 };
 

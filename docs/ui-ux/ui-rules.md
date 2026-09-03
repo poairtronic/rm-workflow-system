@@ -1,6 +1,7 @@
 # UI/UX Rules & The Real Employee Test
 
 ## The 10 UI/UX Skills
+
 1. `human-centered-workflow-ui`: Center screens around the user's immediate job-to-be-done.
 2. `information-hierarchy`: Lead with SC number, current status, and required action.
 3. `manufacturing-domain-ui`: Speak strict manufacturing language (PO, SC, Grade, Size, Qty, Issue, Return).
@@ -13,7 +14,9 @@
 10. `anti-ai-ui`: Avoid purple gradients, glassmorphism, and excessive decorations.
 
 ## The Real Employee Test
+
 An operator or manager looking at a screen must be able to answer:
+
 - Which SC is active?
 - Which materials are required, available, and pending?
 - What action is required from me right now?

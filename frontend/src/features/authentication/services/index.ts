@@ -2,4 +2,3 @@
 export const authenticationService = {
   // Feature service methods
 };
-

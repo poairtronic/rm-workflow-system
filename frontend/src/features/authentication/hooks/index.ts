@@ -2,4 +2,3 @@
 export function useAuthentication() {
   return {};
 }
-

@@ -1,6 +1,5 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { MaterialIssueService } from './material-issue.service.js';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 
 @Controller('api/material-issue')
 export class MaterialIssueController {

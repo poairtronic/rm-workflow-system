@@ -2,4 +2,3 @@
 export const rmService = {
   // Feature service methods
 };
-

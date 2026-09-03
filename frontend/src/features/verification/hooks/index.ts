@@ -2,4 +2,3 @@
 export function useVerification() {
   return {};
 }
-

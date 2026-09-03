@@ -15,7 +15,10 @@ describe('AuthService', () => {
           provide: JwtService,
           useValue: {
             sign: (payload: any) => `mock-token-for-${payload.sub}`,
-            verify: (token: string) => ({ sub: 'dev-1', email: 'test@example.com' }),
+            verify: (_token: string) => ({
+              sub: 'dev-1',
+              email: 'test@example.com',
+            }),
           },
         },
       ],
@@ -27,6 +30,7 @@ describe('AuthService', () => {
 
   it('should be defined', () => {
     expect(authService).toBeDefined();
+    expect(jwtService).toBeDefined();
   });
 
   it('should sign a token for a given user', () => {

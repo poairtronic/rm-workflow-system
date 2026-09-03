@@ -8,12 +8,14 @@ description: Design workflow state progression clearly and avoid relying on colo
 Status design matters more than generic dashboards in RMRIT — this is fundamentally a manufacturing workflow system.
 
 ## Consistent State Ladder
+
 ```text
 DRAFT → SUBMITTED → SENIOR VERIFIED → STORES PENDING → PARTIALLY ISSUED
 → ISSUED → RECEIVED → IN PRODUCTION → ADDITIONAL REQUEST → COMPLETED
 ```
 
 ## Visual Presentation Rules
+
 1. **Show Current Stage as a Progress Trail**:
    ```text
    ● Design ──── ● Verified ──── ● Stores ──── ◉ Production

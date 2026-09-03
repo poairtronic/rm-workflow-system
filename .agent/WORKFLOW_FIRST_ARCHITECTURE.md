@@ -1,6 +1,7 @@
 # Workflow-First Architecture Principle
 
 ## The Core Invariant
+
 > **"The application is a workflow system first. The page is only the presentation of the workflow; the workflow itself is the core."**
 
 ---
@@ -8,6 +9,7 @@
 ## What This Means in Practice
 
 ### Anti-Pattern: Page-Centric Design (DO NOT DO THIS)
+
 ```text
 pages/
 ├── dashboard/        # Bloated with direct state, API calls, and calculations
@@ -16,11 +18,13 @@ pages/
 ├── rm-form/
 └── report/
 ```
+
 **Why this fails**: In a manufacturing execution system, state transitions (e.g. `STORES_PENDING -> ISSUED -> RECEIVED -> IN_PRODUCTION`) span multiple roles, widgets, dialogs, and notifications. Bundling capabilities into pages creates monolithic files, duplicated calculations, and brittle routing.
 
 ---
 
 ### Correct Pattern: Capability-Centric Feature Modules (DO THIS)
+
 ```text
 frontend/src/features/
 ├── rm/                    # RM specification, dimensional validations, list creation

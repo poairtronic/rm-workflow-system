@@ -2,4 +2,3 @@
 export const verificationService = {
   // Feature service methods
 };
-

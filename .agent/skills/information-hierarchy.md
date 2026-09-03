@@ -12,6 +12,7 @@ $$\text{SC Number} \longrightarrow \text{Current Status} \longrightarrow \text{R
 ...never: big decorative title → stat cards → icons → charts.
 
 ## Bad Example
+
 ```text
 SC-003
 [Pending] [PO-100] [ABC Industries] [4 Materials] [Created 02/09/2026]
@@ -19,6 +20,7 @@ SC-003
 ```
 
 ## Good Operational Example
+
 ```text
 SC-003                         PENDING STORES ISSUE
 PO-100 · ABC Industries · Air Gauge
@@ -33,6 +35,7 @@ Next action: Issue the available materials
 ```
 
 ## Core Instructions
+
 - SC number, workflow status, and next required action must dominate the screen.
 - Secondary metadata stays visually subordinate.
 - Never give every field equal visual weight.

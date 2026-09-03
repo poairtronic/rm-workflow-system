@@ -3,4 +3,3 @@ export interface IdashboardFeature {
   id: string;
   name: string;
 }
-

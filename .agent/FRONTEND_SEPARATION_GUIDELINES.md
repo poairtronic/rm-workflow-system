@@ -4,7 +4,7 @@
 
 Never mix UI rendering, business/calculation logic, and HTTP networking in the same layer. Every feature must follow this strict 4-tier separation:
 
-$$\begin{matrix}
+$$ \begin{matrix}
 \text{1. UI Component} & \text{(Pure JSX, user interaction, prop callbacks)} \\
 \downarrow & \\
 \text{2. Feature Hook} & \text{(State, error handling, lifecycle orchestration)} \\
@@ -81,3 +81,4 @@ export function MaterialIssuePage() {
   return <MaterialIssueForm onSubmit={issueMaterials} loading={loading} error={error} />;
 }
 ```
+$$

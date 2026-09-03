@@ -3,4 +3,3 @@ export interface IauthenticationFeature {
   id: string;
   name: string;
 }
-

@@ -23,21 +23,25 @@ database/
 When creating or running migrations in later phases, use the following workspace scripts from project root:
 
 ### 1. Generate Migration from Entities
+
 ```bash
 npm --prefix backend run migration:generate -- database/migrations/<MigrationName>
 ```
 
 ### 2. Create Blank Migration
+
 ```bash
 npm --prefix backend run migration:create -- database/migrations/<MigrationName>
 ```
 
 ### 3. Run Pending Migrations
+
 ```bash
 npm --prefix backend run migration:run
 ```
 
 ### 4. Revert Last Migration
+
 ```bash
 npm --prefix backend run migration:revert
 ```
@@ -45,6 +49,7 @@ npm --prefix backend run migration:revert
 ---
 
 ## Planned Entities for Database Design Phase
+
 - `User` & `Role` (Authentication & Security)
 - `Customer` (Client Master Data)
 - `PurchaseOrder` (External Commercial Reference)

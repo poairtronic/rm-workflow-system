@@ -3,4 +3,3 @@ export interface IanalyticsFeature {
   id: string;
   name: string;
 }
-

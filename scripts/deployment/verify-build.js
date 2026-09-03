@@ -14,8 +14,10 @@ const backendDist = path.join(rootDir, 'backend', 'dist');
 
 console.log('[RMRIT] Verifying build outputs for deployment...');
 
-const frontendOk = fs.existsSync(frontendDist) && fs.existsSync(path.join(frontendDist, 'index.html'));
-const backendOk = fs.existsSync(backendDist) && fs.existsSync(path.join(backendDist, 'main.js'));
+const frontendOk =
+  fs.existsSync(frontendDist) && fs.existsSync(path.join(frontendDist, 'index.html'));
+const backendOk =
+  fs.existsSync(backendDist) && fs.existsSync(path.join(backendDist, 'main.js'));
 
 console.log(`[RMRIT] Frontend dist ready: ${frontendOk ? '✓' : '✗'}`);
 console.log(`[RMRIT] Backend dist ready:  ${backendOk ? '✓' : '✗'}`);

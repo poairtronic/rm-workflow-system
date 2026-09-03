@@ -2,4 +2,3 @@
 export const analyticsService = {
   // Feature service methods
 };
-

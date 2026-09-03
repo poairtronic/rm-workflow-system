@@ -6,9 +6,11 @@ description: Use this skill for ANY work on the RMRIT project (raw material work
 # RMRIT Development Skill
 
 ## 0. Before touching any code
+
 Read `.agent/OVERVIEW.md` and `.agent/docs/00-README.md` first, then whichever numbered doc matches the area you are changing. Never guess a business rule that is documented. If a rule is ambiguous, check `11-source-doc-corrections-and-open-issues.md`.
 
 ## 1. Non-negotiable business rules
+
 1. **PO is a reference, SC is the workflow/completion unit.** Never model PO as needing to "complete" — only SCs close.
 2. **Never overwrite a transaction row.** Issues, receipts, consumption, returns, exceptions are append-only.
 3. **Never overwrite the original RM requirement.** Additional material is always an `Additional Requirement` entry.
@@ -21,6 +23,7 @@ Read `.agent/OVERVIEW.md` and `.agent/docs/00-README.md` first, then whichever n
 10. **Ground truth is the transaction log.**
 
 ## 2. UI/UX Bar
+
 - Design around the 10 UI skills in `.agent/skills/`.
 - Clear information hierarchy: SC Number $\rightarrow$ Status $\rightarrow$ Action $\rightarrow$ Materials $\rightarrow$ History.
 - Design real loading, empty, and error states.
@@ -28,6 +31,7 @@ Read `.agent/OVERVIEW.md` and `.agent/docs/00-README.md` first, then whichever n
 - All screens must pass the **Real Employee Test**.
 
 ## 3. Performance Bar
+
 - No N+1 queries.
 - Paginate every unbounded list.
 - Index query targets in PostgreSQL.

@@ -3,4 +3,3 @@ export interface InotificationsFeature {
   id: string;
   name: string;
 }
-

@@ -3,4 +3,3 @@ export interface IrmFeature {
   id: string;
   name: string;
 }
-

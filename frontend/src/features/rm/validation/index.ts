@@ -12,7 +12,10 @@ export interface CreateRMItemInput {
   remarks?: string;
 }
 
-export function validateRMItem(input: Partial<CreateRMItemInput>): { valid: boolean; errors: Record<string, string> } {
+export function validateRMItem(input: Partial<CreateRMItemInput>): {
+  valid: boolean;
+  errors: Record<string, string>;
+} {
   const errors: Record<string, string> = {};
 
   if (!input.grade?.trim()) {

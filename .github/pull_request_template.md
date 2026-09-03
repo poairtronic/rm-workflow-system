@@ -1,6 +1,7 @@
 ## Summary of Changes
 
 ## Phase / Requirement Reference
+
 - [ ] Phase 4: Project Foundation
 - [ ] Phase 5: Database Design & Migrations
 - [ ] Phase 6: RM Creation & Design Flow
@@ -10,6 +11,7 @@
 - [ ] Phase 10: SC Completion & Analytics
 
 ## Quality & Security Checklist
+
 - [ ] No secrets or `.env` files committed
 - [ ] Server-side validation & role guards verified
 - [ ] Unit & E2E tests passing

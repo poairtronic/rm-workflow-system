@@ -2,7 +2,11 @@
  * Material balance calculation helper functions (client-side display validation)
  */
 
-export function calculateMaterialBalance(issued: number, consumed: number, returned: number): number {
+export function calculateMaterialBalance(
+  issued: number,
+  consumed: number,
+  returned: number
+): number {
   return Math.max(0, issued - (consumed + returned));
 }
 

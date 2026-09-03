@@ -69,6 +69,7 @@ cd backend
 npm install
 npm run start:dev
 ```
+
 Health Check: [http://localhost:3000/api/health](http://localhost:3000/api/health)
 
 ### 3. Run Frontend (Port 5173)
@@ -78,4 +79,5 @@ cd frontend
 npm install
 npm run dev
 ```
+
 Web Application: [http://localhost:5173](http://localhost:5173)

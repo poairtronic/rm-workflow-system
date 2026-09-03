@@ -3,6 +3,7 @@
 ## 1. PO vs. SC Hierarchy (SC Independence)
 
 ### Inviolable Structural Model
+
 A Purchase Order (PO) is an external commercial envelope containing one or more Sales Order Components (SCs). Every SC owns its own independent RM List and advances through the manufacturing lifecycle at its own pace.
 
 ```text
@@ -22,11 +23,13 @@ A Purchase Order (PO) is an external commercial envelope containing one or more 
 ```
 
 ### Prohibited Anti-Pattern
+
 ```text
 ❌ INCORRECT:
 PO-100  ──► One Combined RM List ──► One Global Completion
 ```
-*Why this is prohibited*: In real shop-floor operations, components have different machining times, distinct raw materials, and separate delivery batches. Merging them into a single PO-level completion breaks operational reality.
+
+_Why this is prohibited_: In real shop-floor operations, components have different machining times, distinct raw materials, and separate delivery batches. Merging them into a single PO-level completion breaks operational reality.
 
 ---
 
@@ -36,7 +39,7 @@ Material control is **not a mutable scalar counter** (e.g., `balance = 500`). It
 
 ### Example Transaction Sequence for SC-001
 
-$$\begin{matrix}
+$$ \begin{matrix}
 \textbf{Step} & \textbf{Event / Transaction} & \textbf{Quantity} & \textbf{Cumulative Issued} & \textbf{Net Balance / State} \\
 \hline
 \text{1.} & \text{RM Requirement Approved} & 500\text{ kg} & - & \text{Required: } 500\text{ kg} \\
@@ -62,3 +65,4 @@ $$\begin{matrix}
    - `transaction_type` (`INITIAL_ISSUE`, `ADDITIONAL_ISSUE`, `RECEIPT`, `CONSUMPTION`, `RETURN`)
    - `batch_or_heat_number` (Physical traceability tag)
    - `remarks` (Reason codes, condition notes)
+$$

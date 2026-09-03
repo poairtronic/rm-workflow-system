@@ -1,14 +1,17 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 
 export class BusinessRuleException extends HttpException {
-  constructor(message: string, statusCode: HttpStatus = HttpStatus.BAD_REQUEST) {
+  constructor(
+    message: string,
+    statusCode: HttpStatus = HttpStatus.BAD_REQUEST,
+  ) {
     super(
       {
         statusCode,
         error: 'BusinessRuleViolation',
         message,
       },
-      statusCode
+      statusCode,
     );
   }
 }
@@ -21,7 +24,7 @@ export class ResourceNotFoundException extends HttpException {
         error: 'NotFound',
         message: `${resource} with identifier '${identifier}' was not found.`,
       },
-      HttpStatus.NOT_FOUND
+      HttpStatus.NOT_FOUND,
     );
   }
 }

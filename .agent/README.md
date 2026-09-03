@@ -31,6 +31,7 @@ This directory contains instructions, skills, design guidelines, and business ru
 ```
 
 ## How Agents Should Work
+
 1. Consult `WORKFLOW_RULES.md` before altering database models or business endpoints.
 2. Check `UI_DESIGN_RULES.md` and relevant skills in `skills/` before generating frontend views.
 3. Reference `docs/` for deep domain logic across approvals, stores, and production accounting.

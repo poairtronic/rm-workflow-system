@@ -8,6 +8,7 @@ description: Prevent generic AI-generated aesthetics (purple gradients, glassmor
 RMRIT is enterprise manufacturing workflow software. It must never look like a generic consumer AI mock-up.
 
 ## Elements to Avoid
+
 - ❌ Purple / Blue neon AI gradients
 - ❌ Glassmorphism / heavy blur layers
 - ❌ Massive hero banners and decorative marketing illustrations
@@ -16,6 +17,7 @@ RMRIT is enterprise manufacturing workflow software. It must never look like a g
 - ❌ Excessive bouncy animations
 
 ## Elements to Prioritize
+
 - ✅ Crisp, high-contrast data tables with clear typography
 - ✅ Subtle, functional borders and clean grid alignments
 - ✅ Semantic color palette strictly bound to workflow status (`Pending`, `Issued`, `Complete`, `Rejected`)

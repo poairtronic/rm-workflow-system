@@ -36,12 +36,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
           title="Backend Connectivity & API Diagnostics"
           subtitle={`Targeting NestJS API at ${APP_CONFIG.apiBaseUrl}`}
           action={
-            <Button
-              onClick={refetch}
-              disabled={loading}
-              variant="primary"
-              size="sm"
-            >
+            <Button onClick={refetch} disabled={loading} variant="primary" size="sm">
               {loading ? 'Checking...' : '↻ Re-test Health'}
             </Button>
           }
@@ -97,7 +92,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
                 <span className="check-icon">✓</span>
                 <div>
                   <strong>Modular Frontend Structure</strong>
-                  <p>Organized into app, components, features, hooks, services, and types</p>
+                  <p>
+                    Organized into app, components, features, hooks, services, and types
+                  </p>
                 </div>
               </li>
               <li className="check-item">
@@ -111,7 +108,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
                 <span className="check-icon">✓</span>
                 <div>
                   <strong>JWT & RBAC Security Foundation</strong>
-                  <p>Extensible role contracts matching manufacturing shop-floor personas</p>
+                  <p>
+                    Extensible role contracts matching manufacturing shop-floor personas
+                  </p>
                 </div>
               </li>
             </ul>
@@ -121,13 +120,15 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
             <div className="roles-section">
               <h3 className="roles-subtitle">Core Operational Roles</h3>
               <div className="role-tags">
-                {(roles?.operationalRoles || [
-                  'ADMIN',
-                  'DESIGN_USER',
-                  'SENIOR_MANAGER',
-                  'STORES_MANAGER',
-                  'PRODUCTION_USER',
-                ]).map((r) => (
+                {(
+                  roles?.operationalRoles || [
+                    'ADMIN',
+                    'DESIGN_USER',
+                    'SENIOR_MANAGER',
+                    'STORES_MANAGER',
+                    'PRODUCTION_USER',
+                  ]
+                ).map((r) => (
                   <span key={r} className="role-tag">
                     {r}
                   </span>
@@ -136,13 +137,17 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
 
               <h3 className="roles-subtitle">Planned Governance Roles</h3>
               <div className="role-tags">
-                {(roles?.governanceRoles || ['ACCOUNTS', 'PRODUCTION_MANAGER', 'MANAGEMENT']).map(
-                  (r) => (
-                    <span key={r} className="role-tag role-tag-secondary">
-                      {r}
-                    </span>
-                  )
-                )}
+                {(
+                  roles?.governanceRoles || [
+                    'ACCOUNTS',
+                    'PRODUCTION_MANAGER',
+                    'MANAGEMENT',
+                  ]
+                ).map((r) => (
+                  <span key={r} className="role-tag role-tag-secondary">
+                    {r}
+                  </span>
+                ))}
               </div>
             </div>
           </Card>

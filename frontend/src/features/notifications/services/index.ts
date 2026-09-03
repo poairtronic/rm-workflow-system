@@ -2,4 +2,3 @@
 export const notificationsService = {
   // Feature service methods
 };
-

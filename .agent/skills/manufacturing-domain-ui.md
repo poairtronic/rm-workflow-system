@@ -9,17 +9,18 @@ The application must speak the shop floor's language, not generic SaaS language.
 
 ## Terminology Mapping
 
-| Generic SaaS Term | Manufacturing UI Term |
-| :--- | :--- |
-| Create New Request | **Create RM List** |
-| Request Status | **Material Status** |
-| Task Completed | **Production Completed** |
-| Transaction History | **Material Movement** |
-| Items / Products | **Raw Materials (RM)** |
-| Item Type | **Material Grade** |
-| Item Specs | **Dimensions / Size** |
+| Generic SaaS Term   | Manufacturing UI Term    |
+| :------------------ | :----------------------- |
+| Create New Request  | **Create RM List**       |
+| Request Status      | **Material Status**      |
+| Task Completed      | **Production Completed** |
+| Transaction History | **Material Movement**    |
+| Items / Products    | **Raw Materials (RM)**   |
+| Item Type           | **Material Grade**       |
+| Item Specs          | **Dimensions / Size**    |
 
 ## Example Shop Floor Table
+
 ```text
 RM MATERIAL STATUS
 Material    Grade   Size      Required  Issued  Pending

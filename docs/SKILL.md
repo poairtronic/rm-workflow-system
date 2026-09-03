@@ -6,9 +6,11 @@ description: Use this skill for ANY work on the RMRIT project (raw material work
 # RMRIT Development Skill
 
 ## 0. Before touching any code
+
 Read `/rmrit-docs/00-README.md` first, then whichever numbered file matches the area you're changing. **Never guess a business rule that's documented — grep the docs folder first.** If a rule is genuinely ambiguous, check `11-source-doc-corrections-and-open-issues.md` — it's likely already flagged there with a recommended resolution. Only ask the user if it's not covered anywhere.
 
 Doc map:
+
 - `01` overview & scope · `02` PO/SC/RM structure · `03` approval & stores · `04` production & accounting
 - `05` status machine · `06` roles/permissions · `07` data model · `08` tech stack/infra
 - `09` notifications/analytics/screens · `10` dev phases/testing · `11` corrections/open issues
@@ -31,7 +33,7 @@ Doc map:
 RMRIT is replacing a paper workflow for people who currently work off physical forms — the UI is the whole product experience, not a wrapper around an API. Treat every screen in `09-notifications-analytics-screens.md` as a floor, not a ceiling.
 
 - **Design intentionally, don't default.** Before building a screen, decide on a real visual direction (spacing, type scale, a restrained color system tied to status semantics — e.g. consistent colors for `PENDING`/`PARTIAL`/`ISSUED`/`COMPLETED` used everywhere they appear). Consult the frontend-design skill for tokens/constraints if generating raw HTML/React outside the app's own design system.
-- **Every quantity view shows the full chain, not just the final number** — Required → Additional → Total, Issued → Received → Pending, Consumed/Returned/Wasted → Unaccounted. Users need to see *why* a number is what it is without opening a transaction log, per the accounting model in `04`.
+- **Every quantity view shows the full chain, not just the final number** — Required → Additional → Total, Issued → Received → Pending, Consumed/Returned/Wasted → Unaccounted. Users need to see _why_ a number is what it is without opening a transaction log, per the accounting model in `04`.
 - **Status is always visible, consistent, and calculated** — never a free-text field a user can typo. Use the same badge/color/label for a given status everywhere it appears (dashboard, table row, detail view).
 - **Forms respect the flexible-dimension rule** (`02`) — don't render irrelevant dimension fields as required, or force nulls into a rigid grid. Show only the fields relevant to how the material was described.
 - **Every destructive or approval-adjacent action confirms and explains consequence** — e.g. "Reject" requires a reason before submit is enabled; "Complete Production" should make clear this closes the SC.
@@ -52,7 +54,9 @@ RMRIT runs on Render Free / Neon Free (see `08`), so performance discipline isn'
 - **Every new feature gets a quick self-check before being marked done:** "How many DB round-trips does this take? Does this page work if the Render instance just cold-started (~1 min wake)? Does a list here need a limit?"
 
 ## 4. Definition of done for any RMRIT change
+
 A change is done only when all of these are true:
+
 1. It matches the business rule in the relevant numbered doc (or the resolution in `11` if the doc was ambiguous).
 2. Server-side validation/authorization enforces it — not just UI.
 3. All math shown to the user is server-computed and traceable to the transaction log.
