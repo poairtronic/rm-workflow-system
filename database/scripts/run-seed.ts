@@ -79,7 +79,6 @@ export async function runSeeds() {
   console.log('[RMRIT Database Seed] Seeding PO, SC, and RM Lists...');
   const designerUser =
     userMap.get('designer@airtronic.com') || Array.from(userMap.values())[0];
-  const seniorUser = userMap.get('senior.design@airtronic.com') || designerUser;
 
   for (const poData of SEED_PURCHASE_ORDERS) {
     const customer = customerMap.get(poData.customerCode);
@@ -117,11 +116,9 @@ export async function runSeeds() {
         rmReq = rmReqRepo.create({
           salesOrderComponent: sc,
           createdBy: designerUser,
-          verifiedBy: seniorUser,
           formType: FormType.SC,
-          status: RmRequestStatus.VERIFIED,
+          status: RmRequestStatus.SUBMITTED,
           submittedAt: new Date(),
-          verifiedAt: new Date(),
         });
         await rmReqRepo.save(rmReq);
 

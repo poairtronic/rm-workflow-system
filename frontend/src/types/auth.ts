@@ -1,12 +1,5 @@
 export type UserRole =
-  | 'ADMIN'
-  | 'DESIGN_USER'
-  | 'SENIOR_MANAGER'
-  | 'STORES_MANAGER'
-  | 'PRODUCTION_USER'
-  | 'ACCOUNTS'
-  | 'PRODUCTION_MANAGER'
-  | 'MANAGEMENT';
+  'ADMIN' | 'DESIGNER' | 'STORES' | 'PRODUCTION' | 'SENIOR_MANAGER' | 'GENERAL_MANAGER';
 
 export interface AuthUser {
   userId: string;

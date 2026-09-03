@@ -121,13 +121,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
               <h3 className="roles-subtitle">Core Operational Roles</h3>
               <div className="role-tags">
                 {(
-                  roles?.operationalRoles || [
-                    'ADMIN',
-                    'DESIGN_USER',
-                    'SENIOR_MANAGER',
-                    'STORES_MANAGER',
-                    'PRODUCTION_USER',
-                  ]
+                  roles?.operationalRoles || ['ADMIN', 'DESIGNER', 'STORES', 'PRODUCTION']
                 ).map((r) => (
                   <span key={r} className="role-tag">
                     {r}
@@ -135,19 +129,15 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
                 ))}
               </div>
 
-              <h3 className="roles-subtitle">Planned Governance Roles</h3>
+              <h3 className="roles-subtitle">Monitoring, Alerts & Governance Roles</h3>
               <div className="role-tags">
-                {(
-                  roles?.governanceRoles || [
-                    'ACCOUNTS',
-                    'PRODUCTION_MANAGER',
-                    'MANAGEMENT',
-                  ]
-                ).map((r) => (
-                  <span key={r} className="role-tag role-tag-secondary">
-                    {r}
-                  </span>
-                ))}
+                {(roles?.governanceRoles || ['SENIOR_MANAGER', 'GENERAL_MANAGER']).map(
+                  (r) => (
+                    <span key={r} className="role-tag role-tag-secondary">
+                      {r}
+                    </span>
+                  )
+                )}
               </div>
             </div>
           </Card>
