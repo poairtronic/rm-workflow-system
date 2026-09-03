@@ -83,7 +83,9 @@ export class InitialSchema1700000000000 implements MigrationInterface {
         "completed_by_id" uuid REFERENCES "users"("id") ON DELETE SET NULL,
         "completion_remarks" text,
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-        "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+        "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        CONSTRAINT "uq_po_sc_number" UNIQUE ("po_id", "sc_number"),
+        CONSTRAINT "chk_sc_target_quantity" CHECK ("target_quantity" > 0)
       );
       CREATE INDEX "idx_sc_sc_number" ON "sales_order_components"("sc_number");
       CREATE INDEX "idx_sc_po_id" ON "sales_order_components"("po_id");
@@ -146,7 +148,8 @@ export class InitialSchema1700000000000 implements MigrationInterface {
         "weight_unit" varchar(20) NOT NULL DEFAULT 'KG',
         "remarks" text,
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-        "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+        "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        CONSTRAINT "chk_rm_items_quantity" CHECK ("quantity" > 0)
       );
       CREATE INDEX "idx_rm_items_form_id" ON "rm_items"("rm_form_id");
       CREATE INDEX "idx_rm_items_sc_id" ON "rm_items"("sc_id");
@@ -191,11 +194,14 @@ export class InitialSchema1700000000000 implements MigrationInterface {
         "weight" numeric(12,3),
         "weight_unit" varchar(20) NOT NULL DEFAULT 'KG',
         "revision_reason" text,
-        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        CONSTRAINT "chk_snapshots_quantity" CHECK ("quantity" > 0)
       );
       CREATE INDEX "idx_rm_snapshots_item_id" ON "rm_item_snapshots"("rm_item_id");
       CREATE INDEX "idx_rm_snapshots_form_id" ON "rm_item_snapshots"("rm_form_id");
-    `); // 12. Additional Material Requests Table (Header)
+    `);
+
+    // 12. Additional Material Requests Table (Header)
     await queryRunner.query(`
       CREATE TABLE "additional_material_requests" (
         "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -223,7 +229,8 @@ export class InitialSchema1700000000000 implements MigrationInterface {
         "quantity_requested" numeric(12,3) NOT NULL,
         "quantity_approved" numeric(12,3),
         "remarks" text,
-        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        CONSTRAINT "chk_add_req_items_quantity" CHECK ("quantity_requested" > 0)
       );
       CREATE INDEX "idx_add_req_items_request_id" ON "additional_material_request_items"("request_id");
       CREATE INDEX "idx_add_req_items_rm_item_id" ON "additional_material_request_items"("rm_item_id");
@@ -258,7 +265,8 @@ export class InitialSchema1700000000000 implements MigrationInterface {
         "heat_number" varchar(100),
         "batch_number" varchar(100),
         "remarks" text,
-        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        CONSTRAINT "chk_issue_items_quantity" CHECK ("quantity_issued" > 0)
       );
       CREATE INDEX "idx_issue_items_issue_id" ON "material_issue_items"("material_issue_id");
       CREATE INDEX "idx_issue_items_rm_item_id" ON "material_issue_items"("rm_item_id");
@@ -286,7 +294,8 @@ export class InitialSchema1700000000000 implements MigrationInterface {
         "rm_item_id" uuid NOT NULL REFERENCES "rm_items"("id") ON DELETE RESTRICT,
         "quantity_received" numeric(12,3) NOT NULL,
         "remarks" text,
-        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        CONSTRAINT "chk_receipt_items_quantity" CHECK ("quantity_received" > 0)
       );
       CREATE INDEX "idx_receipt_items_receipt_id" ON "material_receipt_items"("material_receipt_id");
       CREATE INDEX "idx_receipt_items_rm_item_id" ON "material_receipt_items"("rm_item_id");
@@ -302,7 +311,8 @@ export class InitialSchema1700000000000 implements MigrationInterface {
         "recorded_by_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE RESTRICT,
         "remarks" text,
         "recorded_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        CONSTRAINT "chk_consumptions_quantity" CHECK ("consumed_quantity" >= 0)
       );
       CREATE INDEX "idx_consumptions_sc_id" ON "material_consumptions"("sc_id");
       CREATE INDEX "idx_consumptions_rm_item_id" ON "material_consumptions"("rm_item_id");
@@ -333,7 +343,8 @@ export class InitialSchema1700000000000 implements MigrationInterface {
         "rm_item_id" uuid NOT NULL REFERENCES "rm_items"("id") ON DELETE RESTRICT,
         "quantity_returned" numeric(12,3) NOT NULL,
         "remarks" text,
-        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+        CONSTRAINT "chk_return_items_quantity" CHECK ("quantity_returned" > 0)
       );
       CREATE INDEX "idx_return_items_return_id" ON "material_return_items"("material_return_id");
       CREATE INDEX "idx_return_items_rm_item_id" ON "material_return_items"("rm_item_id");
