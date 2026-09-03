@@ -13,7 +13,7 @@ import { RmRequest } from './rm-request.entity.js';
 import { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
 import { MaterialIssueItem } from '../../material-issue/entities/material-issue-item.entity.js';
 import { MaterialConsumption } from '../../production/entities/material-consumption.entity.js';
-import { MaterialReturn } from '../../production/entities/material-return.entity.js';
+import { MaterialReturnItem } from '../../production/entities/material-return-item.entity.js';
 
 @Entity('rm_items')
 export class RmItem {
@@ -32,9 +32,9 @@ export class RmItem {
   @Column({ name: 'sc_id', nullable: true })
   scId?: string;
 
-  @ManyToOne(() => SalesOrderComponent, {
+  @ManyToOne(() => SalesOrderComponent, (sc) => sc.rmItems, {
     nullable: true,
-    onDelete: 'SET NULL',
+    onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'sc_id' })
   salesOrderComponent?: SalesOrderComponent;
@@ -118,8 +118,8 @@ export class RmItem {
   @OneToMany(() => MaterialConsumption, (cons) => cons.rmItem)
   materialConsumptions!: MaterialConsumption[];
 
-  @OneToMany(() => MaterialReturn, (ret) => ret.rmItem)
-  materialReturns!: MaterialReturn[];
+  @OneToMany(() => MaterialReturnItem, (ret) => ret.rmItem)
+  materialReturns!: MaterialReturnItem[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;

@@ -42,7 +42,7 @@ export class SalesOrderComponent {
   @Column({ name: 'po_id' })
   poId!: string;
 
-  @ManyToOne(() => PurchaseOrder, (po) => po.components, {
+  @ManyToOne(() => PurchaseOrder, (po) => po.salesOrderComponents, {
     onDelete: 'RESTRICT',
   })
   @JoinColumn({ name: 'po_id' })

@@ -11,7 +11,7 @@ docs/
 │
 ├── requirements/
 │   ├── requirements.md         # Scope, functional requirements & domain boundaries
-│   ├── user-stories.md         # Persona user stories (Design, Senior, Stores, Production)
+│   ├── user-stories.md         # Persona user stories (Design, Stores, Production, Management)
 │   ├── business-rules.md       # Inviolable workflow & accounting rules
 │   └── roles-permissions.md    # RBAC matrix across all 6 personas
 │
@@ -22,7 +22,7 @@ docs/
 │
 ├── workflow/
 │   ├── overall-workflow.md     # High-level state ladder & sequence
-│   ├── design-workflow.md      # RM list entry & Senior approval flow
+│   ├── design-workflow.md      # RM list entry & direct Stores submission
 │   ├── stores-workflow.md      # Material availability & issuance
 │   ├── production-workflow.md  # Receipt, consumption, returns & completion
 │   └── material-lifecycle.md   # Authoritative accounting formulas

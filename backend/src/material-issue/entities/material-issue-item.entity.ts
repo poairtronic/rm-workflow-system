@@ -4,13 +4,11 @@ import {
   Column,
   CreateDateColumn,
   ManyToOne,
-  OneToOne,
   JoinColumn,
   Index,
 } from 'typeorm';
 import { MaterialIssue } from './material-issue.entity.js';
 import { RmItem } from '../../rm/entities/rm-item.entity.js';
-import { ProductionReceipt } from '../../production/entities/production-receipt.entity.js';
 
 @Entity('material_issue_items')
 export class MaterialIssueItem {
@@ -53,9 +51,6 @@ export class MaterialIssueItem {
 
   @Column({ type: 'text', nullable: true })
   remarks?: string;
-
-  @OneToOne(() => ProductionReceipt, (receipt) => receipt.materialIssueItem)
-  productionReceipt?: ProductionReceipt;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;

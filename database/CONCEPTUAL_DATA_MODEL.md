@@ -1,15 +1,11 @@
 # Database Conceptual Organization & Domain Groups
 
-> **Roadmap Note**: This document serves as the conceptual reference for **Phase 7 (Database Design Phase)**. No database tables, schemas, or migrations are created in Phase 5.
-
----
-
 ## Conceptual Entity Groupings
 
 ```text
 IDENTITY (Authentication & Access Control)
 ├── users                  # User credentials, active state, department
-├── roles                  # Operational & governance role definitions
+├── roles                  # 6 system roles: Designer, Stores, Production, Senior Mgr, General Mgr, Admin
 └── permissions            # Granular capability authorizations
 
 BUSINESS (Commercial & Workflow Context)
@@ -19,13 +15,12 @@ BUSINESS (Commercial & Workflow Context)
 └── products               # Component & assembly catalog references
 
 RM (Raw Material Requirement Definitions)
-├── rm_lists               # Parent RM specification for an SC
-├── rm_items               # Material rows (grade, profile, dimensions)
-└── material attributes    # Optional dimensions (Ø, width, thickness, unit weight)
+├── rm_requests            # Parent RM specification for an SC (direct to Stores)
+├── rm_items               # Material rows (grade, profile, dimensions, quantities)
+└── rm_item_snapshots      # Immutable revision tracking (original vs revised)
 
 WORKFLOW (Lifecycle Progression & Transitions)
-├── verification           # Senior Designer approvals, edits, & rejections
-├── material issues        # Stores physical issue records (full / partial / extra)
+├── material issues        # Stores physical issue records (INITIAL_ISSUE / ADDITIONAL_ISSUE)
 ├── material receipts      # Production receipt acknowledgments
 ├── additional requests    # Shortage & defect material requests
 └── completions            # SC-level production completion sign-offs
@@ -43,8 +38,8 @@ SYSTEM (Platform Services)
 
 ---
 
-## Core Relational Principles (For Phase 7)
+## Core Relational Principles
 
-1. **SC Independence**: All operational entities (`rm_lists`, `material_issues`, `receipts`, `movements`) attach directly to `sc_id`, **not** `po_id`.
+1. **SC Independence**: All operational entities (`rm_requests`, `material_issues`, `receipts`, `consumptions`, `returns`) attach directly to `sc_id`.
 2. **Immutable Transactions**: Records in `MATERIAL CONTROL` and `SYSTEM` are append-only.
-3. **No Premature Constraints**: Entity foreign keys, indexing strategies, and column constraints will be designed and migrated in Phase 7.
+3. **Direct Submission**: Designer submits directly to Stores without intermediate verification gates.

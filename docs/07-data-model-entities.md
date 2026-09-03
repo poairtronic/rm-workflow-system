@@ -2,124 +2,74 @@
 
 ## Conceptual Structure
 
-```
+```text
 User
  ├── PO
  │    └── SC
  │         └── RMRequest
  │              ├── RMItem
- │              │    ├── Attachments
- │              │    ├── Approval/Revisions
+ │              │    ├── Revisions / Snapshots
  │              │    ├── Issue Transactions
  │              │    ├── Receipt Transactions
  │              │    ├── Additional Requests
  │              │    ├── Consumption
  │              │    ├── Returns
- │              │    ├── Exceptions
  │              │    └── Audit History
  └── Analytics
 ```
 
-## Core Entities
+## Core Entities (20 Tables)
 
 ### User
-
-`id, name, email, passwordHash, role, isActive, createdAt, updatedAt`
+`id, name, email, passwordHash, role, department, isActive, createdAt, updatedAt`
 
 ### Customer
-
-`id, name, code, isActive`
+`id, name, code, contactPerson, email, phone, isActive`
 
 ### PO
-
-`id, poNumber, customerId, createdAt, updatedAt`
+`id, poNumber, customerId, referenceDate, remarks, createdAt, updatedAt`
 
 ### SC
-
-`id, poId, scNumber, status, createdAt, updatedAt, completedAt`
+`id, poId, scNumber, productName, targetQuantity, status, completedAt, completedById, completionRemarks`
 
 ### RMRequest
-
-`id, scId, requestType, createdById, status, submittedAt, approvedAt, createdAt, updatedAt`
+`id, poId, scId, formType, createdById, status, revisionNumber, submittedAt, completedAt, remarks`
 
 ### RMItem
+`id, rmFormId, scId, material, materialType, grade, size, quantity, length, width, thickness, diameter, weight, weightUnit, remarks`
 
-`id, rmRequestId, materialGrade, size, quantity, unit, length, width, thickness, diameter, weight, remarks`
-(Only `materialGrade`, `size`, `quantity` are strictly always required — see flexible-dimensions rule in doc 02.)
-
-## Transaction Entities (append-only — never overwrite prior rows)
+### RMItemSnapshot
+`id, rmItemId, rmFormId, revisionNumber, changeType, changedById, material, materialType, grade, size, quantity, revisionReason, createdAt`
 
 ### MaterialIssue
+`id, scId, additionalRequestId, issueNumber, issueType, issuedById, issueDate, status, remarks`
 
-`id, rmItemId, quantity, issueType, issuedBy, issuedAt, remarks`
-`issueType ∈ { NORMAL, ADDITIONAL, EXTRA }`
+### MaterialIssueItem
+`id, materialIssueId, rmItemId, quantityIssued, heatNumber, batchNumber, remarks`
 
-### ProductionReceipt
+### MaterialReceipt
+`id, scId, materialIssueId, receivedById, receivedAt, status, remarks`
 
-`id, issueId, quantity, receivedBy, receivedAt, remarks`
+### MaterialReceiptItem
+`id, materialReceiptId, rmItemId, quantityReceived, discrepancyReason`
 
-### ProductionConsumption
-
-`id, rmItemId, quantity, recordedBy, recordedAt, remarks`
+### MaterialConsumption
+`id, scId, rmItemId, operatorId, consumedQuantity, operationStage, machineId, loggedAt, remarks`
 
 ### MaterialReturn
+`id, scId, returnedById, returnedAt, status, acknowledgedById, acknowledgedAt, remarks`
 
-`id, rmItemId, quantity, returnedBy, returnedAt, confirmedBy, confirmedAt, status, remarks`
-
-### ProductionException
-
-`id, rmItemId, type, quantity, reason, remarks, createdBy, createdAt`
-`type ∈ { WASTAGE, DAMAGE, MANUFACTURING_ERROR }`
+### MaterialReturnItem
+`id, materialReturnId, rmItemId, quantityReturned, condition`
 
 ### AdditionalMaterialRequest
+`id, scId, requestedById, status, reason, remarks, requestedAt, approvedAt, approvedById`
 
-`id, scId, createdBy, reason, status, createdAt` (has its own RM items)
+### AdditionalMaterialRequestItem
+`id, requestId, rmItemId, quantityRequested, quantityApproved, remarks`
 
-## Audit / Revision Entities
-
-### RM Revision
-
-`fieldChanged, oldValue, newValue, changedBy, changedAt, reason`
+### Notification
+`id, userId, title, message, type, targetEntity, targetId, isRead, createdAt`
 
 ### AuditLog
-
-`user, action, entity, entityId, oldData, newData, timestamp, ipOrDeviceInfo(optional)`
-
-Built on the original design's `StatusHistory` / `ApprovalLog` philosophy: nothing is ever silently overwritten.
-
-## Data Integrity Rules (server-side, authoritative — frontend only displays)
-
-```
-Pending Issue                      = Required - Total Issued
-Receipt Pending                    = Total Issued - Total Received
-Unaccounted Production Material    = Total Received - Consumed - Returned - Exceptions
-```
-
-## Transaction Safety
-
-A Stores issue action must be atomic — e.g. `Create Issue + Update Item Status + Create Notification + Create Audit Entry` happen in one DB transaction (all-or-nothing).
-
-## Idempotency
-
-Guard against double-submit (e.g. double-clicking "Issue Material" must not create two separate issue rows for one intended action).
-
-## Attachments
-
-Files (reference photos/docs) are stored externally (Supabase Storage), never as binary blobs inside PostgreSQL. RM Request stores only the URL/Storage ID.
-
-## Recommended Indexes
-
-```
-PO.poNumber
-SC.poId
-SC.scNumber
-RMRequest.scId
-RMRequest.status
-RMItem.rmRequestId
-MaterialIssue.rmItemId
-ProductionReceipt.issueId
-AdditionalMaterialRequest.scId
-Notification.userId
-Notification.isRead
-AuditLog.entityId
-```
+`id, entityName, entityId, actionType, actorId, oldValues, newValues, metadata, createdAt`

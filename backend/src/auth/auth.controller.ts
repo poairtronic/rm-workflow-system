@@ -12,15 +12,13 @@ export class AuthController {
     return {
       operationalRoles: [
         UserRole.ADMIN,
-        UserRole.DESIGN_USER,
-        UserRole.SENIOR_MANAGER,
-        UserRole.STORES_MANAGER,
-        UserRole.PRODUCTION_USER,
+        UserRole.DESIGNER,
+        UserRole.STORES,
+        UserRole.PRODUCTION,
       ],
       governanceRoles: [
-        UserRole.ACCOUNTS,
-        UserRole.PRODUCTION_MANAGER,
-        UserRole.MANAGEMENT,
+        UserRole.SENIOR_MANAGER,
+        UserRole.GENERAL_MANAGER,
       ],
     };
   }
