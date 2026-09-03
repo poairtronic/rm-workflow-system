@@ -13,10 +13,6 @@ import {
   SnapshotChangeType,
 } from './rm/entities/rm-item-snapshot.entity.js';
 import {
-  RmVerification,
-  VerificationStatus,
-} from './verification/entities/verification-log.entity.js';
-import {
   MaterialIssue,
   MaterialIssueType,
 } from './material-issue/entities/material-issue.entity.js';
@@ -120,20 +116,18 @@ describe('Section 37: 22 Required Database Invariant & Workflow Tests', () => {
     expect(item.quantity).toBe(2);
   });
 
-  // 7. Verify RM
-  it('7. should record Senior Manager verification decision', () => {
-    const verification = new RmVerification();
-    verification.rmFormId = 'rm-sc-01';
-    verification.status = VerificationStatus.APPROVED;
-    verification.verifiedById = 'senior-uuid';
-    verification.remarks = 'Dimensions verified per spindle drawing';
+  // 7. Direct Submission to Stores
+  it('7. should transition RM form to SUBMITTED and notify Stores without approval gates', () => {
+    const rmReq = new RmRequest();
+    rmReq.status = RmRequestStatus.SUBMITTED;
+    rmReq.submittedAt = new Date();
 
-    expect(verification.status).toBe(VerificationStatus.APPROVED);
-    expect(verification.remarks).toContain('spindle drawing');
+    expect(rmReq.status).toBe(RmRequestStatus.SUBMITTED);
+    expect(rmReq.submittedAt).toBeDefined();
   });
 
-  // 8. Modify quantity/material/size
-  it('8. should support Senior Manager modifications to size and quantity', () => {
+  // 8. Modify quantity/material/size by Designer
+  it('8. should support Designer revisions to size and quantity', () => {
     const item = new RmItem();
     item.material = 'EN31';
     item.size = 'Ø110X40';

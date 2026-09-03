@@ -89,16 +89,16 @@ MS          MS      Ø150×15      1         0       1
 
 Status design matters more than dashboards here — this is fundamentally a workflow system. Use one consistent state ladder end-to-end:
 
-```
-DRAFT → SUBMITTED → SENIOR VERIFIED → STORES PENDING → PARTIALLY ISSUED
+```text
+DRAFT → SUBMITTED / STORES PENDING → PARTIALLY ISSUED
 → ISSUED → RECEIVED → IN PRODUCTION → ADDITIONAL REQUEST → COMPLETED
 ```
 
-Show current stage as a clear progress trail (`● Design ─ ● Verified ─ ● Stores ─ ◉ Production`), with the current stage visually distinct.
+Show current stage as a clear progress trail (`● Design ─ ● Stores ─ ● Production ─ ◉ Completed`), with the current stage visually distinct.
 
 **Never rely on color alone** for status — always pair a symbol with the label:
 
-```
+```text
 ✓ Available     ⚠ Partially Available     ! Pending
 ↻ Additional Request     ✓ Completed
 ```
@@ -107,9 +107,9 @@ Show current stage as a clear progress trail (`● Design ─ ● Verified ─ �
 
 Never use lorem ipsum, "John Doe," "Product A," "Material 01," or other meaningless placeholders anywhere in the shipped UI. Use realistic manufacturing data — real-sounding customer names, real grades (EN31, OHNS, MS), real sizes (Ø110×35), and plausible timestamped transaction history:
 
-```
+```text
 02 Sep 09:32  Design submitted RM list
-02 Sep 10:04  Senior verified
+02 Sep 09:35  Stores notified
 02 Sep 11:15  Stores issued 2 × EN31
 02 Sep 11:16  Stores issued 1 × OHNS
 02 Sep 11:17  MS Ø150×15 pending
@@ -278,17 +278,16 @@ Before the agent considers **any** page finished, it must simulate an actual emp
 
 Each phase must pass the Real Employee Test before moving to the next:
 
-```
+```text
 Phase 1  Design System
 Phase 2  Login + Navigation
 Phase 3  Design RM Workflow
-Phase 4  Senior Verification
-Phase 5  Stores Workflow
-Phase 6  Production Receipt
-Phase 7  Consumption / Return
-Phase 8  Additional Material Request
-Phase 9  SC Completion
-Phase 10 Senior Dashboard / Analytics
+Phase 4  Stores Workflow
+Phase 5  Production Receipt
+Phase 6  Consumption / Return
+Phase 7  Additional Material Request
+Phase 8  SC Completion
+Phase 9  Monitoring & Analytics Dashboard
 ```
 
 This build order is UI-focused and complements — not replaces — the backend-oriented phase list in `10-dev-phases-and-testing.md`; the two should be worked roughly in parallel per phase (backend transaction/endpoint for a workflow step, then the screen that uses it, then the Real Employee Test on that screen).

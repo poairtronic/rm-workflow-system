@@ -9,7 +9,7 @@ SC Selected / Created (e.g. SC-003)
       ↓
 Design Prepares RM List
       ↓
-Senior Design Manager Verification (Approve / Edit / Reject)
+RM Submitted → Stores Notified
       ↓
 Stores Checks Physical Stock Availability
       ↓

@@ -15,7 +15,7 @@ A single Purchase Order context (e.g. `PO-100`) contains multiple independent Sa
      RM List         RM List         RM List
         │               │               │
         ↓               ↓               ↓
-    COMPLETED      IN PROGRESS       PENDING
+    COMPLETED      IN PROGRESS    STORES_PENDING
 ```
 
 ---
@@ -25,9 +25,7 @@ A single Purchase Order context (e.g. `PO-100`) contains multiple independent Sa
 Material control is **not a single mutable number**. It is an append-only sequence of immutable transactions preserving the entire shop-floor history:
 
 ```text
-[ RM Required: 500 kg ]
-          ↓
-[ Senior Verified: 500 kg ]
+[ RM Required & Submitted by Designer: 500 kg ]
           ↓
 [ Stores Initial Issue: 500 kg ] (Batch #HT-4482)
           ↓

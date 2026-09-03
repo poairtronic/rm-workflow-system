@@ -20,7 +20,7 @@ One Purchase Order (PO) can contain multiple Sales Order Components (SCs), each 
 
 ### `RULE-004`: Single SC RM List Entry
 
-Raw Material (RM) requirements can be created and submitted for a single individual SC.
+Raw Material (RM) requirements can be created and submitted directly for a single individual SC.
 
 ### `RULE-005`: Entire PO RM List Entry
 
@@ -44,7 +44,7 @@ A PO does **not** need to be completed for an individual SC to be completed and 
 
 ### `RULE-009`: Unavailable Material Becomes Pending
 
-Any material requested in an approved RM list that is physically unavailable in Stores automatically becomes `Pending` with a `⚠ Shortage / Pending` marker.
+Any material requested in a submitted RM list that is physically unavailable in Stores automatically becomes `Pending` with a `⚠ Shortage / Pending` marker.
 
 ### `RULE-010`: Partial & Full Issuance
 
@@ -74,9 +74,9 @@ Any Additional Material Request initiated by Production due to defect, error, or
 
 ## 4. Notifications, Audit & System Invariants
 
-### `RULE-015`: Senior Management Alerts
+### `RULE-015`: Management Real-Time Monitoring & Alerts
 
-The Senior Design Manager receives immediate workflow notifications on shortages, rejections, partial store issues, and additional material requests.
+Senior Managers and General Managers receive immediate workflow notifications on shortages, partial store issues, and additional material requests as observers with no blocking approval gates.
 
 ### `RULE-016`: Traceable Material Movement Ledger
 
@@ -110,7 +110,7 @@ SC completion captures mandatory operator remarks and final material reconciliat
 | **RULE-012** | Accounting  | Production can enter consumed quantity directly.     |
 | **RULE-013** | Accounting  | Production can enter returned quantity directly.     |
 | **RULE-014** | Exceptions  | Additional requests remain open until fulfilled.     |
-| **RULE-015** | Governance  | Senior Manager receives event-driven alerts.         |
+| **RULE-015** | Governance  | Management receives real-time telemetry and alerts.  |
 | **RULE-016** | Compliance  | Material movement is immutable and traceable.        |
 | **RULE-017** | Closure     | SC completion captures closing date/time.            |
 | **RULE-018** | Closure     | SC completion captures final closing remarks.        |

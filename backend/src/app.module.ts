@@ -12,7 +12,6 @@ import { CustomersModule } from './customers/customers.module.js';
 import { PoModule } from './po/po.module.js';
 import { ScModule } from './sc/sc.module.js';
 import { RmModule } from './rm/rm.module.js';
-import { VerificationModule } from './verification/verification.module.js';
 import { StoresModule } from './stores/stores.module.js';
 import { MaterialIssueModule } from './material-issue/material-issue.module.js';
 import { ProductionModule } from './production/production.module.js';
@@ -60,7 +59,6 @@ import { AuditModule } from './audit/audit.module.js';
     PoModule,
     ScModule,
     RmModule,
-    VerificationModule,
     StoresModule,
     MaterialIssueModule,
     ProductionModule,

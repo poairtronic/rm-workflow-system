@@ -152,26 +152,7 @@ export class InitialSchema1700000000000 implements MigrationInterface {
       CREATE INDEX "idx_rm_items_form_id" ON "rm_items"("rm_form_id");
       CREATE INDEX "idx_rm_items_sc_id" ON "rm_items"("sc_id");
       CREATE INDEX "idx_rm_items_material" ON "rm_items"("material");
-      CREATE INDEX "idx_rm_items_grade" ON "rm_items"("grade");
-    `);
-
-    // 10. RM Verifications Table
-    await queryRunner.query(`
-      CREATE TABLE "rm_verifications" (
-        "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-        "rm_form_id" uuid NOT NULL REFERENCES "rm_requests"("id") ON DELETE CASCADE,
-        "verified_by_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE RESTRICT,
-        "status" varchar(50) NOT NULL DEFAULT 'PENDING',
-        "remarks" text,
-        "verified_at" TIMESTAMP WITH TIME ZONE,
-        "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-        "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-      );
-      CREATE INDEX "idx_rm_verifications_form_id" ON "rm_verifications"("rm_form_id");
-      CREATE INDEX "idx_rm_verifications_status" ON "rm_verifications"("status");
-    `);
-
-    // 11. RM Item Snapshots / Revisions Table (Preserves historical requested vs verified state)
+    // 10. RM Item Snapshots / Revisions Table (Preserves historical requested vs designer revision state)
     await queryRunner.query(`
       CREATE TABLE "rm_item_snapshots" (
         "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -401,7 +382,6 @@ export class InitialSchema1700000000000 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE IF EXISTS "material_issue_items" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "material_issues" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "rm_item_snapshots" CASCADE;`);
-    await queryRunner.query(`DROP TABLE IF EXISTS "rm_verifications" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "rm_items" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "rm_form_scs" CASCADE;`);
     await queryRunner.query(`DROP TABLE IF EXISTS "rm_requests" CASCADE;`);

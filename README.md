@@ -6,14 +6,15 @@ Internal manufacturing raw-material workflow and traceability application design
 
 ## 1. What the Application Does
 
-RMRIT coordinates raw-material (RM) requirements across Design, Senior Review, Physical Stores, and Machining Production:
+RMRIT coordinates raw-material (RM) requirements across Design, Physical Stores, and Machining Production:
 
 - **Commercial Reference Context**: Ingests external Purchase Order (PO) references (e.g. `PO-100`).
 - **Independent Component Workflow**: Tracks individual Sales Order Components (SCs) independently through their lifecycle (`SC-001`, `SC-002`).
-- **Material Specification**: Manages dimensional specs, grades (`EN31`, `OHNS`, `MS`), profiles, and unit weights.
+- **Material Specification**: Manages dimensional specs, grades (`EN31`, `OHNS`, `MS`), profiles, and unit weights directly submitted to Stores.
 - **Physical Stores Issuance**: Supports full, partial, and pending stock allocation with heat/batch number tracking.
 - **Production Material Control**: Two-step receipt acknowledgments, consumption logging, physical returns, and additional material requests with mandatory reason codes.
 - **Immutable Audit Ledger**: Records every material movement transaction answering **Who did what, when?**
+- **Management Observers**: Real-time operations monitoring and throughput analytics for Senior & General Management without approval bottlenecks.
 
 ---
 
@@ -23,19 +24,15 @@ RMRIT coordinates raw-material (RM) requirements across Design, Senior Review, P
 [ React 19 + TypeScript + Vite UI (Port 5173) ]
                      │  (HTTP / JSON, CORS Enabled)
                      ▼
-[ Node.js + NestJS 12 API (Port 3000) ]
-   ├── Common Pipeline (Filters, Guards, Interceptors, Pipes)
-   ├── Auth Layer (JWT, Passport, RolesGuard)
-   ├── 16 Modular Domain Controllers & Services
-   └── TypeORM Layer (Data Mapping & SSL auto-detect)
-                     │
+[ NestJS 11 + TypeORM REST API (Port 3000) ]
+                     │  (PostgreSQL Driver)
                      ▼
-[ PostgreSQL Database (Neon Serverless / Supabase / Local) ]
+[ PostgreSQL Database (Docker / Local / Render Cloud) ]
 ```
 
 - **Frontend**: React 19, TypeScript, Vite 8, Vanilla CSS Design Tokens
-- **Backend**: Node.js, NestJS 12, TypeORM 1.1, Passport JWT
-- **Database**: PostgreSQL (Free-tier cloud friendly via Neon / Supabase)
+- **Backend**: Node.js, NestJS 11, TypeORM, Passport JWT
+- **Database**: PostgreSQL
 - **Tooling**: Oxlint, Prettier, Vitest, npm workspaces
 - **Deployment**: Render
 
@@ -191,7 +188,7 @@ npm run format
 ✓ Phase 6: Configuration, Tooling & Verification Baseline
 ⏳ Phase 7: Database Design, Entities & TypeORM Migrations
 ⏳ Phase 8: RM Specification & Dimensional Validation Engine
-⏳ Phase 9: Senior Manager Verification & Revision Flow
+⏳ Phase 9: Real-Time Operations Monitoring & Telemetry
 ⏳ Phase 10: Stores Material Issuance & Heat/Batch Tracking
 ⏳ Phase 11: Production Receipt, Consumption & Returns Handshake
 ⏳ Phase 12: Additional Material Request Workflow & Reason Codes

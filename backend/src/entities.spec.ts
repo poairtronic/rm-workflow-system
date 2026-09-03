@@ -17,10 +17,6 @@ import {
   SnapshotChangeType,
 } from './rm/entities/rm-item-snapshot.entity.js';
 import {
-  RmVerification,
-  VerificationStatus,
-} from './verification/entities/verification-log.entity.js';
-import {
   MaterialIssue,
   MaterialIssueType,
 } from './material-issue/entities/material-issue.entity.js';
@@ -48,8 +44,8 @@ import { MaterialMathUtil } from './production/utils/material-math.util.js';
 import { MaterialReconciliationUtil } from './production/utils/material-reconciliation.util.js';
 
 describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
-  it('should register exactly 21 domain entities in ALL_ENTITIES', () => {
-    expect(ALL_ENTITIES).toHaveLength(21);
+  it('should register exactly 20 domain entities in ALL_ENTITIES', () => {
+    expect(ALL_ENTITIES).toHaveLength(20);
     expect(ALL_ENTITIES).toContain(Role);
     expect(ALL_ENTITIES).toContain(User);
     expect(ALL_ENTITIES).toContain(Customer);
@@ -59,7 +55,6 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     expect(ALL_ENTITIES).toContain(RmItem);
     expect(ALL_ENTITIES).toContain(RmFormSc);
     expect(ALL_ENTITIES).toContain(RmItemSnapshot);
-    expect(ALL_ENTITIES).toContain(RmVerification);
     expect(ALL_ENTITIES).toContain(MaterialIssue);
     expect(ALL_ENTITIES).toContain(MaterialIssueItem);
     expect(ALL_ENTITIES).toContain(MaterialReceipt);
@@ -477,14 +472,13 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     );
   });
 
-  it('should record senior verification decisions accurately', () => {
-    const verification = new RmVerification();
-    verification.status = VerificationStatus.REVISED;
-    verification.remarks = 'Dimensions updated per machine spindle tolerances';
-    verification.verifiedAt = new Date();
+  it('should support direct submission to Stores without intermediate verification gates', () => {
+    const scForm = new RmRequest();
+    scForm.status = RmRequestStatus.SUBMITTED;
+    scForm.submittedAt = new Date();
 
-    expect(verification.status).toBe(VerificationStatus.REVISED);
-    expect(verification.remarks).toContain('spindle tolerances');
+    expect(scForm.status).toBe(RmRequestStatus.SUBMITTED);
+    expect(scForm.submittedAt).toBeDefined();
   });
 
   it('should support Option A (SC RM) and Option B (PO RM) form architectures', () => {

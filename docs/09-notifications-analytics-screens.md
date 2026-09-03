@@ -10,12 +10,11 @@ Workflow Event → NestJS Event Handler → Notification DB (permanent record) +
 
 Trigger map:
 
-- RM submitted → Senior Designer notified
-- Senior approves → Stores + Junior notified
-- Stores issues → Production + Senior Manager notified
-- Production receives → Senior Manager + relevant users notified
-- Additional request → Stores + Senior Manager notified
-- Production completion → Email to Senior Manager + relevant Design/Stores users
+- RM submitted → Stores notified directly + Management alert
+- Stores issues → Production + Management notified
+- Production receives → Management + relevant users notified
+- Additional request → Stores + Management notified
+- Production completion → Email to Management + relevant Design/Stores users
 
 ## Analytics Architecture
 
@@ -29,15 +28,15 @@ Per-SC analytics fields:
 - RM: item count, original qty, additional qty, total requirement
 - Stores: total issued, pending, partial issues, extra issues, issue count
 - Production: total received, consumed, returned, wastage, damage, manufacturing error, unaccounted
-- Timing: RM created, submitted, approved, stores started, first issue, last issue, production first receipt, production completion
+- Timing: RM created, submitted, stores started, first issue, last issue, production first receipt, production completion
 
 ### Timing Formulas
 
-```
-Senior Review Time        = Approved At - Submitted At
-Stores Processing Time    = First Issue At - Approved At
+```text
+Stores Processing Time    = First Issue At - Submitted At
 Production Receipt Time   = First Receipt At - First Issue At
-Production Duration       = Completed At - First Production Start
+Production Duration       = Completed At - First Receipt At
+Total SC Turnaround       = Completed At - Submitted At
 ```
 
 (Exact business interpretation to be refined later; built on `StatusHistory`.)

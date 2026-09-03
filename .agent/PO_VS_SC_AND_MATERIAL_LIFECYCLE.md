@@ -19,7 +19,7 @@ A Purchase Order (PO) is an external commercial envelope containing one or more 
    (EN31 Ø110)     (MS Plate 25)   (OHNS Ø75)
         │               │               │
         ↓               ↓               ↓
-    COMPLETED      IN PROGRESS       PENDING
+    COMPLETED      IN PRODUCTION    STORES_PENDING
 ```
 
 ### Prohibited Anti-Pattern
@@ -37,12 +37,14 @@ _Why this is prohibited_: In real shop-floor operations, components have differe
 
 Material control is **not a mutable scalar counter** (e.g., `balance = 500`). It is an immutable, append-only **sequence of domain events and physical handshakes**.
 
+$$\text{DESIGNER (Creates RM)} \longrightarrow \text{STORES (Issues Available RM)} \longrightarrow \text{PRODUCTION (Receipt, Consumption, Returns, SC Closure)}$$
+
 ### Example Transaction Sequence for SC-001
 
 $$ \begin{matrix}
 \textbf{Step} & \textbf{Event / Transaction} & \textbf{Quantity} & \textbf{Cumulative Issued} & \textbf{Net Balance / State} \\
 \hline
-\text{1.} & \text{RM Requirement Approved} & 500\text{ kg} & - & \text{Required: } 500\text{ kg} \\
+\text{1.} & \text{RM Requirement Submitted} & 500\text{ kg} & - & \text{Required: } 500\text{ kg} \\
 \text{2.} & \text{Stores Initial Issue} & 500\text{ kg} & 500\text{ kg} & \text{Issued to Shop Floor} \\
 \text{3.} & \text{Production Physical Receipt} & 500\text{ kg} & 500\text{ kg} & \text{Acknowledged at Machine} \\
 \text{4.} & \text{Machining Consumption} & 400\text{ kg} & 500\text{ kg} & \text{Consumed in Production} \\
@@ -57,7 +59,7 @@ $$ \begin{matrix}
 
 ## 3. Database & API Implementation Rules
 
-1. **SC Foreign Key Attachment**: All material requirements (`rm_requirements`), issues (`material_issues`), receipts (`production_receipts`), and returns (`material_returns`) MUST point to `sc_id`.
+1. **SC Foreign Key Attachment**: All material requirements (`rm_requests`), issues (`material_issues`), receipts (`material_receipts`), and returns (`material_returns`) point to `sc_id`.
 2. **Never Overwrite Historical Records**: When an additional 50 kg is issued, insert a new `MaterialIssue` row linked to the `AdditionalMaterialRequest` rather than updating the initial 500 kg row.
 3. **Traceability Ledger**: Every transaction captures:
    - `actor_id` (User ID of Designer, Stores Manager, or Operator)
