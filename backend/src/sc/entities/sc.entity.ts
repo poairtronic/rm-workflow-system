@@ -12,6 +12,7 @@ import {
 } from 'typeorm';
 import { PurchaseOrder } from '../../po/entities/po.entity.js';
 import { RmRequest } from '../../rm/entities/rm-request.entity.js';
+import { RmItem } from '../../rm/entities/rm-item.entity.js';
 import { MaterialIssue } from '../../material-issue/entities/material-issue.entity.js';
 import { MaterialConsumption } from '../../production/entities/material-consumption.entity.js';
 import { MaterialReturn } from '../../production/entities/material-return.entity.js';
@@ -21,8 +22,6 @@ import { User } from '../../users/entities/user.entity.js';
 export enum ScStatus {
   DRAFT = 'DRAFT',
   SUBMITTED = 'SUBMITTED',
-  VERIFICATION_PENDING = 'VERIFICATION_PENDING',
-  VERIFIED = 'VERIFIED',
   STORES_PENDING = 'STORES_PENDING',
   PARTIALLY_ISSUED = 'PARTIALLY_ISSUED',
   ISSUED = 'ISSUED',
@@ -43,7 +42,7 @@ export class SalesOrderComponent {
   @Column({ name: 'po_id' })
   poId!: string;
 
-  @ManyToOne(() => PurchaseOrder, (po) => po.salesOrderComponents, {
+  @ManyToOne(() => PurchaseOrder, (po) => po.components, {
     onDelete: 'RESTRICT',
   })
   @JoinColumn({ name: 'po_id' })
@@ -52,10 +51,10 @@ export class SalesOrderComponent {
   @Column({ name: 'product_name', length: 150 })
   productName!: string;
 
-  @Column({ nullable: true, length: 255 })
+  @Column({ length: 255, nullable: true })
   description?: string;
 
-  @Column({ name: 'drawing_number', nullable: true, length: 100 })
+  @Column({ name: 'drawing_number', length: 100, nullable: true })
   drawingNumber?: string;
 
   @Column({
@@ -75,22 +74,22 @@ export class SalesOrderComponent {
   })
   status!: ScStatus;
 
-  @OneToOne(() => RmRequest, (rmRequest) => rmRequest.salesOrderComponent)
+  @OneToOne(() => RmRequest, (rm) => rm.salesOrderComponent)
   rmRequest?: RmRequest;
+
+  @OneToMany(() => RmItem, (item) => item.salesOrderComponent)
+  rmItems!: RmItem[];
 
   @OneToMany(() => MaterialIssue, (issue) => issue.salesOrderComponent)
   materialIssues!: MaterialIssue[];
 
-  @OneToMany(() => MaterialConsumption, (cons) => cons.salesOrderComponent)
+  @OneToMany(() => MaterialConsumption, (c) => c.salesOrderComponent)
   materialConsumptions!: MaterialConsumption[];
 
-  @OneToMany(() => MaterialReturn, (ret) => ret.salesOrderComponent)
+  @OneToMany(() => MaterialReturn, (r) => r.salesOrderComponent)
   materialReturns!: MaterialReturn[];
 
-  @OneToMany(
-    () => AdditionalMaterialRequest,
-    (addReq) => addReq.salesOrderComponent,
-  )
+  @OneToMany(() => AdditionalMaterialRequest, (r) => r.salesOrderComponent)
   additionalRequests!: AdditionalMaterialRequest[];
 
   @Column({

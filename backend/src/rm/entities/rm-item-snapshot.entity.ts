@@ -13,9 +13,7 @@ import { User } from '../../users/entities/user.entity.js';
 
 export enum SnapshotChangeType {
   ORIGINAL_SUBMISSION = 'ORIGINAL_SUBMISSION',
-  SENIOR_REVISION = 'SENIOR_REVISION',
-  SENIOR_ADDITION = 'SENIOR_ADDITION',
-  SENIOR_DELETION = 'SENIOR_DELETION',
+  DESIGNER_REVISION = 'DESIGNER_REVISION',
 }
 
 @Entity('rm_item_snapshots')
@@ -37,7 +35,7 @@ export class RmItemSnapshot {
 
   @ManyToOne(() => RmRequest, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'rm_form_id' })
-  rmForm!: RmRequest;
+  rmRequest!: RmRequest;
 
   @Column({ name: 'revision_number', type: 'int', default: 1 })
   revisionNumber!: number;
@@ -57,7 +55,6 @@ export class RmItemSnapshot {
   @JoinColumn({ name: 'changed_by_id' })
   changedBy!: User;
 
-  /* Preserved Snapshot State */
   @Column({ length: 100 })
   material!: string;
 

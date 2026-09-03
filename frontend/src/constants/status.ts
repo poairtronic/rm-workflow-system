@@ -3,12 +3,7 @@ export const WORKFLOW_STATUS_CONFIG: Record<
   { label: string; symbol: string; badgeClass: string }
 > = {
   DRAFT: { label: 'Draft', symbol: '●', badgeClass: 'badge-draft' },
-  SUBMITTED: { label: 'Submitted', symbol: '↑', badgeClass: 'badge-submitted' },
-  SENIOR_VERIFIED: {
-    label: 'Senior Verified',
-    symbol: '✓',
-    badgeClass: 'badge-verified',
-  },
+  SUBMITTED: { label: 'Submitted to Stores', symbol: '↑', badgeClass: 'badge-submitted' },
   STORES_PENDING: { label: 'Pending Stores', symbol: '!', badgeClass: 'badge-pending' },
   PARTIALLY_ISSUED: {
     label: 'Partially Issued',
@@ -24,5 +19,4 @@ export const WORKFLOW_STATUS_CONFIG: Record<
     badgeClass: 'badge-additional',
   },
   COMPLETED: { label: 'Completed', symbol: '✓', badgeClass: 'badge-success' },
-  REJECTED: { label: 'Rejected', symbol: '✕', badgeClass: 'badge-error' },
 };

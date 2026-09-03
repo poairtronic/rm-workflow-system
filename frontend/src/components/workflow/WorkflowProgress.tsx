@@ -1,10 +1,9 @@
 import React from 'react';
 
 const WORKFLOW_STEPS = [
-  { id: 'design', label: 'Design RM' },
-  { id: 'verification', label: 'Senior Verified' },
-  { id: 'stores', label: 'Stores Issue' },
-  { id: 'production', label: 'Production' },
+  { id: 'design', label: 'Design RM List' },
+  { id: 'stores', label: 'Stores Material Issue' },
+  { id: 'production', label: 'Production Shop Floor' },
   { id: 'completed', label: 'SC Completed' },
 ];
 

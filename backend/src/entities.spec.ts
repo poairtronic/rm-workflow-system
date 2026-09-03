@@ -154,7 +154,7 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
       expect(invalid.errorMessage).toContain('Material conservation error');
     });
 
-    it('Rule 7: should maintain immutable historical auditability across senior revisions', () => {
+    it('Rule 7: should maintain immutable historical auditability across revisions', () => {
       const original = new RmItemSnapshot();
       original.material = 'EN31';
       original.size = 'Ø110X35';
@@ -177,14 +177,14 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
       const log = new AuditLog();
       log.entityName = 'RM_ITEM';
       log.entityId = 'item-en31-01';
-      log.actionType = 'SENIOR_REVISION';
-      log.actorId = 'user-senior-01';
+      log.actionType = 'DESIGNER_REVISION';
+      log.actorId = 'user-designer-01';
       log.oldValues = { size: 'Ø110X35', quantity: 2 };
       log.newValues = { size: 'Ø110X40', quantity: 3 };
       log.metadata = { reason: 'Facing allowance buffer' };
 
       expect(log.entityName).toBe('RM_ITEM');
-      expect(log.actionType).toBe('SENIOR_REVISION');
+      expect(log.actionType).toBe('DESIGNER_REVISION');
       expect(log.oldValues.quantity).toBe(2);
       expect(log.newValues.quantity).toBe(3);
       expect(log.metadata?.reason).toBe('Facing allowance buffer');
@@ -459,20 +459,22 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     currentItem.size = 'Ø110X40';
     currentItem.quantity = 3;
 
-    const seniorSnapshot = new RmItemSnapshot();
-    seniorSnapshot.material = currentItem.material;
-    seniorSnapshot.size = currentItem.size;
-    seniorSnapshot.quantity = currentItem.quantity;
-    seniorSnapshot.revisionNumber = 2;
-    seniorSnapshot.changeType = SnapshotChangeType.SENIOR_REVISION;
-    seniorSnapshot.revisionReason =
+    const designerRevisionSnapshot = new RmItemSnapshot();
+    designerRevisionSnapshot.material = currentItem.material;
+    designerRevisionSnapshot.size = currentItem.size;
+    designerRevisionSnapshot.quantity = currentItem.quantity;
+    designerRevisionSnapshot.revisionNumber = 2;
+    designerRevisionSnapshot.changeType = SnapshotChangeType.DESIGNER_REVISION;
+    designerRevisionSnapshot.revisionReason =
       'Increased facing allowance and safety buffer';
 
     expect(originalSnapshot.size).toBe('Ø110X35');
     expect(originalSnapshot.quantity).toBe(2);
-    expect(seniorSnapshot.size).toBe('Ø110X40');
-    expect(seniorSnapshot.quantity).toBe(3);
-    expect(seniorSnapshot.revisionReason).toContain('facing allowance');
+    expect(designerRevisionSnapshot.size).toBe('Ø110X40');
+    expect(designerRevisionSnapshot.quantity).toBe(3);
+    expect(designerRevisionSnapshot.revisionReason).toContain(
+      'facing allowance',
+    );
   });
 
   it('should record senior verification decisions accurately', () => {

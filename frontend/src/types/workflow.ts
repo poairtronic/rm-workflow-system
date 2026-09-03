@@ -1,15 +1,13 @@
 export type WorkflowStatus =
   | 'DRAFT'
   | 'SUBMITTED'
-  | 'SENIOR_VERIFIED'
   | 'STORES_PENDING'
   | 'PARTIALLY_ISSUED'
   | 'ISSUED'
   | 'RECEIVED'
   | 'IN_PRODUCTION'
   | 'ADDITIONAL_REQUEST'
-  | 'COMPLETED'
-  | 'REJECTED';
+  | 'COMPLETED';
 
 export interface RawMaterialItem {
   id: string;

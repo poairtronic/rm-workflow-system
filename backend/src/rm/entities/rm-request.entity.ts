@@ -14,7 +14,6 @@ import { PurchaseOrder } from '../../po/entities/po.entity.js';
 import { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
 import { User } from '../../users/entities/user.entity.js';
 import { RmItem } from './rm-item.entity.js';
-import { RmVerification } from '../../verification/entities/verification-log.entity.js';
 
 export enum FormType {
   SC = 'SC',
@@ -24,8 +23,6 @@ export enum FormType {
 export enum RmRequestStatus {
   DRAFT = 'DRAFT',
   SUBMITTED = 'SUBMITTED',
-  VERIFIED = 'VERIFIED',
-  REJECTED = 'REJECTED',
   COMPLETED = 'COMPLETED',
 }
 
@@ -87,20 +84,6 @@ export class RmRequest {
   submittedAt?: Date;
 
   @Column({
-    name: 'verified_at',
-    type: 'timestamp with time zone',
-    nullable: true,
-  })
-  verifiedAt?: Date;
-
-  @Column({ name: 'verified_by_id', nullable: true })
-  verifiedById?: string;
-
-  @ManyToOne(() => User, { nullable: true, onDelete: 'RESTRICT' })
-  @JoinColumn({ name: 'verified_by_id' })
-  verifiedBy?: User;
-
-  @Column({
     name: 'completed_at',
     type: 'timestamp with time zone',
     nullable: true,
@@ -109,9 +92,6 @@ export class RmRequest {
 
   @OneToMany(() => RmItem, (item) => item.rmRequest, { cascade: true })
   items!: RmItem[];
-
-  @OneToMany(() => RmVerification, (log) => log.rmForm)
-  verificationLogs!: RmVerification[];
 
   @Column({ type: 'text', nullable: true })
   remarks?: string;

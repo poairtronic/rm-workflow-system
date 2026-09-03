@@ -103,8 +103,6 @@ export class InitialSchema1700000000000 implements MigrationInterface {
         "status" varchar(50) NOT NULL DEFAULT 'DRAFT',
         "revision_number" int NOT NULL DEFAULT 1,
         "submitted_at" TIMESTAMP WITH TIME ZONE,
-        "verified_at" TIMESTAMP WITH TIME ZONE,
-        "verified_by_id" uuid REFERENCES "users"("id") ON DELETE RESTRICT,
         "completed_at" TIMESTAMP WITH TIME ZONE,
         "remarks" text,
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),

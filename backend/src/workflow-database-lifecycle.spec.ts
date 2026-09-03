@@ -153,7 +153,7 @@ describe('Section 37: 22 Required Database Invariant & Workflow Tests', () => {
     const snap2 = new RmItemSnapshot();
     snap2.quantity = 3;
     snap2.revisionNumber = 2;
-    snap2.changeType = SnapshotChangeType.SENIOR_REVISION;
+    snap2.changeType = SnapshotChangeType.DESIGNER_REVISION;
     snap2.revisionReason = 'Added facing tolerance';
 
     expect(snap1.quantity).toBe(2);
@@ -286,7 +286,7 @@ describe('Section 37: 22 Required Database Invariant & Workflow Tests', () => {
     const log = new AuditLog();
     log.entityName = 'RM_ITEM';
     log.entityId = 'item-01';
-    log.actionType = 'SENIOR_REVISION';
+    log.actionType = 'DESIGNER_REVISION';
     log.oldValues = { quantity: 2 };
     log.newValues = { quantity: 3 };
 
