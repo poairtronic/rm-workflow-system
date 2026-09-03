@@ -18,8 +18,11 @@
     "noImplicitThis": true,
     "alwaysStrict": true,
 
-    /* Bundler mode */
+    /* Bundler mode & Path Aliases */
     "moduleResolution": "bundler",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
