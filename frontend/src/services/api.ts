@@ -1,0 +1,45 @@
+import { APP_CONFIG } from '../app/config';
+
+class ApiClient {
+  private baseUrl: string;
+
+  constructor() {
+    this.baseUrl = APP_CONFIG.apiBaseUrl;
+  }
+
+  private getHeaders(): HeadersInit {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    const token = localStorage.getItem('rm_access_token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+  }
+
+  async get<T>(endpoint: string): Promise<T> {
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`GET ${endpoint} failed: ${response.status} ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  async post<T>(endpoint: string, body?: any): Promise<T> {
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!response.ok) {
+      throw new Error(`POST ${endpoint} failed: ${response.status} ${response.statusText}`);
+    }
+    return response.json();
+  }
+}
+
+export const api = new ApiClient();

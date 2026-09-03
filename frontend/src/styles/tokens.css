@@ -1,0 +1,32 @@
+/* Design System Tokens - RMRIT Industrial High-Density Theme */
+
+:root {
+  /* Surface & Neutral Grays */
+  --rm-bg-app: #0f172a;
+  --rm-bg-card: #1e293b;
+  --rm-bg-surface-elevated: #334155;
+  --rm-border-default: #334155;
+  --rm-border-subtle: #1e293b;
+
+  /* Typography */
+  --rm-text-primary: #f8fafc;
+  --rm-text-secondary: #cbd5e1;
+  --rm-text-muted: #94a3b8;
+  --rm-text-inverse: #0f172a;
+
+  /* Workflow Status Colors */
+  --rm-status-draft: #64748b;
+  --rm-status-pending: #f59e0b;
+  --rm-status-active: #3b82f6;
+  --rm-status-success: #10b981;
+  --rm-status-error: #ef4444;
+
+  /* Fonts */
+  --rm-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --rm-font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+  /* Spacing & Radii */
+  --rm-radius-sm: 4px;
+  --rm-radius-md: 6px;
+  --rm-radius-lg: 8px;
+}
