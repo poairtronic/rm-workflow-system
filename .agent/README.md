@@ -21,6 +21,7 @@ This directory contains instructions, skills, design guidelines, and business ru
 ├── docs/                               # Complete requirement & architecture spec
 ├── UI_DESIGN_RULES.md                  # Mandatory UI standards
 ├── WORKFLOW_RULES.md                   # Inviolable manufacturing business logic
+├── WORKFLOW_FIRST_ARCHITECTURE.md      # Workflow-first vs page-first architectural principle
 ├── BACKEND_MODULES_MAP.md              # Domain-to-backend-module mapping
 ├── DESIGN_SYSTEM.md                    # Color tokens, typography, components
 ├── OVERVIEW.md                         # High-level architecture summary
