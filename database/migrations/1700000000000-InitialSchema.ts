@@ -75,6 +75,7 @@ export class InitialSchema1700000000000 implements MigrationInterface {
         "sc_number" varchar(100) NOT NULL,
         "po_id" uuid NOT NULL REFERENCES "purchase_orders"("id") ON DELETE RESTRICT,
         "product_name" varchar(150) NOT NULL,
+        "description" varchar(255),
         "drawing_number" varchar(100),
         "target_quantity" numeric(12,3) NOT NULL DEFAULT 1,
         "status" varchar(50) NOT NULL DEFAULT 'DRAFT',
@@ -89,22 +90,27 @@ export class InitialSchema1700000000000 implements MigrationInterface {
       CREATE INDEX "idx_sc_status" ON "sales_order_components"("status");
     `);
 
-    // 7. RM Requests Table
+    // 7. RM Requests (Forms) Table
     await queryRunner.query(`
       CREATE TABLE "rm_requests" (
         "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-        "sc_id" uuid NOT NULL UNIQUE REFERENCES "sales_order_components"("id") ON DELETE CASCADE,
+        "po_id" uuid REFERENCES "purchase_orders"("id") ON DELETE RESTRICT,
+        "sc_id" uuid UNIQUE REFERENCES "sales_order_components"("id") ON DELETE CASCADE,
+        "form_type" varchar(20) NOT NULL DEFAULT 'SC',
         "created_by_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE RESTRICT,
         "status" varchar(50) NOT NULL DEFAULT 'DRAFT',
         "revision_number" int NOT NULL DEFAULT 1,
         "submitted_at" TIMESTAMP WITH TIME ZONE,
         "verified_at" TIMESTAMP WITH TIME ZONE,
         "verified_by_id" uuid REFERENCES "users"("id") ON DELETE RESTRICT,
+        "completed_at" TIMESTAMP WITH TIME ZONE,
         "remarks" text,
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
       );
+      CREATE INDEX "idx_rm_requests_po_id" ON "rm_requests"("po_id");
       CREATE INDEX "idx_rm_requests_sc_id" ON "rm_requests"("sc_id");
+      CREATE INDEX "idx_rm_requests_form_type" ON "rm_requests"("form_type");
       CREATE INDEX "idx_rm_requests_status" ON "rm_requests"("status");
     `);
 
@@ -113,6 +119,7 @@ export class InitialSchema1700000000000 implements MigrationInterface {
       CREATE TABLE "rm_items" (
         "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
         "rm_request_id" uuid NOT NULL REFERENCES "rm_requests"("id") ON DELETE CASCADE,
+        "sc_id" uuid REFERENCES "sales_order_components"("id") ON DELETE SET NULL,
         "material_grade" varchar(100) NOT NULL,
         "profile_type" varchar(50) NOT NULL DEFAULT 'ROUND_BAR',
         "size" varchar(100) NOT NULL,
@@ -129,6 +136,7 @@ export class InitialSchema1700000000000 implements MigrationInterface {
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
       );
       CREATE INDEX "idx_rm_items_request_id" ON "rm_items"("rm_request_id");
+      CREATE INDEX "idx_rm_items_sc_id" ON "rm_items"("sc_id");
       CREATE INDEX "idx_rm_items_grade" ON "rm_items"("material_grade");
     `);
 

@@ -19,16 +19,15 @@ import { AdditionalMaterialRequest } from '../../additional-request/entities/add
 
 export enum ScStatus {
   DRAFT = 'DRAFT',
-  RM_SUBMITTED = 'RM_SUBMITTED',
-  SENIOR_VERIFIED = 'SENIOR_VERIFIED',
+  SUBMITTED = 'SUBMITTED',
+  VERIFICATION_PENDING = 'VERIFICATION_PENDING',
+  VERIFIED = 'VERIFIED',
   STORES_PENDING = 'STORES_PENDING',
   PARTIALLY_ISSUED = 'PARTIALLY_ISSUED',
   ISSUED = 'ISSUED',
-  RECEIVED = 'RECEIVED',
   IN_PRODUCTION = 'IN_PRODUCTION',
-  ADDITIONAL_REQUESTED = 'ADDITIONAL_REQUESTED',
+  ADDITIONAL_REQUEST = 'ADDITIONAL_REQUEST',
   COMPLETED = 'COMPLETED',
-  REJECTED = 'REJECTED',
 }
 
 @Entity('sales_order_components')
@@ -51,6 +50,9 @@ export class SalesOrderComponent {
 
   @Column({ name: 'product_name', length: 150 })
   productName!: string;
+
+  @Column({ nullable: true, length: 255 })
+  description?: string;
 
   @Column({ name: 'drawing_number', nullable: true, length: 100 })
   drawingNumber?: string;

@@ -28,6 +28,10 @@ export class RmItem {
   rmRequest!: RmRequest;
 
   @Index()
+  @Column({ name: 'sc_id', nullable: true })
+  scId?: string;
+
+  @Index()
   @Column({ name: 'material_grade', length: 100 })
   materialGrade!: string;
 
