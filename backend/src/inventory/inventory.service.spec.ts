@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { InventoryService } from './inventory.service.js';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { InventoryItem } from './entities/inventory-item.entity.js';
 import { StockBalance } from './entities/stock-balance.entity.js';
@@ -9,6 +10,7 @@ import { DataSource } from 'typeorm';
 describe('InventoryService', () => {
   let service: InventoryService;
   let dataSource: any;
+  let inventoryItemRepository: any;
 
   beforeEach(async () => {
     // Mock QueryRunner
@@ -69,10 +71,41 @@ describe('InventoryService', () => {
     }).compile();
 
     service = module.get<InventoryService>(InventoryService);
+    inventoryItemRepository = module.get(getRepositoryToken(InventoryItem));
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  describe('create', () => {
+    it('should throw ConflictException on duplicate item (code 23505)', async () => {
+      const qr = dataSource.createQueryRunner();
+      qr.manager.save.mockRejectedValueOnce({ code: '23505' });
+      
+      inventoryItemRepository.create.mockReturnValue({});
+
+      await expect(service.create({
+        material: 'TEST',
+        materialType: 'TEST',
+        grade: 'TEST',
+        size: 'TEST',
+        unit: 'KG',
+      })).rejects.toThrow(ConflictException);
+
+      expect(qr.rollbackTransaction).toHaveBeenCalled();
+    });
+  });
+
+  describe('update', () => {
+    it('should throw ConflictException on duplicate item (code 23505)', async () => {
+      inventoryItemRepository.findOne.mockResolvedValueOnce({ id: '123' });
+      inventoryItemRepository.save.mockRejectedValueOnce({ code: '23505' });
+
+      await expect(service.update('123', {
+        material: 'TEST',
+      })).rejects.toThrow(ConflictException);
+    });
   });
 
   describe('addStockTransaction', () => {

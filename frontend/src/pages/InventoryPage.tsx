@@ -3,6 +3,7 @@ import { AppLayout } from '../layouts/AppLayout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { APP_CONFIG } from '../app/config';
+import { CreateInventoryItemModal } from './components/CreateInventoryItemModal';
 
 interface InventoryItem {
   id: string;
@@ -25,6 +26,7 @@ export const InventoryPage: React.FC<{
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -47,6 +49,11 @@ export const InventoryPage: React.FC<{
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCreateSuccess = () => {
+    setIsCreateModalOpen(false);
+    fetchInventory();
   };
 
   useEffect(() => {
@@ -82,9 +89,14 @@ export const InventoryPage: React.FC<{
             <h1 className="text-2xl font-bold">Inventory Foundation</h1>
             <p className="text-gray-600">Material stock and minimum levels (Phase 9)</p>
           </div>
-          <Button onClick={fetchInventory} disabled={loading} variant="secondary">
-            ↻ Refresh
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setIsCreateModalOpen(true)} variant="primary">
+              + Add Item
+            </Button>
+            <Button onClick={fetchInventory} disabled={loading} variant="secondary">
+              ↻ Refresh
+            </Button>
+          </div>
         </div>
 
         {error && (
@@ -174,6 +186,13 @@ export const InventoryPage: React.FC<{
             </table>
           </div>
         </Card>
+
+        {isCreateModalOpen && (
+          <CreateInventoryItemModal
+            onClose={() => setIsCreateModalOpen(false)}
+            onSuccess={handleCreateSuccess}
+          />
+        )}
       </div>
     </AppLayout>
   );

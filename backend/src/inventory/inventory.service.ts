@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { InventoryItem } from './entities/inventory-item.entity.js';
@@ -54,8 +54,11 @@ export class InventoryService {
 
       await queryRunner.commitTransaction();
       return this.findOne(savedItem.id);
-    } catch (error) {
+    } catch (error: any) {
       await queryRunner.rollbackTransaction();
+      if (error.code === '23505') {
+        throw new ConflictException('An inventory item with this exact combination of material, type, grade, and size already exists.');
+      }
       throw error;
     } finally {
       await queryRunner.release();
@@ -65,7 +68,14 @@ export class InventoryService {
   async update(id: string, updateDto: UpdateInventoryItemDto) {
     const item = await this.findOne(id);
     Object.assign(item, updateDto);
-    return this.inventoryItemRepository.save(item);
+    try {
+      return await this.inventoryItemRepository.save(item);
+    } catch (error: any) {
+      if (error.code === '23505') {
+        throw new ConflictException('An inventory item with this exact combination of material, type, grade, and size already exists.');
+      }
+      throw error;
+    }
   }
 
   async getStockBalance(inventoryItemId: string) {
