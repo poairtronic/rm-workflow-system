@@ -7,6 +7,7 @@ import {
   Param,
   UseGuards,
   Request,
+  NotImplementedException,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service.js';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto.js';
@@ -86,11 +87,8 @@ export class InventoryController {
     @Body() transactionDto: CreateStockTransactionDto,
     @Request() req: any,
   ) {
-    // req.user contains the authenticated user populated by JwtAuthGuard
-    return this.inventoryService.addStockTransaction(
-      id,
-      transactionDto,
-      req.user.sub,
-    );
+    // Unrestricted direct stock mutation is disabled in Phase 10.3 to enforce proper movement semantics.
+    // Stock will be altered via dedicated Stock In/Out/Adjustment workflows (Phase 10.4+).
+    throw new NotImplementedException('Direct generic stock mutation is restricted. Use dedicated workflows (Phase 10.4+).');
   }
 }
