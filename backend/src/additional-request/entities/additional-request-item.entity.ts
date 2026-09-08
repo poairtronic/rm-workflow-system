@@ -7,7 +7,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { AdditionalMaterialRequest } from './additional-request.entity.js';
+import type { AdditionalMaterialRequest } from './additional-request.entity.js';
 import { RmItem } from '../../rm/entities/rm-item.entity.js';
 
 @Entity('additional_material_request_items')
@@ -19,7 +19,7 @@ export class AdditionalMaterialRequestItem {
   @Column({ name: 'request_id' })
   requestId!: string;
 
-  @ManyToOne(() => AdditionalMaterialRequest, (req) => req.items, {
+  @ManyToOne('AdditionalMaterialRequest', (req: AdditionalMaterialRequest) => req.items, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'request_id' })

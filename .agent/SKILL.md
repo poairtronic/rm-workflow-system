@@ -8,6 +8,7 @@ description: Use this skill for ANY work on the RMRIT project (raw material work
 ## 0. Before touching any code
 
 Read `.agent/OVERVIEW.md` and `.agent/docs/00-README.md` first, then whichever numbered doc matches the area you are changing. Never guess a business rule that is documented. If a rule is ambiguous, check `11-source-doc-corrections-and-open-issues.md`.
+For any Inventory-related development, you MUST read `docs/requirements/INVENTORY_MODULE_CONCEPT.md` before proceeding.
 
 ## 1. Non-negotiable business rules
 

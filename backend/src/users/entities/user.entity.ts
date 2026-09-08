@@ -8,7 +8,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { Role } from '../../roles/entities/role.entity.js';
+import type { Role } from '../../roles/entities/role.entity.js';
 
 @Entity('users')
 export class User {
@@ -28,7 +28,7 @@ export class User {
   @Column({ name: 'role_id' })
   roleId!: string;
 
-  @ManyToOne(() => Role, (role) => role.users, { onDelete: 'RESTRICT' })
+  @ManyToOne('Role', (role: Role) => role.users, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'role_id' })
   role!: Role;
 

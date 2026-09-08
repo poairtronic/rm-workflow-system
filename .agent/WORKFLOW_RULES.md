@@ -39,3 +39,8 @@ All agents must preserve these non-negotiable rules across backend schemas, APIs
 
 - Every API endpoint is guarded by server-side role checks (`JwtAuthGuard`, `RolesGuard`).
 - The 6 system roles are `DESIGNER`, `STORES`, `PRODUCTION`, `SENIOR_MANAGER`, `GENERAL_MANAGER`, and `ADMIN`.
+
+## 8. Inventory Core Architecture
+
+- **Inventory must be trustworthy and traceable.**
+- For all inventory-related behavior and architecture invariants, refer to `docs/requirements/INVENTORY_MODULE_CONCEPT.md` which is the ultimate source of truth.

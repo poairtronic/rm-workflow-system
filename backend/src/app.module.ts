@@ -20,6 +20,7 @@ import { AdditionalRequestModule } from './additional-request/additional-request
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { AnalyticsModule } from './analytics/analytics.module.js';
 import { AuditModule } from './audit/audit.module.js';
+import { InventoryModule } from './inventory/inventory.module.js';
 
 @Module({
   imports: [
@@ -67,7 +68,9 @@ import { AuditModule } from './audit/audit.module.js';
     NotificationsModule,
     AnalyticsModule,
     AuditModule,
+    InventoryModule,
   ],
+
   controllers: [AppController],
   providers: [AppService],
 })

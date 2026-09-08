@@ -9,9 +9,9 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
+import type { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
 import { User } from '../../users/entities/user.entity.js';
-import { AdditionalMaterialRequestItem } from './additional-request-item.entity.js';
+import type { AdditionalMaterialRequestItem } from './additional-request-item.entity.js';
 
 export enum AdditionalReason {
   ADDITIONAL_REQUIREMENT = 'ADDITIONAL_REQUIREMENT',
@@ -38,7 +38,7 @@ export class AdditionalMaterialRequest {
   @Column({ name: 'sc_id' })
   scId!: string;
 
-  @ManyToOne(() => SalesOrderComponent, (sc) => sc.additionalRequests, {
+  @ManyToOne('SalesOrderComponent', (sc: SalesOrderComponent) => sc.additionalRequests, {
     onDelete: 'RESTRICT',
   })
   @JoinColumn({ name: 'sc_id' })
@@ -89,7 +89,7 @@ export class AdditionalMaterialRequest {
   @JoinColumn({ name: 'approved_by_id' })
   approvedBy?: User;
 
-  @OneToMany(() => AdditionalMaterialRequestItem, (item) => item.request, {
+  @OneToMany('AdditionalMaterialRequestItem', (item: AdditionalMaterialRequestItem) => item.request, {
     cascade: true,
   })
   items!: AdditionalMaterialRequestItem[];

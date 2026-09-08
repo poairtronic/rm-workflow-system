@@ -6,7 +6,7 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
-import { User } from '../../users/entities/user.entity.js';
+import type { User } from '../../users/entities/user.entity.js';
 
 @Entity('roles')
 export class Role {
@@ -19,7 +19,7 @@ export class Role {
   @Column({ nullable: true, length: 255 })
   description?: string;
 
-  @OneToMany(() => User, (user) => user.role)
+  @OneToMany('User', (user: User) => user.role)
   users!: User[];
 
   @CreateDateColumn({ name: 'created_at' })

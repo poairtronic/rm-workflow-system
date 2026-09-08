@@ -16,7 +16,7 @@ import { RmItem } from '../../rm/entities/rm-item.entity.js';
 import { MaterialIssue } from '../../material-issue/entities/material-issue.entity.js';
 import { MaterialConsumption } from '../../production/entities/material-consumption.entity.js';
 import { MaterialReturn } from '../../production/entities/material-return.entity.js';
-import { AdditionalMaterialRequest } from '../../additional-request/entities/additional-request.entity.js';
+import type { AdditionalMaterialRequest } from '../../additional-request/entities/additional-request.entity.js';
 import { User } from '../../users/entities/user.entity.js';
 
 export enum ScStatus {
@@ -89,7 +89,7 @@ export class SalesOrderComponent {
   @OneToMany(() => MaterialReturn, (r) => r.salesOrderComponent)
   materialReturns!: MaterialReturn[];
 
-  @OneToMany(() => AdditionalMaterialRequest, (r) => r.salesOrderComponent)
+  @OneToMany('AdditionalMaterialRequest', (r: AdditionalMaterialRequest) => r.salesOrderComponent)
   additionalRequests!: AdditionalMaterialRequest[];
 
   @Column({

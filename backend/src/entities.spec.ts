@@ -40,12 +40,16 @@ import {
 import { AdditionalMaterialRequestItem } from './additional-request/entities/additional-request-item.entity.js';
 import { Notification } from './notifications/entities/notification.entity.js';
 import { AuditLog } from './audit/entities/audit-log.entity.js';
+import { InventoryItem } from './inventory/entities/inventory-item.entity.js';
+import { StockBalance } from './inventory/entities/stock-balance.entity.js';
+import { StockTransaction } from './inventory/entities/stock-transaction.entity.js';
 import { MaterialMathUtil } from './production/utils/material-math.util.js';
+
 import { MaterialReconciliationUtil } from './production/utils/material-reconciliation.util.js';
 
 describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
-  it('should register exactly 20 domain entities in ALL_ENTITIES', () => {
-    expect(ALL_ENTITIES).toHaveLength(20);
+  it('should register exactly 23 domain entities in ALL_ENTITIES', () => {
+    expect(ALL_ENTITIES).toHaveLength(23);
     expect(ALL_ENTITIES).toContain(Role);
     expect(ALL_ENTITIES).toContain(User);
     expect(ALL_ENTITIES).toContain(Customer);
@@ -66,6 +70,9 @@ describe('Phase 7 TypeORM Entity Definitions & Contracts', () => {
     expect(ALL_ENTITIES).toContain(AdditionalMaterialRequestItem);
     expect(ALL_ENTITIES).toContain(Notification);
     expect(ALL_ENTITIES).toContain(AuditLog);
+    expect(ALL_ENTITIES).toContain(InventoryItem);
+    expect(ALL_ENTITIES).toContain(StockBalance);
+    expect(ALL_ENTITIES).toContain(StockTransaction);
   });
 
   describe('Strict Database Design Principles (Section 28)', () => {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import LoginPage from '../../pages/LoginPage';
 import DashboardPage from '../../pages/DashboardPage';
+import { InventoryPage } from '../../pages/InventoryPage';
 
 export type CurrentView =
   | 'dashboard'
@@ -10,6 +11,7 @@ export type CurrentView =
   | 'production'
   | 'sc-completion'
   | 'monitoring'
+  | 'inventory'
   | 'analytics'
   | 'admin';
 
@@ -31,7 +33,11 @@ export function AppRouter() {
 
   return (
     <div className="router-container">
-      <DashboardPage currentView={currentView} onNavigate={setCurrentView} />
+      {currentView === 'inventory' ? (
+        <InventoryPage currentView={currentView} onNavigate={setCurrentView} />
+      ) : (
+        <DashboardPage currentView={currentView} onNavigate={setCurrentView} />
+      )}
     </div>
   );
 }

@@ -19,6 +19,9 @@ import { AdditionalMaterialRequest } from '../additional-request/entities/additi
 import { AdditionalMaterialRequestItem } from '../additional-request/entities/additional-request-item.entity.js';
 import { Notification } from '../notifications/entities/notification.entity.js';
 import { AuditLog } from '../audit/entities/audit-log.entity.js';
+import { InventoryItem } from '../inventory/entities/inventory-item.entity.js';
+import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
+import { StockTransaction } from '../inventory/entities/stock-transaction.entity.js';
 
 export const ALL_ENTITIES = [
   Role,
@@ -41,6 +44,9 @@ export const ALL_ENTITIES = [
   AdditionalMaterialRequestItem,
   Notification,
   AuditLog,
+  InventoryItem,
+  StockBalance,
+  StockTransaction,
 ];
 
 const dbUrl =

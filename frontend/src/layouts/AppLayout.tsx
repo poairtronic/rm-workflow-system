@@ -19,7 +19,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
   // Role-based navigation rules
   const getNavItems = () => {
-    const baseItems = [{ id: 'dashboard', label: 'Overview & Health' }];
+    const baseItems = [
+      { id: 'dashboard', label: 'Overview & Health' },
+      { id: 'inventory', label: 'Inventory' },
+    ];
 
     switch (role) {
       case 'DESIGNER':
