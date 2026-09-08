@@ -3,11 +3,13 @@ export type UserRole =
 
 export interface AuthUser {
   userId: string;
+  name?: string;
   email: string;
   role: UserRole;
   roles?: UserRole[];
   department?: string;
 }
+
 
 export interface AuthState {
   user: AuthUser | null;

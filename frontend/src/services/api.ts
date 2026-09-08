@@ -24,9 +24,16 @@ class ApiClient {
       headers: this.getHeaders(),
     });
     if (!response.ok) {
-      throw new Error(
-        `GET ${endpoint} failed: ${response.status} ${response.statusText}`
-      );
+      let errorMsg = `GET ${endpoint} failed: ${response.status} ${response.statusText}`;
+      try {
+        const errorJson = await response.json();
+        if (errorJson?.message) {
+          errorMsg = Array.isArray(errorJson.message)
+            ? errorJson.message.join(', ')
+            : errorJson.message;
+        }
+      } catch {}
+      throw new Error(errorMsg);
     }
     return response.json();
   }
@@ -38,12 +45,20 @@ class ApiClient {
       body: body ? JSON.stringify(body) : undefined,
     });
     if (!response.ok) {
-      throw new Error(
-        `POST ${endpoint} failed: ${response.status} ${response.statusText}`
-      );
+      let errorMsg = `POST ${endpoint} failed: ${response.status} ${response.statusText}`;
+      try {
+        const errorJson = await response.json();
+        if (errorJson?.message) {
+          errorMsg = Array.isArray(errorJson.message)
+            ? errorJson.message.join(', ')
+            : errorJson.message;
+        }
+      } catch {}
+      throw new Error(errorMsg);
     }
     return response.json();
   }
+
 }
 
 export const api = new ApiClient();

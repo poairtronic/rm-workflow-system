@@ -1,4 +1,2 @@
-// Hooks for feature: authentication
-export function useAuthentication() {
-  return {};
-}
+export { useAuth } from '../../../hooks/useAuth';
+

@@ -1,13 +1,25 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { UnauthorizedException } from '@nestjs/common';
+import bcrypt from 'bcryptjs';
 import { AuthService } from './auth.service.js';
 import { UserRole } from './enums/role.enum.js';
+import { User } from '../users/entities/user.entity.js';
 
 describe('AuthService', () => {
   let authService: AuthService;
   let jwtService: JwtService;
 
+  const mockUserRepo = {
+    findOne: vi.fn(),
+  };
+
   beforeEach(async () => {
+    vi.clearAllMocks();
+
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -20,6 +32,10 @@ describe('AuthService', () => {
               email: 'test@example.com',
             }),
           },
+        },
+        {
+          provide: getRepositoryToken(User),
+          useValue: mockUserRepo,
         },
       ],
     }).compile();
@@ -37,11 +53,69 @@ describe('AuthService', () => {
     const result = authService.signToken({
       userId: 'user-123',
       email: 'designer@example.com',
-      role: UserRole.DESIGN_USER,
+      role: UserRole.DESIGNER,
     });
 
     expect(result.accessToken).toBe('mock-token-for-user-123');
-    expect(result.user.role).toBe(UserRole.DESIGN_USER);
+    expect(result.user.role).toBe(UserRole.DESIGNER);
+  });
+
+  it('should validate credentials and login successfully for active user with valid password', async () => {
+    const passwordHash = await bcrypt.hash('Secret@123', 10);
+    mockUserRepo.findOne.mockResolvedValue({
+      id: 'user-1',
+      name: 'Rajesh Designer',
+      email: 'designer@airtronic.com',
+      passwordHash,
+      isActive: true,
+      role: { name: 'DESIGNER' },
+      department: 'Design',
+    });
+
+    const result = await authService.login({
+      email: 'designer@airtronic.com',
+      password: 'Secret@123',
+    });
+
+    expect(result.accessToken).toBe('mock-token-for-user-1');
+    expect(result.user.email).toBe('designer@airtronic.com');
+    expect(result.user.role).toBe('DESIGNER');
+  });
+
+  it('should throw UnauthorizedException on invalid password', async () => {
+    const passwordHash = await bcrypt.hash('Secret@123', 10);
+    mockUserRepo.findOne.mockResolvedValue({
+      id: 'user-1',
+      email: 'designer@airtronic.com',
+      passwordHash,
+      isActive: true,
+      role: { name: 'DESIGNER' },
+    });
+
+    await expect(
+      authService.login({
+        email: 'designer@airtronic.com',
+        password: 'WrongPassword',
+      }),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('should throw UnauthorizedException for inactive accounts', async () => {
+    const passwordHash = await bcrypt.hash('Secret@123', 10);
+    mockUserRepo.findOne.mockResolvedValue({
+      id: 'user-1',
+      email: 'inactive@airtronic.com',
+      passwordHash,
+      isActive: false,
+      role: { name: 'DESIGNER' },
+    });
+
+    await expect(
+      authService.login({
+        email: 'inactive@airtronic.com',
+        password: 'Secret@123',
+      }),
+    ).rejects.toThrow('User account is inactive');
   });
 
   it('should create dev test tokens for roles', () => {
@@ -50,3 +124,4 @@ describe('AuthService', () => {
     expect(result.user.role).toBe(UserRole.SENIOR_MANAGER);
   });
 });
+

@@ -18,7 +18,12 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
   onNavigate,
 }) => {
   const { health, loading, error, lastChecked, refetch } = useHealth();
-  const { roles } = useAuth();
+  const { role } = useAuth();
+
+  const operationalRoles = ['ADMIN', 'DESIGNER', 'STORES', 'PRODUCTION'];
+  const governanceRoles = ['SENIOR_MANAGER', 'GENERAL_MANAGER'];
+
+
 
   return (
     <AppLayout activeNav={currentView} onNavigate={onNavigate}>
@@ -120,25 +125,22 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
             <div className="roles-section">
               <h3 className="roles-subtitle">Core Operational Roles</h3>
               <div className="role-tags">
-                {(
-                  roles?.operationalRoles || ['ADMIN', 'DESIGNER', 'STORES', 'PRODUCTION']
-                ).map((r) => (
-                  <span key={r} className="role-tag">
-                    {r}
+                {operationalRoles.map((r: string) => (
+                  <span key={r} className={`role-tag ${role === r ? 'border-primary font-bold' : ''}`}>
+                    {r} {role === r ? '(Current Session)' : ''}
                   </span>
                 ))}
               </div>
 
               <h3 className="roles-subtitle">Monitoring, Alerts & Governance Roles</h3>
               <div className="role-tags">
-                {(roles?.governanceRoles || ['SENIOR_MANAGER', 'GENERAL_MANAGER']).map(
-                  (r) => (
-                    <span key={r} className="role-tag role-tag-secondary">
-                      {r}
-                    </span>
-                  )
-                )}
+                {governanceRoles.map((r: string) => (
+                  <span key={r} className={`role-tag role-tag-secondary ${role === r ? 'border-primary font-bold' : ''}`}>
+                    {r} {role === r ? '(Current Session)' : ''}
+                  </span>
+                ))}
               </div>
+
             </div>
           </Card>
         </div>
