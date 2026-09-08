@@ -13,6 +13,7 @@ import { InventoryService } from './inventory.service.js';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto.js';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto.js';
 import { CreateStockTransactionDto } from './dto/create-stock-transaction.dto.js';
+import { CreateStockInDto } from './dto/create-stock-in.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
@@ -80,6 +81,16 @@ export class InventoryController {
     return this.inventoryService.getTransactions(id);
   }
 
+  @Post(':id/stock-in')
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  stockIn(
+    @Param('id') id: string,
+    @Body() dto: CreateStockInDto,
+    @Request() req: any,
+  ) {
+    return this.inventoryService.stockIn(id, dto, req.user.sub);
+  }
+
   @Post(':id/transactions')
   @Roles(UserRole.STORES, UserRole.ADMIN)
   addTransaction(
@@ -88,7 +99,6 @@ export class InventoryController {
     @Request() req: any,
   ) {
     // Unrestricted direct stock mutation is disabled in Phase 10.3 to enforce proper movement semantics.
-    // Stock will be altered via dedicated Stock In/Out/Adjustment workflows (Phase 10.4+).
     throw new NotImplementedException('Direct generic stock mutation is restricted. Use dedicated workflows (Phase 10.4+).');
   }
 }

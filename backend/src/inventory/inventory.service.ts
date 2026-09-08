@@ -7,6 +7,7 @@ import { StockTransaction, TransactionType } from './entities/stock-transaction.
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto.js';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto.js';
 import { CreateStockTransactionDto } from './dto/create-stock-transaction.dto.js';
+import { CreateStockInDto } from './dto/create-stock-in.dto.js';
 
 @Injectable()
 export class InventoryService {
@@ -147,6 +148,78 @@ export class InventoryService {
 
       await queryRunner.commitTransaction();
       return savedTx;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async stockIn(
+    inventoryItemId: string,
+    dto: CreateStockInDto,
+    userId: string,
+  ) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const item = await queryRunner.manager.findOne(InventoryItem, {
+        where: { id: inventoryItemId },
+      });
+      if (!item) {
+        throw new NotFoundException(`Inventory item ${inventoryItemId} not found`);
+      }
+
+      // Fallback for seed data without initial balance.
+      const balanceCheck = await queryRunner.manager.findOne(StockBalance, {
+        where: { inventoryItemId },
+      });
+      if (!balanceCheck) {
+        const newBalance = this.stockBalanceRepository.create({
+          inventoryItemId,
+          currentQuantity: 0,
+        });
+        await queryRunner.manager.save(newBalance);
+      }
+
+      const transaction = this.stockTransactionRepository.create({
+        inventoryItemId,
+        transactionType: TransactionType.STOCK_IN,
+        quantity: dto.quantity,
+        referenceType: dto.referenceType,
+        referenceId: dto.referenceId,
+        remarks: dto.remarks,
+        createdById: userId,
+      });
+      const savedTx = await queryRunner.manager.save(transaction);
+
+      // Atomic stock update
+      await queryRunner.manager.query(
+        `UPDATE stock_balances 
+         SET current_quantity = current_quantity + $1, 
+             last_transaction_id = $2, 
+             updated_at = NOW() 
+         WHERE inventory_item_id = $3`,
+        [dto.quantity, savedTx.id, inventoryItemId]
+      );
+
+      const finalBalance = await queryRunner.manager.findOne(StockBalance, {
+        where: { inventoryItemId },
+      });
+
+      if (!finalBalance) {
+        throw new BadRequestException('Failed to update stock balance atomically');
+      }
+
+      await queryRunner.commitTransaction();
+      
+      return {
+        transaction: savedTx,
+        balance: finalBalance,
+      };
     } catch (error) {
       await queryRunner.rollbackTransaction();
       throw error;

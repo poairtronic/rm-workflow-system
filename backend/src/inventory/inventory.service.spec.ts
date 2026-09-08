@@ -149,4 +149,53 @@ describe('InventoryService', () => {
       );
     });
   });
+
+  describe('stockIn', () => {
+    it('should successfully execute a Stock In transaction atomically', async () => {
+      const qr = dataSource.createQueryRunner();
+      
+      // Mocks for successful flow
+      qr.manager.findOne
+        .mockResolvedValueOnce({ id: 'item-1' }) // Item exists
+        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 0 }) // Balance check
+        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 25.5 }); // Final fetch after update
+      
+      qr.manager.save.mockResolvedValueOnce({ id: 'tx-1' }); // Transaction saved
+      
+      const result = await service.stockIn('item-1', {
+        quantity: 25.5,
+        referenceType: 'PO',
+      }, 'user-1');
+
+      expect(qr.startTransaction).toHaveBeenCalled();
+      
+      // Should execute atomic update with '+'
+      expect(qr.manager.query).toHaveBeenCalledWith(
+        expect.stringContaining('current_quantity = current_quantity + $1'),
+        [25.5, 'tx-1', 'item-1']
+      );
+
+      expect(qr.commitTransaction).toHaveBeenCalled();
+      expect(result.balance.currentQuantity).toBe(25.5);
+    });
+
+    it('should rollback if the balance update fails', async () => {
+      const qr = dataSource.createQueryRunner();
+      
+      qr.manager.findOne
+        .mockResolvedValueOnce({ id: 'item-1' }) // Item exists
+        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 0 }) // Balance check
+        .mockResolvedValueOnce(null); // Simulate final fetch failing (update failed)
+      
+      qr.manager.save.mockResolvedValueOnce({ id: 'tx-1' }); // Transaction saved
+      
+      await expect(service.stockIn('item-1', {
+        quantity: 10,
+        referenceType: 'PO',
+      }, 'user-1')).rejects.toThrow();
+
+      expect(qr.rollbackTransaction).toHaveBeenCalled();
+      expect(qr.commitTransaction).not.toHaveBeenCalled();
+    });
+  });
 });

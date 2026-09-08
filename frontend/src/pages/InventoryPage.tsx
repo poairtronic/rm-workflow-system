@@ -4,6 +4,8 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { APP_CONFIG } from '../app/config';
 import { CreateInventoryItemModal } from './components/CreateInventoryItemModal';
+import { StockInModal } from './components/StockInModal';
+import { useAuth } from '../hooks/useAuth';
 
 interface InventoryItem {
   id: string;
@@ -27,6 +29,9 @@ export const InventoryPage: React.FC<{
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [stockInItem, setStockInItem] = useState<InventoryItem | null>(null);
+  
+  const { role } = useAuth();
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -53,6 +58,11 @@ export const InventoryPage: React.FC<{
 
   const handleCreateSuccess = () => {
     setIsCreateModalOpen(false);
+    fetchInventory();
+  };
+
+  const handleStockInSuccess = () => {
+    setStockInItem(null);
     fetchInventory();
   };
 
@@ -90,9 +100,11 @@ export const InventoryPage: React.FC<{
             <p className="text-gray-600">Material stock and minimum levels (Phase 9)</p>
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => setIsCreateModalOpen(true)} variant="primary">
-              + Add Item
-            </Button>
+            {(role === 'STORES' || role === 'ADMIN') && (
+              <Button onClick={() => setIsCreateModalOpen(true)} variant="primary">
+                + Add Item
+              </Button>
+            )}
             <Button onClick={fetchInventory} disabled={loading} variant="secondary">
               ↻ Refresh
             </Button>
@@ -136,18 +148,19 @@ export const InventoryPage: React.FC<{
                   <th className="p-4 border-b font-semibold">Unit</th>
                   <th className="p-4 border-b font-semibold text-right">Minimum</th>
                   <th className="p-4 border-b font-semibold">Status</th>
+                  <th className="p-4 border-b font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-gray-500">
+                    <td colSpan={8} className="p-8 text-center text-gray-500">
                       Loading inventory data...
                     </td>
                   </tr>
                 ) : filteredItems.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-gray-500">
+                    <td colSpan={8} className="p-8 text-center text-gray-500">
                       No inventory items found.
                     </td>
                   </tr>
@@ -178,6 +191,17 @@ export const InventoryPage: React.FC<{
                             </span>
                           )}
                         </td>
+                        <td className="p-4 text-right">
+                          {(role === 'STORES' || role === 'ADMIN') && (
+                            <Button 
+                              onClick={() => setStockInItem(item)} 
+                              variant="secondary" 
+                              className="text-xs px-3 py-1"
+                            >
+                              Stock In
+                            </Button>
+                          )}
+                        </td>
                       </tr>
                     );
                   })
@@ -191,6 +215,14 @@ export const InventoryPage: React.FC<{
           <CreateInventoryItemModal
             onClose={() => setIsCreateModalOpen(false)}
             onSuccess={handleCreateSuccess}
+          />
+        )}
+
+        {stockInItem && (
+          <StockInModal
+            item={stockInItem}
+            onClose={() => setStockInItem(null)}
+            onSuccess={handleStockInSuccess}
           />
         )}
       </div>
