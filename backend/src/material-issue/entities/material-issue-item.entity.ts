@@ -7,8 +7,8 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { MaterialIssue } from './material-issue.entity.js';
-import { RmItem } from '../../rm/entities/rm-item.entity.js';
+import type { MaterialIssue } from './material-issue.entity.js';
+import type { RmItem } from '../../rm/entities/rm-item.entity.js';
 
 @Entity('material_issue_items')
 export class MaterialIssueItem {
@@ -19,7 +19,7 @@ export class MaterialIssueItem {
   @Column({ name: 'material_issue_id' })
   materialIssueId!: string;
 
-  @ManyToOne(() => MaterialIssue, (issue) => issue.items, {
+  @ManyToOne('MaterialIssue', (issue: MaterialIssue) => issue.items, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'material_issue_id' })
@@ -29,7 +29,7 @@ export class MaterialIssueItem {
   @Column({ name: 'rm_item_id' })
   rmItemId!: string;
 
-  @ManyToOne(() => RmItem, (rmItem) => rmItem.materialIssues, {
+  @ManyToOne('RmItem', (rmItem: RmItem) => rmItem.materialIssues, {
     onDelete: 'RESTRICT',
   })
   @JoinColumn({ name: 'rm_item_id' })

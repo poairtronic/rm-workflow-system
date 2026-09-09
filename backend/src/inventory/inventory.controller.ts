@@ -14,6 +14,8 @@ import { CreateInventoryItemDto } from './dto/create-inventory-item.dto.js';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto.js';
 import { CreateStockTransactionDto } from './dto/create-stock-transaction.dto.js';
 import { CreateStockInDto } from './dto/create-stock-in.dto.js';
+import { CreateStockOutDto } from './dto/create-stock-out.dto.js';
+import { CreateStockAdjustmentDto } from './dto/create-stock-adjustment.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
@@ -89,6 +91,26 @@ export class InventoryController {
     @Request() req: any,
   ) {
     return this.inventoryService.stockIn(id, dto, req.user.sub);
+  }
+
+  @Post(':id/stock-out')
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  stockOut(
+    @Param('id') id: string,
+    @Body() dto: CreateStockOutDto,
+    @Request() req: any,
+  ) {
+    return this.inventoryService.stockOut(id, dto, req.user.sub);
+  }
+
+  @Post(':id/adjustment')
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  stockAdjustment(
+    @Param('id') id: string,
+    @Body() dto: CreateStockAdjustmentDto,
+    @Request() req: any,
+  ) {
+    return this.inventoryService.stockAdjustment(id, dto, req.user.sub);
   }
 
   @Post(':id/transactions')

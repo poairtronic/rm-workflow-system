@@ -9,8 +9,8 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { Customer } from '../../customers/entities/customer.entity.js';
-import { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
+import type { Customer } from '../../customers/entities/customer.entity.js';
+import type { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
 
 @Entity('purchase_orders')
 export class PurchaseOrder {
@@ -24,7 +24,7 @@ export class PurchaseOrder {
   @Column({ name: 'customer_id' })
   customerId!: string;
 
-  @ManyToOne(() => Customer, (customer) => customer.purchaseOrders, {
+  @ManyToOne('Customer', (customer: Customer) => customer.purchaseOrders, {
     onDelete: 'RESTRICT',
   })
   @JoinColumn({ name: 'customer_id' })
@@ -39,7 +39,7 @@ export class PurchaseOrder {
   @Column({ nullable: true, length: 255 })
   remarks?: string;
 
-  @OneToMany(() => SalesOrderComponent, (sc) => sc.purchaseOrder)
+  @OneToMany('SalesOrderComponent', (sc: SalesOrderComponent) => sc.purchaseOrder)
   salesOrderComponents!: SalesOrderComponent[];
 
   @CreateDateColumn({ name: 'created_at' })

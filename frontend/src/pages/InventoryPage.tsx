@@ -5,6 +5,8 @@ import { Button } from '../components/ui/Button';
 import { APP_CONFIG } from '../app/config';
 import { CreateInventoryItemModal } from './components/CreateInventoryItemModal';
 import { StockInModal } from './components/StockInModal';
+import { StockOutModal } from './components/StockOutModal';
+import { StockAdjustmentModal } from './components/StockAdjustmentModal';
 import { useAuth } from '../hooks/useAuth';
 
 interface InventoryItem {
@@ -30,6 +32,8 @@ export const InventoryPage: React.FC<{
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [stockInItem, setStockInItem] = useState<InventoryItem | null>(null);
+  const [stockOutItem, setStockOutItem] = useState<InventoryItem | null>(null);
+  const [adjustmentItem, setAdjustmentItem] = useState<InventoryItem | null>(null);
   
   const { role } = useAuth();
 
@@ -63,6 +67,16 @@ export const InventoryPage: React.FC<{
 
   const handleStockInSuccess = () => {
     setStockInItem(null);
+    fetchInventory();
+  };
+
+  const handleStockOutSuccess = () => {
+    setStockOutItem(null);
+    fetchInventory();
+  };
+
+  const handleAdjustmentSuccess = () => {
+    setAdjustmentItem(null);
     fetchInventory();
   };
 
@@ -191,15 +205,31 @@ export const InventoryPage: React.FC<{
                             </span>
                           )}
                         </td>
-                        <td className="p-4 text-right">
+                        <td className="p-4 text-right space-x-2">
                           {(role === 'STORES' || role === 'ADMIN') && (
-                            <Button 
-                              onClick={() => setStockInItem(item)} 
-                              variant="secondary" 
-                              className="text-xs px-3 py-1"
-                            >
-                              Stock In
-                            </Button>
+                            <div className="flex justify-end gap-1">
+                              <Button 
+                                onClick={() => setStockInItem(item)} 
+                                variant="secondary" 
+                                className="text-xs px-2 py-1"
+                              >
+                                In
+                              </Button>
+                              <Button 
+                                onClick={() => setStockOutItem(item)} 
+                                variant="secondary" 
+                                className="text-xs px-2 py-1 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                              >
+                                Out
+                              </Button>
+                              <Button 
+                                onClick={() => setAdjustmentItem(item)} 
+                                variant="secondary" 
+                                className="text-xs px-2 py-1 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 border-yellow-200"
+                              >
+                                Adjust
+                              </Button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -223,6 +253,22 @@ export const InventoryPage: React.FC<{
             item={stockInItem}
             onClose={() => setStockInItem(null)}
             onSuccess={handleStockInSuccess}
+          />
+        )}
+
+        {stockOutItem && (
+          <StockOutModal
+            item={stockOutItem}
+            onClose={() => setStockOutItem(null)}
+            onSuccess={handleStockOutSuccess}
+          />
+        )}
+
+        {adjustmentItem && (
+          <StockAdjustmentModal
+            item={adjustmentItem}
+            onClose={() => setAdjustmentItem(null)}
+            onSuccess={handleAdjustmentSuccess}
           />
         )}
       </div>

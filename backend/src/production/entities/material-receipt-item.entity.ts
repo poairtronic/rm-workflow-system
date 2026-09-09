@@ -7,7 +7,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { MaterialReceipt } from './production-receipt.entity.js';
+import type { MaterialReceipt } from './production-receipt.entity.js';
 import { RmItem } from '../../rm/entities/rm-item.entity.js';
 
 @Entity('material_receipt_items')
@@ -19,7 +19,7 @@ export class MaterialReceiptItem {
   @Column({ name: 'material_receipt_id' })
   materialReceiptId!: string;
 
-  @ManyToOne(() => MaterialReceipt, (receipt) => receipt.items, {
+  @ManyToOne('MaterialReceipt', (receipt: MaterialReceipt) => receipt.items, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'material_receipt_id' })

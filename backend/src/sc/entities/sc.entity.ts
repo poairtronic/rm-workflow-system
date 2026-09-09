@@ -13,7 +13,7 @@ import {
 import { PurchaseOrder } from '../../po/entities/po.entity.js';
 import { RmRequest } from '../../rm/entities/rm-request.entity.js';
 import { RmItem } from '../../rm/entities/rm-item.entity.js';
-import { MaterialIssue } from '../../material-issue/entities/material-issue.entity.js';
+import type { MaterialIssue } from '../../material-issue/entities/material-issue.entity.js';
 import { MaterialConsumption } from '../../production/entities/material-consumption.entity.js';
 import { MaterialReturn } from '../../production/entities/material-return.entity.js';
 import type { AdditionalMaterialRequest } from '../../additional-request/entities/additional-request.entity.js';
@@ -80,7 +80,7 @@ export class SalesOrderComponent {
   @OneToMany(() => RmItem, (item) => item.salesOrderComponent)
   rmItems!: RmItem[];
 
-  @OneToMany(() => MaterialIssue, (issue) => issue.salesOrderComponent)
+  @OneToMany('MaterialIssue', (issue: MaterialIssue) => issue.salesOrderComponent)
   materialIssues!: MaterialIssue[];
 
   @OneToMany(() => MaterialConsumption, (c) => c.salesOrderComponent)

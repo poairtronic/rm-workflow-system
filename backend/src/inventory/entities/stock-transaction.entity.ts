@@ -8,6 +8,11 @@ export enum TransactionType {
   ADJUSTMENT = 'ADJUSTMENT',
 }
 
+export enum AdjustmentDirection {
+  INCREASE = 'INCREASE',
+  DECREASE = 'DECREASE',
+}
+
 @Entity('stock_transactions')
 @Check(`"quantity" > 0`)
 export class StockTransaction {
@@ -27,6 +32,14 @@ export class StockTransaction {
     enum: TransactionType,
   })
   transactionType!: TransactionType;
+
+  @Column({
+    name: 'adjustment_direction',
+    type: 'enum',
+    enum: AdjustmentDirection,
+    nullable: true,
+  })
+  adjustmentDirection?: AdjustmentDirection;
 
   @Column({
     type: 'numeric',

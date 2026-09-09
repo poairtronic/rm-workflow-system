@@ -7,8 +7,8 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
-import { RmItem } from '../../rm/entities/rm-item.entity.js';
+import type { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
+import type { RmItem } from '../../rm/entities/rm-item.entity.js';
 import { User } from '../../users/entities/user.entity.js';
 
 @Entity('material_consumptions')
@@ -20,7 +20,7 @@ export class MaterialConsumption {
   @Column({ name: 'sc_id' })
   scId!: string;
 
-  @ManyToOne(() => SalesOrderComponent, (sc) => sc.materialConsumptions, {
+  @ManyToOne('SalesOrderComponent', (sc: SalesOrderComponent) => sc.materialConsumptions, {
     onDelete: 'RESTRICT',
   })
   @JoinColumn({ name: 'sc_id' })
@@ -30,7 +30,7 @@ export class MaterialConsumption {
   @Column({ name: 'rm_item_id' })
   rmItemId!: string;
 
-  @ManyToOne(() => RmItem, (item) => item.materialConsumptions, {
+  @ManyToOne('RmItem', (item: RmItem) => item.materialConsumptions, {
     onDelete: 'RESTRICT',
   })
   @JoinColumn({ name: 'rm_item_id' })

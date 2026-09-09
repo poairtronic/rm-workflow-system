@@ -10,8 +10,8 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { PurchaseOrder } from '../../po/entities/po.entity.js';
-import { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
+import type { PurchaseOrder } from '../../po/entities/po.entity.js';
+import type { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
 import { User } from '../../users/entities/user.entity.js';
 import { RmItem } from './rm-item.entity.js';
 
@@ -35,7 +35,7 @@ export class RmRequest {
   @Column({ name: 'po_id', nullable: true })
   poId?: string;
 
-  @ManyToOne(() => PurchaseOrder, { nullable: true, onDelete: 'RESTRICT' })
+  @ManyToOne('PurchaseOrder', { nullable: true, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'po_id' })
   purchaseOrder?: PurchaseOrder;
 
@@ -43,7 +43,7 @@ export class RmRequest {
   @Column({ name: 'sc_id', unique: true, nullable: true })
   scId?: string;
 
-  @OneToOne(() => SalesOrderComponent, (sc) => sc.rmRequest, {
+  @OneToOne('SalesOrderComponent', (sc: SalesOrderComponent) => sc.rmRequest, {
     nullable: true,
     onDelete: 'CASCADE',
   })

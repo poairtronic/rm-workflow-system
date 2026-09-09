@@ -8,7 +8,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
+import type { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
 import { User } from '../../users/entities/user.entity.js';
 import { MaterialIssueItem } from './material-issue-item.entity.js';
 import { AdditionalMaterialRequest } from '../../additional-request/entities/additional-request.entity.js';
@@ -27,7 +27,7 @@ export class MaterialIssue {
   @Column({ name: 'sc_id' })
   scId!: string;
 
-  @ManyToOne(() => SalesOrderComponent, (sc) => sc.materialIssues, {
+  @ManyToOne('SalesOrderComponent', (sc: SalesOrderComponent) => sc.materialIssues, {
     onDelete: 'RESTRICT',
   })
   @JoinColumn({ name: 'sc_id' })

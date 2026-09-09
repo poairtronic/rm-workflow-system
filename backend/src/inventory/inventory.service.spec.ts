@@ -4,7 +4,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { InventoryItem } from './entities/inventory-item.entity.js';
 import { StockBalance } from './entities/stock-balance.entity.js';
-import { StockTransaction, TransactionType } from './entities/stock-transaction.entity.js';
+import { StockTransaction, TransactionType, AdjustmentDirection } from './entities/stock-transaction.entity.js';
 import { DataSource } from 'typeorm';
 
 describe('InventoryService', () => {
@@ -196,6 +196,212 @@ describe('InventoryService', () => {
 
       expect(qr.rollbackTransaction).toHaveBeenCalled();
       expect(qr.commitTransaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('stockOut', () => {
+    it('should successfully execute a Stock Out transaction atomically', async () => {
+      const qr = dataSource.createQueryRunner();
+      
+      qr.manager.findOne
+        .mockResolvedValueOnce({ id: 'item-1' }) // Item exists
+        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 100 }) // Current balance
+        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 75 }); // Final balance
+      
+      qr.manager.query
+        .mockResolvedValueOnce([[], 1]) // atomic decrement returns 1 affected row
+        .mockResolvedValueOnce([[], 1]); // last_transaction_id update
+        
+      qr.manager.save.mockResolvedValueOnce({ id: 'tx-1' }); // Transaction saved
+      
+      const result = await service.stockOut('item-1', {
+        quantity: 25,
+        referenceType: 'MANUAL',
+      }, 'user-1');
+
+      expect(qr.startTransaction).toHaveBeenCalled();
+      expect(qr.manager.query).toHaveBeenNthCalledWith(1,
+        expect.stringContaining('current_quantity = current_quantity - $1'),
+        [25, 'item-1']
+      );
+      expect(qr.commitTransaction).toHaveBeenCalled();
+      expect(result.balance!.currentQuantity).toBe(75);
+    });
+
+    it('should allow exact full-stock withdrawal', async () => {
+      const qr = dataSource.createQueryRunner();
+      
+      qr.manager.findOne
+        .mockResolvedValueOnce({ id: 'item-1' }) // Item exists
+        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 100 }) // Current balance
+        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 0 }); // Final balance
+      
+      qr.manager.query
+        .mockResolvedValueOnce([[], 1]) // 1 row updated
+        .mockResolvedValueOnce([[], 1]); 
+        
+      qr.manager.save.mockResolvedValueOnce({ id: 'tx-1' }); 
+      
+      const result = await service.stockOut('item-1', {
+        quantity: 100,
+        referenceType: 'MANUAL',
+      }, 'user-1');
+
+      expect(qr.commitTransaction).toHaveBeenCalled();
+      expect(result.balance!.currentQuantity).toBe(0);
+    });
+
+    it('should throw BadRequestException if affected rows is 0 (insufficient stock)', async () => {
+      const qr = dataSource.createQueryRunner();
+      
+      qr.manager.findOne
+        .mockResolvedValueOnce({ id: 'item-1' }) // Item exists
+        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 100 }); // Current balance
+      
+      qr.manager.query.mockResolvedValueOnce([[], 0]); // 0 rows updated
+      
+      await expect(service.stockOut('item-1', {
+        quantity: 101,
+        referenceType: 'MANUAL',
+      }, 'user-1')).rejects.toThrow('Insufficient stock.');
+
+      expect(qr.rollbackTransaction).toHaveBeenCalled();
+      expect(qr.commitTransaction).not.toHaveBeenCalled();
+      expect(qr.manager.save).not.toHaveBeenCalled(); // No transaction created
+    });
+
+    it('should throw exception if balance record does not exist', async () => {
+      const qr = dataSource.createQueryRunner();
+      
+      qr.manager.findOne
+        .mockResolvedValueOnce({ id: 'item-1' }) // Item exists
+        .mockResolvedValueOnce(null); // No balance record
+      
+      await expect(service.stockOut('item-1', {
+        quantity: 10,
+        referenceType: 'MANUAL',
+      }, 'user-1')).rejects.toThrow('Insufficient stock (no balance record found).');
+
+      expect(qr.rollbackTransaction).toHaveBeenCalled();
+      expect(qr.manager.query).not.toHaveBeenCalled();
+    });
+
+    it('should rollback if transaction insertion fails', async () => {
+      const qr = dataSource.createQueryRunner();
+      
+      qr.manager.findOne
+        .mockResolvedValueOnce({ id: 'item-1' }) 
+        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 100 }); 
+      
+      qr.manager.query.mockResolvedValueOnce([[], 1]); // decrement succeeds
+      qr.manager.save.mockRejectedValueOnce(new Error('DB Error')); // save fails
+      
+      await expect(service.stockOut('item-1', {
+        quantity: 10,
+        referenceType: 'MANUAL',
+      }, 'user-1')).rejects.toThrow('DB Error');
+
+      expect(qr.rollbackTransaction).toHaveBeenCalled();
+    });
+  });
+
+  describe('stockAdjustment', () => {
+    it('should successfully execute a Stock Adjustment INCREASE atomically', async () => {
+      const qr = dataSource.createQueryRunner();
+      
+      qr.manager.findOne
+        .mockResolvedValueOnce({ id: 'item-1' }) 
+        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 100 }) 
+        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 125 }); 
+      
+      qr.manager.query
+        .mockResolvedValueOnce([[], 1]) 
+        .mockResolvedValueOnce([[], 1]); 
+        
+      qr.manager.save.mockResolvedValueOnce({ id: 'tx-1' }); 
+      
+      const result = await service.stockAdjustment('item-1', {
+        quantity: 25,
+        direction: AdjustmentDirection.INCREASE,
+        referenceType: 'MANUAL',
+        remarks: 'Found extra',
+      }, 'user-1');
+
+      expect(qr.startTransaction).toHaveBeenCalled();
+      expect(qr.manager.query).toHaveBeenNthCalledWith(1,
+        expect.stringContaining('current_quantity = current_quantity + $1'),
+        [25, 'item-1']
+      );
+      expect(qr.commitTransaction).toHaveBeenCalled();
+      expect(result.balance!.currentQuantity).toBe(125);
+    });
+
+    it('should successfully execute a Stock Adjustment DECREASE atomically', async () => {
+      const qr = dataSource.createQueryRunner();
+      
+      qr.manager.findOne
+        .mockResolvedValueOnce({ id: 'item-1' }) 
+        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 100 }) 
+        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 75 }); 
+      
+      qr.manager.query
+        .mockResolvedValueOnce([[], 1]) 
+        .mockResolvedValueOnce([[], 1]); 
+        
+      qr.manager.save.mockResolvedValueOnce({ id: 'tx-1' }); 
+      
+      const result = await service.stockAdjustment('item-1', {
+        quantity: 25,
+        direction: AdjustmentDirection.DECREASE,
+        referenceType: 'MANUAL',
+        remarks: 'Lost items',
+      }, 'user-1');
+
+      expect(qr.startTransaction).toHaveBeenCalled();
+      expect(qr.manager.query).toHaveBeenNthCalledWith(1,
+        expect.stringContaining('current_quantity = current_quantity - $1'),
+        [25, 'item-1']
+      );
+      expect(qr.commitTransaction).toHaveBeenCalled();
+      expect(result.balance!.currentQuantity).toBe(75);
+    });
+
+    it('should throw exception if DECREASE affects 0 rows (insufficient stock)', async () => {
+      const qr = dataSource.createQueryRunner();
+      
+      qr.manager.findOne
+        .mockResolvedValueOnce({ id: 'item-1' }) 
+        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 100 });
+      
+      qr.manager.query.mockResolvedValueOnce([[], 0]); // 0 rows affected
+        
+      await expect(service.stockAdjustment('item-1', {
+        quantity: 101,
+        direction: AdjustmentDirection.DECREASE,
+        referenceType: 'MANUAL',
+        remarks: 'Missing items',
+      }, 'user-1')).rejects.toThrow('Insufficient stock for adjustment decrease.');
+
+      expect(qr.rollbackTransaction).toHaveBeenCalled();
+      expect(qr.manager.save).not.toHaveBeenCalled();
+    });
+
+    it('should throw exception if balance record does not exist', async () => {
+      const qr = dataSource.createQueryRunner();
+      
+      qr.manager.findOne
+        .mockResolvedValueOnce({ id: 'item-1' }) // Item exists
+        .mockResolvedValueOnce(null); // No balance record
+      
+      await expect(service.stockAdjustment('item-1', {
+        quantity: 10,
+        direction: AdjustmentDirection.INCREASE,
+        referenceType: 'MANUAL',
+        remarks: 'Missing items',
+      }, 'user-1')).rejects.toThrow('Insufficient stock (no balance record found).');
+
+      expect(qr.rollbackTransaction).toHaveBeenCalled();
+      expect(qr.manager.query).not.toHaveBeenCalled();
     });
   });
 });

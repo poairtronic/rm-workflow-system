@@ -9,11 +9,11 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { RmRequest } from './rm-request.entity.js';
-import { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
-import { MaterialIssueItem } from '../../material-issue/entities/material-issue-item.entity.js';
-import { MaterialConsumption } from '../../production/entities/material-consumption.entity.js';
-import { MaterialReturnItem } from '../../production/entities/material-return-item.entity.js';
+import type { RmRequest } from './rm-request.entity.js';
+import type { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
+import type { MaterialIssueItem } from '../../material-issue/entities/material-issue-item.entity.js';
+import type { MaterialConsumption } from '../../production/entities/material-consumption.entity.js';
+import type { MaterialReturnItem } from '../../production/entities/material-return-item.entity.js';
 
 @Entity('rm_items')
 export class RmItem {
@@ -24,7 +24,7 @@ export class RmItem {
   @Column({ name: 'rm_form_id' })
   rmFormId!: string;
 
-  @ManyToOne(() => RmRequest, (req) => req.items, { onDelete: 'CASCADE' })
+  @ManyToOne('RmRequest', (req: RmRequest) => req.items, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'rm_form_id' })
   rmRequest!: RmRequest;
 
@@ -32,7 +32,7 @@ export class RmItem {
   @Column({ name: 'sc_id', nullable: true })
   scId?: string;
 
-  @ManyToOne(() => SalesOrderComponent, (sc) => sc.rmItems, {
+  @ManyToOne('SalesOrderComponent', (sc: SalesOrderComponent) => sc.rmItems, {
     nullable: true,
     onDelete: 'CASCADE',
   })
@@ -112,13 +112,13 @@ export class RmItem {
   @Column({ type: 'text', nullable: true })
   remarks?: string;
 
-  @OneToMany(() => MaterialIssueItem, (item) => item.rmItem)
+  @OneToMany('MaterialIssueItem', (item: MaterialIssueItem) => item.rmItem)
   materialIssues!: MaterialIssueItem[];
 
-  @OneToMany(() => MaterialConsumption, (cons) => cons.rmItem)
+  @OneToMany('MaterialConsumption', (cons: MaterialConsumption) => cons.rmItem)
   materialConsumptions!: MaterialConsumption[];
 
-  @OneToMany(() => MaterialReturnItem, (ret) => ret.rmItem)
+  @OneToMany('MaterialReturnItem', (ret: MaterialReturnItem) => ret.rmItem)
   materialReturns!: MaterialReturnItem[];
 
   @CreateDateColumn({ name: 'created_at' })

@@ -3,11 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { InventoryItem } from './entities/inventory-item.entity.js';
 import { StockBalance } from './entities/stock-balance.entity.js';
-import { StockTransaction, TransactionType } from './entities/stock-transaction.entity.js';
+import { StockTransaction, TransactionType, AdjustmentDirection } from './entities/stock-transaction.entity.js';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto.js';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto.js';
 import { CreateStockTransactionDto } from './dto/create-stock-transaction.dto.js';
 import { CreateStockInDto } from './dto/create-stock-in.dto.js';
+import { CreateStockOutDto } from './dto/create-stock-out.dto.js';
+import { CreateStockAdjustmentDto } from './dto/create-stock-adjustment.dto.js';
 
 @Injectable()
 export class InventoryService {
@@ -213,6 +215,174 @@ export class InventoryService {
       if (!finalBalance) {
         throw new BadRequestException('Failed to update stock balance atomically');
       }
+
+      await queryRunner.commitTransaction();
+      
+      return {
+        transaction: savedTx,
+        balance: finalBalance,
+      };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async stockOut(
+    inventoryItemId: string,
+    dto: CreateStockOutDto,
+    userId: string,
+  ) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const item = await queryRunner.manager.findOne(InventoryItem, {
+        where: { id: inventoryItemId },
+      });
+      if (!item) {
+        throw new NotFoundException(`Inventory item ${inventoryItemId} not found`);
+      }
+
+      // We don't auto-create balance for stockOut; it must exist and have enough stock.
+      const currentBalance = await queryRunner.manager.findOne(StockBalance, {
+        where: { inventoryItemId },
+      });
+      
+      if (!currentBalance) {
+        throw new BadRequestException('Insufficient stock (no balance record found).');
+      }
+
+      // Atomic stock decrement check and update
+      const updateResult = await queryRunner.manager.query(
+        `UPDATE stock_balances 
+         SET current_quantity = current_quantity - $1, 
+             updated_at = NOW() 
+         WHERE inventory_item_id = $2 AND current_quantity >= $1`,
+        [dto.quantity, inventoryItemId]
+      );
+
+      if (updateResult[1] === 0) {
+        // [1] contains row count in pg query results, or check updateResult itself based on TypeORM driver
+        // Actually, with query() in postgres, the result is usually [rows, count]
+        // Let's be safer and check affected count if we use query.
+        // Wait, for TypeORM query on postgres: `result[1]` is affected rows.
+        throw new BadRequestException('Insufficient stock.');
+      }
+
+      const transaction = this.stockTransactionRepository.create({
+        inventoryItemId,
+        transactionType: TransactionType.STOCK_OUT,
+        quantity: dto.quantity,
+        referenceType: dto.referenceType,
+        referenceId: dto.referenceId,
+        remarks: dto.remarks,
+        createdById: userId,
+      });
+      const savedTx = await queryRunner.manager.save(transaction);
+
+      // Now set the last_transaction_id
+      await queryRunner.manager.query(
+        `UPDATE stock_balances 
+         SET last_transaction_id = $1 
+         WHERE inventory_item_id = $2`,
+        [savedTx.id, inventoryItemId]
+      );
+
+      const finalBalance = await queryRunner.manager.findOne(StockBalance, {
+        where: { inventoryItemId },
+      });
+
+      await queryRunner.commitTransaction();
+      
+      return {
+        transaction: savedTx,
+        balance: finalBalance,
+      };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async stockAdjustment(
+    inventoryItemId: string,
+    dto: CreateStockAdjustmentDto,
+    userId: string,
+  ) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const item = await queryRunner.manager.findOne(InventoryItem, {
+        where: { id: inventoryItemId },
+      });
+      if (!item) {
+        throw new NotFoundException(`Inventory item ${inventoryItemId} not found`);
+      }
+
+      const currentBalance = await queryRunner.manager.findOne(StockBalance, {
+        where: { inventoryItemId },
+      });
+      
+      if (!currentBalance) {
+        throw new BadRequestException('Insufficient stock (no balance record found).');
+      }
+
+      let updateResult;
+
+      if (dto.direction === AdjustmentDirection.INCREASE) {
+        updateResult = await queryRunner.manager.query(
+          `UPDATE stock_balances 
+           SET current_quantity = current_quantity + $1, 
+               updated_at = NOW() 
+           WHERE inventory_item_id = $2`,
+          [dto.quantity, inventoryItemId]
+        );
+      } else if (dto.direction === AdjustmentDirection.DECREASE) {
+        updateResult = await queryRunner.manager.query(
+          `UPDATE stock_balances 
+           SET current_quantity = current_quantity - $1, 
+               updated_at = NOW() 
+           WHERE inventory_item_id = $2 AND current_quantity >= $1`,
+          [dto.quantity, inventoryItemId]
+        );
+
+        if (updateResult[1] === 0) {
+          throw new BadRequestException('Insufficient stock for adjustment decrease.');
+        }
+      } else {
+        throw new BadRequestException('Invalid adjustment direction.');
+      }
+
+      const transaction = this.stockTransactionRepository.create({
+        inventoryItemId,
+        transactionType: TransactionType.ADJUSTMENT,
+        quantity: dto.quantity,
+        adjustmentDirection: dto.direction,
+        referenceType: dto.referenceType,
+        referenceId: dto.referenceId,
+        remarks: dto.remarks,
+        createdById: userId,
+      });
+      const savedTx = await queryRunner.manager.save(transaction);
+
+      await queryRunner.manager.query(
+        `UPDATE stock_balances 
+         SET last_transaction_id = $1 
+         WHERE inventory_item_id = $2`,
+        [savedTx.id, inventoryItemId]
+      );
+
+      const finalBalance = await queryRunner.manager.findOne(StockBalance, {
+        where: { inventoryItemId },
+      });
 
       await queryRunner.commitTransaction();
       
