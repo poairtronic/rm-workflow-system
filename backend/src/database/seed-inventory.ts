@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+
 import { InventoryItem } from '../inventory/entities/inventory-item.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import { AppDataSource } from '../config/data-source.js';

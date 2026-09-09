@@ -24,6 +24,15 @@ export class StockBalance {
   })
   currentQuantity!: number;
 
+  @Column({
+    name: 'opening_balance',
+    type: 'numeric',
+    precision: 12,
+    scale: 3,
+    nullable: true,
+  })
+  openingBalance?: number;
+
   @Column({ name: 'last_transaction_id', nullable: true })
   lastTransactionId?: string;
 

@@ -1,16 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { InventoryService } from './inventory.service.js';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { InventoryItem } from './entities/inventory-item.entity.js';
 import { StockBalance } from './entities/stock-balance.entity.js';
 import { StockTransaction, TransactionType, AdjustmentDirection } from './entities/stock-transaction.entity.js';
+import { StockStatusFilter } from './dto/get-inventory-filter.dto.js';
 import { DataSource } from 'typeorm';
 
 describe('InventoryService', () => {
   let service: InventoryService;
   let dataSource: any;
   let inventoryItemRepository: any;
+  let stockTransactionRepository: any;
 
   beforeEach(async () => {
     // Mock QueryRunner
@@ -47,6 +49,7 @@ describe('InventoryService', () => {
             findOne: vi.fn(),
             create: vi.fn(),
             save: vi.fn(),
+            createQueryBuilder: vi.fn(),
           },
         },
         {
@@ -61,6 +64,7 @@ describe('InventoryService', () => {
           useValue: {
             find: vi.fn(),
             create: vi.fn(),
+            createQueryBuilder: vi.fn(),
           },
         },
         {
@@ -72,6 +76,7 @@ describe('InventoryService', () => {
 
     service = module.get<InventoryService>(InventoryService);
     inventoryItemRepository = module.get(getRepositoryToken(InventoryItem));
+    stockTransactionRepository = module.get(getRepositoryToken(StockTransaction));
   });
 
   it('should be defined', () => {
@@ -402,6 +407,279 @@ describe('InventoryService', () => {
 
       expect(qr.rollbackTransaction).toHaveBeenCalled();
       expect(qr.manager.query).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getReconciliation', () => {
+    it('should return MATCH when expected balance matches current balance', async () => {
+      const mockItem = {
+        id: 'item-1',
+        material: 'Mat',
+        grade: 'G',
+        size: '10',
+        stockBalance: {
+          inventoryItemId: 'item-1',
+          currentQuantity: 120,
+          openingBalance: 100,
+        },
+      };
+
+      const qbItem: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue([mockItem]),
+      };
+      (inventoryItemRepository.createQueryBuilder as any).mockReturnValue(qbItem);
+
+      const qbTx: any = {
+        select: vi.fn().mockReturnThis(),
+        addSelect: vi.fn().mockReturnThis(),
+        groupBy: vi.fn().mockReturnThis(),
+        getRawMany: vi.fn().mockResolvedValue([{
+          inventoryItemId: 'item-1',
+          totalIn: 30, // 100 + 30 = 130
+          totalOut: 10, // 130 - 10 = 120
+        }]),
+      };
+      (stockTransactionRepository.createQueryBuilder as any).mockReturnValue(qbTx);
+
+      const result = await service.getReconciliation();
+      expect(result).toHaveLength(1);
+      expect(result[0].status).toBe('MATCH');
+      expect(result[0].difference).toBe(0);
+      expect(result[0].expectedBalance).toBe(120);
+    });
+
+    it('should return MISMATCH when balances differ', async () => {
+      const mockItem = {
+        id: 'item-1',
+        stockBalance: {
+          inventoryItemId: 'item-1',
+          currentQuantity: 125, // expected 120
+          openingBalance: 100,
+        },
+      };
+
+      const qbItem: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue([mockItem]),
+      };
+      (inventoryItemRepository.createQueryBuilder as any).mockReturnValue(qbItem);
+
+      const qbTx: any = {
+        select: vi.fn().mockReturnThis(),
+        addSelect: vi.fn().mockReturnThis(),
+        groupBy: vi.fn().mockReturnThis(),
+        getRawMany: vi.fn().mockResolvedValue([{
+          inventoryItemId: 'item-1',
+          totalIn: 30,
+          totalOut: 10,
+        }]),
+      };
+      (stockTransactionRepository.createQueryBuilder as any).mockReturnValue(qbTx);
+
+      const result = await service.getReconciliation();
+      expect(result[0].status).toBe('MISMATCH');
+      expect(result[0].expectedBalance).toBe(120);
+      expect(result[0].difference).toBe(5); // 125 - 120
+    });
+
+    it('should return NOT_RECONCILABLE when openingBalance is missing', async () => {
+      const mockItem = {
+        id: 'item-1',
+        stockBalance: {
+          inventoryItemId: 'item-1',
+          currentQuantity: 100,
+          openingBalance: null,
+        },
+      };
+
+      const qbItem: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue([mockItem]),
+      };
+      (inventoryItemRepository.createQueryBuilder as any).mockReturnValue(qbItem);
+
+      const qbTx: any = {
+        select: vi.fn().mockReturnThis(),
+        addSelect: vi.fn().mockReturnThis(),
+        groupBy: vi.fn().mockReturnThis(),
+        getRawMany: vi.fn().mockResolvedValue([]),
+      };
+      (stockTransactionRepository.createQueryBuilder as any).mockReturnValue(qbTx);
+
+      const result = await service.getReconciliation();
+      expect(result[0].status).toBe('NOT_RECONCILABLE');
+      expect(result[0].reason).toBe('OPENING_BASELINE_MISSING');
+      expect(result[0].expectedBalance).toBeNull();
+    });
+
+    it('should return NOT_RECONCILABLE when balance is entirely missing', async () => {
+      const mockItem = {
+        id: 'item-1',
+        stockBalance: null, // missing balance
+      };
+
+      const qbItem: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue([mockItem]),
+      };
+      (inventoryItemRepository.createQueryBuilder as any).mockReturnValue(qbItem);
+
+      const qbTx: any = {
+        select: vi.fn().mockReturnThis(),
+        addSelect: vi.fn().mockReturnThis(),
+        groupBy: vi.fn().mockReturnThis(),
+        getRawMany: vi.fn().mockResolvedValue([]),
+      };
+      (stockTransactionRepository.createQueryBuilder as any).mockReturnValue(qbTx);
+
+      const result = await service.getReconciliation();
+      expect(result[0].status).toBe('NOT_RECONCILABLE');
+      expect(result[0].reason).toBe('MISSING_BALANCE');
+    });
+
+    it('should correctly filter by ID when provided', async () => {
+      const qbItem: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue([]),
+      };
+      (inventoryItemRepository.createQueryBuilder as any).mockReturnValue(qbItem);
+
+      const qbTx: any = {
+        select: vi.fn().mockReturnThis(),
+        addSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        groupBy: vi.fn().mockReturnThis(),
+        getRawMany: vi.fn().mockResolvedValue([]),
+      };
+      (stockTransactionRepository.createQueryBuilder as any).mockReturnValue(qbTx);
+
+      await service.getReconciliation('item-1');
+      expect(qbItem.where).toHaveBeenCalledWith('item.id = :id', { id: 'item-1' });
+      expect(qbTx.where).toHaveBeenCalledWith('tx.inventory_item_id = :id', { id: 'item-1' });
+    });
+  });
+
+  describe('findAll filters and pagination', () => {
+    it('should query without filters when no DTO is provided', async () => {
+      const qbItem: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        addOrderBy: vi.fn().mockReturnThis(),
+        skip: vi.fn().mockReturnThis(),
+        take: vi.fn().mockReturnThis(),
+        getManyAndCount: vi.fn().mockResolvedValue([[], 0]),
+      };
+      inventoryItemRepository.createQueryBuilder.mockReturnValue(qbItem);
+
+      const result = await service.findAll();
+      expect(qbItem.leftJoinAndSelect).toHaveBeenCalledWith('item.stockBalance', 'balance');
+      expect(qbItem.skip).toHaveBeenCalledWith(0);
+      expect(qbItem.take).toHaveBeenCalledWith(10);
+      expect(result.total).toBe(0);
+    });
+
+    it('should apply search filter correctly', async () => {
+      const qbItem: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        addOrderBy: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        skip: vi.fn().mockReturnThis(),
+        take: vi.fn().mockReturnThis(),
+        getManyAndCount: vi.fn().mockResolvedValue([[], 0]),
+      };
+      inventoryItemRepository.createQueryBuilder.mockReturnValue(qbItem);
+
+      await service.findAll({ search: 'OHNS' } as any);
+      expect(qbItem.andWhere).toHaveBeenCalledWith(
+        '(item.material ILIKE :search OR item.materialType ILIKE :search OR item.grade ILIKE :search OR item.size ILIKE :search)',
+        { search: '%OHNS%' }
+      );
+    });
+
+    it('should apply stockStatus LOW_STOCK filter', async () => {
+      const qbItem: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        addOrderBy: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        skip: vi.fn().mockReturnThis(),
+        take: vi.fn().mockReturnThis(),
+        getManyAndCount: vi.fn().mockResolvedValue([[], 0]),
+      };
+      inventoryItemRepository.createQueryBuilder.mockReturnValue(qbItem);
+
+      await service.findAll({ stockStatus: StockStatusFilter.LOW_STOCK } as any);
+      expect(qbItem.andWhere).toHaveBeenCalledWith('COALESCE(balance.current_quantity, 0) < item.minimum_stock_level');
+    });
+
+    it('should apply pagination parameters', async () => {
+      const qbItem: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        addOrderBy: vi.fn().mockReturnThis(),
+        skip: vi.fn().mockReturnThis(),
+        take: vi.fn().mockReturnThis(),
+        getManyAndCount: vi.fn().mockResolvedValue([[], 15]),
+      };
+      inventoryItemRepository.createQueryBuilder.mockReturnValue(qbItem);
+
+      const result = await service.findAll({ page: 2, pageSize: 5 } as any);
+      expect(qbItem.skip).toHaveBeenCalledWith(5);
+      expect(qbItem.take).toHaveBeenCalledWith(5);
+      expect(result.page).toBe(2);
+      expect(result.pageSize).toBe(5);
+      expect(result.totalPages).toBe(3); // 15 / 5
+    });
+  });
+
+  describe('getTransactions filters and pagination', () => {
+    it('should query without filters when no DTO is provided', async () => {
+      const qbTx: any = {
+        where: vi.fn().mockReturnThis(),
+        leftJoin: vi.fn().mockReturnThis(),
+        addSelect: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        addOrderBy: vi.fn().mockReturnThis(),
+        skip: vi.fn().mockReturnThis(),
+        take: vi.fn().mockReturnThis(),
+        getManyAndCount: vi.fn().mockResolvedValue([[], 0]),
+      };
+      stockTransactionRepository.createQueryBuilder.mockReturnValue(qbTx);
+
+      const result = await service.getTransactions('item-1');
+      expect(qbTx.where).toHaveBeenCalledWith('tx.inventory_item_id = :inventoryItemId', { inventoryItemId: 'item-1' });
+      expect(qbTx.leftJoin).toHaveBeenCalledWith('tx.createdBy', 'user');
+      expect(qbTx.addSelect).toHaveBeenCalledWith(['user.id', 'user.name', 'user.email']);
+      expect(qbTx.orderBy).toHaveBeenCalledWith('tx.createdAt', 'DESC');
+      expect(qbTx.skip).toHaveBeenCalledWith(0);
+      expect(qbTx.take).toHaveBeenCalledWith(10);
+      expect(result.total).toBe(0);
+    });
+
+    it('should apply transactionType and dates filter', async () => {
+      const qbTx: any = {
+        where: vi.fn().mockReturnThis(),
+        leftJoin: vi.fn().mockReturnThis(),
+        addSelect: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        addOrderBy: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        skip: vi.fn().mockReturnThis(),
+        take: vi.fn().mockReturnThis(),
+        getManyAndCount: vi.fn().mockResolvedValue([[], 0]),
+      };
+      stockTransactionRepository.createQueryBuilder.mockReturnValue(qbTx);
+
+      await service.getTransactions('item-1', {
+        transactionType: TransactionType.STOCK_IN,
+        startDate: '2023-01-01',
+      } as any);
+
+      expect(qbTx.andWhere).toHaveBeenCalledWith('tx.transactionType = :transactionType', { transactionType: TransactionType.STOCK_IN });
+      expect(qbTx.andWhere).toHaveBeenCalledWith('tx.createdAt >= :startDate', { startDate: '2023-01-01' });
     });
   });
 });

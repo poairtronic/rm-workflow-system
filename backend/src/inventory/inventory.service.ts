@@ -10,6 +10,10 @@ import { CreateStockTransactionDto } from './dto/create-stock-transaction.dto.js
 import { CreateStockInDto } from './dto/create-stock-in.dto.js';
 import { CreateStockOutDto } from './dto/create-stock-out.dto.js';
 import { CreateStockAdjustmentDto } from './dto/create-stock-adjustment.dto.js';
+import { GetInventoryFilterDto, StockStatusFilter } from './dto/get-inventory-filter.dto.js';
+import { GetTransactionFilterDto } from './dto/get-transaction-filter.dto.js';
+import { PaginatedResponseDto } from '../common/dto/paginated-response.dto.js';
+import { ReconciliationResultDto, ReconciliationStatus } from './dto/reconciliation-result.dto.js';
 
 @Injectable()
 export class InventoryService {
@@ -23,10 +27,46 @@ export class InventoryService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async findAll() {
-    return this.inventoryItemRepository.find({
-      relations: { stockBalance: true },
-    });
+  async findAll(filterDto?: GetInventoryFilterDto): Promise<PaginatedResponseDto<InventoryItem>> {
+    const { search, stockStatus, isActive, page = 1, pageSize = 10 } = filterDto || {};
+    
+    const query = this.inventoryItemRepository.createQueryBuilder('item')
+      .leftJoinAndSelect('item.stockBalance', 'balance')
+      .orderBy('item.material', 'ASC')
+      .addOrderBy('item.size', 'ASC');
+
+    if (search) {
+      const searchPattern = `%${search}%`;
+      query.andWhere(
+        '(item.material ILIKE :search OR item.materialType ILIKE :search OR item.grade ILIKE :search OR item.size ILIKE :search)',
+        { search: searchPattern }
+      );
+    }
+
+    if (isActive !== undefined) {
+      query.andWhere('item.isActive = :isActive', { isActive });
+    }
+
+    if (stockStatus) {
+      if (stockStatus === StockStatusFilter.LOW_STOCK) {
+        query.andWhere('COALESCE(balance.current_quantity, 0) < item.minimum_stock_level');
+      } else if (stockStatus === StockStatusFilter.NORMAL) {
+        query.andWhere('COALESCE(balance.current_quantity, 0) >= item.minimum_stock_level');
+      }
+    }
+
+    const skip = (page - 1) * pageSize;
+    query.skip(skip).take(pageSize);
+
+    const [data, total] = await query.getManyAndCount();
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   async findOne(id: string) {
@@ -52,6 +92,7 @@ export class InventoryService {
       const balance = this.stockBalanceRepository.create({
         inventoryItemId: savedItem.id,
         currentQuantity: 0,
+        openingBalance: 0,
       });
       await queryRunner.manager.save(balance);
 
@@ -91,12 +132,123 @@ export class InventoryService {
     return balance;
   }
 
-  async getTransactions(inventoryItemId: string) {
-    return this.stockTransactionRepository.find({
-      where: { inventoryItemId },
-      order: { createdAt: 'DESC' },
-      relations: { createdBy: true },
+  async getTransactions(inventoryItemId: string, filterDto?: GetTransactionFilterDto): Promise<PaginatedResponseDto<StockTransaction>> {
+    const { transactionType, adjustmentDirection, startDate, endDate, page = 1, pageSize = 10 } = filterDto || {};
+
+    const query = this.stockTransactionRepository.createQueryBuilder('tx')
+      .where('tx.inventory_item_id = :inventoryItemId', { inventoryItemId })
+      .leftJoin('tx.createdBy', 'user')
+      .addSelect(['user.id', 'user.name', 'user.email'])
+      .orderBy('tx.createdAt', 'DESC')
+      .addOrderBy('tx.id', 'DESC');
+
+    if (transactionType) {
+      query.andWhere('tx.transactionType = :transactionType', { transactionType });
+    }
+
+    if (adjustmentDirection && transactionType === TransactionType.ADJUSTMENT) {
+      query.andWhere('tx.adjustmentDirection = :adjustmentDirection', { adjustmentDirection });
+    }
+
+    if (startDate) {
+      query.andWhere('tx.createdAt >= :startDate', { startDate });
+    }
+
+    if (endDate) {
+      query.andWhere('tx.createdAt <= :endDate', { endDate });
+    }
+
+    const skip = (page - 1) * pageSize;
+    query.skip(skip).take(pageSize);
+
+    const [data, total] = await query.getManyAndCount();
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize) || 1,
+    };
+  }
+
+  async getReconciliation(inventoryItemId?: string): Promise<ReconciliationResultDto[]> {
+    const query = this.inventoryItemRepository.createQueryBuilder('item')
+      .leftJoinAndSelect('item.stockBalance', 'balance');
+
+    if (inventoryItemId) {
+      query.where('item.id = :id', { id: inventoryItemId });
+    }
+
+    const items = await query.getMany();
+
+    const txQuery = this.stockTransactionRepository.createQueryBuilder('tx')
+      .select('tx.inventory_item_id', 'inventoryItemId')
+      .addSelect(`SUM(CASE WHEN tx.transaction_type = 'STOCK_IN' OR (tx.transaction_type = 'ADJUSTMENT' AND tx.adjustment_direction = 'INCREASE') THEN tx.quantity ELSE 0 END)`, 'totalIn')
+      .addSelect(`SUM(CASE WHEN tx.transaction_type = 'STOCK_OUT' OR (tx.transaction_type = 'ADJUSTMENT' AND tx.adjustment_direction = 'DECREASE') THEN tx.quantity ELSE 0 END)`, 'totalOut');
+
+    if (inventoryItemId) {
+      txQuery.where('tx.inventory_item_id = :id', { id: inventoryItemId });
+    }
+
+    const aggregations = await txQuery
+      .groupBy('tx.inventory_item_id')
+      .getRawMany();
+
+    const aggMap = new Map<string, { totalIn: number, totalOut: number }>();
+    for (const row of aggregations) {
+      aggMap.set(row.inventoryItemId, {
+        totalIn: parseFloat(row.totalIn) || 0,
+        totalOut: parseFloat(row.totalOut) || 0,
+      });
+    }
+
+    const results: ReconciliationResultDto[] = items.map(item => {
+      const balance = item.stockBalance;
+      const agg = aggMap.get(item.id) || { totalIn: 0, totalOut: 0 };
+      
+      const ledgerMovement = agg.totalIn - agg.totalOut;
+
+      let status = ReconciliationStatus.NOT_RECONCILABLE;
+      let reason: string | undefined = undefined;
+      let expectedBalance: number | null = null;
+      let difference: number | null = null;
+
+      if (!balance) {
+        reason = 'MISSING_BALANCE';
+      } else if (balance.openingBalance === null || balance.openingBalance === undefined) {
+        reason = 'OPENING_BASELINE_MISSING';
+      } else {
+        const currentBalance = Number(balance.currentQuantity);
+        const opening = Number(balance.openingBalance);
+        expectedBalance = opening + ledgerMovement;
+        difference = currentBalance - expectedBalance;
+
+        // Decimal safe comparison up to 3 decimal places
+        if (Math.abs(difference) < 0.0005) {
+          status = ReconciliationStatus.MATCH;
+          difference = 0; // Normalize to exact 0
+        } else {
+          status = ReconciliationStatus.MISMATCH;
+        }
+      }
+
+      return {
+        inventoryItemId: item.id,
+        material: item.material,
+        grade: item.grade,
+        size: item.size,
+        currentBalance: balance ? Number(balance.currentQuantity) : 0,
+        ledgerMovement: ledgerMovement,
+        openingBalance: balance?.openingBalance !== null && balance?.openingBalance !== undefined ? Number(balance.openingBalance) : null,
+        expectedBalance,
+        difference,
+        status,
+        reason,
+      };
     });
+
+    return results;
   }
 
   async addStockTransaction(
