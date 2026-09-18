@@ -25,7 +25,7 @@ export class RmController {
   @Post()
   @Roles(UserRole.DESIGNER, UserRole.ADMIN)
   createRm(@Body() dto: CreateRmDto, @Req() req: any) {
-    return this.rmService.createRm(dto, req.user.sub);
+    return this.rmService.createRm(dto, req.user.userId);
   }
 
   @Post(':id/items')

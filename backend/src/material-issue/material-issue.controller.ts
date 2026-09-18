@@ -24,7 +24,7 @@ export class MaterialIssueController {
   @Post()
   @Roles(UserRole.STORES, UserRole.ADMIN)
   createIssue(@Body() dto: CreateMaterialIssueDto, @Req() req: any) {
-    return this.materialIssueService.createIssue(dto, req.user.sub);
+    return this.materialIssueService.createIssue(dto, req.user.userId);
   }
 
   @Get()

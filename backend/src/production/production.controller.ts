@@ -28,19 +28,19 @@ export class ProductionController {
   @Post('receipt')
   @Roles(UserRole.PRODUCTION, UserRole.ADMIN)
   receiveMaterial(@Body() dto: CreateProductionReceiptDto, @Req() req: any) {
-    return this.productionService.receiveMaterial(dto, req.user.sub);
+    return this.productionService.receiveMaterial(dto, req.user.userId);
   }
 
   @Post('consume')
   @Roles(UserRole.PRODUCTION, UserRole.ADMIN)
   recordConsumption(@Body() dto: CreateMaterialConsumptionDto, @Req() req: any) {
-    return this.productionService.recordConsumption(dto, req.user.sub);
+    return this.productionService.recordConsumption(dto, req.user.userId);
   }
 
   @Post('return')
   @Roles(UserRole.PRODUCTION, UserRole.ADMIN)
   recordReturn(@Body() dto: CreateMaterialReturnDto, @Req() req: any) {
-    return this.productionService.recordReturn(dto, req.user.sub);
+    return this.productionService.recordReturn(dto, req.user.userId);
   }
 
   @Post('return/:id/verify')
@@ -50,7 +50,7 @@ export class ProductionController {
     @Body() dto: VerifyReturnDto,
     @Req() req: any,
   ) {
-    return this.productionService.verifyReturn(id, dto, req.user.sub);
+    return this.productionService.verifyReturn(id, dto, req.user.userId);
   }
 
   @Get('accounting/:scId')

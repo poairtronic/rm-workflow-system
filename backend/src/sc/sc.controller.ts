@@ -64,19 +64,19 @@ export class ScController {
   @Roles(UserRole.PRODUCTION, UserRole.ADMIN)
   completeSc(
     @Param('id', ParseUUIDPipe) id: string,
-    @Req() req: any,
     @Body() dto: CompleteScDto,
+    @Req() req: any,
   ) {
-    return this.scService.completeSc(id, req.user.sub, dto);
+    return this.scService.completeSc(id, req.user.userId, dto);
   }
 
   @Post(':id/close')
   @Roles(UserRole.STORES, UserRole.PRODUCTION, UserRole.ADMIN)
   closeSc(
     @Param('id', ParseUUIDPipe) id: string,
-    @Req() req: any,
     @Body() dto: CloseScDto,
+    @Req() req: any,
   ) {
-    return this.scService.closeSc(id, req.user.sub, dto);
+    return this.scService.closeSc(id, req.user.userId, dto);
   }
 }

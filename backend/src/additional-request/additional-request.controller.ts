@@ -26,7 +26,7 @@ export class AdditionalRequestController {
   @Post()
   @Roles(UserRole.PRODUCTION, UserRole.DESIGNER, UserRole.ADMIN)
   createRequest(@Body() dto: CreateAdditionalRequestDto, @Req() req: any) {
-    return this.additionalRequestService.createRequest(dto, req.user.sub);
+    return this.additionalRequestService.createRequest(dto, req.user.userId);
   }
 
   @Get()

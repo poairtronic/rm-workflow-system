@@ -116,7 +116,7 @@ export class InventoryController {
     @Body() dto: CreateStockInDto,
     @Request() req: any,
   ) {
-    return this.inventoryService.stockIn(id, dto, req.user.sub);
+    return this.inventoryService.stockIn(id, dto, req.user.userId);
   }
 
   @Post(':id/stock-out')
@@ -126,7 +126,7 @@ export class InventoryController {
     @Body() dto: CreateStockOutDto,
     @Request() req: any,
   ) {
-    return this.inventoryService.stockOut(id, dto, req.user.sub);
+    return this.inventoryService.stockOut(id, dto, req.user.userId);
   }
 
   @Post(':id/adjustment')
@@ -136,7 +136,7 @@ export class InventoryController {
     @Body() dto: CreateStockAdjustmentDto,
     @Request() req: any,
   ) {
-    return this.inventoryService.stockAdjustment(id, dto, req.user.sub);
+    return this.inventoryService.stockAdjustment(id, dto, req.user.userId);
   }
 
   @Post(':id/transactions')
