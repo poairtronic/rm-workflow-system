@@ -21,6 +21,7 @@ import { NotificationsModule } from './notifications/notifications.module.js';
 import { AnalyticsModule } from './analytics/analytics.module.js';
 import { AuditModule } from './audit/audit.module.js';
 import { InventoryModule } from './inventory/inventory.module.js';
+import { MasterDataModule } from './master-data/master-data.module.js';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { InventoryModule } from './inventory/inventory.module.js';
     AnalyticsModule,
     AuditModule,
     InventoryModule,
+    MasterDataModule,
   ],
 
   controllers: [AppController],

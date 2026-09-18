@@ -3,9 +3,13 @@ import { useAuth } from '../../hooks/useAuth';
 import LoginPage from '../../pages/LoginPage';
 import DashboardPage from '../../pages/DashboardPage';
 import { InventoryPage } from '../../pages/InventoryPage';
+import { MasterDataPage } from '../../pages/MasterDataPage';
+import WorkflowPage from '../../pages/WorkflowPage';
+import { AppLayout } from '../../layouts/AppLayout';
 
 export type CurrentView =
   | 'dashboard'
+  | 'master-data'
   | 'design-rm'
   | 'stores'
   | 'production'
@@ -35,6 +39,12 @@ export function AppRouter() {
     <div className="router-container">
       {currentView === 'inventory' ? (
         <InventoryPage currentView={currentView} onNavigate={setCurrentView} />
+      ) : currentView === 'master-data' ? (
+        <AppLayout activeNav={currentView} onNavigate={(nav) => setCurrentView(nav as CurrentView)}>
+          <MasterDataPage />
+        </AppLayout>
+      ) : ['design-rm', 'stores', 'production', 'sc-completion', 'monitoring'].includes(currentView) ? (
+        <WorkflowPage currentView={currentView} onNavigate={(nav) => setCurrentView(nav as CurrentView)} />
       ) : (
         <DashboardPage currentView={currentView} onNavigate={setCurrentView} />
       )}

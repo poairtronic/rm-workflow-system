@@ -52,6 +52,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       default:
         return [
           ...baseItems,
+          { id: 'master-data', label: 'Master Data' },
           { id: 'design-rm', label: 'Design RM List' },
           { id: 'stores', label: 'Stores Workspace' },
           { id: 'production', label: 'Production Traceability' },

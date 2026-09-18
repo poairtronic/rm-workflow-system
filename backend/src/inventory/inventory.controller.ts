@@ -55,6 +55,12 @@ export class InventoryController {
     return this.inventoryService.getReconciliation();
   }
 
+  @Get('reconciliation/workflow')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER)
+  getWorkflowReconciliation() {
+    return this.inventoryService.getWorkflowReconciliation();
+  }
+
   @Get(':id')
   @Roles(
     UserRole.STORES,

@@ -59,6 +59,26 @@ class ApiClient {
     return response.json();
   }
 
+  async patch<T>(endpoint: string, body?: any): Promise<T> {
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      method: 'PATCH',
+      headers: this.getHeaders(),
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!response.ok) {
+      let errorMsg = `PATCH ${endpoint} failed: ${response.status} ${response.statusText}`;
+      try {
+        const errorJson = await response.json();
+        if (errorJson?.message) {
+          errorMsg = Array.isArray(errorJson.message)
+            ? errorJson.message.join(', ')
+            : errorJson.message;
+        }
+      } catch {}
+      throw new Error(errorMsg);
+    }
+    return response.json();
+  }
 }
 
 export const api = new ApiClient();

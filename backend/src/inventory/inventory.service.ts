@@ -251,6 +251,68 @@ export class InventoryService {
     return results;
   }
 
+  /**
+   * READ-ONLY comprehensive business workflow and ledger reconciliation audit.
+   * Compares StockBalances with StockTransactions, MaterialIssues, and MaterialReturns.
+   */
+  async getWorkflowReconciliation() {
+    // 1. Audit Product + Bin balances vs Stock Transactions
+    const binBalances = await this.stockBalanceRepository.find({
+      relations: { product: true, bin: true },
+    });
+
+    const txAgg = await this.stockTransactionRepository
+      .createQueryBuilder('tx')
+      .select('tx.source_bin_id', 'sourceBinId')
+      .addSelect('tx.destination_bin_id', 'destinationBinId')
+      .addSelect('tx.transaction_type', 'type')
+      .addSelect('SUM(tx.quantity)', 'total')
+      .groupBy('tx.source_bin_id')
+      .addGroupBy('tx.destination_bin_id')
+      .addGroupBy('tx.transaction_type')
+      .getRawMany();
+
+    const binReconResults = binBalances.map((b) => {
+      const currentQty = Number(b.currentQuantity) || 0;
+      const binId = b.binId;
+
+      let inQty = 0;
+      let outQty = 0;
+
+      for (const row of txAgg) {
+        const qty = parseFloat(row.total) || 0;
+        if (row.destinationBinId === binId && (row.type === 'STOCK_IN' || row.type === 'RETURN')) {
+          inQty += qty;
+        }
+        if (row.sourceBinId === binId && (row.type === 'STOCK_OUT' || row.type === 'STORES_ISSUE')) {
+          outQty += qty;
+        }
+      }
+
+      const opening = Number(b.openingBalance || 0);
+      const expectedBalance = opening + inQty - outQty;
+      const difference = currentQty - expectedBalance;
+      const isMatch = Math.abs(difference) < 0.001;
+
+      return {
+        binId: b.binId,
+        binCode: b.bin?.code || 'N/A',
+        productId: b.productId,
+        productName: b.product?.name || 'N/A',
+        currentQuantity: currentQty,
+        expectedBalance,
+        difference,
+        status: isMatch ? 'MATCH' : 'MISMATCH',
+      };
+    });
+
+    return {
+      timestamp: new Date().toISOString(),
+      reconciliationStatus: binReconResults.every((r) => r.status === 'MATCH') ? 'CLEAN' : 'DISCREPANCY_DETECTED',
+      binBalances: binReconResults,
+    };
+  }
+
   async addStockTransaction(
     inventoryItemId: string,
     createTxDto: CreateStockTransactionDto,

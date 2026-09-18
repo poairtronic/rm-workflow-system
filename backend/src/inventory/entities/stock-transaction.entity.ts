@@ -1,11 +1,24 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, Check } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  Check,
+} from 'typeorm';
 import { InventoryItem } from './inventory-item.entity.js';
+import { Product } from './product.entity.js';
+import { Bin } from './bin.entity.js';
 import { User } from '../../users/entities/user.entity.js';
 
 export enum TransactionType {
   STOCK_IN = 'STOCK_IN',
   STOCK_OUT = 'STOCK_OUT',
+  STORES_ISSUE = 'STORES_ISSUE',
+  RETURN = 'RETURN',
   ADJUSTMENT = 'ADJUSTMENT',
+  TRANSFER = 'TRANSFER',
 }
 
 export enum AdjustmentDirection {
@@ -19,12 +32,42 @@ export class StockTransaction {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'inventory_item_id' })
-  inventoryItemId!: string;
+  @Column({ name: 'product_id', nullable: true })
+  productId?: string;
 
-  @ManyToOne(() => InventoryItem, { onDelete: 'RESTRICT' })
+  @ManyToOne(() => Product, (product) => product.stockTransactions, {
+    nullable: true,
+    onDelete: 'RESTRICT',
+  })
+  @JoinColumn({ name: 'product_id' })
+  product?: Product;
+
+  @Column({ name: 'inventory_item_id', nullable: true })
+  inventoryItemId?: string;
+
+  @ManyToOne(() => InventoryItem, { nullable: true, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'inventory_item_id' })
-  inventoryItem!: InventoryItem;
+  inventoryItem?: InventoryItem;
+
+  @Column({ name: 'source_bin_id', nullable: true })
+  sourceBinId?: string;
+
+  @ManyToOne(() => Bin, (bin) => bin.sourceTransactions, {
+    nullable: true,
+    onDelete: 'RESTRICT',
+  })
+  @JoinColumn({ name: 'source_bin_id' })
+  sourceBin?: Bin;
+
+  @Column({ name: 'destination_bin_id', nullable: true })
+  destinationBinId?: string;
+
+  @ManyToOne(() => Bin, (bin) => bin.destinationTransactions, {
+    nullable: true,
+    onDelete: 'RESTRICT',
+  })
+  @JoinColumn({ name: 'destination_bin_id' })
+  destinationBin?: Bin;
 
   @Column({
     name: 'transaction_type',

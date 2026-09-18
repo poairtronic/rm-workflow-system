@@ -1,19 +1,56 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne, JoinColumn, Check } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToOne,
+  ManyToOne,
+  JoinColumn,
+  Check,
+  Unique,
+} from 'typeorm';
 import type { InventoryItem } from './inventory-item.entity.js';
 import { StockTransaction } from './stock-transaction.entity.js';
+import { Product } from './product.entity.js';
+import { Bin } from './bin.entity.js';
 
 @Entity('stock_balances')
 @Check(`"current_quantity" >= 0`)
+@Unique(['productId', 'binId'])
 export class StockBalance {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'inventory_item_id', unique: true })
-  inventoryItemId!: string;
+  @Column({ name: 'product_id', nullable: true })
+  productId?: string;
 
-  @OneToOne('InventoryItem', (item: InventoryItem) => item.stockBalance, { onDelete: 'RESTRICT' })
+  @ManyToOne(() => Product, (product) => product.stockBalances, {
+    nullable: true,
+    onDelete: 'RESTRICT',
+  })
+  @JoinColumn({ name: 'product_id' })
+  product?: Product;
+
+  @Column({ name: 'bin_id', nullable: true })
+  binId?: string;
+
+  @ManyToOne(() => Bin, (bin) => bin.stockBalances, {
+    nullable: true,
+    onDelete: 'RESTRICT',
+  })
+  @JoinColumn({ name: 'bin_id' })
+  bin?: Bin;
+
+  @Column({ name: 'inventory_item_id', nullable: true, unique: true })
+  inventoryItemId?: string;
+
+  @OneToOne('InventoryItem', (item: InventoryItem) => item.stockBalance, {
+    nullable: true,
+    onDelete: 'RESTRICT',
+  })
   @JoinColumn({ name: 'inventory_item_id' })
-  inventoryItem!: InventoryItem;
+  inventoryItem?: InventoryItem;
 
   @Column({
     name: 'current_quantity',

@@ -20,6 +20,13 @@ import { AdditionalMaterialRequestItem } from '../additional-request/entities/ad
 import { Notification } from '../notifications/entities/notification.entity.js';
 import { AuditLog } from '../audit/entities/audit-log.entity.js';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity.js';
+import { ProductCategory } from '../inventory/entities/product-category.entity.js';
+import { ProductFamily } from '../inventory/entities/product-family.entity.js';
+import { Product } from '../inventory/entities/product.entity.js';
+import { Warehouse } from '../inventory/entities/warehouse.entity.js';
+import { WarehouseLocation } from '../inventory/entities/warehouse-location.entity.js';
+import { Rack } from '../inventory/entities/rack.entity.js';
+import { Bin } from '../inventory/entities/bin.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import { StockTransaction } from '../inventory/entities/stock-transaction.entity.js';
 
@@ -45,6 +52,13 @@ export const ALL_ENTITIES = [
   Notification,
   AuditLog,
   InventoryItem,
+  ProductCategory,
+  ProductFamily,
+  Product,
+  Warehouse,
+  WarehouseLocation,
+  Rack,
+  Bin,
   StockBalance,
   StockTransaction,
 ];
