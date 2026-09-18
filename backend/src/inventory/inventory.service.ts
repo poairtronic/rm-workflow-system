@@ -331,10 +331,18 @@ export class InventoryService {
         throw new NotFoundException(`Inventory item ${inventoryItemId} not found`);
       }
 
+      // 1.5 Fetch current balance to get target mappings if they exist
+      const currentBalance = await queryRunner.manager.findOne(StockBalance, {
+        where: { inventoryItemId },
+      });
+
       // 2. Create the transaction record
       const transaction = this.stockTransactionRepository.create({
         ...createTxDto,
         inventoryItemId,
+        productId: currentBalance?.productId,
+        sourceBinId: createTxDto.transactionType === TransactionType.STOCK_OUT ? currentBalance?.binId : undefined,
+        destinationBinId: createTxDto.transactionType === TransactionType.STOCK_IN ? currentBalance?.binId : undefined,
         createdById: userId,
       });
       const savedTx = await queryRunner.manager.save(transaction);
@@ -403,6 +411,8 @@ export class InventoryService {
 
       const transaction = this.stockTransactionRepository.create({
         inventoryItemId,
+        productId: balanceCheck?.productId,
+        destinationBinId: balanceCheck?.binId,
         transactionType: TransactionType.STOCK_IN,
         quantity: dto.quantity,
         referenceType: dto.referenceType,
@@ -489,6 +499,8 @@ export class InventoryService {
 
       const transaction = this.stockTransactionRepository.create({
         inventoryItemId,
+        productId: currentBalance.productId,
+        sourceBinId: currentBalance.binId,
         transactionType: TransactionType.STOCK_OUT,
         quantity: dto.quantity,
         referenceType: dto.referenceType,
@@ -577,6 +589,9 @@ export class InventoryService {
 
       const transaction = this.stockTransactionRepository.create({
         inventoryItemId,
+        productId: currentBalance.productId,
+        sourceBinId: dto.direction === AdjustmentDirection.DECREASE ? currentBalance.binId : undefined,
+        destinationBinId: dto.direction === AdjustmentDirection.INCREASE ? currentBalance.binId : undefined,
         transactionType: TransactionType.ADJUSTMENT,
         quantity: dto.quantity,
         adjustmentDirection: dto.direction,
