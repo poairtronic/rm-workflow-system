@@ -153,43 +153,89 @@ export class ProductionService {
   async recordConsumption(dto: CreateMaterialConsumptionDto, actorId: string) {
     QuantityCalculator.assertPositive(dto.quantityConsumed, 'Quantity Consumed');
 
-    const sc = await this.scRepo.findOneBy({ id: dto.scId });
-    if (!sc) {
-      throw new NotFoundException(`Sales Order Component with ID "${dto.scId}" not found.`);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // 1. Lock the SC to serialize all consumption for this component
+      const sc = await queryRunner.manager.createQueryBuilder(SalesOrderComponent, 'sc')
+        .where('sc.id = :id', { id: dto.scId })
+        .setLock('pessimistic_write')
+        .getOne();
+
+      if (!sc) {
+        throw new NotFoundException(`Sales Order Component with ID "${dto.scId}" not found.`);
+      }
+
+      StateMachineValidator.assertScActive(sc.status, 'Record Consumption');
+
+      const rmItem = await queryRunner.manager.findOneBy(RmItem, { id: dto.rmItemId });
+      if (!rmItem) {
+        throw new NotFoundException(`RM Item "${dto.rmItemId}" not found.`);
+      }
+
+      if (rmItem.salesOrderComponentId !== dto.scId && !rmItem.salesOrderComponent) {
+        // Just extra safety if we need to verify relation
+      }
+
+      // 2. Fetch all valid receipts for this SC
+      const receiptItems = await queryRunner.manager.createQueryBuilder(MaterialReceiptItem, 'mri')
+        .innerJoin('mri.materialReceipt', 'mr')
+        .innerJoin('mr.materialIssue', 'mi')
+        .where('mi.sc_id = :scId', { scId: dto.scId })
+        .andWhere('mri.rm_item_id = :rmItemId', { rmItemId: dto.rmItemId })
+        .getMany();
+
+      let totalReceived = 0;
+      for (const mri of receiptItems) {
+        totalReceived += Number(mri.quantityReceived) || 0;
+      }
+      totalReceived = QuantityCalculator.roundDecimal(totalReceived);
+
+      // 3. Fetch all previous consumptions for this SC/Item
+      const previousConsumptions = await queryRunner.manager.find(MaterialConsumption, {
+        where: { scId: dto.scId, rmItemId: dto.rmItemId }
+      });
+
+      let totalConsumed = 0;
+      for (const pc of previousConsumptions) {
+        totalConsumed += Number(pc.consumedQuantity) || 0;
+      }
+      totalConsumed = QuantityCalculator.roundDecimal(totalConsumed);
+
+      // 4. Validate quantity
+      const availableForConsumption = QuantityCalculator.roundDecimal(totalReceived - totalConsumed);
+
+      QuantityCalculator.assertWithinLimit(
+        dto.quantityConsumed,
+        availableForConsumption,
+        `Consumption quantity exceeds remaining received material for "${rmItem.material}".`,
+      );
+
+      // 5. Create consumption record
+      const consumption = queryRunner.manager.create(MaterialConsumption, {
+        scId: dto.scId,
+        rmItemId: dto.rmItemId,
+        consumedQuantity: QuantityCalculator.roundDecimal(dto.quantityConsumed),
+        unit: 'NOS', // Keep same as before
+        recordedById: actorId,
+        remarks: dto.remarks,
+      });
+
+      const saved = await queryRunner.manager.save(MaterialConsumption, consumption);
+
+      // CRITICAL: Production consumption DOES NOT alter inventory stock (prevents double-deduction)
+      // Return is future workflow. No StockBalance or StockTransaction updates.
+
+      await queryRunner.commitTransaction();
+      return saved;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
     }
-
-    StateMachineValidator.assertScActive(sc.status, 'Record Consumption');
-
-    const rmItem = await this.rmItemRepo.findOneBy({ id: dto.rmItemId });
-    if (!rmItem) {
-      throw new NotFoundException(`RM Item "${dto.rmItemId}" not found.`);
-    }
-
-    // Material accounting validation
-    const accounting = await this.getAccounting(dto.scId);
-    const itemAcc = accounting.items.find((i) => i.rmItemId === dto.rmItemId);
-
-    const receivedQty = itemAcc ? itemAcc.received : 0;
-    const consumedQty = itemAcc ? itemAcc.consumed : 0;
-    const availableForConsumption = QuantityCalculator.roundDecimal(receivedQty - consumedQty);
-
-    QuantityCalculator.assertWithinLimit(
-      dto.quantityConsumed,
-      availableForConsumption,
-      `Consumption quantity exceeds remaining received material for "${rmItem.material}".`,
-    );
-
-    const consumption = this.consumptionRepo.create({
-      scId: dto.scId,
-      rmItemId: dto.rmItemId,
-      consumedQuantity: QuantityCalculator.roundDecimal(dto.quantityConsumed),
-      unit: 'NOS',
-      recordedById: actorId,
-      remarks: dto.remarks,
-    });
-
-    // CRITICAL: Production consumption DOES NOT alter inventory stock (prevents double-deduction)
-    return this.consumptionRepo.save(consumption);
   }
 
   async recordReturn(dto: CreateMaterialReturnDto, actorId: string) {
@@ -331,6 +377,13 @@ export class ProductionService {
       throw new NotFoundException(`Sales Order Component with ID "${scId}" not found.`);
     }
 
+    const receiptItems = await this.dataSource.getRepository(MaterialReceiptItem)
+      .createQueryBuilder('mri')
+      .innerJoin('mri.materialReceipt', 'mr')
+      .innerJoin('mr.materialIssue', 'mi')
+      .where('mi.sc_id = :scId', { scId })
+      .getMany();
+
     const itemsSummary = (sc.rmItems || []).map((rmItem) => {
       const required = QuantityCalculator.roundDecimal(rmItem.quantity || 0);
 
@@ -344,7 +397,13 @@ export class ProductionService {
       });
       issued = QuantityCalculator.roundDecimal(issued);
 
-      const received = issued;
+      let received = 0;
+      receiptItems.forEach((mri) => {
+        if (mri.rmItemId === rmItem.id) {
+          received += Number(mri.quantityReceived) || 0;
+        }
+      });
+      received = QuantityCalculator.roundDecimal(received);
 
       let consumed = 0;
       (sc.materialConsumptions || []).forEach((c) => {

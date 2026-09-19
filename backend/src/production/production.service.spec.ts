@@ -65,6 +65,38 @@ describe('ProductionService', () => {
         save: vi.fn((entity, data) => Promise.resolve({ id: 'saved-id', ...data })),
         query: vi.fn().mockResolvedValue([[], 1]),
         create: vi.fn((entity, data) => ({ id: 'tx-1', ...data })),
+        findOne: vi.fn((entity, opts) => {
+          if (entity.name === 'SalesOrderComponent') {
+            return Promise.resolve({ id: 'sc-1', status: ScStatus.IN_PRODUCTION });
+          }
+          if (entity.name === 'MaterialIssue') {
+            return Promise.resolve({ id: 'issue-1', salesOrderComponent: { id: 'sc-1', status: ScStatus.IN_PRODUCTION }, items: [{ rmItemId: 'rm-1', quantityIssued: 50 }] });
+          }
+          return Promise.resolve(null);
+        }),
+        findOneBy: vi.fn((entity, condition) => {
+          if (entity.name === 'RmItem') {
+            return Promise.resolve({ id: 'rm-1', material: 'Test Material' });
+          }
+          return Promise.resolve(null);
+        }),
+        find: vi.fn((entity, condition) => {
+          if (entity.name === 'MaterialConsumption') {
+            return Promise.resolve([{ consumedQuantity: 10 }]);
+          }
+          if (entity.name === 'MaterialReceiptItem') {
+            return Promise.resolve([]);
+          }
+          return Promise.resolve([]);
+        }),
+        createQueryBuilder: vi.fn().mockReturnValue({
+          innerJoin: vi.fn().mockReturnThis(),
+          where: vi.fn().mockReturnThis(),
+          andWhere: vi.fn().mockReturnThis(),
+          setLock: vi.fn().mockReturnThis(),
+          getMany: vi.fn().mockResolvedValue([{ rmItemId: 'rm-1', quantityReceived: 50 }]),
+          getOne: vi.fn().mockResolvedValue({ id: 'sc-1', status: ScStatus.IN_PRODUCTION }),
+        }),
       },
     };
 
@@ -141,35 +173,19 @@ describe('ProductionService', () => {
   });
 
   it('should reject consumption exceeding remaining received quantity', async () => {
-    scRepo.findOneBy.mockResolvedValue({ id: 'sc-1', scNumber: 'SC-001' });
-    rmItemRepo.findOneBy.mockResolvedValue({ id: 'rm-1' });
-
-    vi.spyOn(service, 'getAccounting').mockResolvedValue({
-      scId: 'sc-1',
-      scNumber: 'SC-001',
-      status: ScStatus.IN_PRODUCTION,
-      items: [
-        {
-          rmItemId: 'rm-1',
-          material: 'Steel',
-          grade: '316L',
-          size: '50mm',
-          required: 50,
-          issued: 50,
-          received: 50,
-          consumed: 45,
-          returned: 0,
-          unaccounted: 5,
-        },
-      ],
-    });
+    // Override the find method in the manager just for this test
+    const originalFind = service['dataSource'].createQueryRunner().manager.find;
+    service['dataSource'].createQueryRunner().manager.find = vi.fn().mockResolvedValue([{ consumedQuantity: 45 }]);
 
     await expect(
       service.recordConsumption(
-        { scId: 'sc-1', rmItemId: 'rm-1', quantityConsumed: 10 }, // 10 > 5 available!
+        { scId: 'sc-1', rmItemId: 'rm-1', quantityConsumed: 10 }, // 10 > 5 available
         'prod-user-1',
       ),
     ).rejects.toThrow(BadRequestException);
+
+    // Restore
+    service['dataSource'].createQueryRunner().manager.find = originalFind;
   });
 
   it('should restore inventory stock ONLY when stores verifies return', async () => {
