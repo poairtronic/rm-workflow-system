@@ -10,6 +10,7 @@ import type {
   Bin,
 } from '../services/masterDataService';
 import { Button } from '../components/ui/Button';
+import { useAuth } from '../hooks/useAuth';
 
 type MasterTab = 'categories' | 'families' | 'products' | 'warehouses' | 'locations' | 'racks' | 'bins';
 
@@ -33,6 +34,31 @@ export const MasterDataPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any | null>(null);
   const [formData, setFormData] = useState<any>({});
+
+  const { user } = useAuth();
+  const canWrite = user?.role === 'ADMIN' || user?.role === 'STORES';
+
+  const handleDelete = async (item: any) => {
+    if (!window.confirm(`Are you sure you want to delete this ${activeTab.slice(0, -1)}? This action cannot be undone.`)) {
+      return;
+    }
+    setError(null);
+    try {
+      if (activeTab === 'categories') await masterDataService.deleteCategory(item.id);
+      else if (activeTab === 'families') await masterDataService.deleteFamily(item.id);
+      else if (activeTab === 'warehouses') await masterDataService.deleteWarehouse(item.id);
+      else if (activeTab === 'locations') await masterDataService.deleteLocation(item.id);
+      else if (activeTab === 'racks') await masterDataService.deleteRack(item.id);
+      else if (activeTab === 'bins') await masterDataService.deleteBin(item.id);
+      loadData();
+    } catch (err: any) {
+      if (err?.response?.status === 409) {
+        setError('This record cannot be deleted because it is currently referenced by other records. Deactivate it instead.');
+      } else {
+        setError(err?.response?.data?.message || err?.message || 'Failed to delete record.');
+      }
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -122,6 +148,22 @@ export const MasterDataPage: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (activeTab === 'products') {
+      const min = formData.minimumInventory ?? 0;
+      if (min < 0) {
+        setError('Minimum inventory cannot be negative.');
+        return;
+      }
+      if (formData.maximumInventory !== undefined && formData.maximumInventory !== null && formData.maximumInventory !== '') {
+        const max = Number(formData.maximumInventory);
+        if (max < min) {
+          setError('Maximum inventory must be greater than or equal to minimum inventory.');
+          return;
+        }
+      }
+    }
+
     try {
       if (activeTab === 'categories') {
         if (editingItem) {
@@ -198,9 +240,11 @@ export const MasterDataPage: React.FC = () => {
             Manage Categories, Families, Products, Warehouses, Locations, Racks, and Bins.
           </p>
         </div>
-        <Button onClick={handleOpenCreateModal} variant="primary">
-          + Add New {activeTab.slice(0, -1).toUpperCase()}
-        </Button>
+        {canWrite && (
+          <Button onClick={handleOpenCreateModal} variant="primary">
+            + Add New {activeTab.slice(0, -1).toUpperCase()}
+          </Button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -274,10 +318,25 @@ export const MasterDataPage: React.FC = () => {
                 <th style={{ padding: '0.75rem 1rem' }}>Name</th>
                 <th style={{ padding: '0.75rem 1rem' }}>Parent / Context</th>
                 <th style={{ padding: '0.75rem 1rem' }}>Status</th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Actions</th>
+                {canWrite && <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
+              {/* Empty state */}
+              {((activeTab === 'categories' && categories.length === 0) ||
+               (activeTab === 'families' && families.length === 0) ||
+               (activeTab === 'products' && products.length === 0) ||
+               (activeTab === 'warehouses' && warehouses.length === 0) ||
+               (activeTab === 'locations' && locations.length === 0) ||
+               (activeTab === 'racks' && racks.length === 0) ||
+               (activeTab === 'bins' && bins.length === 0)) && (
+                 <tr>
+                   <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
+                     No {activeTab} found. {canWrite && 'Click "+ Add New" to create one.'}
+                   </td>
+                 </tr>
+              )}
+
               {activeTab === 'categories' &&
                 categories.map((item) => (
                   <tr key={item.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
@@ -289,10 +348,13 @@ export const MasterDataPage: React.FC = () => {
                         {item.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
-                      <Button size="sm" variant="secondary" onClick={() => handleOpenEditModal(item)} style={{ marginRight: '0.5rem' }}>Edit</Button>
-                      <Button size="sm" variant="secondary" onClick={() => handleToggleActive(item)}>{item.isActive ? 'Deactivate' : 'Reactivate'}</Button>
-                    </td>
+                    {canWrite && (
+                      <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                        <Button size="sm" variant="secondary" onClick={() => handleOpenEditModal(item)} style={{ marginRight: '0.5rem' }}>Edit</Button>
+                        <Button size="sm" variant="secondary" onClick={() => handleToggleActive(item)} style={{ marginRight: '0.5rem' }}>{item.isActive ? 'Deactivate' : 'Reactivate'}</Button>
+                        <Button size="sm" variant="danger" onClick={() => handleDelete(item)} style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' }}>Delete</Button>
+                      </td>
+                    )}
                   </tr>
                 ))}
 
@@ -307,10 +369,13 @@ export const MasterDataPage: React.FC = () => {
                         {item.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
-                      <Button size="sm" variant="secondary" onClick={() => handleOpenEditModal(item)} style={{ marginRight: '0.5rem' }}>Edit</Button>
-                      <Button size="sm" variant="secondary" onClick={() => handleToggleActive(item)}>{item.isActive ? 'Deactivate' : 'Reactivate'}</Button>
-                    </td>
+                    {canWrite && (
+                      <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                        <Button size="sm" variant="secondary" onClick={() => handleOpenEditModal(item)} style={{ marginRight: '0.5rem' }}>Edit</Button>
+                        <Button size="sm" variant="secondary" onClick={() => handleToggleActive(item)} style={{ marginRight: '0.5rem' }}>{item.isActive ? 'Deactivate' : 'Reactivate'}</Button>
+                        <Button size="sm" variant="danger" onClick={() => handleDelete(item)} style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' }}>Delete</Button>
+                      </td>
+                    )}
                   </tr>
                 ))}
 
@@ -325,10 +390,12 @@ export const MasterDataPage: React.FC = () => {
                         {item.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
-                      <Button size="sm" variant="secondary" onClick={() => handleOpenEditModal(item)} style={{ marginRight: '0.5rem' }}>Edit</Button>
-                      <Button size="sm" variant="secondary" onClick={() => handleToggleActive(item)}>{item.isActive ? 'Deactivate' : 'Reactivate'}</Button>
-                    </td>
+                    {canWrite && (
+                      <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                        <Button size="sm" variant="secondary" onClick={() => handleOpenEditModal(item)} style={{ marginRight: '0.5rem' }}>Edit</Button>
+                        <Button size="sm" variant="secondary" onClick={() => handleToggleActive(item)}>{item.isActive ? 'Deactivate' : 'Reactivate'}</Button>
+                      </td>
+                    )}
                   </tr>
                 ))}
 
@@ -343,10 +410,13 @@ export const MasterDataPage: React.FC = () => {
                         {item.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
-                      <Button size="sm" variant="secondary" onClick={() => handleOpenEditModal(item)} style={{ marginRight: '0.5rem' }}>Edit</Button>
-                      <Button size="sm" variant="secondary" onClick={() => handleToggleActive(item)}>{item.isActive ? 'Deactivate' : 'Reactivate'}</Button>
-                    </td>
+                    {canWrite && (
+                      <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                        <Button size="sm" variant="secondary" onClick={() => handleOpenEditModal(item)} style={{ marginRight: '0.5rem' }}>Edit</Button>
+                        <Button size="sm" variant="secondary" onClick={() => handleToggleActive(item)} style={{ marginRight: '0.5rem' }}>{item.isActive ? 'Deactivate' : 'Reactivate'}</Button>
+                        <Button size="sm" variant="danger" onClick={() => handleDelete(item)} style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' }}>Delete</Button>
+                      </td>
+                    )}
                   </tr>
                 ))}
 
@@ -361,10 +431,13 @@ export const MasterDataPage: React.FC = () => {
                         {item.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
-                      <Button size="sm" variant="secondary" onClick={() => handleOpenEditModal(item)} style={{ marginRight: '0.5rem' }}>Edit</Button>
-                      <Button size="sm" variant="secondary" onClick={() => handleToggleActive(item)}>{item.isActive ? 'Deactivate' : 'Reactivate'}</Button>
-                    </td>
+                    {canWrite && (
+                      <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                        <Button size="sm" variant="secondary" onClick={() => handleOpenEditModal(item)} style={{ marginRight: '0.5rem' }}>Edit</Button>
+                        <Button size="sm" variant="secondary" onClick={() => handleToggleActive(item)} style={{ marginRight: '0.5rem' }}>{item.isActive ? 'Deactivate' : 'Reactivate'}</Button>
+                        <Button size="sm" variant="danger" onClick={() => handleDelete(item)} style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' }}>Delete</Button>
+                      </td>
+                    )}
                   </tr>
                 ))}
 
@@ -379,10 +452,13 @@ export const MasterDataPage: React.FC = () => {
                         {item.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
-                      <Button size="sm" variant="secondary" onClick={() => handleOpenEditModal(item)} style={{ marginRight: '0.5rem' }}>Edit</Button>
-                      <Button size="sm" variant="secondary" onClick={() => handleToggleActive(item)}>{item.isActive ? 'Deactivate' : 'Reactivate'}</Button>
-                    </td>
+                    {canWrite && (
+                      <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                        <Button size="sm" variant="secondary" onClick={() => handleOpenEditModal(item)} style={{ marginRight: '0.5rem' }}>Edit</Button>
+                        <Button size="sm" variant="secondary" onClick={() => handleToggleActive(item)} style={{ marginRight: '0.5rem' }}>{item.isActive ? 'Deactivate' : 'Reactivate'}</Button>
+                        <Button size="sm" variant="danger" onClick={() => handleDelete(item)} style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' }}>Delete</Button>
+                      </td>
+                    )}
                   </tr>
                 ))}
 
@@ -397,10 +473,13 @@ export const MasterDataPage: React.FC = () => {
                         {item.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
-                      <Button size="sm" variant="secondary" onClick={() => handleOpenEditModal(item)} style={{ marginRight: '0.5rem' }}>Edit</Button>
-                      <Button size="sm" variant="secondary" onClick={() => handleToggleActive(item)}>{item.isActive ? 'Deactivate' : 'Reactivate'}</Button>
-                    </td>
+                    {canWrite && (
+                      <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                        <Button size="sm" variant="secondary" onClick={() => handleOpenEditModal(item)} style={{ marginRight: '0.5rem' }}>Edit</Button>
+                        <Button size="sm" variant="secondary" onClick={() => handleToggleActive(item)} style={{ marginRight: '0.5rem' }}>{item.isActive ? 'Deactivate' : 'Reactivate'}</Button>
+                        <Button size="sm" variant="danger" onClick={() => handleDelete(item)} style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' }}>Delete</Button>
+                      </td>
+                    )}
                   </tr>
                 ))}
             </tbody>
