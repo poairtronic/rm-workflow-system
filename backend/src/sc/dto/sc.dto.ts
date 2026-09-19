@@ -28,7 +28,7 @@ export class CreateScDto {
 
   @IsOptional()
   @IsNumber()
-  @Min(0.001)
+  @Min(1)
   targetQuantity?: number = 1;
 }
 

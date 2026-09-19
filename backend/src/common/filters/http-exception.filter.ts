@@ -14,15 +14,28 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    const status =
+    let status =
       exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    const message =
+    let message: string | object =
       exception instanceof HttpException
         ? exception.getResponse()
         : 'Internal server error';
+
+    // Catch TypeORM UUID syntax errors
+    if (exception && typeof exception === 'object' && 'message' in exception) {
+      const msg = String((exception as any).message);
+      if (msg.includes('invalid input syntax for type uuid')) {
+        status = HttpStatus.BAD_REQUEST;
+        message = 'Invalid UUID format';
+      }
+    }
+
+    if (status === HttpStatus.INTERNAL_SERVER_ERROR) {
+      console.error('[AllExceptionsFilter] Internal error:', exception);
+    }
 
     response.status(status).json({
       statusCode: status,

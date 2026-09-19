@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module.js';
-
+import { AllExceptionsFilter } from './common/filters/http-exception.filter.js';
 async function bootstrap() {
   try {
     const app = await NestFactory.create(AppModule);
@@ -14,6 +14,7 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
       transform: true,
     }));
+    app.useGlobalFilters(new AllExceptionsFilter());
     const port = process.env.PORT ?? 3000;
     await app.listen(port);
     console.log(`[RMRIT Backend] Running on http://localhost:${port}`);

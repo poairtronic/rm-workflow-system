@@ -91,8 +91,17 @@ export class AuthService {
    * Isolated developer/test helper to generate signed JWTs for unit tests
    */
   createDevTestToken(role: UserRole = UserRole.ADMIN) {
+    const mockUuids: Record<string, string> = {
+      ADMIN: '00000000-0000-0000-0000-000000000001',
+      DESIGNER: '00000000-0000-0000-0000-000000000002',
+      STORES: '00000000-0000-0000-0000-000000000003',
+      PRODUCTION: '00000000-0000-0000-0000-000000000004',
+      SENIOR_MANAGER: '00000000-0000-0000-0000-000000000005',
+      GENERAL_MANAGER: '00000000-0000-0000-0000-000000000006',
+    };
+    
     return this.signToken({
-      userId: `dev-${role.toLowerCase()}-1`,
+      userId: mockUuids[role] || '00000000-0000-0000-0000-000000000000',
       name: `Dev ${role} User`,
       email: `${role.toLowerCase()}@example.com`,
       role,
