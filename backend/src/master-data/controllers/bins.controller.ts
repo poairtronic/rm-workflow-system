@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -64,5 +65,11 @@ export class BinsController {
     @Body() dto: UpdateBinDto,
   ) {
     return this.masterDataService.updateBin(id, dto);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.STORES)
+  deleteBin(@Param('id', ParseUUIDPipe) id: string) {
+    return this.masterDataService.deleteBin(id);
   }
 }

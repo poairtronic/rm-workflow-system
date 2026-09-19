@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from '../auth/auth.module.js';
 import { AdditionalRequestController } from './additional-request.controller.js';
 import { AdditionalRequestService } from './additional-request.service.js';
 import { AdditionalMaterialRequest } from './entities/additional-request.entity.js';
@@ -15,6 +16,7 @@ import { RmItem } from '../rm/entities/rm-item.entity.js';
       SalesOrderComponent,
       RmItem,
     ]),
+    AuthModule,
   ],
   controllers: [AdditionalRequestController],
   providers: [AdditionalRequestService],

@@ -10,8 +10,18 @@ body:
   type: json
   content: |-
     {
-      "name": "Main Warehouse",
-      "code": "WH-01",
-      "address": "123 Industrial Area",
-      "description": "Main storage warehouse"
+      "name": "POSTMAN_TEST_WAREHOUSE",
+      "code": "WH_TEST_001",
+      "address": "Test Address",
+      "description": "Test warehouse created by Postman"
     }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const res = pm.response.json();
+      if (pm.response.code === 201 && res.id) {
+        pm.environment.set('warehouse_id', res.id);
+      }
+      pm.test('Create warehouse returns 201', () => pm.response.to.have.status(201));
+      pm.test('Response has id', () => pm.expect(res).to.have.property('id'));

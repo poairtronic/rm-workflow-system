@@ -10,8 +10,18 @@ body:
   type: json
   content: |-
     {
-      "name": "Zone A",
-      "code": "LOC-A",
+      "name": "POSTMAN_TEST_LOCATION",
+      "code": "LOC_TEST_001",
       "warehouseId": "{{warehouse_id}}",
-      "description": "Zone A storage location"
+      "description": "Test location created by Postman"
     }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const res = pm.response.json();
+      if (pm.response.code === 201 && res.id) {
+        pm.environment.set('location_id', res.id);
+      }
+      pm.test('Create location returns 201', () => pm.response.to.have.status(201));
+      pm.test('Response has id', () => pm.expect(res).to.have.property('id'));

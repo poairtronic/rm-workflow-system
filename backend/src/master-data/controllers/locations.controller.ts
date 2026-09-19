@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -64,5 +65,11 @@ export class LocationsController {
     @Body() dto: UpdateLocationDto,
   ) {
     return this.masterDataService.updateLocation(id, dto);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.STORES)
+  deleteLocation(@Param('id', ParseUUIDPipe) id: string) {
+    return this.masterDataService.deleteLocation(id);
   }
 }

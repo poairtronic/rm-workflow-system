@@ -15,3 +15,14 @@ body:
     }
 auth:
   type: noauth
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const res = pm.response.json();
+      if (res.access_token) {
+        pm.environment.set('auth_token', res.access_token);
+        pm.environment.set('admin_token', res.access_token);
+      }
+      pm.test('Login returns 200', () => pm.response.to.have.status(200));
+      pm.test('Response has access_token', () => pm.expect(res).to.have.property('access_token'));

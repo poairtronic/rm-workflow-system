@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from '../auth/auth.module.js';
 import { ProductionController } from './production.controller.js';
 import { ProductionService } from './production.service.js';
 import { MaterialReceipt } from './entities/production-receipt.entity.js';
@@ -25,6 +26,7 @@ import { Bin } from '../inventory/entities/bin.entity.js';
       RmItem,
       Bin,
     ]),
+    AuthModule,
   ],
   controllers: [ProductionController],
   providers: [ProductionService],

@@ -13,6 +13,8 @@ import { Warehouse } from '../inventory/entities/warehouse.entity.js';
 import { WarehouseLocation } from '../inventory/entities/warehouse-location.entity.js';
 import { Rack } from '../inventory/entities/rack.entity.js';
 import { Bin } from '../inventory/entities/bin.entity.js';
+import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
+import { StockTransaction } from '../inventory/entities/stock-transaction.entity.js';
 
 import {
   CreateCategoryDto,
@@ -61,6 +63,10 @@ export class MasterDataService {
     private readonly rackRepo: Repository<Rack>,
     @InjectRepository(Bin)
     private readonly binRepo: Repository<Bin>,
+    @InjectRepository(StockBalance)
+    private readonly stockBalanceRepo: Repository<StockBalance>,
+    @InjectRepository(StockTransaction)
+    private readonly stockTransactionRepo: Repository<StockTransaction>,
   ) {}
 
   // ==========================================
@@ -616,6 +622,22 @@ export class MasterDataService {
     return this.locationRepo.save(location);
   }
 
+  async deleteLocation(id: string) {
+    const location = await this.findLocationById(id);
+    const rackCount = await this.rackRepo.count({
+      where: { locationId: id },
+    });
+
+    if (rackCount > 0) {
+      throw new ConflictException(
+        `Cannot delete location "${location.name}" because it contains ${rackCount} racks. Deactivate it instead.`,
+      );
+    }
+
+    await this.locationRepo.remove(location);
+    return { success: true, message: `Location "${location.name}" deleted successfully.` };
+  }
+
   // ==========================================
   // 6. RACKS
   // ==========================================
@@ -724,6 +746,22 @@ export class MasterDataService {
     return this.rackRepo.save(rack);
   }
 
+  async deleteRack(id: string) {
+    const rack = await this.findRackById(id);
+    const binCount = await this.binRepo.count({
+      where: { rackId: id },
+    });
+
+    if (binCount > 0) {
+      throw new ConflictException(
+        `Cannot delete rack "${rack.name}" because it contains ${binCount} bins. Deactivate it instead.`,
+      );
+    }
+
+    await this.rackRepo.remove(rack);
+    return { success: true, message: `Rack "${rack.name}" deleted successfully.` };
+  }
+
   // ==========================================
   // 7. BINS
   // ==========================================
@@ -827,5 +865,34 @@ export class MasterDataService {
     }
 
     return this.binRepo.save(bin);
+  }
+
+  async deleteBin(id: string) {
+    const bin = await this.findBinById(id);
+
+    const balanceCount = await this.stockBalanceRepo.count({
+      where: { binId: id },
+    });
+    if (balanceCount > 0) {
+      throw new ConflictException(
+        `Cannot delete bin "${bin.name}" because it is referenced by ${balanceCount} stock balances. Deactivate it instead.`,
+      );
+    }
+
+    const sourceTxCount = await this.stockTransactionRepo.count({
+      where: { sourceBinId: id },
+    });
+    const destTxCount = await this.stockTransactionRepo.count({
+      where: { destinationBinId: id },
+    });
+
+    if (sourceTxCount > 0 || destTxCount > 0) {
+      throw new ConflictException(
+        `Cannot delete bin "${bin.name}" because it is referenced by historical stock transactions. Deactivate it instead.`,
+      );
+    }
+
+    await this.binRepo.remove(bin);
+    return { success: true, message: `Bin "${bin.name}" deleted successfully.` };
   }
 }

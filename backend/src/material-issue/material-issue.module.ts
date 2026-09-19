@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from '../auth/auth.module.js';
 import { MaterialIssueController } from './material-issue.controller.js';
 import { MaterialIssueService } from './material-issue.service.js';
 import { MaterialIssue } from './entities/material-issue.entity.js';
@@ -17,6 +18,7 @@ import { Bin } from '../inventory/entities/bin.entity.js';
       RmItem,
       Bin,
     ]),
+    AuthModule,
   ],
   controllers: [MaterialIssueController],
   providers: [MaterialIssueService],

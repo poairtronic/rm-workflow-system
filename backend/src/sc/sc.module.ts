@@ -5,6 +5,7 @@ import { PurchaseOrder } from '../po/entities/po.entity.js';
 import { Customer } from '../customers/entities/customer.entity.js';
 import { ScService } from './sc.service.js';
 import { ScController } from './sc.controller.js';
+import { AuthModule } from '../auth/auth.module.js';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { ScController } from './sc.controller.js';
       PurchaseOrder,
       Customer,
     ]),
+    AuthModule,
   ],
   controllers: [ScController],
   providers: [ScService],

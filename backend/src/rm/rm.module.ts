@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from '../auth/auth.module.js';
 import { RmRequest } from './entities/rm-request.entity.js';
 import { RmItem } from './entities/rm-item.entity.js';
 import { RmFormSc } from './entities/rm-form-sc.entity.js';
@@ -17,6 +18,7 @@ import { RmController } from './rm.controller.js';
       RmItemSnapshot,
       SalesOrderComponent,
     ]),
+    AuthModule,
   ],
   controllers: [RmController],
   providers: [RmService],

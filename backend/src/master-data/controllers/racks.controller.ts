@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -64,5 +65,11 @@ export class RacksController {
     @Body() dto: UpdateRackDto,
   ) {
     return this.masterDataService.updateRack(id, dto);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.STORES)
+  deleteRack(@Param('id', ParseUUIDPipe) id: string) {
+    return this.masterDataService.deleteRack(id);
   }
 }

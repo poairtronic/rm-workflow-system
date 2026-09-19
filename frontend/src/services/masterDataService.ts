@@ -185,16 +185,25 @@ export const masterDataService = {
   getLocations: async (params?: MasterFilterParams): Promise<PaginatedResponse<Location>> => {
     return api.get<PaginatedResponse<Location>>(`/locations${buildQuery(params)}`);
   },
+  getLocationById: async (id: string): Promise<Location> => {
+    return api.get<Location>(`/locations/${id}`);
+  },
   createLocation: async (data: { warehouseId: string; code: string; name: string; isActive?: boolean }): Promise<Location> => {
     return api.post<Location>('/locations', data);
   },
   updateLocation: async (id: string, data: { warehouseId?: string; code?: string; name?: string; isActive?: boolean }): Promise<Location> => {
     return api.patch<Location>(`/locations/${id}`, data);
   },
+  deleteLocation: async (id: string): Promise<{ success: boolean; message: string }> => {
+    return api.delete<{ success: boolean; message: string }>(`/locations/${id}`);
+  },
 
   // Racks
   getRacks: async (params?: MasterFilterParams): Promise<PaginatedResponse<Rack>> => {
     return api.get<PaginatedResponse<Rack>>(`/racks${buildQuery(params)}`);
+  },
+  getRackById: async (id: string): Promise<Rack> => {
+    return api.get<Rack>(`/racks/${id}`);
   },
   createRack: async (data: { locationId: string; code: string; name: string; isActive?: boolean }): Promise<Rack> => {
     return api.post<Rack>('/racks', data);
@@ -202,15 +211,24 @@ export const masterDataService = {
   updateRack: async (id: string, data: { locationId?: string; code?: string; name?: string; isActive?: boolean }): Promise<Rack> => {
     return api.patch<Rack>(`/racks/${id}`, data);
   },
+  deleteRack: async (id: string): Promise<{ success: boolean; message: string }> => {
+    return api.delete<{ success: boolean; message: string }>(`/racks/${id}`);
+  },
 
   // Bins
   getBins: async (params?: MasterFilterParams): Promise<PaginatedResponse<Bin>> => {
     return api.get<PaginatedResponse<Bin>>(`/bins${buildQuery(params)}`);
+  },
+  getBinById: async (id: string): Promise<Bin> => {
+    return api.get<Bin>(`/bins/${id}`);
   },
   createBin: async (data: { rackId: string; code: string; name: string; isActive?: boolean }): Promise<Bin> => {
     return api.post<Bin>('/bins', data);
   },
   updateBin: async (id: string, data: { rackId?: string; code?: string; name?: string; isActive?: boolean }): Promise<Bin> => {
     return api.patch<Bin>(`/bins/${id}`, data);
+  },
+  deleteBin: async (id: string): Promise<{ success: boolean; message: string }> => {
+    return api.delete<{ success: boolean; message: string }>(`/bins/${id}`);
   },
 };

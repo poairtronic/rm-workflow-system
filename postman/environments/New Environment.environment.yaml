@@ -1,2 +1,78 @@
 name: New Environment
-values: []
+values:
+  - key: base_url
+    value: 'http://127.0.0.1:3000'
+    enabled: true
+    type: default
+  - key: auth_token
+    value: ''
+    enabled: true
+    type: default
+  - key: admin_token
+    value: ''
+    enabled: true
+    type: default
+  - key: stores_token
+    value: ''
+    enabled: true
+    type: default
+  - key: designer_token
+    value: ''
+    enabled: true
+    type: default
+  - key: production_token
+    value: ''
+    enabled: true
+    type: default
+  - key: senior_manager_token
+    value: ''
+    enabled: true
+    type: default
+  - key: general_manager_token
+    value: ''
+    enabled: true
+    type: default
+  - key: category_id
+    value: ''
+    enabled: true
+    type: default
+  - key: family_id
+    value: ''
+    enabled: true
+    type: default
+  - key: product_id
+    value: ''
+    enabled: true
+    type: default
+  - key: warehouse_id
+    value: ''
+    enabled: true
+    type: default
+  - key: location_id
+    value: ''
+    enabled: true
+    type: default
+  - key: sc_id
+    value: ''
+    enabled: true
+    type: default
+  - key: rm_id
+    value: ''
+    enabled: true
+    type: default
+  - key: inventory_item_id
+    value: ''
+    enabled: true
+    type: default
+  - key: material_issue_id
+    value: ''
+    enabled: true
+    type: default
+  - key: additional_request_id
+    value: ''
+    enabled: true
+    type: default
+  - key: user_id
+    value: ''
+    enabled: true
+    type: default

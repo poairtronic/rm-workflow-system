@@ -10,6 +10,17 @@ body:
   type: json
   content: |-
     {
-      "name": "Raw Materials",
-      "description": "Category for raw materials"
+      "name": "POSTMAN_TEST_CATEGORY_001",
+      "description": "Test category created by Postman"
     }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const res = pm.response.json();
+      if (pm.response.code === 201 && res.id) {
+        pm.environment.set('category_id', res.id);
+      }
+      pm.test('Create category returns 201', () => pm.response.to.have.status(201));
+      pm.test('Response has id', () => pm.expect(res).to.have.property('id'));
+      pm.test('Response has correct name', () => pm.expect(res.name).to.equal('POSTMAN_TEST_CATEGORY_001'));

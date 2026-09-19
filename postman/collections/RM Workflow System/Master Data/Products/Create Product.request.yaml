@@ -10,10 +10,19 @@ body:
   type: json
   content: |-
     {
-      "name": "Steel Rod 10mm",
-      "code": "SR-10",
-      "categoryId": "{{category_id}}",
+      "name": "POSTMAN_TEST_PRODUCT_001",
+      "code": "PTP001",
       "familyId": "{{family_id}}",
       "unit": "pcs",
-      "description": "10mm steel rod"
+      "description": "Test product created by Postman"
     }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const res = pm.response.json();
+      if (pm.response.code === 201 && res.id) {
+        pm.environment.set('product_id', res.id);
+      }
+      pm.test('Create product returns 201', () => pm.response.to.have.status(201));
+      pm.test('Response has id', () => pm.expect(res).to.have.property('id'));

@@ -10,8 +10,17 @@ body:
   type: json
   content: |-
     {
-      "name": "Bin A1-01",
-      "code": "BIN-A1-01",
-      "rackId": "{{rack_id}}",
-      "description": "Bin 01 in Rack A1"
+      "name": "POSTMAN_TEST_BIN_001",
+      "code": "PTB001",
+      "rackId": "{{rack_id}}"
     }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const res = pm.response.json();
+      if (pm.response.code === 201 && res.id) {
+        pm.environment.set('bin_id', res.id);
+      }
+      pm.test('Create bin returns 201', () => pm.response.to.have.status(201));
+      pm.test('Response has id', () => pm.expect(res).to.have.property('id'));

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from '../auth/auth.module.js';
 import { InventoryItem } from './entities/inventory-item.entity.js';
 import { StockBalance } from './entities/stock-balance.entity.js';
 import { StockTransaction } from './entities/stock-transaction.entity.js';
@@ -18,6 +19,7 @@ import { InventoryReconciliationService } from './inventory-reconciliation.servi
       Product,
       Bin,
     ]),
+    AuthModule,
   ],
   controllers: [InventoryController],
   providers: [InventoryService, InventoryReconciliationService],
