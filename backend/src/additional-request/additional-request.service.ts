@@ -52,22 +52,16 @@ export class AdditionalRequestService {
     const savedRequest = await this.requestRepo.save(request);
 
     for (const itemDto of dto.items) {
-      let rmItemId = itemDto.rmItemId;
-      if (!rmItemId) {
-        // Find or reference existing RM Item for SC
-        const existingRmItem = await this.rmItemRepo.findOneBy({ scId: dto.scId });
-        if (existingRmItem) {
-          rmItemId = existingRmItem.id;
-        } else {
-          throw new BadRequestException(`rmItemId is required for additional request item.`);
-        }
+      // Validate rmItemId belongs to the given scId
+      const rmItem = await this.rmItemRepo.findOneBy({ id: itemDto.rmItemId, scId: dto.scId });
+      if (!rmItem) {
+        throw new BadRequestException(`RM Item "${itemDto.rmItemId}" not found or does not belong to SC "${dto.scId}".`);
       }
 
       const item = this.requestItemRepo.create({
         requestId: savedRequest.id,
-        rmItemId,
+        rmItemId: itemDto.rmItemId,
         quantityRequested: itemDto.quantity,
-        quantityApproved: itemDto.quantity,
         remarks: itemDto.remarks,
       });
       await this.requestItemRepo.save(item);

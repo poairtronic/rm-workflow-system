@@ -45,7 +45,7 @@ describe('AdditionalRequestService', () => {
     const result = await service.createRequest(
       {
         scId: 'sc-1',
-        items: [{ rmItemId: 'rm-1', material: 'Steel 316L', quantity: 15 }],
+        items: [{ rmItemId: 'rm-1', quantity: 15 }],
       },
       'prod-user-1',
     );

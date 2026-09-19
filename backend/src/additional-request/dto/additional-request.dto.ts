@@ -14,20 +14,8 @@ import { AdditionalReason } from '../entities/additional-request.entity.js';
 
 export class AdditionalRequestItemDto {
   @IsUUID('4')
-  @IsOptional()
-  rmItemId?: string;
-
-  @IsString()
   @IsNotEmpty()
-  material!: string;
-
-  @IsOptional()
-  @IsString()
-  grade?: string;
-
-  @IsOptional()
-  @IsString()
-  size?: string;
+  rmItemId!: string;
 
   @IsNumber()
   @Min(0.001)
