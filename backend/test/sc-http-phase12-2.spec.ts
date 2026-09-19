@@ -1,5 +1,6 @@
-﻿import { describe, it, expect, beforeAll } from 'vitest';
+﻿import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as jwt from 'jsonwebtoken';
+import { Client } from 'pg';
 
 const BASE_URL = 'http://localhost:3000/api';
 let token = '';
@@ -9,17 +10,38 @@ let poId2 = '';
 let scId1 = '';
 let scId2 = '';
 let scId3 = '';
+let pgClient: Client;
+const ADMIN_ID = '55555555-5555-5555-5555-555555555555';
 
 describe('Phase 12.2 - SC Real HTTP / Real DB Independence Verification', () => {
   beforeAll(async () => {
+    pgClient = new Client('postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db');
+    await pgClient.connect();
+
+    // Find ADMIN role
+    const roleRes = await pgClient.query(`SELECT id FROM roles WHERE name = 'ADMIN' LIMIT 1`);
+    let roleId = roleRes.rows[0]?.id;
+    if (!roleId) {
+        // Fallback create role if missing
+        const newRole = await pgClient.query(`INSERT INTO roles (id, name, description) VALUES (gen_random_uuid(), 'ADMIN', 'Admin Role') RETURNING id`);
+        roleId = newRole.rows[0].id;
+    }
+
+    // Insert dummy user so FK constraint passes
+    await pgClient.query(`
+      INSERT INTO users (id, name, email, password_hash, role_id, is_active)
+      VALUES ('${ADMIN_ID}', 'Admin User', 'admin@example.com', 'hash', '${roleId}', true)
+      ON CONFLICT (email) DO NOTHING;
+    `);
+
     // Generate valid JWT Token directly
     const payload = {
-        sub: '55555555-5555-5555-5555-555555555555',
+        sub: ADMIN_ID,
         email: 'admin@example.com',
         role: 'ADMIN',
         roles: ['ADMIN', 'STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER']
     };
-    token = jwt.sign(payload, 'your_development_secret');
+    token = jwt.sign(payload, process.env.JWT_SECRET || 'your_development_jwt_secret_min_32_characters');
 
     // 2. Create a Customer for our POs
     const custRes = await fetch(`${BASE_URL}/customers`, {
@@ -43,6 +65,12 @@ describe('Phase 12.2 - SC Real HTTP / Real DB Independence Verification', () => 
       body: JSON.stringify({ poNumber: `SC-PO2-${Date.now()}`, customerId })
     });
     poId2 = (await poRes2.json()).id;
+  });
+
+  afterAll(async () => {
+    // Cleanup SCs, POs, Customer to allow user deletion?
+    // User FK is restrict on completed_by_id? We can just leave the user.
+    await pgClient.end();
   });
 
   it('SC_CREATE_01: Should block SC creation with missing/invalid PO', async () => {
