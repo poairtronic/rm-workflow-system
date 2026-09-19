@@ -1,4 +1,4 @@
-import {
+﻿import {
   Controller,
   Get,
   Post,
@@ -39,12 +39,12 @@ export class ScController {
     UserRole.GENERAL_MANAGER,
   )
   findAll(
-    @Query('poNumber') poNumber?: string,
+    @Query('poId') poId?: string,
     @Query('scNumber') scNumber?: string,
     @Query('status') status?: ScStatus,
     @Query('search') search?: string,
   ) {
-    return this.scService.findAll({ poNumber, scNumber, status, search });
+    return this.scService.findAll({ poId, scNumber, status, search });
   }
 
   @Get(':id')

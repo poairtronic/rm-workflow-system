@@ -3,8 +3,8 @@
 ## 1. Executive Summary
 Total Discovered: 89
 Total Tested: 89
-PASS: 89
-FAIL: 0
+PASS: 87
+FAIL: 2
 PARTIAL: 0
 BLOCKED: 0
 NOT IMPLEMENTED: 0
@@ -17,7 +17,7 @@ NOT TESTED: 0
 | StatusMonitoring | 2 | 2 | 2 | 0 | 0 | 0 | 0 |
 | Other | 13 | 13 | 13 | 0 | 0 | 0 | 0 |
 | Auth | 4 | 4 | 4 | 0 | 0 | 0 | 0 |
-| Inventory | 13 | 13 | 13 | 0 | 0 | 0 | 0 |
+| Inventory | 13 | 13 | 12 | 1 | 0 | 0 | 0 |
 | Bins | 5 | 5 | 5 | 0 | 0 | 0 | 0 |
 | Categories | 5 | 5 | 5 | 0 | 0 | 0 | 0 |
 | Families | 5 | 5 | 5 | 0 | 0 | 0 | 0 |
@@ -27,10 +27,18 @@ NOT TESTED: 0
 | Warehouses | 5 | 5 | 5 | 0 | 0 | 0 | 0 |
 | MaterialIssues | 3 | 3 | 3 | 0 | 0 | 0 | 0 |
 | MaterialReturns | 1 | 1 | 1 | 0 | 0 | 0 | 0 |
-| SalesContracts | 5 | 5 | 5 | 0 | 0 | 0 | 0 |
+| SalesContracts | 5 | 5 | 4 | 1 | 0 | 0 | 0 |
 | Users | 6 | 6 | 6 | 0 | 0 | 0 | 0 |
 
 ## 3. Failed Endpoints
+### API-018 - GET /api/inventory/:id/reconciliation
+- **Controller**: InventoryController
+- **Notes**: N/A
+
+### API-078 - POST /api/sc
+- **Controller**: ScController
+- **Notes**: N/A
+
 
 ## 4. API Inventory Status
 | ID | Method | Path | Controller | Result |
@@ -52,7 +60,7 @@ NOT TESTED: 0
 | API-015 | GET | /api/inventory/reconciliation | InventoryController | PASS |
 | API-016 | GET | /api/inventory/reconciliation/workflow | InventoryController | PASS |
 | API-017 | GET | /api/inventory/:id | InventoryController | PASS |
-| API-018 | GET | /api/inventory/:id/reconciliation | InventoryController | PASS |
+| API-018 | GET | /api/inventory/:id/reconciliation | InventoryController | FAIL |
 | API-019 | PATCH | /api/inventory/:id | InventoryController | PASS |
 | API-020 | GET | /api/inventory/:id/stock | InventoryController | PASS |
 | API-021 | GET | /api/inventory/:id/transactions | InventoryController | PASS |
@@ -112,7 +120,7 @@ NOT TESTED: 0
 | API-075 | GET | /api/rm | RmController | PASS |
 | API-076 | GET | /api/rm/:id | RmController | PASS |
 | API-077 | GET | /api/roles/status | RolesController | PASS |
-| API-078 | POST | /api/sc | ScController | PASS |
+| API-078 | POST | /api/sc | ScController | FAIL |
 | API-079 | GET | /api/sc | ScController | PASS |
 | API-080 | GET | /api/sc/:id | ScController | PASS |
 | API-081 | POST | /api/sc/:id/complete | ScController | PASS |

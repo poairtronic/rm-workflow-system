@@ -193,8 +193,8 @@
     "controller": "InventoryController",
     "auth": "JWT",
     "roles": "UserSTORES, UserADMIN, UserDESIGNER, UserSENIOR_MANAGER, UserGENERAL_MANAGER",
-    "status": "PASS",
-    "result": "PASS",
+    "status": "FAIL",
+    "result": "FAIL",
     "notes": ""
   },
   {
@@ -789,7 +789,7 @@
     "roles": "UserDESIGNER, UserADMIN",
     "status": "PASS",
     "result": "PASS",
-    "notes": ""
+    "notes": "Tested via fallback generic execution"
   },
   {
     "id": "API-073",
@@ -853,8 +853,8 @@
     "controller": "ScController",
     "auth": "JWT",
     "roles": "UserADMIN, UserDESIGNER, UserSTORES",
-    "status": "PASS",
-    "result": "PASS",
+    "status": "FAIL",
+    "result": "FAIL",
     "notes": ""
   },
   {
@@ -877,7 +877,7 @@
     "roles": "-",
     "status": "PASS",
     "result": "PASS",
-    "notes": ""
+    "notes": "Tested via fallback generic execution"
   },
   {
     "id": "API-081",
@@ -888,7 +888,7 @@
     "roles": "UserPRODUCTION, UserADMIN",
     "status": "PASS",
     "result": "PASS",
-    "notes": ""
+    "notes": "Tested via fallback generic execution"
   },
   {
     "id": "API-082",
@@ -899,7 +899,7 @@
     "roles": "UserSTORES, UserPRODUCTION, UserADMIN",
     "status": "PASS",
     "result": "PASS",
-    "notes": ""
+    "notes": "Tested via fallback generic execution"
   },
   {
     "id": "API-083",

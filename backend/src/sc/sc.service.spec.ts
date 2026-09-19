@@ -1,74 +1,96 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+﻿import { Test, TestingModule } from '@nestjs/testing';
 import { ScService } from './sc.service.js';
-import { ScStatus } from './entities/sc.entity.js';
-import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { SalesOrderComponent, ScStatus } from './entities/sc.entity.js';
+import { PurchaseOrder } from '../po/entities/po.entity.js';
+import { ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 
 describe('ScService', () => {
   let service: ScService;
   let scRepo: any;
   let poRepo: any;
-  let customerRepo: any;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     scRepo = {
       findOne: vi.fn(),
-      create: vi.fn((dto) => ({ id: 'sc-1', ...dto })),
-      save: vi.fn((sc) => Promise.resolve({ id: 'sc-1', ...sc })),
+      create: vi.fn((x) => x),
+      save: vi.fn((x) => x),
       createQueryBuilder: vi.fn(),
     };
     poRepo = {
       findOne: vi.fn(),
-      create: vi.fn((dto) => ({ id: 'po-1', ...dto })),
-      save: vi.fn((po) => Promise.resolve({ id: 'po-1', ...po })),
-    };
-    customerRepo = {
-      findOne: vi.fn(),
-      create: vi.fn((dto) => ({ id: 'cust-1', ...dto })),
-      save: vi.fn((c) => Promise.resolve({ id: 'cust-1', ...c })),
     };
 
-    service = new ScService(scRepo as any, poRepo as any, customerRepo as any);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ScService,
+        {
+          provide: getRepositoryToken(SalesOrderComponent),
+          useValue: scRepo,
+        },
+        {
+          provide: getRepositoryToken(PurchaseOrder),
+          useValue: poRepo,
+        },
+      ],
+    }).compile();
+
+    service = module.get<ScService>(ScService);
   });
 
-  it('should create an SC with external PO reference', async () => {
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  it('should create SC independently under a valid PO', async () => {
+    poRepo.findOne.mockResolvedValue({ id: 'po-1', poNumber: 'PO-123' });
     scRepo.findOne.mockResolvedValue(null);
-    poRepo.findOne.mockResolvedValue({ id: 'po-1', poNumber: 'PO-001' });
 
     const sc = await service.createSc({
-      poNumber: 'PO-001',
-      scNumber: 'SC-001',
+      poId: 'po-1',
+      scNumber: 'SC-123',
       productName: 'Gear Shaft',
-      targetQuantity: 10,
     });
 
-    expect(sc).toBeDefined();
-    expect(sc.scNumber).toBe('SC-001');
     expect(sc.status).toBe(ScStatus.DRAFT);
+    expect(sc.poId).toBe('po-1');
+    expect(sc.targetQuantity).toBe(1);
   });
 
-  it('should reject duplicate SC creation', async () => {
-    scRepo.findOne.mockResolvedValue({ id: 'existing-sc', scNumber: 'SC-001' });
+  it('should reject duplicate SC creation under the same PO', async () => {
+    poRepo.findOne.mockResolvedValue({ id: 'po-1', poNumber: 'PO-123' });
+    scRepo.findOne.mockResolvedValue({ scNumber: 'SC-123' });
 
     await expect(
       service.createSc({
-        poNumber: 'PO-001',
-        scNumber: 'SC-001',
+        poId: 'po-1',
+        scNumber: 'SC-123',
         productName: 'Gear Shaft',
       }),
     ).rejects.toThrow(ConflictException);
   });
 
-  it('should support independent SC closure (SC001 closes without requiring SC002 to close)', async () => {
-    const sc = {
-      id: 'sc-1',
-      scNumber: 'SC-001',
-      status: ScStatus.IN_PRODUCTION,
-      completionRemarks: '',
-    };
-    scRepo.findOne.mockResolvedValue(sc);
+  it('should reject SC creation for missing PO', async () => {
+    poRepo.findOne.mockResolvedValue(null);
 
-    const closedSc = await service.closeSc('sc-1', 'user-1', { remarks: 'Completed production batch' });
-    expect(closedSc.status).toBe(ScStatus.COMPLETED);
-    expect(closedSc.completionRemarks).toContain('Closed: Completed production batch');
+    await expect(
+      service.createSc({
+        poId: 'missing-po-1',
+        scNumber: 'SC-123',
+        productName: 'Gear Shaft',
+      }),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('should support independent SC closure (SC001 closes without requiring SC002 to close)', async () => {
+    scRepo.findOne.mockResolvedValue({
+      id: 'sc-1',
+      scNumber: 'SC-123',
+      status: ScStatus.COMPLETED,
+    });
+
+    const closedSc = await service.closeSc('sc-1', 'user-1', { remarks: 'Completed production' });
+    expect(closedSc.status).toBe(ScStatus.CLOSED);
+    expect(closedSc.completionRemarks).toContain('Closed: Completed production');
   });
 });

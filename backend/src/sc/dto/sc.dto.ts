@@ -1,10 +1,9 @@
-import { IsString, IsNotEmpty, MaxLength, IsOptional, IsNumber, Min } from 'class-validator';
+﻿import { IsString, IsNotEmpty, MaxLength, IsOptional, IsNumber, Min, IsUUID } from 'class-validator';
 
 export class CreateScDto {
-  @IsString()
+  @IsUUID()
   @IsNotEmpty()
-  @MaxLength(100)
-  poNumber!: string;
+  poId!: string;
 
   @IsString()
   @IsNotEmpty()

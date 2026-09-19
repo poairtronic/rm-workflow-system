@@ -1,4 +1,4 @@
-import {
+﻿import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
@@ -28,6 +28,7 @@ export enum ScStatus {
   IN_PRODUCTION = 'IN_PRODUCTION',
   ADDITIONAL_REQUEST = 'ADDITIONAL_REQUEST',
   COMPLETED = 'COMPLETED',
+  CLOSED = 'CLOSED',
 }
 
 @Entity('sales_order_components')
@@ -115,3 +116,4 @@ export class SalesOrderComponent {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt!: Date;
 }
+

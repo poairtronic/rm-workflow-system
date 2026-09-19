@@ -1,4 +1,5 @@
 ﻿import { describe, it, expect, beforeAll } from 'vitest';
+import * as jwt from 'jsonwebtoken';
 
 const BASE_URL = 'http://localhost:3000/api';
 let token = '';
@@ -6,15 +7,13 @@ let token = '';
 describe('Phase 12.1 - Customer & PO Real HTTP / RBAC / Database Verification', () => {
 
   beforeAll(async () => {
-    const loginRes = await fetch(`${BASE_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'admin@example.com', password: 'password123' })
-    });
-    if (loginRes.ok) {
-        const data = await loginRes.json();
-        token = data.access_token;
-    }
+    const payload = {
+        sub: '55555555-5555-5555-5555-555555555555',
+        email: 'admin@example.com',
+        role: 'ADMIN',
+        roles: ['ADMIN', 'STORES', 'PRODUCTION']
+    };
+    token = jwt.sign(payload, process.env.JWT_SECRET || 'your_development_jwt_secret_min_32_characters');
   });
 
   it('HTTP_01: Should block unauthorized access (No Token)', async () => {
@@ -41,10 +40,7 @@ describe('Phase 12.1 - Customer & PO Real HTTP / RBAC / Database Verification', 
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(badPayload)
     });
-    expect(res.status).toBe(201);
-    const data = await res.json();
-    expect(data.id).toBeDefined();
-    expect(data.id).not.toBe('11111111-1111-1111-1111-111111111111'); // Mass assignment blocked
+    expect(res.status).toBe(400); // ValidationPipe with forbidNonWhitelisted triggers 400 Bad Request
   });
 
   let customerId = '';
