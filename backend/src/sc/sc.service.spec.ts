@@ -17,14 +17,35 @@ describe('ScService', () => {
   let poRepo: any;
   let prodServiceMock: any;
   let addlReqServiceMock: any;
+  let queryRunnerMock: any;
 
   beforeEach(async () => {
+    queryRunnerMock = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      manager: {
+        findOne: vi.fn(),
+        save: vi.fn((type, x) => x),
+        createQueryBuilder: vi.fn(() => ({
+          where: vi.fn().mockReturnThis(),
+          andWhere: vi.fn().mockReturnThis(),
+          getCount: vi.fn().mockResolvedValue(0),
+        })),
+      },
+    };
+
     scRepo = {
       findOne: vi.fn(),
       create: vi.fn((x) => x),
       save: vi.fn((x) => x),
       createQueryBuilder: vi.fn(),
       manager: {
+        connection: {
+          createQueryRunner: vi.fn(() => queryRunnerMock),
+        },
         createQueryBuilder: vi.fn(() => ({
           where: vi.fn().mockReturnThis(),
           andWhere: vi.fn().mockReturnThis(),
@@ -112,11 +133,13 @@ describe('ScService', () => {
   });
 
   it('should support independent SC closure (SC001 closes without requiring SC002 to close)', async () => {
-    scRepo.findOne.mockResolvedValue({
+    const scMock = {
       id: 'sc-1',
       scNumber: 'SC-123',
       status: ScStatus.COMPLETED,
-    });
+    };
+    queryRunnerMock.manager.findOne.mockResolvedValue(scMock);
+    scRepo.findOne.mockResolvedValue(scMock);
 
     const closedSc = await service.closeSc('sc-1', 'user-1', {
       remarks: 'Completed production',

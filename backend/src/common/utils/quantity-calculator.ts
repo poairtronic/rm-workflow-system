@@ -10,7 +10,8 @@ export class QuantityCalculator {
   }
 
   /**
-   * Calculates unaccounted quantity: RECEIVED - CONSUMED - RETURNED
+   * Calculates unaccounted quantity: RECEIVED - CONSUMED - ACKNOWLEDGED RETURNED
+   * This represents the liability that must be resolved before SC completion.
    */
   static calculateUnaccounted(
     received: number,
@@ -20,6 +21,22 @@ export class QuantityCalculator {
     const rec = this.roundDecimal(received);
     const con = this.roundDecimal(consumed);
     const ret = this.roundDecimal(returned);
+    const raw = rec - con - ret;
+    return Math.max(0, this.roundDecimal(raw));
+  }
+
+  /**
+   * Calculates available WIP quantity: RECEIVED - CONSUMED - (ALL VALID RETURNS)
+   * This represents physically available inventory on the shop floor for consumption or return.
+   */
+  static calculateWip(
+    received: number,
+    consumed: number,
+    validReturned: number,
+  ): number {
+    const rec = this.roundDecimal(received);
+    const con = this.roundDecimal(consumed);
+    const ret = this.roundDecimal(validReturned);
     const raw = rec - con - ret;
     return Math.max(0, this.roundDecimal(raw));
   }

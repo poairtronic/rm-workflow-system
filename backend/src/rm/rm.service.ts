@@ -89,34 +89,58 @@ export class RmService {
   }
 
   async submitRm(rmId: string, dto?: SubmitRmDto) {
-    const rm = await this.rmRepo.findOne({
-      where: { id: rmId },
-      relations: { items: true, salesOrderComponent: true },
-    });
-    if (!rm) {
-      throw new NotFoundException(`RM Request with ID "${rmId}" not found.`);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const rm = await queryRunner.manager.findOne(RmRequest, {
+        where: { id: rmId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      const rmWithRelations = await queryRunner.manager.findOne(RmRequest, {
+        where: { id: rmId },
+        relations: { items: true, salesOrderComponent: true },
+      });
+
+      if (rm) {
+        Object.assign(rm, rmWithRelations);
+      }
+
+      if (!rm) {
+        throw new NotFoundException(`RM Request with ID "${rmId}" not found.`);
+      }
+
+      if (!rm.items || rm.items.length === 0) {
+        throw new BadRequestException(
+          `Cannot submit an RM Request without any Material Items.`,
+        );
+      }
+
+      StateMachineValidator.assertRmDraft(rm.status, 'submit RM Request');
+
+      rm.status = RmRequestStatus.SUBMITTED;
+      rm.submittedAt = new Date();
+      if (dto?.remarks) {
+        rm.remarks = `${rm.remarks || ''} [Submit: ${dto.remarks}]`;
+      }
+
+      if (rm.salesOrderComponent) {
+        rm.salesOrderComponent.status = ScStatus.SUBMITTED;
+        await queryRunner.manager.save(SalesOrderComponent, rm.salesOrderComponent);
+      }
+
+      await queryRunner.manager.save(RmRequest, rm);
+      await queryRunner.commitTransaction();
+
+      return this.findOne(rmId);
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
     }
-
-    if (!rm.items || rm.items.length === 0) {
-      throw new BadRequestException(
-        `Cannot submit an RM Request without any Material Items.`,
-      );
-    }
-
-    StateMachineValidator.assertRmDraft(rm.status, 'submit RM Request');
-
-    rm.status = RmRequestStatus.SUBMITTED;
-    rm.submittedAt = new Date();
-    if (dto?.remarks) {
-      rm.remarks = `${rm.remarks || ''} [Submit: ${dto.remarks}]`;
-    }
-
-    if (rm.salesOrderComponent) {
-      rm.salesOrderComponent.status = ScStatus.SUBMITTED;
-      await this.scRepo.save(rm.salesOrderComponent);
-    }
-
-    return this.rmRepo.save(rm);
   }
 
   async findAll(query?: { scId?: string; status?: RmRequestStatus }) {
@@ -158,28 +182,37 @@ export class RmService {
   }
 
   async reviewRm(rmId: string, dto: StoresReviewRmDto, actorId: string) {
-    const rm = await this.rmRepo.findOne({
-      where: { id: rmId },
-      relations: { items: true },
-    });
-    if (!rm) {
-      throw new NotFoundException(`RM Request with ID "${rmId}" not found.`);
-    }
-
-    if (
-      rm.status !== RmRequestStatus.SUBMITTED &&
-      rm.status !== RmRequestStatus.REVIEWED
-    ) {
-      throw new BadRequestException(
-        `RM Request must be SUBMITTED to be reviewed. Current status: ${rm.status}`,
-      );
-    }
-
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
+      const rm = await queryRunner.manager.findOne(RmRequest, {
+        where: { id: rmId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      const rmWithRelations = await queryRunner.manager.findOne(RmRequest, {
+        where: { id: rmId },
+        relations: { items: true },
+      });
+
+      if (rm) {
+        Object.assign(rm, rmWithRelations);
+      }
+      if (!rm) {
+        throw new NotFoundException(`RM Request with ID "${rmId}" not found.`);
+      }
+
+      if (
+        rm.status !== RmRequestStatus.SUBMITTED &&
+        rm.status !== RmRequestStatus.REVIEWED
+      ) {
+        throw new BadRequestException(
+          `RM Request must be SUBMITTED to be reviewed. Current status: ${rm.status}`,
+        );
+      }
+
       for (const mapping of dto.itemMappings) {
         const item = rm.items.find((i) => i.id === mapping.rmItemId);
         if (!item) {

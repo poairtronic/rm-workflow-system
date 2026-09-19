@@ -30,7 +30,29 @@ describe('RmService', () => {
       save: vi.fn((sc) => Promise.resolve(sc)),
     };
 
-    service = new RmService(rmRepo as any, rmItemRepo as any, scRepo as any);
+    const queryRunnerMock = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      manager: {
+        findOne: vi.fn(),
+        save: vi.fn((type, x) => x),
+      },
+    };
+
+    const dataSourceMock = {
+      createQueryRunner: vi.fn(() => queryRunnerMock),
+    };
+
+    service = new RmService(rmRepo as any, rmItemRepo as any, scRepo as any, dataSourceMock as any);
+  });
+
+  let queryRunnerMockRef: any;
+
+  beforeEach(() => {
+    queryRunnerMockRef = (service as any).dataSource.createQueryRunner();
   });
 
   it('should create RM without reducing stock', async () => {
@@ -53,7 +75,8 @@ describe('RmService', () => {
       items: [{ id: 'item-1', material: 'Steel 316L', quantity: 50 }],
       salesOrderComponent: { id: 'sc-1', status: ScStatus.DRAFT },
     };
-    rmRepo.findOne.mockResolvedValue(rm);
+    queryRunnerMockRef.manager.findOne.mockResolvedValue(rm);
+    rmRepo.findOne.mockResolvedValue(rm); // for the final findOne return
 
     const submittedRm = await service.submitRm('rm-1', {
       remarks: 'Submitted for stores verification',
@@ -69,7 +92,7 @@ describe('RmService', () => {
       status: RmRequestStatus.DRAFT,
       items: [],
     };
-    rmRepo.findOne.mockResolvedValue(rm);
+    queryRunnerMockRef.manager.findOne.mockResolvedValue(rm);
 
     await expect(service.submitRm('rm-1')).rejects.toThrow(BadRequestException);
   });

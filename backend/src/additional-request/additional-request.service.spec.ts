@@ -21,9 +21,27 @@ describe('AdditionalRequestService', () => {
       create: vi.fn((dto) => ({ id: 'ri-1', ...dto })),
       save: vi.fn((ri) => Promise.resolve(ri)),
     };
+    const queryRunnerMock = {
+      connect: vi.fn(),
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      rollbackTransaction: vi.fn(),
+      release: vi.fn(),
+      manager: {
+        findOne: vi.fn(),
+        create: vi.fn((type, dto) => ({ id: 'mocked-id', ...dto })),
+        save: vi.fn((type, x) => x),
+      },
+    };
+
     scRepo = {
       findOneBy: vi.fn(),
       save: vi.fn((sc) => Promise.resolve(sc)),
+      manager: {
+        connection: {
+          createQueryRunner: vi.fn(() => queryRunnerMock),
+        }
+      }
     };
     rmItemRepo = {
       findOneBy: vi.fn(),
@@ -37,11 +55,25 @@ describe('AdditionalRequestService', () => {
     );
   });
 
+  let queryRunnerMockRef: any;
+
+  beforeEach(() => {
+    queryRunnerMockRef = (service as any).scRepo.manager.connection.createQueryRunner();
+  });
+
   it('should create an additional material request without deducting stock', async () => {
-    scRepo.findOneBy.mockResolvedValue({
-      id: 'sc-1',
-      scNumber: 'SC-001',
-      status: ScStatus.IN_PRODUCTION,
+    queryRunnerMockRef.manager.findOne.mockImplementation(async (entityType) => {
+      if (entityType.name === 'SalesOrderComponent') {
+        return {
+          id: 'sc-1',
+          scNumber: 'SC-001',
+          status: ScStatus.IN_PRODUCTION,
+        };
+      }
+      if (entityType.name === 'RmItem') {
+        return { id: 'rm-1' };
+      }
+      return null;
     });
     rmItemRepo.findOneBy.mockResolvedValue({ id: 'rm-1' });
     requestRepo.findOne.mockResolvedValue({
@@ -58,6 +90,6 @@ describe('AdditionalRequestService', () => {
     );
 
     expect(result).toBeDefined();
-    expect(scRepo.save).toHaveBeenCalled();
+    expect(queryRunnerMockRef.manager.save).toHaveBeenCalled();
   });
 });

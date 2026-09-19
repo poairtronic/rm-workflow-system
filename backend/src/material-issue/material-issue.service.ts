@@ -39,12 +39,20 @@ export class MaterialIssueService {
   ) {}
 
   async createIssue(dto: CreateMaterialIssueDto, actorId: string) {
-    const sc = await this.scRepo.findOneBy({ id: dto.scId });
-    if (!sc) {
-      throw new NotFoundException(
-        `Sales Order Component with ID "${dto.scId}" not found.`,
-      );
-    }
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const sc = await queryRunner.manager.findOne(SalesOrderComponent, {
+        where: { id: dto.scId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!sc) {
+        throw new NotFoundException(
+          `Sales Order Component with ID "${dto.scId}" not found.`,
+        );
+      }
 
     StateMachineValidator.assertScActive(sc.status, 'Material Issue');
 
@@ -53,12 +61,6 @@ export class MaterialIssueService {
         `Material issue must contain at least one item.`,
       );
     }
-
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
       const issueNumber = `ISS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
       const issue = this.issueRepo.create({

@@ -35,6 +35,12 @@ describe('MaterialIssueService', () => {
           Promise.resolve({ id: 'saved-id', ...data }),
         ),
         findOne: vi.fn((entity, options) => {
+          if (entity.name === 'SalesOrderComponent')
+            return Promise.resolve({
+              id: 'sc-1',
+              scNumber: 'SC-001',
+              status: ScStatus.SUBMITTED,
+            });
           if (options.where?.id === 'rm-item-1')
             return Promise.resolve({
               id: 'rm-item-1',
@@ -109,6 +115,12 @@ describe('MaterialIssueService', () => {
     // Override manager findOne to return insufficient stock
     const qr = dataSource.createQueryRunner();
     qr.manager.findOne = vi.fn((entity, options) => {
+      if (entity.name === 'SalesOrderComponent')
+        return Promise.resolve({
+          id: 'sc-1',
+          scNumber: 'SC-001',
+          status: ScStatus.SUBMITTED,
+        });
       if (options.where?.id === 'rm-item-1')
         return Promise.resolve({
           id: 'rm-item-1',

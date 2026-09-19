@@ -117,84 +117,134 @@ export class ScService {
   }
 
   async completeSc(id: string, actorId: string, dto?: CompleteScDto) {
-    const sc = await this.findOne(id);
-    if (sc.status === ScStatus.COMPLETED) {
-      throw new BadRequestException(
-        `SC "${sc.scNumber}" is already COMPLETED.`,
-      );
-    }
-    if (sc.status === ScStatus.CLOSED) {
-      throw new BadRequestException(
-        `SC "${sc.scNumber}" is already CLOSED and cannot be completed again.`,
-      );
-    }
+    const queryRunner = this.scRepo.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    // 1. Verify Status
-    if (sc.status !== ScStatus.IN_PRODUCTION && sc.status !== ScStatus.ADDITIONAL_REQUEST) {
-      throw new BadRequestException(
-        `SC "${sc.scNumber}" cannot be completed from status ${sc.status}. Must be IN_PRODUCTION or ADDITIONAL_REQUEST.`,
-      );
-    }
+    try {
+      const sc = await queryRunner.manager.findOne(SalesOrderComponent, {
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
 
-    // 2. Check pending Additional Requests
-    const pendingAddlReqs = await this.additionalRequestService.findAll(id);
-    const hasPendingAddl = pendingAddlReqs.some(
-      (r) =>
-        r.status === AdditionalRequestStatus.REQUESTED ||
-        r.status === AdditionalRequestStatus.APPROVED,
-    );
-    if (hasPendingAddl) {
-      throw new BadRequestException(
-        `Cannot complete SC with pending additional material requests.`,
-      );
-    }
+      const scWithRelations = await queryRunner.manager.findOne(SalesOrderComponent, {
+        where: { id },
+        relations: {
+          additionalRequests: true,
+        },
+      });
 
-    // 3. Check pending Material Returns
-    const hasPendingReturns = await this.scRepo.manager
-      .createQueryBuilder('material_returns', 'mr')
-      .where('mr.sc_id = :id', { id })
-      .andWhere('mr.status = :status', { status: ReturnStatus.PENDING_STORE_ACK })
-      .getCount() > 0;
-    if (hasPendingReturns) {
-      throw new BadRequestException(
-        `Cannot complete SC with pending material returns awaiting Stores ACK.`,
-      );
-    }
+      if (!sc) {
+        throw new NotFoundException(`Sales Order Component with ID "${id}" not found.`);
+      }
 
-    // 4. Check Unaccounted = 0
-    const accounting = await this.productionService.getAccounting(id);
-    for (const item of accounting.items) {
-      if (item.unaccounted > 0) {
+      if (sc.status === ScStatus.COMPLETED) {
         throw new BadRequestException(
-          `Cannot complete SC: RM Item ${item.rmItemId} has ${item.unaccounted} unaccounted quantity.`,
+          `SC "${sc.scNumber}" is already COMPLETED.`,
         );
       }
+      if (sc.status === ScStatus.CLOSED) {
+        throw new BadRequestException(
+          `SC "${sc.scNumber}" is already CLOSED and cannot be completed again.`,
+        );
+      }
+
+      // 1. Verify Status
+      if (sc.status !== ScStatus.IN_PRODUCTION && sc.status !== ScStatus.ADDITIONAL_REQUEST) {
+        throw new BadRequestException(
+          `SC "${sc.scNumber}" cannot be completed from status ${sc.status}. Must be IN_PRODUCTION or ADDITIONAL_REQUEST.`,
+        );
+      }
+
+      // 2. Check pending Additional Requests
+      const hasPendingAddl = scWithRelations?.additionalRequests?.some(
+        (r) =>
+          r.status === AdditionalRequestStatus.REQUESTED ||
+          r.status === AdditionalRequestStatus.APPROVED,
+      );
+      if (hasPendingAddl) {
+        throw new BadRequestException(
+          `Cannot complete SC with pending additional material requests.`,
+        );
+      }
+
+      // 3. Check pending Material Returns
+      const hasPendingReturns = await queryRunner.manager
+        .createQueryBuilder('material_returns', 'mr')
+        .where('mr.sc_id = :id', { id })
+        .andWhere('mr.status = :status', { status: ReturnStatus.PENDING_STORE_ACK })
+        .getCount() > 0;
+      if (hasPendingReturns) {
+        throw new BadRequestException(
+          `Cannot complete SC with pending material returns awaiting Stores ACK.`,
+        );
+      }
+
+      // 4. Check Unaccounted = 0
+      const accounting = await this.productionService.getAccounting(id);
+      for (const item of accounting.items) {
+        if (item.unaccounted > 0) {
+          throw new BadRequestException(
+            `Cannot complete SC: RM Item ${item.rmItemId} has ${item.unaccounted} unaccounted quantity.`,
+          );
+        }
+      }
+
+      sc.status = ScStatus.COMPLETED;
+      sc.completedAt = new Date();
+      sc.completedById = actorId;
+      sc.completionRemarks = dto?.remarks;
+
+      await queryRunner.manager.save(SalesOrderComponent, sc);
+      await queryRunner.commitTransaction();
+
+      return this.findOne(id);
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
     }
-
-    sc.status = ScStatus.COMPLETED;
-    sc.completedAt = new Date();
-    sc.completedById = actorId;
-    sc.completionRemarks = dto?.remarks;
-
-    return this.scRepo.save(sc);
   }
 
   async closeSc(id: string, actorId: string, dto?: CloseScDto) {
-    const sc = await this.findOne(id);
-    if (sc.status === ScStatus.CLOSED) {
-      throw new BadRequestException(`SC "${sc.scNumber}" is already CLOSED.`);
-    }
-    if (sc.status !== ScStatus.COMPLETED) {
-      throw new BadRequestException(
-        `SC "${sc.scNumber}" cannot be closed from status ${sc.status}. Must be COMPLETED first.`,
-      );
-    }
+    const queryRunner = this.scRepo.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    sc.status = ScStatus.CLOSED;
-    sc.completionRemarks = dto?.remarks
-      ? `${sc.completionRemarks || ''} [Closed: ${dto.remarks}]`
-      : sc.completionRemarks;
+    try {
+      const sc = await queryRunner.manager.findOne(SalesOrderComponent, {
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
 
-    return this.scRepo.save(sc);
+      if (!sc) {
+        throw new NotFoundException(`Sales Order Component with ID "${id}" not found.`);
+      }
+
+      if (sc.status === ScStatus.CLOSED) {
+        throw new BadRequestException(`SC "${sc.scNumber}" is already CLOSED.`);
+      }
+      if (sc.status !== ScStatus.COMPLETED) {
+        throw new BadRequestException(
+          `SC "${sc.scNumber}" cannot be closed from status ${sc.status}. Must be COMPLETED first.`,
+        );
+      }
+
+      sc.status = ScStatus.CLOSED;
+      sc.completionRemarks = dto?.remarks
+        ? `${sc.completionRemarks || ''} [Closed: ${dto.remarks}]`
+        : sc.completionRemarks;
+
+      await queryRunner.manager.save(SalesOrderComponent, sc);
+      await queryRunner.commitTransaction();
+
+      return this.findOne(id);
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 }

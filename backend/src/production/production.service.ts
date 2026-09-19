@@ -59,30 +59,37 @@ export class ProductionService {
   ) {}
 
   async receiveMaterial(dto: CreateProductionReceiptDto, actorId: string) {
-    const issue = await this.issueRepo.findOne({
-      where: { id: dto.materialIssueId },
-      relations: { salesOrderComponent: true, items: true },
-    });
-    if (!issue) {
-      throw new NotFoundException(
-        `Material Issue with ID "${dto.materialIssueId}" not found.`,
-      );
-    }
-
-    const sc = issue.salesOrderComponent;
-    StateMachineValidator.assertScActive(sc.status, 'Receive Material');
-
-    // Prevent over-receipt by querying all existing receipts for this issue
-    const existingReceipts = await this.receiptRepo.find({
-      where: { materialIssueId: issue.id },
-      relations: { items: true },
-    });
-
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
+      // 1. Lock the Material Issue to serialize all receipts for it
+      const issue = await queryRunner.manager.findOne(MaterialIssue, {
+        where: { id: dto.materialIssueId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!issue) {
+        throw new NotFoundException(
+          `Material Issue with ID "${dto.materialIssueId}" not found.`,
+        );
+      }
+
+      const issueWithRelations = await queryRunner.manager.findOne(MaterialIssue, {
+        where: { id: issue.id },
+        relations: { salesOrderComponent: true, items: true },
+      });
+
+      const sc = issueWithRelations!.salesOrderComponent;
+      StateMachineValidator.assertScActive(sc.status, 'Receive Material');
+
+      // 2. Prevent over-receipt by querying all existing receipts for this issue within the transaction
+      const existingReceipts = await queryRunner.manager.find(MaterialReceipt, {
+        where: { materialIssueId: issue.id },
+        relations: { items: true },
+      });
+
       const receipt = this.receiptRepo.create({
         materialIssueId: issue.id,
         receivedById: actorId,
@@ -102,7 +109,7 @@ export class ProductionService {
           'Quantity Received',
         );
 
-        const issueItem = issue.items.find(
+        const issueItem = issueWithRelations!.items.find(
           (i) => i.rmItemId === itemDto.rmItemId,
         );
         if (!issueItem) {
@@ -242,18 +249,38 @@ export class ProductionService {
       }
       totalConsumed = QuantityCalculator.roundDecimal(totalConsumed);
 
-      // 4. Validate quantity
-      const availableForConsumption = QuantityCalculator.roundDecimal(
-        totalReceived - totalConsumed,
+      // 4. Fetch all previous valid returns for this SC/Item to deduct from WIP
+      const allReturns = await queryRunner.manager.find(MaterialReturn, {
+        where: { scId: dto.scId },
+        relations: { items: true },
+      });
+
+      let totalReturned = 0;
+      for (const ret of allReturns) {
+        if (ret.status !== ReturnStatus.REJECTED) {
+          for (const item of (ret.items || [])) {
+            if (item.rmItemId === dto.rmItemId) {
+              totalReturned += Number(item.quantityReturned) || 0;
+            }
+          }
+        }
+      }
+      totalReturned = QuantityCalculator.roundDecimal(totalReturned);
+
+      // 5. Validate quantity against WIP
+      const availableWip = QuantityCalculator.calculateWip(
+        totalReceived,
+        totalConsumed,
+        totalReturned,
       );
 
       QuantityCalculator.assertWithinLimit(
         dto.quantityConsumed,
-        availableForConsumption,
-        `Consumption quantity exceeds remaining received material for "${rmItem.material}".`,
+        availableWip,
+        `Consumption quantity exceeds remaining available WIP for "${rmItem.material}".`,
       );
 
-      // 5. Create consumption record
+      // 6. Create consumption record
       const consumption = queryRunner.manager.create(MaterialConsumption, {
         scId: dto.scId,
         rmItemId: dto.rmItemId,
@@ -366,7 +393,7 @@ export class ProductionService {
           }
         }
 
-        const unaccounted = QuantityCalculator.calculateUnaccounted(
+        const availableWip = QuantityCalculator.calculateWip(
           totalReceived,
           totalConsumed,
           totalReturned,
@@ -374,8 +401,8 @@ export class ProductionService {
 
         QuantityCalculator.assertWithinLimit(
           itemDto.quantityReturned,
-          unaccounted,
-          `Returned quantity exceeds unaccounted material.`,
+          availableWip,
+          `Returned quantity exceeds available WIP material.`,
         );
 
         const returnItem = queryRunner.manager.create(MaterialReturnItem, {
@@ -571,10 +598,28 @@ export class ProductionService {
       });
       returned = QuantityCalculator.roundDecimal(returned);
 
+      let pendingReturned = 0;
+      (sc.materialReturns || []).forEach((ret) => {
+        if (ret.status === ReturnStatus.PENDING_STORE_ACK) {
+          (ret.items || []).forEach((item) => {
+            if (item.rmItemId === rmItem.id) {
+              pendingReturned += Number(item.quantityReturned) || 0;
+            }
+          });
+        }
+      });
+      pendingReturned = QuantityCalculator.roundDecimal(pendingReturned);
+
       const unaccounted = QuantityCalculator.calculateUnaccounted(
         received,
         consumed,
         returned,
+      );
+
+      const wip = QuantityCalculator.calculateWip(
+        received,
+        consumed,
+        returned + pendingReturned,
       );
 
       return {
@@ -587,6 +632,8 @@ export class ProductionService {
         received,
         consumed,
         returned,
+        pendingReturned,
+        wip,
         unaccounted,
       };
     });
