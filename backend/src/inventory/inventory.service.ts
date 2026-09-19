@@ -386,33 +386,43 @@ export class InventoryService {
 
     const txAgg = await this.stockTransactionRepository
       .createQueryBuilder('tx')
-      .select('tx.source_bin_id', 'sourceBinId')
+      .select('tx.product_id', 'productId')
+      .addSelect('tx.source_bin_id', 'sourceBinId')
       .addSelect('tx.destination_bin_id', 'destinationBinId')
       .addSelect('tx.transaction_type', 'type')
+      .addSelect('tx.adjustment_direction', 'adjustmentDirection')
       .addSelect('SUM(tx.quantity)', 'total')
-      .groupBy('tx.source_bin_id')
+      .groupBy('tx.product_id')
+      .addGroupBy('tx.source_bin_id')
       .addGroupBy('tx.destination_bin_id')
       .addGroupBy('tx.transaction_type')
+      .addGroupBy('tx.adjustment_direction')
       .getRawMany();
 
     const binReconResults = binBalances.map((b) => {
       const currentQty = Number(b.currentQuantity) || 0;
       const binId = b.binId;
+      const productId = b.productId;
 
       let inQty = 0;
       let outQty = 0;
 
       for (const row of txAgg) {
         const qty = parseFloat(row.total) || 0;
+        
+        if (productId && row.productId && row.productId !== productId) {
+          continue; // Skip movements of other products in the same bin
+        }
+
         if (
           row.destinationBinId === binId &&
-          (row.type === 'STOCK_IN' || row.type === 'RETURN')
+          (row.type === 'STOCK_IN' || row.type === 'RETURN' || row.type === 'TRANSFER' || (row.type === 'ADJUSTMENT' && row.adjustmentDirection === 'INCREASE'))
         ) {
           inQty += qty;
         }
         if (
           row.sourceBinId === binId &&
-          (row.type === 'STOCK_OUT' || row.type === 'STORES_ISSUE')
+          (row.type === 'STOCK_OUT' || row.type === 'STORES_ISSUE' || row.type === 'TRANSFER' || (row.type === 'ADJUSTMENT' && row.adjustmentDirection === 'DECREASE'))
         ) {
           outQty += qty;
         }
