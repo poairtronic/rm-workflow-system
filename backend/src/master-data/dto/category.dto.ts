@@ -1,9 +1,11 @@
 import { IsString, IsNotEmpty, MaxLength, IsOptional, IsBoolean } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateCategoryDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
-  @IsNotEmpty()
-  @MaxLength(100)
+  @IsNotEmpty({ message: 'Category name must not be empty' })
+  @MaxLength(100, { message: 'Category name must not exceed 100 characters' })
   name!: string;
 
   @IsOptional()
@@ -13,9 +15,10 @@ export class CreateCategoryDto {
 
 export class UpdateCategoryDto {
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
-  @IsNotEmpty()
-  @MaxLength(100)
+  @IsNotEmpty({ message: 'Category name must not be empty' })
+  @MaxLength(100, { message: 'Category name must not exceed 100 characters' })
   name?: string;
 
   @IsOptional()

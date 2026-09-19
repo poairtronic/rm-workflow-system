@@ -67,7 +67,10 @@ export class MasterDataService {
   // 1. PRODUCT CATEGORIES
   // ==========================================
   async createCategory(dto: CreateCategoryDto) {
-    const trimmedName = dto.name.trim();
+    const trimmedName = dto.name?.trim();
+    if (!trimmedName) {
+      throw new BadRequestException('Category name cannot be empty.');
+    }
     const existing = await this.categoryRepo
       .createQueryBuilder('c')
       .where('LOWER(c.name) = LOWER(:name)', { name: trimmedName })
@@ -119,6 +122,9 @@ export class MasterDataService {
 
     if (dto.name !== undefined) {
       const trimmedName = dto.name.trim();
+      if (!trimmedName) {
+        throw new BadRequestException('Category name cannot be empty.');
+      }
       const existing = await this.categoryRepo
         .createQueryBuilder('c')
         .where('LOWER(c.name) = LOWER(:name)', { name: trimmedName })
@@ -136,6 +142,22 @@ export class MasterDataService {
     }
 
     return this.categoryRepo.save(category);
+  }
+
+  async deleteCategory(id: string) {
+    const category = await this.findCategoryById(id);
+    const familyCount = await this.familyRepo.count({
+      where: { categoryId: id },
+    });
+
+    if (familyCount > 0) {
+      throw new ConflictException(
+        `Cannot delete category "${category.name}" because it contains ${familyCount} product families. Deactivate it instead.`,
+      );
+    }
+
+    await this.categoryRepo.remove(category);
+    return { success: true, message: `Category "${category.name}" deleted successfully.` };
   }
 
   // ==========================================

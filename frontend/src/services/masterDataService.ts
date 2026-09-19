@@ -105,11 +105,17 @@ export const masterDataService = {
   getCategories: async (params?: MasterFilterParams): Promise<PaginatedResponse<Category>> => {
     return api.get<PaginatedResponse<Category>>(`/categories${buildQuery(params)}`);
   },
+  getCategoryById: async (id: string): Promise<Category> => {
+    return api.get<Category>(`/categories/${id}`);
+  },
   createCategory: async (data: { name: string; isActive?: boolean }): Promise<Category> => {
     return api.post<Category>('/categories', data);
   },
   updateCategory: async (id: string, data: { name?: string; isActive?: boolean }): Promise<Category> => {
     return api.patch<Category>(`/categories/${id}`, data);
+  },
+  deleteCategory: async (id: string): Promise<{ success: boolean; message: string }> => {
+    return api.delete<{ success: boolean; message: string }>(`/categories/${id}`);
   },
 
   // Families

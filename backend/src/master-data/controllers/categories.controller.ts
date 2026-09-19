@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -52,17 +53,23 @@ export class CategoriesController {
   }
 
   @Post()
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STORES)
   createCategory(@Body() dto: CreateCategoryDto) {
     return this.masterDataService.createCategory(dto);
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STORES)
   updateCategory(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateCategoryDto,
   ) {
     return this.masterDataService.updateCategory(id, dto);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.STORES)
+  deleteCategory(@Param('id', ParseUUIDPipe) id: string) {
+    return this.masterDataService.deleteCategory(id);
   }
 }

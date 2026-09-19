@@ -79,6 +79,26 @@ class ApiClient {
     }
     return response.json();
   }
+
+  async delete<T>(endpoint: string): Promise<T> {
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    if (!response.ok) {
+      let errorMsg = `DELETE ${endpoint} failed: ${response.status} ${response.statusText}`;
+      try {
+        const errorJson = await response.json();
+        if (errorJson?.message) {
+          errorMsg = Array.isArray(errorJson.message)
+            ? errorJson.message.join(', ')
+            : errorJson.message;
+        }
+      } catch {}
+      throw new Error(errorMsg);
+    }
+    return response.json();
+  }
 }
 
 export const api = new ApiClient();
