@@ -1,4 +1,4 @@
-import {
+﻿import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
@@ -23,6 +23,7 @@ export enum FormType {
 export enum RmRequestStatus {
   DRAFT = 'DRAFT',
   SUBMITTED = 'SUBMITTED',
+  REVIEWED = 'REVIEWED',
   COMPLETED = 'COMPLETED',
 }
 
@@ -90,6 +91,20 @@ export class RmRequest {
   })
   completedAt?: Date;
 
+    @Column({
+    name: 'reviewed_at',
+    type: 'timestamp with time zone',
+    nullable: true,
+  })
+  reviewedAt?: Date;
+
+  @Column({ name: 'reviewed_by_id', nullable: true })
+  reviewedById?: string;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'reviewed_by_id' })
+  reviewedBy?: User;
+
   @OneToMany(() => RmItem, (item) => item.rmRequest, { cascade: true })
   items!: RmItem[];
 
@@ -102,3 +117,5 @@ export class RmRequest {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt!: Date;
 }
+
+

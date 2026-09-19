@@ -1,4 +1,4 @@
-import {
+﻿import {
   Controller,
   Get,
   Post,
@@ -15,6 +15,7 @@ import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { UserRole } from '../auth/enums/role.enum.js';
 import { CreateRmDto, CreateRmItemDto, SubmitRmDto } from './dto/rm.dto.js';
+import { StoresReviewRmDto } from './dto/stores-review.dto.js';
 import { RmRequestStatus } from './entities/rm-request.entity.js';
 
 @Controller('api/rm')
@@ -46,6 +47,16 @@ export class RmController {
     return this.rmService.submitRm(id, dto);
   }
 
+  @Post(':id/review')
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  reviewRm(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: StoresReviewRmDto,
+    @Req() req: any,
+  ) {
+    return this.rmService.reviewRm(id, dto, req.user.userId);
+  }
+
   @Get()
   @Roles(
     UserRole.ADMIN,
@@ -75,3 +86,5 @@ export class RmController {
     return this.rmService.findOne(id);
   }
 }
+
+

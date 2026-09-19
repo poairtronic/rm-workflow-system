@@ -1,4 +1,4 @@
-import {
+﻿import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
@@ -14,6 +14,13 @@ import type { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
 import type { MaterialIssueItem } from '../../material-issue/entities/material-issue-item.entity.js';
 import type { MaterialConsumption } from '../../production/entities/material-consumption.entity.js';
 import type { MaterialReturnItem } from '../../production/entities/material-return-item.entity.js';
+import type { Product } from '../../inventory/entities/product.entity.js';
+
+export enum AvailabilityStatus {
+  AVAILABLE = 'AVAILABLE',
+  PARTIAL = 'PARTIAL',
+  NOT_AVAILABLE = 'NOT_AVAILABLE',
+}
 
 @Entity('rm_items')
 export class RmItem {
@@ -112,6 +119,30 @@ export class RmItem {
   @Column({ type: 'text', nullable: true })
   remarks?: string;
 
+    @Column({ name: 'mapped_product_id', nullable: true })
+  mappedProductId?: string;
+
+  @ManyToOne('Product', { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'mapped_product_id' })
+  mappedProduct?: Product;
+
+  @Column({
+    name: 'availability_status',
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+  })
+  availabilityStatus?: AvailabilityStatus;
+
+  @Column({
+    name: 'available_quantity_snapshot',
+    type: 'numeric',
+    precision: 12,
+    scale: 3,
+    nullable: true,
+  })
+  availableQuantitySnapshot?: number;
+
   @OneToMany('MaterialIssueItem', (item: MaterialIssueItem) => item.rmItem)
   materialIssues!: MaterialIssueItem[];
 
@@ -127,3 +158,4 @@ export class RmItem {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt!: Date;
 }
+
