@@ -67,9 +67,17 @@ export class MaterialIssueService {
 
         const rmItem = await queryRunner.manager.findOne(RmItem, {
           where: { id: itemDto.rmItemId },
+          relations: { rmRequest: true },
         });
         if (!rmItem) {
           throw new NotFoundException(`RM Item "${itemDto.rmItemId}" not found.`);
+        }
+        
+        if (rmItem.rmRequest.status !== 'REVIEWED') {
+          throw new BadRequestException(`RM Request must be REVIEWED before Material Issue. Current status: ${rmItem.rmRequest.status}`);
+        }
+        if (!rmItem.mappedProductId) {
+          throw new BadRequestException(`RM Item "${rmItem.id}" has no mapped Product. Stores Review must explicitly map it first.`);
         }
 
         const bin = await queryRunner.manager.findOne(Bin, {
@@ -82,15 +90,10 @@ export class MaterialIssueService {
           throw new BadRequestException(`Bin "${bin.code}" is inactive.`);
         }
 
-        // Check bin stock balance
+        // Check bin stock balance targeting specifically the mapped product
         let balance = await queryRunner.manager.findOne(StockBalance, {
-          where: { binId: itemDto.binId },
+          where: { binId: itemDto.binId, productId: rmItem.mappedProductId },
         });
-        if (!balance && rmItem.material) {
-          balance = await queryRunner.manager.findOne(StockBalance, {
-            where: { id: itemDto.binId },
-          });
-        }
 
         const availQty = balance ? QuantityCalculator.roundDecimal(Number(balance.currentQuantity)) : 0;
         const requestedQty = QuantityCalculator.roundDecimal(itemDto.quantityIssued);
@@ -98,24 +101,25 @@ export class MaterialIssueService {
         QuantityCalculator.assertWithinLimit(
           requestedQty,
           availQty,
-          `Insufficient stock in bin "${bin.code}". Available: ${availQty}, Required: ${requestedQty}`,
+          `Insufficient stock for Product in bin "${bin.code}". Available: ${availQty}, Required: ${requestedQty}`,
         );
 
-        // Atomic stock decrement
+        // Atomic stock decrement matching product and bin
         const updateResult = await queryRunner.manager.query(
           `UPDATE stock_balances 
            SET current_quantity = current_quantity - $1, updated_at = NOW() 
-           WHERE bin_id = $2 AND current_quantity >= $1`,
-          [requestedQty, itemDto.binId],
+           WHERE bin_id = $2 AND product_id = $3 AND current_quantity >= $1`,
+          [requestedQty, itemDto.binId, rmItem.mappedProductId],
         );
 
         if (updateResult[1] === 0) {
-          throw new BadRequestException(`Insufficient stock in bin "${bin.code}".`);
+          throw new BadRequestException(`Insufficient stock in bin "${bin.code}". Concurrency conflict or no balance found.`);
         }
 
         // Log immutable StockTransaction
         const tx = queryRunner.manager.create(StockTransaction, {
           transactionType: TransactionType.STORES_ISSUE,
+          productId: rmItem.mappedProductId,
           sourceBinId: itemDto.binId,
           quantity: requestedQty,
           referenceType: 'MATERIAL_ISSUE',
@@ -127,8 +131,8 @@ export class MaterialIssueService {
 
         // Update last_transaction_id on stock balance
         await queryRunner.manager.query(
-          `UPDATE stock_balances SET last_transaction_id = $1 WHERE bin_id = $2`,
-          [savedTx.id, itemDto.binId],
+          `UPDATE stock_balances SET last_transaction_id = $1 WHERE bin_id = $2 AND product_id = $3`,
+          [savedTx.id, itemDto.binId, rmItem.mappedProductId],
         );
 
         const issueItem = queryRunner.manager.create(MaterialIssueItem, {

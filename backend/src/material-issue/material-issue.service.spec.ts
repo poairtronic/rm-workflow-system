@@ -33,7 +33,7 @@ describe('MaterialIssueService', () => {
       manager: {
         save: vi.fn((entity, data) => Promise.resolve({ id: 'saved-id', ...data })),
         findOne: vi.fn((entity, options) => {
-          if (options.where?.id === 'rm-item-1') return Promise.resolve({ id: 'rm-item-1', material: 'Steel' });
+          if (options.where?.id === 'rm-item-1') return Promise.resolve({ id: 'rm-item-1', material: 'Steel', mappedProductId: 'prod-1', rmRequest: { status: 'REVIEWED' } });
           if (options.where?.id === 'bin-1') return Promise.resolve({ id: 'bin-1', code: 'BIN-A1', isActive: true });
           if (options.where?.binId === 'bin-1') return Promise.resolve({ currentQuantity: 100 });
           return Promise.resolve(null);
@@ -83,7 +83,7 @@ describe('MaterialIssueService', () => {
     // Override manager findOne to return insufficient stock
     const qr = dataSource.createQueryRunner();
     qr.manager.findOne = vi.fn((entity, options) => {
-      if (options.where?.id === 'rm-item-1') return Promise.resolve({ id: 'rm-item-1' });
+      if (options.where?.id === 'rm-item-1') return Promise.resolve({ id: 'rm-item-1', mappedProductId: 'prod-1', rmRequest: { status: 'REVIEWED' } });
       if (options.where?.id === 'bin-1') return Promise.resolve({ id: 'bin-1', code: 'BIN-A1', isActive: true });
       if (options.where?.binId === 'bin-1') return Promise.resolve({ currentQuantity: 5 }); // Only 5 available!
       return Promise.resolve(null);
