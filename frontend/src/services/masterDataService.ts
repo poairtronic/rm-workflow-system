@@ -168,11 +168,17 @@ export const masterDataService = {
   getWarehouses: async (params?: MasterFilterParams): Promise<PaginatedResponse<Warehouse>> => {
     return api.get<PaginatedResponse<Warehouse>>(`/warehouses${buildQuery(params)}`);
   },
+  getWarehouseById: async (id: string): Promise<Warehouse> => {
+    return api.get<Warehouse>(`/warehouses/${id}`);
+  },
   createWarehouse: async (data: { code: string; name: string; isActive?: boolean }): Promise<Warehouse> => {
     return api.post<Warehouse>('/warehouses', data);
   },
   updateWarehouse: async (id: string, data: { code?: string; name?: string; isActive?: boolean }): Promise<Warehouse> => {
     return api.patch<Warehouse>(`/warehouses/${id}`, data);
+  },
+  deleteWarehouse: async (id: string): Promise<{ success: boolean; message: string }> => {
+    return api.delete<{ success: boolean; message: string }>(`/warehouses/${id}`);
   },
 
   // Locations

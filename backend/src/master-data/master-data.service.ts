@@ -493,6 +493,22 @@ export class MasterDataService {
     return this.warehouseRepo.save(warehouse);
   }
 
+  async deleteWarehouse(id: string) {
+    const warehouse = await this.findWarehouseById(id);
+    const locationCount = await this.locationRepo.count({
+      where: { warehouseId: id },
+    });
+
+    if (locationCount > 0) {
+      throw new ConflictException(
+        `Cannot delete warehouse "${warehouse.name}" because it contains ${locationCount} locations. Deactivate it instead.`,
+      );
+    }
+
+    await this.warehouseRepo.remove(warehouse);
+    return { success: true, message: `Warehouse "${warehouse.name}" deleted successfully.` };
+  }
+
   // ==========================================
   // 5. WAREHOUSE LOCATIONS
   // ==========================================

@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -64,5 +65,11 @@ export class WarehousesController {
     @Body() dto: UpdateWarehouseDto,
   ) {
     return this.masterDataService.updateWarehouse(id, dto);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.STORES)
+  deleteWarehouse(@Param('id', ParseUUIDPipe) id: string) {
+    return this.masterDataService.deleteWarehouse(id);
   }
 }
