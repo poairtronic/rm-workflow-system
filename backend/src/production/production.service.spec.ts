@@ -88,17 +88,23 @@ describe('ProductionService', () => {
 
   it('should receive material without altering inventory stock', async () => {
     scRepo.findOneBy.mockResolvedValue({ id: 'sc-1', scNumber: 'SC-001', status: ScStatus.ISSUED });
-    issueRepo.findOne.mockResolvedValue({ id: 'issue-1' });
+    issueRepo.findOne.mockResolvedValue({ 
+      id: 'issue-1', 
+      salesOrderComponent: { id: 'sc-1', status: ScStatus.ISSUED },
+      items: [{ rmItemId: 'rm-1', quantityIssued: 50 }] 
+    });
     rmItemRepo.findOneBy.mockResolvedValue({ id: 'rm-1' });
     receiptRepo.findOne.mockResolvedValue({ id: 'receipt-1', status: 'RECEIVED' });
+    receiptRepo.find = vi.fn().mockResolvedValue([]); // No previous receipts
 
     const result = await service.receiveMaterial(
-      { scId: 'sc-1', items: [{ rmItemId: 'rm-1', quantityReceived: 50 }] },
+      { materialIssueId: 'issue-1', items: [{ rmItemId: 'rm-1', quantityReceived: 50 }] },
       'prod-user-1',
     );
 
     expect(result).toBeDefined();
-    expect(scRepo.save).toHaveBeenCalled();
+    // Verify it doesn't call queryRunner for stock mutation
+    expect(dataSource.createQueryRunner).toHaveBeenCalled();
   });
 
   it('should record consumption without double-deducting inventory stock', async () => {

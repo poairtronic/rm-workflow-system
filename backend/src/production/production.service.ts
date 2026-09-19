@@ -50,55 +50,105 @@ export class ProductionService {
   ) {}
 
   async receiveMaterial(dto: CreateProductionReceiptDto, actorId: string) {
-    const sc = await this.scRepo.findOneBy({ id: dto.scId });
-    if (!sc) {
-      throw new NotFoundException(`Sales Order Component with ID "${dto.scId}" not found.`);
+    const issue = await this.issueRepo.findOne({
+      where: { id: dto.materialIssueId },
+      relations: { salesOrderComponent: true, items: true },
+    });
+    if (!issue) {
+      throw new NotFoundException(`Material Issue with ID "${dto.materialIssueId}" not found.`);
     }
 
+    const sc = issue.salesOrderComponent;
     StateMachineValidator.assertScActive(sc.status, 'Receive Material');
 
-    const latestIssue = await this.issueRepo.findOne({
-      where: { scId: dto.scId },
-      order: { createdAt: 'DESC' },
+    // Prevent over-receipt by querying all existing receipts for this issue
+    const existingReceipts = await this.receiptRepo.find({
+      where: { materialIssueId: issue.id },
+      relations: { items: true },
     });
-    if (!latestIssue) {
-      throw new BadRequestException(`No Material Issue found for SC "${sc.scNumber}".`);
-    }
 
-    const receipt = this.receiptRepo.create({
-      materialIssueId: latestIssue.id,
-      receivedById: actorId,
-      status: ReceiptStatus.RECEIVED,
-      remarks: dto.remarks,
-    });
-    const savedReceipt = await this.receiptRepo.save(receipt);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    for (const itemDto of dto.items) {
-      QuantityCalculator.assertPositive(itemDto.quantityReceived, 'Quantity Received');
+    try {
+      const receipt = this.receiptRepo.create({
+        materialIssueId: issue.id,
+        receivedById: actorId,
+        status: ReceiptStatus.RECEIVED,
+        remarks: dto.remarks,
+      });
+      const savedReceipt = await queryRunner.manager.save(MaterialReceipt, receipt);
 
-      const rmItem = await this.rmItemRepo.findOneBy({ id: itemDto.rmItemId });
-      if (!rmItem) {
-        throw new NotFoundException(`RM Item "${itemDto.rmItemId}" not found.`);
+      let hasPartial = false;
+
+      for (const itemDto of dto.items) {
+        QuantityCalculator.assertPositive(itemDto.quantityReceived, 'Quantity Received');
+
+        const issueItem = issue.items.find(i => i.rmItemId === itemDto.rmItemId);
+        if (!issueItem) {
+          throw new BadRequestException(`RM Item "${itemDto.rmItemId}" was not part of Material Issue "${issue.id}".`);
+        }
+
+        let prevReceived = 0;
+        for (const er of existingReceipts) {
+          for (const eri of er.items) {
+            if (eri.rmItemId === itemDto.rmItemId) {
+              prevReceived += Number(eri.quantityReceived);
+            }
+          }
+        }
+
+        const maxAllowed = QuantityCalculator.roundDecimal(Number(issueItem.quantityIssued) - prevReceived);
+        if (maxAllowed <= 0) {
+           throw new BadRequestException(`Material Issue for RM Item "${itemDto.rmItemId}" has already been fully received.`);
+        }
+        
+        const receivedQty = QuantityCalculator.roundDecimal(itemDto.quantityReceived);
+        QuantityCalculator.assertWithinLimit(
+          receivedQty,
+          maxAllowed,
+          `Cannot receive more than issued. Remaining to receive: ${maxAllowed}`,
+        );
+
+        if (receivedQty < maxAllowed) {
+           hasPartial = true;
+        }
+
+        const receiptItem = this.receiptItemRepo.create({
+          materialReceiptId: savedReceipt.id,
+          rmItemId: itemDto.rmItemId,
+          quantityReceived: receivedQty,
+          remarks: itemDto.remarks,
+        });
+        await queryRunner.manager.save(MaterialReceiptItem, receiptItem);
       }
 
-      const receiptItem = this.receiptItemRepo.create({
-        materialReceiptId: savedReceipt.id,
-        rmItemId: itemDto.rmItemId,
-        quantityReceived: QuantityCalculator.roundDecimal(itemDto.quantityReceived),
-        remarks: itemDto.remarks,
+      if (hasPartial) {
+        savedReceipt.status = ReceiptStatus.PARTIAL;
+        await queryRunner.manager.save(MaterialReceipt, savedReceipt);
+      }
+
+      if (sc.status !== ScStatus.IN_PRODUCTION) {
+        sc.status = ScStatus.IN_PRODUCTION;
+        await queryRunner.manager.save(SalesOrderComponent, sc);
+      }
+
+      await queryRunner.commitTransaction();
+
+      // CRITICAL: Production receipt DOES NOT alter inventory stock
+      return this.receiptRepo.findOne({
+        where: { id: savedReceipt.id },
+        relations: { items: { rmItem: true }, receivedBy: true },
       });
-      await this.receiptItemRepo.save(receiptItem);
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
     }
-
-    sc.status = ScStatus.IN_PRODUCTION;
-    await this.scRepo.save(sc);
-
-    // CRITICAL: Production receipt DOES NOT alter inventory stock
-    return this.receiptRepo.findOne({
-      where: { id: savedReceipt.id },
-      relations: { items: { rmItem: true }, receivedBy: true },
-    });
   }
+
 
   async recordConsumption(dto: CreateMaterialConsumptionDto, actorId: string) {
     QuantityCalculator.assertPositive(dto.quantityConsumed, 'Quantity Consumed');

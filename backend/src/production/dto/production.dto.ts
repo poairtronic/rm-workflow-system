@@ -28,7 +28,11 @@ export class ReceiptItemDto {
 export class CreateProductionReceiptDto {
   @IsUUID('4')
   @IsNotEmpty()
-  scId!: string;
+  materialIssueId!: string;
+
+  @IsOptional()
+  @IsUUID('4')
+  scId?: string;
 
   @IsArray()
   @ValidateNested({ each: true })
