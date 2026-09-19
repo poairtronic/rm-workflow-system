@@ -1,0 +1,18 @@
+$kind: http-request
+name: 'Get All SCs'
+method: GET
+url: '{{base_url}}/api/sc'
+order: 2000
+queryParams:
+  - key: poNumber
+    value: ''
+    disabled: true
+  - key: scNumber
+    value: ''
+    disabled: true
+  - key: status
+    value: ''
+    disabled: true
+  - key: search
+    value: ''
+    disabled: true

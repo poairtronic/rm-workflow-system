@@ -1,0 +1,18 @@
+$kind: http-request
+name: 'Update Inventory Item'
+method: PATCH
+url: '{{base_url}}/api/inventory/:id'
+order: 7000
+pathVariables:
+  - key: id
+    value: '{{inventory_item_id}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "quantity": 150,
+      "notes": "Updated stock"
+    }

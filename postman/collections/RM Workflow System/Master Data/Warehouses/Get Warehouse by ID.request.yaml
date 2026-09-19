@@ -1,0 +1,8 @@
+$kind: http-request
+name: 'Get Warehouse by ID'
+method: GET
+url: '{{base_url}}/api/warehouses/:id'
+order: 2000
+pathVariables:
+  - key: id
+    value: '{{warehouse_id}}'

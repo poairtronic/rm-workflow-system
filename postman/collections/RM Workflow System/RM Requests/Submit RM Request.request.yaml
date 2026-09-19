@@ -1,0 +1,17 @@
+$kind: http-request
+name: 'Submit RM Request'
+method: POST
+url: '{{base_url}}/api/rm/:id/submit'
+order: 3000
+pathVariables:
+  - key: id
+    value: '{{rm_id}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "notes": "Submitting for approval"
+    }

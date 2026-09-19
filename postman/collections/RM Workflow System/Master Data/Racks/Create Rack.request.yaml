@@ -1,0 +1,17 @@
+$kind: http-request
+name: 'Create Rack'
+method: POST
+url: '{{base_url}}/api/racks'
+order: 3000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "Rack A1",
+      "code": "RACK-A1",
+      "locationId": "{{location_id}}",
+      "description": "Rack A1 in Zone A"
+    }

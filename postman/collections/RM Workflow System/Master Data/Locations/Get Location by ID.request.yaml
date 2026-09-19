@@ -1,0 +1,8 @@
+$kind: http-request
+name: 'Get Location by ID'
+method: GET
+url: '{{base_url}}/api/locations/:id'
+order: 2000
+pathVariables:
+  - key: id
+    value: '{{location_id}}'

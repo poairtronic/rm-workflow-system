@@ -1,0 +1,5 @@
+$kind: http-request
+name: 'Get Profile (Me)'
+method: GET
+url: '{{base_url}}/api/auth/me'
+order: 4000

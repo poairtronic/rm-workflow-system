@@ -1,0 +1,8 @@
+$kind: http-request
+name: 'Get Additional Request by ID'
+method: GET
+url: '{{base_url}}/api/additional-requests/:id'
+order: 3000
+pathVariables:
+  - key: id
+    value: '{{additional_request_id}}'

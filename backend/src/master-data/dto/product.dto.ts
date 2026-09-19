@@ -1,4 +1,5 @@
 import { IsString, IsNotEmpty, MaxLength, IsUUID, IsNumber, Min, IsOptional, IsBoolean } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateProductDto {
   @IsUUID('4')
@@ -6,6 +7,7 @@ export class CreateProductDto {
   familyId!: string;
 
   @IsString()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsNotEmpty()
   @MaxLength(255)
   name!: string;
@@ -32,6 +34,7 @@ export class UpdateProductDto {
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsNotEmpty()
   @MaxLength(255)
   name?: string;

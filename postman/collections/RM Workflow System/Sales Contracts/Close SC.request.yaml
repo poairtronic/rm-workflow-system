@@ -1,0 +1,17 @@
+$kind: http-request
+name: 'Close SC'
+method: POST
+url: '{{base_url}}/api/sc/:id/close'
+order: 5000
+pathVariables:
+  - key: id
+    value: '{{sc_id}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "notes": "SC closed"
+    }

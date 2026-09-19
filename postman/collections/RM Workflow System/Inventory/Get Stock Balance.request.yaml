@@ -1,0 +1,8 @@
+$kind: http-request
+name: 'Get Stock Balance'
+method: GET
+url: '{{base_url}}/api/inventory/:id/stock'
+order: 8000
+pathVariables:
+  - key: id
+    value: '{{inventory_item_id}}'

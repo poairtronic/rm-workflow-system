@@ -1,0 +1,8 @@
+$kind: http-request
+name: 'Get Rack by ID'
+method: GET
+url: '{{base_url}}/api/racks/:id'
+order: 2000
+pathVariables:
+  - key: id
+    value: '{{rack_id}}'

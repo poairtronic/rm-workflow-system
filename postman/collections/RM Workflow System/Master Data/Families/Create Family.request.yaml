@@ -1,0 +1,15 @@
+$kind: http-request
+name: 'Create Family'
+method: POST
+url: '{{base_url}}/api/families'
+order: 3000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "Steel Products",
+      "description": "Family for steel products"
+    }

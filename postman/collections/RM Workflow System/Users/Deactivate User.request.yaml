@@ -1,0 +1,8 @@
+$kind: http-request
+name: 'Deactivate User'
+method: PATCH
+url: '{{base_url}}/api/users/:id/deactivate'
+order: 6000
+pathVariables:
+  - key: id
+    value: '{{user_id}}'

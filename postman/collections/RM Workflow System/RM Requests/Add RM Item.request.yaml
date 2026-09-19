@@ -1,0 +1,20 @@
+$kind: http-request
+name: 'Add RM Item'
+method: POST
+url: '{{base_url}}/api/rm/:id/items'
+order: 2000
+pathVariables:
+  - key: id
+    value: '{{rm_id}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "productId": "{{product_id}}",
+      "quantity": 10,
+      "unit": "pcs",
+      "notes": "Item notes"
+    }

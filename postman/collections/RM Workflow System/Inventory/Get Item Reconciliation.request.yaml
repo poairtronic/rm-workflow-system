@@ -1,0 +1,8 @@
+$kind: http-request
+name: 'Get Item Reconciliation'
+method: GET
+url: '{{base_url}}/api/inventory/:id/reconciliation'
+order: 6000
+pathVariables:
+  - key: id
+    value: '{{inventory_item_id}}'

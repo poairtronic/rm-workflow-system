@@ -1,0 +1,22 @@
+$kind: http-request
+name: 'Create Material Issue'
+method: POST
+url: '{{base_url}}/api/material-issues'
+order: 1000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "scId": "{{sc_id}}",
+      "rmRequestId": "{{rm_id}}",
+      "items": [
+        {
+          "inventoryItemId": "{{inventory_item_id}}",
+          "quantity": 10
+        }
+      ],
+      "notes": "Issuing materials for production"
+    }

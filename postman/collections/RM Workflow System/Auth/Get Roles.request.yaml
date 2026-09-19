@@ -1,0 +1,7 @@
+$kind: http-request
+name: 'Get Roles'
+method: GET
+url: '{{base_url}}/api/auth/roles'
+order: 2000
+auth:
+  type: noauth

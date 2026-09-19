@@ -1,0 +1,15 @@
+$kind: http-request
+name: 'Create Category'
+method: POST
+url: '{{base_url}}/api/categories'
+order: 3000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "Raw Materials",
+      "description": "Category for raw materials"
+    }

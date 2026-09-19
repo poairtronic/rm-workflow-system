@@ -1,0 +1,18 @@
+$kind: http-request
+name: 'Update Bin'
+method: PATCH
+url: '{{base_url}}/api/bins/:id'
+order: 4000
+pathVariables:
+  - key: id
+    value: '{{bin_id}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "Updated Bin",
+      "description": "Updated description"
+    }

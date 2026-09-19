@@ -1,0 +1,5 @@
+$kind: http-request
+name: 'Material Movement Status'
+method: GET
+url: '{{base_url}}/api/material-movement/status'
+order: 4000

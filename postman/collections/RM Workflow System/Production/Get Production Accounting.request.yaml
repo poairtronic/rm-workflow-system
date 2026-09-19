@@ -1,0 +1,8 @@
+$kind: http-request
+name: 'Get Production Accounting'
+method: GET
+url: '{{base_url}}/api/production/accounting/:scId'
+order: 5000
+pathVariables:
+  - key: scId
+    value: '{{sc_id}}'

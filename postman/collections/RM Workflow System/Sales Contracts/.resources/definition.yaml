@@ -1,0 +1,3 @@
+$kind: collection
+name: 'Sales Contracts'
+description: 'Sales Contract (SC) endpoints'

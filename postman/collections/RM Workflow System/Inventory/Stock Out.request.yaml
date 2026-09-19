@@ -1,0 +1,19 @@
+$kind: http-request
+name: 'Stock Out'
+method: POST
+url: '{{base_url}}/api/inventory/:id/stock-out'
+order: 11000
+pathVariables:
+  - key: id
+    value: '{{inventory_item_id}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "quantity": 20,
+      "reference": "SC-2024-001",
+      "notes": "Stock issued to production"
+    }

@@ -1,0 +1,3 @@
+$kind: collection
+name: 'Master Data'
+description: 'Master data management - products, categories, families, warehouses, locations, racks, bins'

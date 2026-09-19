@@ -1,0 +1,9 @@
+$kind: http-request
+name: 'Get All Families'
+method: GET
+url: '{{base_url}}/api/families'
+order: 1000
+queryParams:
+  - key: search
+    value: ''
+    disabled: true

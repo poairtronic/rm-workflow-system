@@ -1,0 +1,8 @@
+$kind: http-request
+name: 'Get Family by ID'
+method: GET
+url: '{{base_url}}/api/families/:id'
+order: 2000
+pathVariables:
+  - key: id
+    value: '{{family_id}}'

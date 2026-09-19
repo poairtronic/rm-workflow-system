@@ -1,0 +1,5 @@
+$kind: http-request
+name: 'Stores Status'
+method: GET
+url: '{{base_url}}/api/stores/status'
+order: 3000

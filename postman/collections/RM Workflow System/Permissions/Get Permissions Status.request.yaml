@@ -1,0 +1,5 @@
+$kind: http-request
+name: 'Get Permissions Status'
+method: GET
+url: '{{base_url}}/api/permissions/status'
+order: 1000

@@ -1,0 +1,15 @@
+$kind: http-request
+name: 'Get Transactions'
+method: GET
+url: '{{base_url}}/api/inventory/:id/transactions'
+order: 9000
+pathVariables:
+  - key: id
+    value: '{{inventory_item_id}}'
+queryParams:
+  - key: startDate
+    value: ''
+    disabled: true
+  - key: endDate
+    value: ''
+    disabled: true

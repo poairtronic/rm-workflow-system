@@ -1,0 +1,19 @@
+$kind: http-request
+name: 'Create Product'
+method: POST
+url: '{{base_url}}/api/products'
+order: 3000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "Steel Rod 10mm",
+      "code": "SR-10",
+      "categoryId": "{{category_id}}",
+      "familyId": "{{family_id}}",
+      "unit": "pcs",
+      "description": "10mm steel rod"
+    }

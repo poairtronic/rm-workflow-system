@@ -1,0 +1,17 @@
+$kind: http-request
+name: 'Complete SC'
+method: POST
+url: '{{base_url}}/api/sc/:id/complete'
+order: 4000
+pathVariables:
+  - key: id
+    value: '{{sc_id}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "notes": "SC completed successfully"
+    }

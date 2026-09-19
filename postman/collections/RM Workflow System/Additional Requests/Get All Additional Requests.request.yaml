@@ -1,0 +1,9 @@
+$kind: http-request
+name: 'Get All Additional Requests'
+method: GET
+url: '{{base_url}}/api/additional-requests'
+order: 2000
+queryParams:
+  - key: scId
+    value: ''
+    disabled: true

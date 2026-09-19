@@ -1,0 +1,5 @@
+$kind: http-request
+name: 'Notifications Status'
+method: GET
+url: '{{base_url}}/api/notifications/status'
+order: 6000

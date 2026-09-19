@@ -1,0 +1,8 @@
+$kind: http-request
+name: 'Get RM Request by ID'
+method: GET
+url: '{{base_url}}/api/rm/:id'
+order: 5000
+pathVariables:
+  - key: id
+    value: '{{rm_id}}'

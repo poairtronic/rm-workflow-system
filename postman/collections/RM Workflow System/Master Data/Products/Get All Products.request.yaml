@@ -1,0 +1,15 @@
+$kind: http-request
+name: 'Get All Products'
+method: GET
+url: '{{base_url}}/api/products'
+order: 1000
+queryParams:
+  - key: search
+    value: ''
+    disabled: true
+  - key: categoryId
+    value: ''
+    disabled: true
+  - key: familyId
+    value: ''
+    disabled: true

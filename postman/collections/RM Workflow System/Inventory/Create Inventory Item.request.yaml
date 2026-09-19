@@ -1,0 +1,18 @@
+$kind: http-request
+name: 'Create Inventory Item'
+method: POST
+url: '{{base_url}}/api/inventory'
+order: 1000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "productId": "{{product_id}}",
+      "warehouseId": "{{warehouse_id}}",
+      "locationId": "{{location_id}}",
+      "quantity": 100,
+      "unit": "pcs"
+    }

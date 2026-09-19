@@ -1,0 +1,22 @@
+$kind: http-request
+name: 'Receive Material'
+method: POST
+url: '{{base_url}}/api/production/receipt'
+order: 1000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "scId": "{{sc_id}}",
+      "materialIssueId": "{{material_issue_id}}",
+      "items": [
+        {
+          "inventoryItemId": "{{inventory_item_id}}",
+          "quantity": 5
+        }
+      ],
+      "notes": "Material received"
+    }

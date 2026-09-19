@@ -52,13 +52,13 @@ export class ProductsController {
   }
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.DESIGNER)
+  @Roles(UserRole.ADMIN, UserRole.STORES)
   createProduct(@Body() dto: CreateProductDto) {
     return this.masterDataService.createProduct(dto);
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.DESIGNER)
+  @Roles(UserRole.ADMIN, UserRole.STORES)
   updateProduct(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateProductDto,

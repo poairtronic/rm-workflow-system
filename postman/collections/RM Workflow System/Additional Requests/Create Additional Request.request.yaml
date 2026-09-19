@@ -1,0 +1,22 @@
+$kind: http-request
+name: 'Create Additional Request'
+method: POST
+url: '{{base_url}}/api/additional-requests'
+order: 1000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "scId": "{{sc_id}}",
+      "items": [
+        {
+          "productId": "{{product_id}}",
+          "quantity": 5,
+          "reason": "Additional material needed"
+        }
+      ],
+      "notes": "Additional request notes"
+    }

@@ -1,0 +1,19 @@
+$kind: http-request
+name: 'Stock In'
+method: POST
+url: '{{base_url}}/api/inventory/:id/stock-in'
+order: 10000
+pathVariables:
+  - key: id
+    value: '{{inventory_item_id}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "quantity": 50,
+      "reference": "PO-2024-001",
+      "notes": "Stock received from supplier"
+    }

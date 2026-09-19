@@ -1,0 +1,15 @@
+$kind: http-request
+name: 'Create RM Request'
+method: POST
+url: '{{base_url}}/api/rm'
+order: 1000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "scId": "{{sc_id}}",
+      "notes": "Initial RM request"
+    }

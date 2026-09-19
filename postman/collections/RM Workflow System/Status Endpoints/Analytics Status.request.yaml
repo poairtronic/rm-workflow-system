@@ -1,0 +1,5 @@
+$kind: http-request
+name: 'Analytics Status'
+method: GET
+url: '{{base_url}}/api/analytics/status'
+order: 5000

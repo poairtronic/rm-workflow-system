@@ -1,0 +1,12 @@
+$kind: http-request
+name: 'Get All Bins'
+method: GET
+url: '{{base_url}}/api/bins'
+order: 1000
+queryParams:
+  - key: rackId
+    value: ''
+    disabled: true
+  - key: search
+    value: ''
+    disabled: true

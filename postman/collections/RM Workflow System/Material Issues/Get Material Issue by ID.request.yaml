@@ -1,0 +1,8 @@
+$kind: http-request
+name: 'Get Material Issue by ID'
+method: GET
+url: '{{base_url}}/api/material-issues/:id'
+order: 3000
+pathVariables:
+  - key: id
+    value: '{{material_issue_id}}'

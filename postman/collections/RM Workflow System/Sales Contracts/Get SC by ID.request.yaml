@@ -1,0 +1,8 @@
+$kind: http-request
+name: 'Get SC by ID'
+method: GET
+url: '{{base_url}}/api/sc/:id'
+order: 3000
+pathVariables:
+  - key: id
+    value: '{{sc_id}}'

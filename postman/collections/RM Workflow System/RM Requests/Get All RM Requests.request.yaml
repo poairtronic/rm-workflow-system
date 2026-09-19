@@ -1,0 +1,12 @@
+$kind: http-request
+name: 'Get All RM Requests'
+method: GET
+url: '{{base_url}}/api/rm'
+order: 4000
+queryParams:
+  - key: scId
+    value: ''
+    disabled: true
+  - key: status
+    value: ''
+    disabled: true

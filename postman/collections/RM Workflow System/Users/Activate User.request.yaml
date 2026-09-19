@@ -1,0 +1,8 @@
+$kind: http-request
+name: 'Activate User'
+method: PATCH
+url: '{{base_url}}/api/users/:id/activate'
+order: 5000
+pathVariables:
+  - key: id
+    value: '{{user_id}}'

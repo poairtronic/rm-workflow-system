@@ -1,0 +1,3 @@
+$kind: collection
+name: 'Status Endpoints'
+description: 'Module status check endpoints'

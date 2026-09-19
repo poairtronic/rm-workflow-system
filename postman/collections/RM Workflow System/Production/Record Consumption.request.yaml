@@ -1,0 +1,21 @@
+$kind: http-request
+name: 'Record Consumption'
+method: POST
+url: '{{base_url}}/api/production/consume'
+order: 2000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "scId": "{{sc_id}}",
+      "items": [
+        {
+          "inventoryItemId": "{{inventory_item_id}}",
+          "quantity": 3
+        }
+      ],
+      "notes": "Material consumed in production"
+    }

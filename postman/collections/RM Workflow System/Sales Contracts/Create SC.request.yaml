@@ -1,0 +1,17 @@
+$kind: http-request
+name: 'Create SC'
+method: POST
+url: '{{base_url}}/api/sc'
+order: 1000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "scNumber": "SC-2024-001",
+      "poNumber": "PO-2024-001",
+      "customerId": "{{customer_id}}",
+      "description": "Sales contract description"
+    }

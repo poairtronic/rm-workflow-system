@@ -1,0 +1,17 @@
+$kind: http-request
+name: 'Create Location'
+method: POST
+url: '{{base_url}}/api/locations'
+order: 3000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "Zone A",
+      "code": "LOC-A",
+      "warehouseId": "{{warehouse_id}}",
+      "description": "Zone A storage location"
+    }

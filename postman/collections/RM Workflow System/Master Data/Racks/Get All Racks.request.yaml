@@ -1,0 +1,12 @@
+$kind: http-request
+name: 'Get All Racks'
+method: GET
+url: '{{base_url}}/api/racks'
+order: 1000
+queryParams:
+  - key: locationId
+    value: ''
+    disabled: true
+  - key: search
+    value: ''
+    disabled: true

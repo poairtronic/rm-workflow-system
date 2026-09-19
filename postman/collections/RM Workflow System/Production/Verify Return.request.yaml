@@ -1,0 +1,18 @@
+$kind: http-request
+name: 'Verify Return'
+method: POST
+url: '{{base_url}}/api/production/return/:id/verify'
+order: 4000
+pathVariables:
+  - key: id
+    value: '{{return_id}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "verified": true,
+      "notes": "Return verified by stores"
+    }

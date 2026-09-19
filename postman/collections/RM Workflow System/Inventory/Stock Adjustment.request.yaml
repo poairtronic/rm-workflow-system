@@ -1,0 +1,20 @@
+$kind: http-request
+name: 'Stock Adjustment'
+method: POST
+url: '{{base_url}}/api/inventory/:id/adjust'
+order: 12000
+pathVariables:
+  - key: id
+    value: '{{inventory_item_id}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "quantity": 5,
+      "type": "INCREASE",
+      "reason": "Physical count adjustment",
+      "notes": "Adjustment after stock count"
+    }

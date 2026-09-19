@@ -1,0 +1,17 @@
+$kind: http-request
+name: 'Create Bin'
+method: POST
+url: '{{base_url}}/api/bins'
+order: 3000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "Bin A1-01",
+      "code": "BIN-A1-01",
+      "rackId": "{{rack_id}}",
+      "description": "Bin 01 in Rack A1"
+    }

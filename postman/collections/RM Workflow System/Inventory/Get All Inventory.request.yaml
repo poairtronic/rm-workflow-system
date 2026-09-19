@@ -1,0 +1,15 @@
+$kind: http-request
+name: 'Get All Inventory'
+method: GET
+url: '{{base_url}}/api/inventory'
+order: 2000
+queryParams:
+  - key: warehouseId
+    value: ''
+    disabled: true
+  - key: productId
+    value: ''
+    disabled: true
+  - key: search
+    value: ''
+    disabled: true

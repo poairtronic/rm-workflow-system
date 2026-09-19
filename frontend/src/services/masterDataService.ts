@@ -139,6 +139,9 @@ export const masterDataService = {
   getProducts: async (params?: MasterFilterParams): Promise<PaginatedResponse<Product>> => {
     return api.get<PaginatedResponse<Product>>(`/products${buildQuery(params)}`);
   },
+  getProductById: async (id: string): Promise<Product> => {
+    return api.get<Product>(`/products/${id}`);
+  },
   createProduct: async (data: {
     familyId: string;
     name: string;

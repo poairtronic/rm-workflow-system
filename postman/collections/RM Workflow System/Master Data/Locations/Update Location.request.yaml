@@ -1,0 +1,18 @@
+$kind: http-request
+name: 'Update Location'
+method: PATCH
+url: '{{base_url}}/api/locations/:id'
+order: 4000
+pathVariables:
+  - key: id
+    value: '{{location_id}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "Updated Location",
+      "description": "Updated description"
+    }

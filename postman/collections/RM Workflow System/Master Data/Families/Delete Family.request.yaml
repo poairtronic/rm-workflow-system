@@ -1,0 +1,8 @@
+$kind: http-request
+name: 'Delete Family'
+method: DELETE
+url: '{{base_url}}/api/families/:id'
+order: 5000
+pathVariables:
+  - key: id
+    value: '{{family_id}}'

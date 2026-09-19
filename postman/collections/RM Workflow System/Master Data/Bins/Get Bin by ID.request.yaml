@@ -1,0 +1,8 @@
+$kind: http-request
+name: 'Get Bin by ID'
+method: GET
+url: '{{base_url}}/api/bins/:id'
+order: 2000
+pathVariables:
+  - key: id
+    value: '{{bin_id}}'

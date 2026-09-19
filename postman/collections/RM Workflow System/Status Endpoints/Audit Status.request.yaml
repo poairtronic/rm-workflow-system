@@ -1,0 +1,5 @@
+$kind: http-request
+name: 'Audit Status'
+method: GET
+url: '{{base_url}}/api/audit/status'
+order: 7000
