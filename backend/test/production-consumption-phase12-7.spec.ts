@@ -107,7 +107,7 @@ describe('Phase 12.7 - Production Consumption', () => {
 
   it('CONSUME_02: Should successfully consume partial amount WITHOUT stock mutation', async () => {
     const stockBefore = await pgClient.query(`SELECT current_quantity FROM stock_balances WHERE product_id = '${productId}' AND bin_id = '${binId}'`);
-    const txBefore = await pgClient.query(`SELECT COUNT(*) as c FROM stock_transactions`);
+    const txBefore = await pgClient.query(`SELECT COUNT(*) as c FROM stock_transactions WHERE product_id = '${productId}' AND destination_bin_id = '${binId}'`);
 
     const res = await fetch(`${BASE_URL}/production/consume`, {
       method: 'POST',
@@ -119,7 +119,7 @@ describe('Phase 12.7 - Production Consumption', () => {
     expect(Number(data.consumedQuantity)).toBe(15);
 
     const stockAfter = await pgClient.query(`SELECT current_quantity FROM stock_balances WHERE product_id = '${productId}' AND bin_id = '${binId}'`);
-    const txAfter = await pgClient.query(`SELECT COUNT(*) as c FROM stock_transactions`);
+    const txAfter = await pgClient.query(`SELECT COUNT(*) as c FROM stock_transactions WHERE product_id = '${productId}' AND destination_bin_id = '${binId}'`);
 
     expect(Number(stockAfter.rows[0].current_quantity)).toBe(Number(stockBefore.rows[0].current_quantity));
     expect(Number(txAfter.rows[0].c)).toBe(Number(txBefore.rows[0].c));

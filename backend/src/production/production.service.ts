@@ -175,7 +175,7 @@ export class ProductionService {
         throw new NotFoundException(`RM Item "${dto.rmItemId}" not found.`);
       }
 
-      if (rmItem.salesOrderComponentId !== dto.scId && !rmItem.salesOrderComponent) {
+      if (rmItem.scId !== dto.scId && !rmItem.salesOrderComponent) {
         // Just extra safety if we need to verify relation
       }
 
@@ -239,65 +239,111 @@ export class ProductionService {
   }
 
   async recordReturn(dto: CreateMaterialReturnDto, actorId: string) {
-    const sc = await this.scRepo.findOneBy({ id: dto.scId });
-    if (!sc) {
-      throw new NotFoundException(`Sales Order Component with ID "${dto.scId}" not found.`);
-    }
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    StateMachineValidator.assertScActive(sc.status, 'Record Return');
+    try {
+      // 1. Lock the SC to serialize all return requests for this component
+      const sc = await queryRunner.manager.createQueryBuilder(SalesOrderComponent, 'sc')
+        .where('sc.id = :id', { id: dto.scId })
+        .setLock('pessimistic_write')
+        .getOne();
 
-    const accounting = await this.getAccounting(dto.scId);
+      if (!sc) {
+        throw new NotFoundException(`Sales Order Component with ID "${dto.scId}" not found.`);
+      }
 
-    const returnRec = this.returnRepo.create({
-      scId: dto.scId,
-      returnedById: actorId,
-      status: ReturnStatus.PENDING_STORE_ACK,
-      remarks: dto.remarks,
-    });
-    const savedReturn = await this.returnRepo.save(returnRec);
+      StateMachineValidator.assertScActive(sc.status, 'Record Return');
 
-    for (const itemDto of dto.items) {
-      QuantityCalculator.assertPositive(itemDto.quantityReturned, 'Quantity Returned');
+      // 2. Fetch all valid receipts for this SC
+      const receiptItems = await queryRunner.manager.createQueryBuilder(MaterialReceiptItem, 'mri')
+        .innerJoin('mri.materialReceipt', 'mr')
+        .innerJoin('mr.materialIssue', 'mi')
+        .where('mi.sc_id = :scId', { scId: dto.scId })
+        .getMany();
 
-      const itemAcc = accounting.items.find((i) => i.rmItemId === itemDto.rmItemId);
-      const received = itemAcc ? itemAcc.received : 0;
-      const consumed = itemAcc ? itemAcc.consumed : 0;
-      const returned = itemAcc ? itemAcc.returned : 0;
-      const unaccounted = QuantityCalculator.calculateUnaccounted(received, consumed, returned);
+      // 3. Fetch all previous consumptions for this SC
+      const previousConsumptions = await queryRunner.manager.createQueryBuilder(MaterialConsumption, 'mc')
+        .where('mc.sc_id = :scId', { scId: dto.scId })
+        .getMany();
 
-      QuantityCalculator.assertWithinLimit(
-        itemDto.quantityReturned,
-        unaccounted,
-        `Returned quantity exceeds unaccounted material.`,
-      );
+      // 4. Fetch all previous returns for this SC
+      const allReturns = await queryRunner.manager.createQueryBuilder(MaterialReturn, 'mr')
+        .leftJoinAndSelect('mr.items', 'items')
+        .where('mr.sc_id = :scId', { scId: dto.scId })
+        .getMany();
 
-      const returnItem = this.returnItemRepo.create({
-        materialReturnId: savedReturn.id,
-        rmItemId: itemDto.rmItemId,
-        quantityReturned: QuantityCalculator.roundDecimal(itemDto.quantityReturned),
-        remarks: itemDto.remarks,
+      const returnRec = queryRunner.manager.create(MaterialReturn, {
+        scId: dto.scId,
+        returnedById: actorId,
+        status: ReturnStatus.PENDING_STORE_ACK,
+        remarks: dto.remarks,
       });
-      await this.returnItemRepo.save(returnItem);
-    }
+      const savedReturn = await queryRunner.manager.save(MaterialReturn, returnRec);
 
-    // CRITICAL: Stock is NOT restored here; Stores verification is required
-    return this.returnRepo.findOne({
-      where: { id: savedReturn.id },
-      relations: { items: { rmItem: true }, returnedBy: true },
-    });
+      for (const itemDto of dto.items) {
+        QuantityCalculator.assertPositive(itemDto.quantityReturned, 'Quantity Returned');
+
+        // Calculate exactly how much is available
+        let totalReceived = 0;
+        for (const r of receiptItems) {
+            if (r.rmItemId === itemDto.rmItemId) {
+                totalReceived += Number(r.quantityReceived) || 0;
+            }
+        }
+        
+        let totalConsumed = 0;
+        for (const c of previousConsumptions) {
+            if (c.rmItemId === itemDto.rmItemId) {
+                totalConsumed += Number(c.consumedQuantity) || 0;
+            }
+        }
+        
+        let totalReturned = 0;
+        for (const ret of allReturns) {
+            if (ret.status !== ReturnStatus.REJECTED) {
+                for (const item of ret.items) {
+                    if (item.rmItemId === itemDto.rmItemId) {
+                        totalReturned += Number(item.quantityReturned) || 0;
+                    }
+                }
+            }
+        }
+        
+        const unaccounted = QuantityCalculator.calculateUnaccounted(totalReceived, totalConsumed, totalReturned);
+
+        QuantityCalculator.assertWithinLimit(
+          itemDto.quantityReturned,
+          unaccounted,
+          `Returned quantity exceeds unaccounted material.`,
+        );
+
+        const returnItem = queryRunner.manager.create(MaterialReturnItem, {
+          materialReturnId: savedReturn.id,
+          rmItemId: itemDto.rmItemId,
+          quantityReturned: QuantityCalculator.roundDecimal(itemDto.quantityReturned),
+          remarks: itemDto.remarks,
+        });
+        await queryRunner.manager.save(MaterialReturnItem, returnItem);
+      }
+
+      await queryRunner.commitTransaction();
+
+      // CRITICAL: Stock is NOT restored here; Stores verification is required
+      return this.returnRepo.findOne({
+        where: { id: savedReturn.id },
+        relations: { items: { rmItem: true }, returnedBy: true },
+      });
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async verifyReturn(returnId: string, dto: VerifyReturnDto, actorId: string) {
-    const returnRec = await this.returnRepo.findOne({
-      where: { id: returnId },
-      relations: { items: true },
-    });
-    if (!returnRec) {
-      throw new NotFoundException(`Material Return with ID "${returnId}" not found.`);
-    }
-
-    StateMachineValidator.assertReturnPending(returnRec.status);
-
     const destinationBin = await this.binRepo.findOneBy({ id: dto.destinationBinId });
     if (!destinationBin) {
       throw new NotFoundException(`Destination Bin "${dto.destinationBinId}" not found.`);
@@ -311,21 +357,40 @@ export class ProductionService {
     await queryRunner.startTransaction();
 
     try {
+      const returnRec = await queryRunner.manager.createQueryBuilder(MaterialReturn, 'mr')
+        .innerJoinAndSelect('mr.items', 'items')
+        .innerJoinAndSelect('items.rmItem', 'rmItem')
+        .where('mr.id = :id', { id: returnId })
+        .setLock('pessimistic_write')
+        .getOne();
+
+      if (!returnRec) {
+        throw new NotFoundException(`Material Return with ID "${returnId}" not found.`);
+      }
+
+      StateMachineValidator.assertReturnPending(returnRec.status);
+
       for (const item of returnRec.items) {
         const qtyToReturn = QuantityCalculator.roundDecimal(item.quantityReturned);
+        
+        if (!item.rmItem.mappedProductId) {
+          throw new BadRequestException(`RM Item ${item.rmItem.id} has no mapped product ID. Cannot verify return.`);
+        }
 
-        // Atomic stock restoration at destination bin
+        // Atomic stock restoration at destination bin. Use ON CONFLICT DO UPDATE to ensure balance row is created if missing.
         await queryRunner.manager.query(
-          `UPDATE stock_balances 
-           SET current_quantity = current_quantity + $1, updated_at = NOW() 
-           WHERE bin_id = $2`,
-          [qtyToReturn, dto.destinationBinId],
+          `INSERT INTO stock_balances (product_id, bin_id, current_quantity, created_at, updated_at) 
+           VALUES ($1, $2, $3, NOW(), NOW())
+           ON CONFLICT (product_id, bin_id) 
+           DO UPDATE SET current_quantity = stock_balances.current_quantity + EXCLUDED.current_quantity, updated_at = NOW()`,
+          [item.rmItem.mappedProductId, dto.destinationBinId, qtyToReturn]
         );
 
         // Immutable StockTransaction for RETURN
         const tx = queryRunner.manager.create(StockTransaction, {
           transactionType: TransactionType.RETURN,
           destinationBinId: dto.destinationBinId,
+          productId: item.rmItem.mappedProductId,
           quantity: qtyToReturn,
           referenceType: 'MATERIAL_RETURN',
           referenceId: returnRec.id,
@@ -335,8 +400,8 @@ export class ProductionService {
         const savedTx = await queryRunner.manager.save(StockTransaction, tx);
 
         await queryRunner.manager.query(
-          `UPDATE stock_balances SET last_transaction_id = $1 WHERE bin_id = $2`,
-          [savedTx.id, dto.destinationBinId],
+          `UPDATE stock_balances SET last_transaction_id = $1 WHERE bin_id = $2 AND product_id = $3`,
+          [savedTx.id, dto.destinationBinId, item.rmItem.mappedProductId]
         );
       }
 

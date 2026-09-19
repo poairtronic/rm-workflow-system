@@ -91,6 +91,8 @@ describe('ProductionService', () => {
         }),
         createQueryBuilder: vi.fn().mockReturnValue({
           innerJoin: vi.fn().mockReturnThis(),
+          innerJoinAndSelect: vi.fn().mockReturnThis(),
+          leftJoinAndSelect: vi.fn().mockReturnThis(),
           where: vi.fn().mockReturnThis(),
           andWhere: vi.fn().mockReturnThis(),
           setLock: vi.fn().mockReturnThis(),
@@ -193,9 +195,11 @@ describe('ProductionService', () => {
       id: 'ret-1',
       scId: 'sc-1',
       status: ReturnStatus.PENDING_STORE_ACK,
-      items: [{ rmItemId: 'rm-1', quantityReturned: 10 }],
+      items: [{ rmItem: { id: 'rm-1', mappedProductId: 'prod-1' }, quantityReturned: 10 }],
     };
-    returnRepo.findOne.mockResolvedValue(returnRec);
+    // Mock the queryBuilder getOne response
+    dataSource.createQueryRunner().manager.createQueryBuilder().getOne.mockResolvedValueOnce(returnRec);
+    
     binRepo.findOneBy.mockResolvedValue({ id: 'bin-dest', code: 'BIN-B1', isActive: true });
 
     const result = await service.verifyReturn('ret-1', { destinationBinId: 'bin-dest' }, 'stores-user-1');
