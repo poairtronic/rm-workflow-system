@@ -25,4 +25,3 @@ import { Bin } from '../inventory/entities/bin.entity.js';
   exports: [MaterialIssueService],
 })
 export class MaterialIssueModule {}
-

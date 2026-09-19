@@ -31,7 +31,9 @@ export class RmItem {
   @Column({ name: 'rm_form_id' })
   rmFormId!: string;
 
-  @ManyToOne('RmRequest', (req: RmRequest) => req.items, { onDelete: 'CASCADE' })
+  @ManyToOne('RmRequest', (req: RmRequest) => req.items, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'rm_form_id' })
   rmRequest!: RmRequest;
 
@@ -119,7 +121,7 @@ export class RmItem {
   @Column({ type: 'text', nullable: true })
   remarks?: string;
 
-    @Column({ name: 'mapped_product_id', nullable: true })
+  @Column({ name: 'mapped_product_id', nullable: true })
   mappedProductId?: string;
 
   @ManyToOne('Product', { nullable: true, onDelete: 'RESTRICT' })
@@ -158,4 +160,3 @@ export class RmItem {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt!: Date;
 }
-

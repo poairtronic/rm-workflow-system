@@ -1,4 +1,13 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service.js';
 import { UserRole } from './enums/role.enum.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
@@ -23,10 +32,7 @@ export class AuthController {
         UserRole.STORES,
         UserRole.PRODUCTION,
       ],
-      governanceRoles: [
-        UserRole.SENIOR_MANAGER,
-        UserRole.GENERAL_MANAGER,
-      ],
+      governanceRoles: [UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER],
     };
   }
 
@@ -45,4 +51,3 @@ export class AuthController {
     };
   }
 }
-

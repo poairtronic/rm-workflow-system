@@ -62,15 +62,27 @@ describe('ProductionService', () => {
       rollbackTransaction: vi.fn(),
       release: vi.fn(),
       manager: {
-        save: vi.fn((entity, data) => Promise.resolve({ id: 'saved-id', ...data })),
+        save: vi.fn((entity, data) =>
+          Promise.resolve({ id: 'saved-id', ...data }),
+        ),
         query: vi.fn().mockResolvedValue([[], 1]),
         create: vi.fn((entity, data) => ({ id: 'tx-1', ...data })),
         findOne: vi.fn((entity, opts) => {
           if (entity.name === 'SalesOrderComponent') {
-            return Promise.resolve({ id: 'sc-1', status: ScStatus.IN_PRODUCTION });
+            return Promise.resolve({
+              id: 'sc-1',
+              status: ScStatus.IN_PRODUCTION,
+            });
           }
           if (entity.name === 'MaterialIssue') {
-            return Promise.resolve({ id: 'issue-1', salesOrderComponent: { id: 'sc-1', status: ScStatus.IN_PRODUCTION }, items: [{ rmItemId: 'rm-1', quantityIssued: 50 }] });
+            return Promise.resolve({
+              id: 'issue-1',
+              salesOrderComponent: {
+                id: 'sc-1',
+                status: ScStatus.IN_PRODUCTION,
+              },
+              items: [{ rmItemId: 'rm-1', quantityIssued: 50 }],
+            });
           }
           return Promise.resolve(null);
         }),
@@ -96,8 +108,12 @@ describe('ProductionService', () => {
           where: vi.fn().mockReturnThis(),
           andWhere: vi.fn().mockReturnThis(),
           setLock: vi.fn().mockReturnThis(),
-          getMany: vi.fn().mockResolvedValue([{ rmItemId: 'rm-1', quantityReceived: 50 }]),
-          getOne: vi.fn().mockResolvedValue({ id: 'sc-1', status: ScStatus.IN_PRODUCTION }),
+          getMany: vi
+            .fn()
+            .mockResolvedValue([{ rmItemId: 'rm-1', quantityReceived: 50 }]),
+          getOne: vi
+            .fn()
+            .mockResolvedValue({ id: 'sc-1', status: ScStatus.IN_PRODUCTION }),
         }),
       },
     };
@@ -121,18 +137,28 @@ describe('ProductionService', () => {
   });
 
   it('should receive material without altering inventory stock', async () => {
-    scRepo.findOneBy.mockResolvedValue({ id: 'sc-1', scNumber: 'SC-001', status: ScStatus.ISSUED });
-    issueRepo.findOne.mockResolvedValue({ 
-      id: 'issue-1', 
+    scRepo.findOneBy.mockResolvedValue({
+      id: 'sc-1',
+      scNumber: 'SC-001',
+      status: ScStatus.ISSUED,
+    });
+    issueRepo.findOne.mockResolvedValue({
+      id: 'issue-1',
       salesOrderComponent: { id: 'sc-1', status: ScStatus.ISSUED },
-      items: [{ rmItemId: 'rm-1', quantityIssued: 50 }] 
+      items: [{ rmItemId: 'rm-1', quantityIssued: 50 }],
     });
     rmItemRepo.findOneBy.mockResolvedValue({ id: 'rm-1' });
-    receiptRepo.findOne.mockResolvedValue({ id: 'receipt-1', status: 'RECEIVED' });
+    receiptRepo.findOne.mockResolvedValue({
+      id: 'receipt-1',
+      status: 'RECEIVED',
+    });
     receiptRepo.find = vi.fn().mockResolvedValue([]); // No previous receipts
 
     const result = await service.receiveMaterial(
-      { materialIssueId: 'issue-1', items: [{ rmItemId: 'rm-1', quantityReceived: 50 }] },
+      {
+        materialIssueId: 'issue-1',
+        items: [{ rmItemId: 'rm-1', quantityReceived: 50 }],
+      },
       'prod-user-1',
     );
 
@@ -177,7 +203,9 @@ describe('ProductionService', () => {
   it('should reject consumption exceeding remaining received quantity', async () => {
     // Override the find method in the manager just for this test
     const originalFind = service['dataSource'].createQueryRunner().manager.find;
-    service['dataSource'].createQueryRunner().manager.find = vi.fn().mockResolvedValue([{ consumedQuantity: 45 }]);
+    service['dataSource'].createQueryRunner().manager.find = vi
+      .fn()
+      .mockResolvedValue([{ consumedQuantity: 45 }]);
 
     await expect(
       service.recordConsumption(
@@ -195,14 +223,30 @@ describe('ProductionService', () => {
       id: 'ret-1',
       scId: 'sc-1',
       status: ReturnStatus.PENDING_STORE_ACK,
-      items: [{ rmItem: { id: 'rm-1', mappedProductId: 'prod-1' }, quantityReturned: 10 }],
+      items: [
+        {
+          rmItem: { id: 'rm-1', mappedProductId: 'prod-1' },
+          quantityReturned: 10,
+        },
+      ],
     };
     // Mock the queryBuilder getOne response
-    dataSource.createQueryRunner().manager.createQueryBuilder().getOne.mockResolvedValueOnce(returnRec);
-    
-    binRepo.findOneBy.mockResolvedValue({ id: 'bin-dest', code: 'BIN-B1', isActive: true });
+    dataSource
+      .createQueryRunner()
+      .manager.createQueryBuilder()
+      .getOne.mockResolvedValueOnce(returnRec);
 
-    const result = await service.verifyReturn('ret-1', { destinationBinId: 'bin-dest' }, 'stores-user-1');
+    binRepo.findOneBy.mockResolvedValue({
+      id: 'bin-dest',
+      code: 'BIN-B1',
+      isActive: true,
+    });
+
+    const result = await service.verifyReturn(
+      'ret-1',
+      { destinationBinId: 'bin-dest' },
+      'stores-user-1',
+    );
 
     expect(dataSource.createQueryRunner).toHaveBeenCalled();
     expect(returnRec.status).toBe(ReturnStatus.ACKNOWLEDGED);

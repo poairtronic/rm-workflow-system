@@ -38,9 +38,16 @@ describe('AdditionalRequestService', () => {
   });
 
   it('should create an additional material request without deducting stock', async () => {
-    scRepo.findOneBy.mockResolvedValue({ id: 'sc-1', scNumber: 'SC-001', status: ScStatus.IN_PRODUCTION });
+    scRepo.findOneBy.mockResolvedValue({
+      id: 'sc-1',
+      scNumber: 'SC-001',
+      status: ScStatus.IN_PRODUCTION,
+    });
     rmItemRepo.findOneBy.mockResolvedValue({ id: 'rm-1' });
-    requestRepo.findOne.mockResolvedValue({ id: 'req-1', status: AdditionalRequestStatus.REQUESTED });
+    requestRepo.findOne.mockResolvedValue({
+      id: 'req-1',
+      status: AdditionalRequestStatus.REQUESTED,
+    });
 
     const result = await service.createRequest(
       {

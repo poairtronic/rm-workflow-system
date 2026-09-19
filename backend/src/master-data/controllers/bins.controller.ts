@@ -15,10 +15,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../auth/guards/roles.guard.js';
 import { Roles } from '../../auth/decorators/roles.decorator.js';
 import { UserRole } from '../../auth/enums/role.enum.js';
-import {
-  CreateBinDto,
-  UpdateBinDto,
-} from '../dto/bin.dto.js';
+import { CreateBinDto, UpdateBinDto } from '../dto/bin.dto.js';
 import { MasterFilterDto } from '../dto/master-filter.dto.js';
 
 @Controller('api/bins')
@@ -60,10 +57,7 @@ export class BinsController {
 
   @Patch(':id')
   @Roles(UserRole.ADMIN, UserRole.STORES)
-  updateBin(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateBinDto,
-  ) {
+  updateBin(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateBinDto) {
     return this.masterDataService.updateBin(id, dto);
   }
 

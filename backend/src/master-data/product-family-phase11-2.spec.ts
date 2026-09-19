@@ -28,7 +28,12 @@ describe('Phase 11.2 — Product Family Master Data Specification', () => {
     skip: vi.fn().mockReturnThis(),
     take: vi.fn().mockReturnThis(),
     getOne: vi.fn().mockResolvedValue(result),
-    getManyAndCount: vi.fn().mockResolvedValue([result ? (Array.isArray(result) ? result : [result]) : [], count || (result ? 1 : 0)]),
+    getManyAndCount: vi
+      .fn()
+      .mockResolvedValue([
+        result ? (Array.isArray(result) ? result : [result]) : [],
+        count || (result ? 1 : 0),
+      ]),
   });
 
   beforeEach(() => {
@@ -38,8 +43,20 @@ describe('Phase 11.2 — Product Family Master Data Specification', () => {
     };
 
     familyRepo = {
-      create: vi.fn((dto) => ({ id: 'fam-1', createdAt: new Date(), updatedAt: new Date(), ...dto })),
-      save: vi.fn((entity) => Promise.resolve({ id: entity.id || 'fam-1', createdAt: new Date(), updatedAt: new Date(), ...entity })),
+      create: vi.fn((dto) => ({
+        id: 'fam-1',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...dto,
+      })),
+      save: vi.fn((entity) =>
+        Promise.resolve({
+          id: entity.id || 'fam-1',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...entity,
+        }),
+      ),
       findOne: vi.fn(),
       findOneBy: vi.fn(),
       remove: vi.fn((entity) => Promise.resolve(entity)),
@@ -73,7 +90,10 @@ describe('Phase 11.2 — Product Family Master Data Specification', () => {
   // =========================================================================
   describe('1. Family Creation & Duplicate Prevention', () => {
     it('FAMILY-001: should create a family with trimmed name and default isActive=true', async () => {
-      categoryRepo.findOneBy.mockResolvedValue({ id: 'cat-1', name: 'Raw Material' });
+      categoryRepo.findOneBy.mockResolvedValue({
+        id: 'cat-1',
+        name: 'Raw Material',
+      });
       const dto = { categoryId: 'cat-1', name: '   Special Steel   ' };
       const result = await service.createFamily(dto);
 
@@ -88,21 +108,36 @@ describe('Phase 11.2 — Product Family Master Data Specification', () => {
 
     it('FAMILY-010: should reject nonexistent category', async () => {
       categoryRepo.findOneBy.mockResolvedValue(null);
-      await expect(service.createFamily({ categoryId: 'cat-non', name: 'Steel' })).rejects.toThrow(NotFoundException);
+      await expect(
+        service.createFamily({ categoryId: 'cat-non', name: 'Steel' }),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('FAMILY-013: should reject duplicate family within same category', async () => {
-      categoryRepo.findOneBy.mockResolvedValue({ id: 'cat-1', name: 'Raw Material' });
-      familyRepo.createQueryBuilder = vi.fn(() => createMockQueryBuilder({ id: 'fam-existing', name: 'Steel' }));
+      categoryRepo.findOneBy.mockResolvedValue({
+        id: 'cat-1',
+        name: 'Raw Material',
+      });
+      familyRepo.createQueryBuilder = vi.fn(() =>
+        createMockQueryBuilder({ id: 'fam-existing', name: 'Steel' }),
+      );
 
-      await expect(service.createFamily({ categoryId: 'cat-1', name: 'STEEL' })).rejects.toThrow(ConflictException);
+      await expect(
+        service.createFamily({ categoryId: 'cat-1', name: 'STEEL' }),
+      ).rejects.toThrow(ConflictException);
     });
 
     it('FAMILY-012: should allow same family name under different categories', async () => {
-      categoryRepo.findOneBy.mockResolvedValue({ id: 'cat-2', name: 'Another Category' });
+      categoryRepo.findOneBy.mockResolvedValue({
+        id: 'cat-2',
+        name: 'Another Category',
+      });
       familyRepo.createQueryBuilder = vi.fn(() => createMockQueryBuilder(null));
 
-      const result = await service.createFamily({ categoryId: 'cat-2', name: 'Steel' });
+      const result = await service.createFamily({
+        categoryId: 'cat-2',
+        name: 'Steel',
+      });
       expect(result.name).toBe('Steel');
     });
   });
@@ -113,7 +148,9 @@ describe('Phase 11.2 — Product Family Master Data Specification', () => {
   describe('2. Family Queries & Filtering', () => {
     it('FAMILY-015: should list families with pagination', async () => {
       const mockFamilies = [{ id: 'fam-1', name: 'Steel', isActive: true }];
-      familyRepo.createQueryBuilder = vi.fn(() => createMockQueryBuilder(mockFamilies, 1));
+      familyRepo.createQueryBuilder = vi.fn(() =>
+        createMockQueryBuilder(mockFamilies, 1),
+      );
 
       const result = await service.findFamilies({ page: 1, pageSize: 10 });
       expect(result.data).toHaveLength(1);
@@ -124,11 +161,21 @@ describe('Phase 11.2 — Product Family Master Data Specification', () => {
       const qb = createMockQueryBuilder([], 0);
       familyRepo.createQueryBuilder = vi.fn(() => qb);
 
-      await service.findFamilies({ parentId: 'cat-1', isActive: false, search: 'steel' });
+      await service.findFamilies({
+        parentId: 'cat-1',
+        isActive: false,
+        search: 'steel',
+      });
 
-      expect(qb.andWhere).toHaveBeenCalledWith('f.categoryId = :parentId', { parentId: 'cat-1' });
-      expect(qb.andWhere).toHaveBeenCalledWith('f.isActive = :isActive', { isActive: false });
-      expect(qb.andWhere).toHaveBeenCalledWith('f.name ILIKE :search', { search: '%steel%' });
+      expect(qb.andWhere).toHaveBeenCalledWith('f.categoryId = :parentId', {
+        parentId: 'cat-1',
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith('f.isActive = :isActive', {
+        isActive: false,
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith('f.name ILIKE :search', {
+        search: '%steel%',
+      });
     });
 
     it('FAMILY-019: should find family by ID', async () => {
@@ -141,7 +188,9 @@ describe('Phase 11.2 — Product Family Master Data Specification', () => {
 
     it('FAMILY-020: should throw NotFoundException for nonexistent family', async () => {
       familyRepo.findOne.mockResolvedValue(null);
-      await expect(service.findFamilyById('fam-non')).rejects.toThrow(NotFoundException);
+      await expect(service.findFamilyById('fam-non')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -150,26 +199,50 @@ describe('Phase 11.2 — Product Family Master Data Specification', () => {
   // =========================================================================
   describe('3. Family Updates & Lifecycle', () => {
     it('FAMILY-021: should update family name and active state', async () => {
-      familyRepo.findOne.mockResolvedValue({ id: 'fam-1', categoryId: 'cat-1', name: 'Steel', isActive: true });
+      familyRepo.findOne.mockResolvedValue({
+        id: 'fam-1',
+        categoryId: 'cat-1',
+        name: 'Steel',
+        isActive: true,
+      });
       familyRepo.createQueryBuilder = vi.fn(() => createMockQueryBuilder(null));
 
-      const result = await service.updateFamily('fam-1', { name: '  Stainless Steel  ', isActive: false });
+      const result = await service.updateFamily('fam-1', {
+        name: '  Stainless Steel  ',
+        isActive: false,
+      });
       expect(result.name).toBe('Stainless Steel');
       expect(result.isActive).toBe(false);
     });
 
     it('FAMILY-023: should validate new category during update', async () => {
-      familyRepo.findOne.mockResolvedValue({ id: 'fam-1', categoryId: 'cat-1', name: 'Steel', isActive: true });
+      familyRepo.findOne.mockResolvedValue({
+        id: 'fam-1',
+        categoryId: 'cat-1',
+        name: 'Steel',
+        isActive: true,
+      });
       categoryRepo.findOneBy.mockResolvedValue(null);
 
-      await expect(service.updateFamily('fam-1', { categoryId: 'cat-new' })).rejects.toThrow(NotFoundException);
+      await expect(
+        service.updateFamily('fam-1', { categoryId: 'cat-new' }),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('FAMILY-022: should reject duplicate family name during update', async () => {
-      familyRepo.findOne.mockResolvedValue({ id: 'fam-1', categoryId: 'cat-1', name: 'Steel', isActive: true });
-      familyRepo.createQueryBuilder = vi.fn(() => createMockQueryBuilder({ id: 'fam-2', name: 'Iron' }));
+      familyRepo.findOne.mockResolvedValue({
+        id: 'fam-1',
+        categoryId: 'cat-1',
+        name: 'Steel',
+        isActive: true,
+      });
+      familyRepo.createQueryBuilder = vi.fn(() =>
+        createMockQueryBuilder({ id: 'fam-2', name: 'Iron' }),
+      );
 
-      await expect(service.updateFamily('fam-1', { name: 'Iron' })).rejects.toThrow(ConflictException);
+      await expect(
+        service.updateFamily('fam-1', { name: 'Iron' }),
+      ).rejects.toThrow(ConflictException);
     });
   });
 
@@ -184,7 +257,9 @@ describe('Phase 11.2 — Product Family Master Data Specification', () => {
 
       const result = await service.deleteFamily('fam-1');
 
-      expect(productRepo.count).toHaveBeenCalledWith({ where: { familyId: 'fam-1' } });
+      expect(productRepo.count).toHaveBeenCalledWith({
+        where: { familyId: 'fam-1' },
+      });
       expect(familyRepo.remove).toHaveBeenCalledWith(family);
       expect(result.success).toBe(true);
     });
@@ -194,7 +269,9 @@ describe('Phase 11.2 — Product Family Master Data Specification', () => {
       familyRepo.findOne.mockResolvedValue(family);
       productRepo.count.mockResolvedValue(5);
 
-      await expect(service.deleteFamily('fam-1')).rejects.toThrow(ConflictException);
+      await expect(service.deleteFamily('fam-1')).rejects.toThrow(
+        ConflictException,
+      );
       expect(familyRepo.remove).not.toHaveBeenCalled();
     });
   });

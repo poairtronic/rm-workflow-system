@@ -12,7 +12,7 @@ export class AddOpeningBalance1700000000003 implements MigrationInterface {
         precision: 12,
         scale: 3,
         isNullable: true,
-      })
+      }),
     );
   }
 

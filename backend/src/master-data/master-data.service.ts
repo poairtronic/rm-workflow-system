@@ -16,34 +16,13 @@ import { Bin } from '../inventory/entities/bin.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import { StockTransaction } from '../inventory/entities/stock-transaction.entity.js';
 
-import {
-  CreateCategoryDto,
-  UpdateCategoryDto,
-} from './dto/category.dto.js';
-import {
-  CreateFamilyDto,
-  UpdateFamilyDto,
-} from './dto/family.dto.js';
-import {
-  CreateProductDto,
-  UpdateProductDto,
-} from './dto/product.dto.js';
-import {
-  CreateWarehouseDto,
-  UpdateWarehouseDto,
-} from './dto/warehouse.dto.js';
-import {
-  CreateLocationDto,
-  UpdateLocationDto,
-} from './dto/location.dto.js';
-import {
-  CreateRackDto,
-  UpdateRackDto,
-} from './dto/rack.dto.js';
-import {
-  CreateBinDto,
-  UpdateBinDto,
-} from './dto/bin.dto.js';
+import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto.js';
+import { CreateFamilyDto, UpdateFamilyDto } from './dto/family.dto.js';
+import { CreateProductDto, UpdateProductDto } from './dto/product.dto.js';
+import { CreateWarehouseDto, UpdateWarehouseDto } from './dto/warehouse.dto.js';
+import { CreateLocationDto, UpdateLocationDto } from './dto/location.dto.js';
+import { CreateRackDto, UpdateRackDto } from './dto/rack.dto.js';
+import { CreateBinDto, UpdateBinDto } from './dto/bin.dto.js';
 import { MasterFilterDto } from './dto/master-filter.dto.js';
 
 @Injectable()
@@ -83,7 +62,9 @@ export class MasterDataService {
       .getOne();
 
     if (existing) {
-      throw new ConflictException(`Category with name "${trimmedName}" already exists.`);
+      throw new ConflictException(
+        `Category with name "${trimmedName}" already exists.`,
+      );
     }
 
     const category = this.categoryRepo.create({
@@ -109,7 +90,13 @@ export class MasterDataService {
       .take(pageSize);
 
     const [data, total] = await qb.getManyAndCount();
-    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   async findCategoryById(id: string) {
@@ -138,7 +125,9 @@ export class MasterDataService {
         .getOne();
 
       if (existing) {
-        throw new ConflictException(`Category with name "${trimmedName}" already exists.`);
+        throw new ConflictException(
+          `Category with name "${trimmedName}" already exists.`,
+        );
       }
       category.name = trimmedName;
     }
@@ -163,7 +152,10 @@ export class MasterDataService {
     }
 
     await this.categoryRepo.remove(category);
-    return { success: true, message: `Category "${category.name}" deleted successfully.` };
+    return {
+      success: true,
+      message: `Category "${category.name}" deleted successfully.`,
+    };
   }
 
   // ==========================================
@@ -172,7 +164,9 @@ export class MasterDataService {
   async createFamily(dto: CreateFamilyDto) {
     const category = await this.categoryRepo.findOneBy({ id: dto.categoryId });
     if (!category) {
-      throw new NotFoundException(`Parent Category with ID "${dto.categoryId}" not found.`);
+      throw new NotFoundException(
+        `Parent Category with ID "${dto.categoryId}" not found.`,
+      );
     }
 
     const trimmedName = dto.name.trim();
@@ -217,7 +211,13 @@ export class MasterDataService {
       .take(pageSize);
 
     const [data, total] = await qb.getManyAndCount();
-    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   async findFamilyById(id: string) {
@@ -236,9 +236,13 @@ export class MasterDataService {
 
     const targetCategoryId = dto.categoryId ?? family.categoryId;
     if (dto.categoryId !== undefined) {
-      const category = await this.categoryRepo.findOneBy({ id: dto.categoryId });
+      const category = await this.categoryRepo.findOneBy({
+        id: dto.categoryId,
+      });
       if (!category) {
-        throw new NotFoundException(`Parent Category with ID "${dto.categoryId}" not found.`);
+        throw new NotFoundException(
+          `Parent Category with ID "${dto.categoryId}" not found.`,
+        );
       }
       family.categoryId = dto.categoryId;
     }
@@ -280,7 +284,10 @@ export class MasterDataService {
     }
 
     await this.familyRepo.remove(family);
-    return { success: true, message: `Family "${family.name}" deleted successfully.` };
+    return {
+      success: true,
+      message: `Family "${family.name}" deleted successfully.`,
+    };
   }
 
   // ==========================================
@@ -289,7 +296,9 @@ export class MasterDataService {
   async createProduct(dto: CreateProductDto) {
     const family = await this.familyRepo.findOneBy({ id: dto.familyId });
     if (!family) {
-      throw new NotFoundException(`Parent Family with ID "${dto.familyId}" not found.`);
+      throw new NotFoundException(
+        `Parent Family with ID "${dto.familyId}" not found.`,
+      );
     }
 
     const min = dto.minimumInventory ?? 0;
@@ -307,7 +316,9 @@ export class MasterDataService {
       .getOne();
 
     if (existing) {
-      throw new ConflictException(`Product with name "${trimmedName}" already exists.`);
+      throw new ConflictException(
+        `Product with name "${trimmedName}" already exists.`,
+      );
     }
 
     const product = this.productRepo.create({
@@ -344,7 +355,13 @@ export class MasterDataService {
       .take(pageSize);
 
     const [data, total] = await qb.getManyAndCount();
-    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   async findProductById(id: string) {
@@ -364,7 +381,9 @@ export class MasterDataService {
     if (dto.familyId !== undefined) {
       const family = await this.familyRepo.findOneBy({ id: dto.familyId });
       if (!family) {
-        throw new NotFoundException(`Parent Family with ID "${dto.familyId}" not found.`);
+        throw new NotFoundException(
+          `Parent Family with ID "${dto.familyId}" not found.`,
+        );
       }
       product.familyId = dto.familyId;
     }
@@ -378,21 +397,28 @@ export class MasterDataService {
         .getOne();
 
       if (existing) {
-        throw new ConflictException(`Product with name "${trimmedName}" already exists.`);
+        throw new ConflictException(
+          `Product with name "${trimmedName}" already exists.`,
+        );
       }
       product.name = trimmedName;
     }
 
     const min = dto.minimumInventory ?? product.minimumInventory;
-    const max = dto.maximumInventory !== undefined ? dto.maximumInventory : product.maximumInventory;
+    const max =
+      dto.maximumInventory !== undefined
+        ? dto.maximumInventory
+        : product.maximumInventory;
     if (max !== undefined && max !== null && max < min) {
       throw new BadRequestException(
         `maximumInventory (${max}) cannot be less than minimumInventory (${min}).`,
       );
     }
 
-    if (dto.minimumInventory !== undefined) product.minimumInventory = dto.minimumInventory;
-    if (dto.maximumInventory !== undefined) product.maximumInventory = dto.maximumInventory;
+    if (dto.minimumInventory !== undefined)
+      product.minimumInventory = dto.minimumInventory;
+    if (dto.maximumInventory !== undefined)
+      product.maximumInventory = dto.maximumInventory;
     if (dto.isActive !== undefined) product.isActive = dto.isActive;
 
     return this.productRepo.save(product);
@@ -411,7 +437,9 @@ export class MasterDataService {
       .getOne();
 
     if (existingCode) {
-      throw new ConflictException(`Warehouse code "${normalizedCode}" already exists.`);
+      throw new ConflictException(
+        `Warehouse code "${normalizedCode}" already exists.`,
+      );
     }
 
     const existingName = await this.warehouseRepo
@@ -420,7 +448,9 @@ export class MasterDataService {
       .getOne();
 
     if (existingName) {
-      throw new ConflictException(`Warehouse name "${trimmedName}" already exists.`);
+      throw new ConflictException(
+        `Warehouse name "${trimmedName}" already exists.`,
+      );
     }
 
     const warehouse = this.warehouseRepo.create({
@@ -436,7 +466,9 @@ export class MasterDataService {
     const qb = this.warehouseRepo.createQueryBuilder('w');
 
     if (search) {
-      qb.andWhere('(w.name ILIKE :search OR w.code ILIKE :search)', { search: `%${search}%` });
+      qb.andWhere('(w.name ILIKE :search OR w.code ILIKE :search)', {
+        search: `%${search}%`,
+      });
     }
     if (isActive !== undefined) {
       qb.andWhere('w.isActive = :isActive', { isActive });
@@ -447,7 +479,13 @@ export class MasterDataService {
       .take(pageSize);
 
     const [data, total] = await qb.getManyAndCount();
-    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   async findWarehouseById(id: string) {
@@ -473,7 +511,9 @@ export class MasterDataService {
         .getOne();
 
       if (existing) {
-        throw new ConflictException(`Warehouse code "${normalizedCode}" already exists.`);
+        throw new ConflictException(
+          `Warehouse code "${normalizedCode}" already exists.`,
+        );
       }
       warehouse.code = normalizedCode;
     }
@@ -487,7 +527,9 @@ export class MasterDataService {
         .getOne();
 
       if (existing) {
-        throw new ConflictException(`Warehouse name "${trimmedName}" already exists.`);
+        throw new ConflictException(
+          `Warehouse name "${trimmedName}" already exists.`,
+        );
       }
       warehouse.name = trimmedName;
     }
@@ -512,16 +554,23 @@ export class MasterDataService {
     }
 
     await this.warehouseRepo.remove(warehouse);
-    return { success: true, message: `Warehouse "${warehouse.name}" deleted successfully.` };
+    return {
+      success: true,
+      message: `Warehouse "${warehouse.name}" deleted successfully.`,
+    };
   }
 
   // ==========================================
   // 5. WAREHOUSE LOCATIONS
   // ==========================================
   async createLocation(dto: CreateLocationDto) {
-    const warehouse = await this.warehouseRepo.findOneBy({ id: dto.warehouseId });
+    const warehouse = await this.warehouseRepo.findOneBy({
+      id: dto.warehouseId,
+    });
     if (!warehouse) {
-      throw new NotFoundException(`Parent Warehouse with ID "${dto.warehouseId}" not found.`);
+      throw new NotFoundException(
+        `Parent Warehouse with ID "${dto.warehouseId}" not found.`,
+      );
     }
 
     const normalizedCode = dto.code.trim().toUpperCase();
@@ -558,7 +607,9 @@ export class MasterDataService {
       qb.andWhere('l.warehouseId = :parentId', { parentId });
     }
     if (search) {
-      qb.andWhere('(l.name ILIKE :search OR l.code ILIKE :search)', { search: `%${search}%` });
+      qb.andWhere('(l.name ILIKE :search OR l.code ILIKE :search)', {
+        search: `%${search}%`,
+      });
     }
     if (isActive !== undefined) {
       qb.andWhere('l.isActive = :isActive', { isActive });
@@ -569,7 +620,13 @@ export class MasterDataService {
       .take(pageSize);
 
     const [data, total] = await qb.getManyAndCount();
-    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   async findLocationById(id: string) {
@@ -588,9 +645,13 @@ export class MasterDataService {
 
     const targetWarehouseId = dto.warehouseId ?? location.warehouseId;
     if (dto.warehouseId !== undefined) {
-      const warehouse = await this.warehouseRepo.findOneBy({ id: dto.warehouseId });
+      const warehouse = await this.warehouseRepo.findOneBy({
+        id: dto.warehouseId,
+      });
       if (!warehouse) {
-        throw new NotFoundException(`Parent Warehouse with ID "${dto.warehouseId}" not found.`);
+        throw new NotFoundException(
+          `Parent Warehouse with ID "${dto.warehouseId}" not found.`,
+        );
       }
       location.warehouseId = dto.warehouseId;
     }
@@ -599,7 +660,9 @@ export class MasterDataService {
       const normalizedCode = dto.code.trim().toUpperCase();
       const existing = await this.locationRepo
         .createQueryBuilder('l')
-        .where('l.warehouseId = :warehouseId', { warehouseId: targetWarehouseId })
+        .where('l.warehouseId = :warehouseId', {
+          warehouseId: targetWarehouseId,
+        })
         .andWhere('UPPER(l.code) = :code', { code: normalizedCode })
         .andWhere('l.id != :id', { id })
         .getOne();
@@ -635,7 +698,10 @@ export class MasterDataService {
     }
 
     await this.locationRepo.remove(location);
-    return { success: true, message: `Location "${location.name}" deleted successfully.` };
+    return {
+      success: true,
+      message: `Location "${location.name}" deleted successfully.`,
+    };
   }
 
   // ==========================================
@@ -644,7 +710,9 @@ export class MasterDataService {
   async createRack(dto: CreateRackDto) {
     const location = await this.locationRepo.findOneBy({ id: dto.locationId });
     if (!location) {
-      throw new NotFoundException(`Parent Location with ID "${dto.locationId}" not found.`);
+      throw new NotFoundException(
+        `Parent Location with ID "${dto.locationId}" not found.`,
+      );
     }
 
     const normalizedCode = dto.code.trim().toUpperCase();
@@ -682,7 +750,9 @@ export class MasterDataService {
       qb.andWhere('r.locationId = :parentId', { parentId });
     }
     if (search) {
-      qb.andWhere('(r.name ILIKE :search OR r.code ILIKE :search)', { search: `%${search}%` });
+      qb.andWhere('(r.name ILIKE :search OR r.code ILIKE :search)', {
+        search: `%${search}%`,
+      });
     }
     if (isActive !== undefined) {
       qb.andWhere('r.isActive = :isActive', { isActive });
@@ -693,7 +763,13 @@ export class MasterDataService {
       .take(pageSize);
 
     const [data, total] = await qb.getManyAndCount();
-    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   async findRackById(id: string) {
@@ -712,9 +788,13 @@ export class MasterDataService {
 
     const targetLocationId = dto.locationId ?? rack.locationId;
     if (dto.locationId !== undefined) {
-      const location = await this.locationRepo.findOneBy({ id: dto.locationId });
+      const location = await this.locationRepo.findOneBy({
+        id: dto.locationId,
+      });
       if (!location) {
-        throw new NotFoundException(`Parent Location with ID "${dto.locationId}" not found.`);
+        throw new NotFoundException(
+          `Parent Location with ID "${dto.locationId}" not found.`,
+        );
       }
       rack.locationId = dto.locationId;
     }
@@ -759,7 +839,10 @@ export class MasterDataService {
     }
 
     await this.rackRepo.remove(rack);
-    return { success: true, message: `Rack "${rack.name}" deleted successfully.` };
+    return {
+      success: true,
+      message: `Rack "${rack.name}" deleted successfully.`,
+    };
   }
 
   // ==========================================
@@ -768,7 +851,9 @@ export class MasterDataService {
   async createBin(dto: CreateBinDto) {
     const rack = await this.rackRepo.findOneBy({ id: dto.rackId });
     if (!rack) {
-      throw new NotFoundException(`Parent Rack with ID "${dto.rackId}" not found.`);
+      throw new NotFoundException(
+        `Parent Rack with ID "${dto.rackId}" not found.`,
+      );
     }
 
     const normalizedCode = dto.code.trim().toUpperCase();
@@ -781,7 +866,9 @@ export class MasterDataService {
       .getOne();
 
     if (existingCode) {
-      throw new ConflictException(`Bin code "${normalizedCode}" already exists in this Rack.`);
+      throw new ConflictException(
+        `Bin code "${normalizedCode}" already exists in this Rack.`,
+      );
     }
 
     const bin = this.binRepo.create({
@@ -805,7 +892,9 @@ export class MasterDataService {
       qb.andWhere('b.rackId = :parentId', { parentId });
     }
     if (search) {
-      qb.andWhere('(b.name ILIKE :search OR b.code ILIKE :search)', { search: `%${search}%` });
+      qb.andWhere('(b.name ILIKE :search OR b.code ILIKE :search)', {
+        search: `%${search}%`,
+      });
     }
     if (isActive !== undefined) {
       qb.andWhere('b.isActive = :isActive', { isActive });
@@ -816,7 +905,13 @@ export class MasterDataService {
       .take(pageSize);
 
     const [data, total] = await qb.getManyAndCount();
-    return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   async findBinById(id: string) {
@@ -837,7 +932,9 @@ export class MasterDataService {
     if (dto.rackId !== undefined) {
       const rack = await this.rackRepo.findOneBy({ id: dto.rackId });
       if (!rack) {
-        throw new NotFoundException(`Parent Rack with ID "${dto.rackId}" not found.`);
+        throw new NotFoundException(
+          `Parent Rack with ID "${dto.rackId}" not found.`,
+        );
       }
       bin.rackId = dto.rackId;
     }
@@ -852,7 +949,9 @@ export class MasterDataService {
         .getOne();
 
       if (existing) {
-        throw new ConflictException(`Bin code "${normalizedCode}" already exists in this Rack.`);
+        throw new ConflictException(
+          `Bin code "${normalizedCode}" already exists in this Rack.`,
+        );
       }
       bin.code = normalizedCode;
     }
@@ -893,6 +992,9 @@ export class MasterDataService {
     }
 
     await this.binRepo.remove(bin);
-    return { success: true, message: `Bin "${bin.name}" deleted successfully.` };
+    return {
+      success: true,
+      message: `Bin "${bin.name}" deleted successfully.`,
+    };
   }
 }

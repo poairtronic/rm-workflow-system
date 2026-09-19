@@ -19,9 +19,13 @@ export class AdditionalMaterialRequestItem {
   @Column({ name: 'request_id' })
   requestId!: string;
 
-  @ManyToOne('AdditionalMaterialRequest', (req: AdditionalMaterialRequest) => req.items, {
-    onDelete: 'CASCADE',
-  })
+  @ManyToOne(
+    'AdditionalMaterialRequest',
+    (req: AdditionalMaterialRequest) => req.items,
+    {
+      onDelete: 'CASCADE',
+    },
+  )
   @JoinColumn({ name: 'request_id' })
   request!: AdditionalMaterialRequest;
 

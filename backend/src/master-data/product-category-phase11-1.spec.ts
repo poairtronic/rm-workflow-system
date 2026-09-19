@@ -28,13 +28,30 @@ describe('Phase 11.1 — Product Category Master Data Specification', () => {
     skip: vi.fn().mockReturnThis(),
     take: vi.fn().mockReturnThis(),
     getOne: vi.fn().mockResolvedValue(result),
-    getManyAndCount: vi.fn().mockResolvedValue([result ? (Array.isArray(result) ? result : [result]) : [], count || (result ? 1 : 0)]),
+    getManyAndCount: vi
+      .fn()
+      .mockResolvedValue([
+        result ? (Array.isArray(result) ? result : [result]) : [],
+        count || (result ? 1 : 0),
+      ]),
   });
 
   beforeEach(() => {
     categoryRepo = {
-      create: vi.fn((dto) => ({ id: 'cat-1', createdAt: new Date(), updatedAt: new Date(), ...dto })),
-      save: vi.fn((entity) => Promise.resolve({ id: entity.id || 'cat-1', createdAt: new Date(), updatedAt: new Date(), ...entity })),
+      create: vi.fn((dto) => ({
+        id: 'cat-1',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...dto,
+      })),
+      save: vi.fn((entity) =>
+        Promise.resolve({
+          id: entity.id || 'cat-1',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...entity,
+        }),
+      ),
       findOne: vi.fn(),
       findOneBy: vi.fn(),
       remove: vi.fn((entity) => Promise.resolve(entity)),
@@ -94,8 +111,12 @@ describe('Phase 11.1 — Product Category Master Data Specification', () => {
     });
 
     it('CAT-003: should reject creation if category name is empty or whitespace only', async () => {
-      await expect(service.createCategory({ name: '   ' })).rejects.toThrow(BadRequestException);
-      await expect(service.createCategory({ name: '' })).rejects.toThrow(BadRequestException);
+      await expect(service.createCategory({ name: '   ' })).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(service.createCategory({ name: '' })).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('CAT-004: should reject duplicate category name (case-insensitive)', async () => {
@@ -103,10 +124,12 @@ describe('Phase 11.1 — Product Category Master Data Specification', () => {
         createMockQueryBuilder({ id: 'cat-existing', name: 'Raw Metals' }),
       );
 
-      await expect(service.createCategory({ name: 'raw metals' })).rejects.toThrow(ConflictException);
-      await expect(service.createCategory({ name: 'RAW METALS' })).rejects.toThrow(
-        'Category with name "RAW METALS" already exists.',
-      );
+      await expect(
+        service.createCategory({ name: 'raw metals' }),
+      ).rejects.toThrow(ConflictException);
+      await expect(
+        service.createCategory({ name: 'RAW METALS' }),
+      ).rejects.toThrow('Category with name "RAW METALS" already exists.');
     });
   });
 
@@ -132,13 +155,25 @@ describe('Phase 11.1 — Product Category Master Data Specification', () => {
     });
 
     it('CAT-006: should filter categories by search keyword and isActive flag', async () => {
-      const qb = createMockQueryBuilder([{ id: 'cat-1', name: 'Alloys', isActive: true }], 1);
+      const qb = createMockQueryBuilder(
+        [{ id: 'cat-1', name: 'Alloys', isActive: true }],
+        1,
+      );
       categoryRepo.createQueryBuilder = vi.fn(() => qb);
 
-      await service.findCategories({ search: 'all', isActive: true, page: 2, pageSize: 5 });
+      await service.findCategories({
+        search: 'all',
+        isActive: true,
+        page: 2,
+        pageSize: 5,
+      });
 
-      expect(qb.andWhere).toHaveBeenCalledWith('c.name ILIKE :search', { search: '%all%' });
-      expect(qb.andWhere).toHaveBeenCalledWith('c.isActive = :isActive', { isActive: true });
+      expect(qb.andWhere).toHaveBeenCalledWith('c.name ILIKE :search', {
+        search: '%all%',
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith('c.isActive = :isActive', {
+        isActive: true,
+      });
       expect(qb.skip).toHaveBeenCalledWith(5);
       expect(qb.take).toHaveBeenCalledWith(5);
     });
@@ -163,7 +198,9 @@ describe('Phase 11.1 — Product Category Master Data Specification', () => {
     it('CAT-008: should throw NotFoundException when category ID is not found', async () => {
       categoryRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.findCategoryById('cat-non-existent')).rejects.toThrow(NotFoundException);
+      await expect(
+        service.findCategoryById('cat-non-existent'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -195,9 +232,9 @@ describe('Phase 11.1 — Product Category Master Data Specification', () => {
         isActive: true,
       });
 
-      await expect(service.updateCategory('cat-1', { name: '   ' })).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.updateCategory('cat-1', { name: '   ' }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('CAT-011: should reject update if new name conflicts with another category', async () => {
@@ -221,8 +258,8 @@ describe('Phase 11.1 — Product Category Master Data Specification', () => {
         name: 'Metals',
         isActive: true,
       });
-      categoryRepo.createQueryBuilder = vi.fn(() =>
-        createMockQueryBuilder(null), // no other category has this name
+      categoryRepo.createQueryBuilder = vi.fn(
+        () => createMockQueryBuilder(null), // no other category has this name
       );
 
       const result = await service.updateCategory('cat-1', {
@@ -247,13 +284,19 @@ describe('Phase 11.1 — Product Category Master Data Specification', () => {
   // =========================================================================
   describe('4. Category Safe Deletion Protection', () => {
     it('CAT-014: should safely delete category when no product families are attached', async () => {
-      const category = { id: 'cat-1', name: 'Temporary Category', isActive: true };
+      const category = {
+        id: 'cat-1',
+        name: 'Temporary Category',
+        isActive: true,
+      };
       categoryRepo.findOne.mockResolvedValue(category);
       familyRepo.count.mockResolvedValue(0);
 
       const result = await service.deleteCategory('cat-1');
 
-      expect(familyRepo.count).toHaveBeenCalledWith({ where: { categoryId: 'cat-1' } });
+      expect(familyRepo.count).toHaveBeenCalledWith({
+        where: { categoryId: 'cat-1' },
+      });
       expect(categoryRepo.remove).toHaveBeenCalledWith(category);
       expect(result.success).toBe(true);
       expect(result.message).toContain('deleted successfully');
@@ -264,7 +307,9 @@ describe('Phase 11.1 — Product Category Master Data Specification', () => {
       categoryRepo.findOne.mockResolvedValue(category);
       familyRepo.count.mockResolvedValue(3);
 
-      await expect(service.deleteCategory('cat-1')).rejects.toThrow(ConflictException);
+      await expect(service.deleteCategory('cat-1')).rejects.toThrow(
+        ConflictException,
+      );
       await expect(service.deleteCategory('cat-1')).rejects.toThrow(
         'Cannot delete category "Raw Metals" because it contains 3 product families. Deactivate it instead.',
       );
@@ -274,7 +319,9 @@ describe('Phase 11.1 — Product Category Master Data Specification', () => {
     it('CAT-016: should throw NotFoundException when deleting non-existent category', async () => {
       categoryRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.deleteCategory('cat-non-existent')).rejects.toThrow(NotFoundException);
+      await expect(service.deleteCategory('cat-non-existent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -298,8 +345,14 @@ describe('Phase 11.1 — Product Category Master Data Specification', () => {
     });
 
     it('SEC-004: should allow all authenticated operational roles on read endpoints', () => {
-      const getRoles = Reflect.getMetadata(ROLES_KEY, controller.findCategories);
-      const getByIdRoles = Reflect.getMetadata(ROLES_KEY, controller.findCategoryById);
+      const getRoles = Reflect.getMetadata(
+        ROLES_KEY,
+        controller.findCategories,
+      );
+      const getByIdRoles = Reflect.getMetadata(
+        ROLES_KEY,
+        controller.findCategoryById,
+      );
 
       const expectedRoles = [
         UserRole.ADMIN,
@@ -318,11 +371,45 @@ describe('Phase 11.1 — Product Category Master Data Specification', () => {
     });
 
     it('SEC-005: controller delegates endpoints properly to service', async () => {
-      const spyFindAll = vi.spyOn(service, 'findCategories').mockResolvedValue({ data: [], total: 0, page: 1, pageSize: 20, totalPages: 0 });
-      const spyFindById = vi.spyOn(service, 'findCategoryById').mockResolvedValue({ id: 'cat-1', name: 'Steel', isActive: true, createdAt: new Date(), updatedAt: new Date() });
-      const spyCreate = vi.spyOn(service, 'createCategory').mockResolvedValue({ id: 'cat-1', name: 'Steel', isActive: true, createdAt: new Date(), updatedAt: new Date() });
-      const spyUpdate = vi.spyOn(service, 'updateCategory').mockResolvedValue({ id: 'cat-1', name: 'Steel Updated', isActive: true, createdAt: new Date(), updatedAt: new Date() });
-      const spyDelete = vi.spyOn(service, 'deleteCategory').mockResolvedValue({ success: true, message: 'Deleted' });
+      const spyFindAll = vi
+        .spyOn(service, 'findCategories')
+        .mockResolvedValue({
+          data: [],
+          total: 0,
+          page: 1,
+          pageSize: 20,
+          totalPages: 0,
+        });
+      const spyFindById = vi
+        .spyOn(service, 'findCategoryById')
+        .mockResolvedValue({
+          id: 'cat-1',
+          name: 'Steel',
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      const spyCreate = vi
+        .spyOn(service, 'createCategory')
+        .mockResolvedValue({
+          id: 'cat-1',
+          name: 'Steel',
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      const spyUpdate = vi
+        .spyOn(service, 'updateCategory')
+        .mockResolvedValue({
+          id: 'cat-1',
+          name: 'Steel Updated',
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      const spyDelete = vi
+        .spyOn(service, 'deleteCategory')
+        .mockResolvedValue({ success: true, message: 'Deleted' });
 
       await controller.findCategories({ page: 1 });
       expect(spyFindAll).toHaveBeenCalledWith({ page: 1 });
@@ -334,7 +421,9 @@ describe('Phase 11.1 — Product Category Master Data Specification', () => {
       expect(spyCreate).toHaveBeenCalledWith({ name: 'Steel' });
 
       await controller.updateCategory('cat-1', { name: 'Steel Updated' });
-      expect(spyUpdate).toHaveBeenCalledWith('cat-1', { name: 'Steel Updated' });
+      expect(spyUpdate).toHaveBeenCalledWith('cat-1', {
+        name: 'Steel Updated',
+      });
 
       await controller.deleteCategory('cat-1');
       expect(spyDelete).toHaveBeenCalledWith('cat-1');

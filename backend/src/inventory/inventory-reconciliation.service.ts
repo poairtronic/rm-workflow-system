@@ -52,7 +52,9 @@ export class InventoryReconciliationService {
     };
 
     try {
-      const items = await this.inventoryItemRepository.find({ relations: { stockBalance: true } });
+      const items = await this.inventoryItemRepository.find({
+        relations: { stockBalance: true },
+      });
       plan.totalLegacyItems = items.length;
 
       for (const item of items) {
@@ -75,29 +77,36 @@ export class InventoryReconciliationService {
         }
 
         if (mappingStatus === 'READY_FOR_TARGET_RECONCILIATION') {
-           mappingStatus = 'UNMAPPED_BIN';
-           reason = 'No deterministic bin mapping evidence on legacy item';
-           plan.unmappedBins++;
+          mappingStatus = 'UNMAPPED_BIN';
+          reason = 'No deterministic bin mapping evidence on legacy item';
+          plan.unmappedBins++;
         }
 
-        if (mappingStatus === 'READY_FOR_TARGET_RECONCILIATION' && productId && binId) {
+        if (
+          mappingStatus === 'READY_FOR_TARGET_RECONCILIATION' &&
+          productId &&
+          binId
+        ) {
           const targetBalance = await this.stockBalanceRepository.findOne({
-            where: { productId, binId }
+            where: { productId, binId },
           });
-          
+
           if (targetBalance) {
-             const legacyBalance = item.stockBalance;
-             if (legacyBalance) {
-                if (Number(legacyBalance.currentQuantity) === Number(targetBalance.currentQuantity)) {
-                   plan.targetBalanceMatches++;
-                } else {
-                   mappingStatus = 'QUANTITY_CONFLICT';
-                   reason = `Legacy (${legacyBalance.currentQuantity}) != Target (${targetBalance.currentQuantity})`;
-                   plan.quantityConflicts++;
-                }
-             }
+            const legacyBalance = item.stockBalance;
+            if (legacyBalance) {
+              if (
+                Number(legacyBalance.currentQuantity) ===
+                Number(targetBalance.currentQuantity)
+              ) {
+                plan.targetBalanceMatches++;
+              } else {
+                mappingStatus = 'QUANTITY_CONFLICT';
+                reason = `Legacy (${legacyBalance.currentQuantity}) != Target (${targetBalance.currentQuantity})`;
+                plan.quantityConflicts++;
+              }
+            }
           } else {
-             plan.targetBalanceMissing++;
+            plan.targetBalanceMissing++;
           }
         }
 
@@ -109,45 +118,51 @@ export class InventoryReconciliationService {
           legacy_inventory_item_id: item.id,
           legacy_code: item.material,
           legacy_name: item.materialType,
-          legacy_quantity: item.stockBalance ? Number(item.stockBalance.currentQuantity) : 0,
+          legacy_quantity: item.stockBalance
+            ? Number(item.stockBalance.currentQuantity)
+            : 0,
           product_id: productId,
           bin_id: binId,
           mapping_status: mappingStatus,
           mapping_reason: reason,
         });
       }
-
     } catch (error) {
-       this.logger.error('Dry run failed', error);
+      this.logger.error('Dry run failed', error);
     }
 
     return plan;
   }
 
   async executeReconciliation(): Promise<void> {
-     const queryRunner = this.dataSource.createQueryRunner();
-     await queryRunner.connect();
-     await queryRunner.startTransaction();
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-     try {
-       const plan = await this.dryRunMapping();
-       
-       for (const record of plan.records) {
-         if (record.mapping_status === 'READY_FOR_TARGET_RECONCILIATION' && record.product_id && record.bin_id) {
-           await queryRunner.manager.update(StockBalance, 
-             { inventoryItemId: record.legacy_inventory_item_id },
-             { productId: record.product_id, binId: record.bin_id }
-           );
-         }
-       }
+    try {
+      const plan = await this.dryRunMapping();
 
-       await queryRunner.commitTransaction();
-     } catch (error) {
-       await queryRunner.rollbackTransaction();
-       throw error;
-     } finally {
-       await queryRunner.release();
-     }
+      for (const record of plan.records) {
+        if (
+          record.mapping_status === 'READY_FOR_TARGET_RECONCILIATION' &&
+          record.product_id &&
+          record.bin_id
+        ) {
+          await queryRunner.manager.update(
+            StockBalance,
+            { inventoryItemId: record.legacy_inventory_item_id },
+            { productId: record.product_id, binId: record.bin_id },
+          );
+        }
+      }
+
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   /**
@@ -197,26 +212,39 @@ export class InventoryReconciliationService {
       }
 
       // 4. Check Target Balance existence (to prevent constraint conflicts)
-      const existingTargetBalance = await queryRunner.manager.findOne(StockBalance, {
-        where: { productId, binId },
-      });
+      const existingTargetBalance = await queryRunner.manager.findOne(
+        StockBalance,
+        {
+          where: { productId, binId },
+        },
+      );
 
       let status = 'RECONCILED';
       let reason = 'Successfully mapped and reconciled';
 
-      if (existingTargetBalance && existingTargetBalance.id !== legacyBalance.id) {
+      if (
+        existingTargetBalance &&
+        existingTargetBalance.id !== legacyBalance.id
+      ) {
         // CASE: Target StockBalance exists on a DIFFERENT row
-        if (Number(existingTargetBalance.currentQuantity) === Number(legacyBalance.currentQuantity)) {
+        if (
+          Number(existingTargetBalance.currentQuantity) ===
+          Number(legacyBalance.currentQuantity)
+        ) {
           // CASE B: Quantity matches. Safe to migrate identity.
           // Move inventoryItemId to the target row, and delete the redundant legacy row.
-          await queryRunner.manager.update(StockBalance,
+          await queryRunner.manager.update(
+            StockBalance,
             { id: existingTargetBalance.id },
-            { 
-              inventoryItemId, 
-              openingBalance: openingBalance ?? existingTargetBalance.openingBalance 
-            }
+            {
+              inventoryItemId,
+              openingBalance:
+                openingBalance ?? existingTargetBalance.openingBalance,
+            },
           );
-          await queryRunner.manager.delete(StockBalance, { id: legacyBalance.id });
+          await queryRunner.manager.delete(StockBalance, {
+            id: legacyBalance.id,
+          });
           status = 'RECONCILED';
           reason = 'Merged with existing target balance (quantities matched)';
         } else {
@@ -229,13 +257,14 @@ export class InventoryReconciliationService {
       } else {
         // CASE A: Target StockBalance does not exist (or is already this row)
         // Just update the legacy balance row with target IDs and opening balance
-        await queryRunner.manager.update(StockBalance,
+        await queryRunner.manager.update(
+          StockBalance,
           { id: legacyBalance.id },
-          { 
-            productId, 
+          {
+            productId,
             binId,
-            openingBalance: openingBalance ?? legacyBalance.openingBalance
-          }
+            openingBalance: openingBalance ?? legacyBalance.openingBalance,
+          },
         );
       }
 

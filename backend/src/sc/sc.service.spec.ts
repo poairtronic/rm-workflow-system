@@ -1,14 +1,22 @@
-﻿import { Test, TestingModule } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import { ScService } from './sc.service.js';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { SalesOrderComponent, ScStatus } from './entities/sc.entity.js';
 import { PurchaseOrder } from '../po/entities/po.entity.js';
-import { ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { ProductionService } from '../production/production.service.js';
+import { AdditionalRequestService } from '../additional-request/additional-request.service.js';
+import {
+  ConflictException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 
 describe('ScService', () => {
   let service: ScService;
   let scRepo: any;
   let poRepo: any;
+  let prodServiceMock: any;
+  let addlReqServiceMock: any;
 
   beforeEach(async () => {
     scRepo = {
@@ -16,9 +24,22 @@ describe('ScService', () => {
       create: vi.fn((x) => x),
       save: vi.fn((x) => x),
       createQueryBuilder: vi.fn(),
+      manager: {
+        createQueryBuilder: vi.fn(() => ({
+          where: vi.fn().mockReturnThis(),
+          andWhere: vi.fn().mockReturnThis(),
+          getCount: vi.fn().mockResolvedValue(0),
+        })),
+      },
     };
     poRepo = {
       findOne: vi.fn(),
+    };
+    prodServiceMock = {
+      getAccounting: vi.fn().mockResolvedValue({ items: [] }),
+    };
+    addlReqServiceMock = {
+      findAll: vi.fn().mockResolvedValue([]),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -31,6 +52,14 @@ describe('ScService', () => {
         {
           provide: getRepositoryToken(PurchaseOrder),
           useValue: poRepo,
+        },
+        {
+          provide: ProductionService,
+          useValue: prodServiceMock,
+        },
+        {
+          provide: AdditionalRequestService,
+          useValue: addlReqServiceMock,
         },
       ],
     }).compile();
@@ -89,8 +118,12 @@ describe('ScService', () => {
       status: ScStatus.COMPLETED,
     });
 
-    const closedSc = await service.closeSc('sc-1', 'user-1', { remarks: 'Completed production' });
+    const closedSc = await service.closeSc('sc-1', 'user-1', {
+      remarks: 'Completed production',
+    });
     expect(closedSc.status).toBe(ScStatus.CLOSED);
-    expect(closedSc.completionRemarks).toContain('Closed: Completed production');
+    expect(closedSc.completionRemarks).toContain(
+      'Closed: Completed production',
+    );
   });
 });

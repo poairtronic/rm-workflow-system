@@ -1,4 +1,12 @@
-﻿import { IsString, IsNotEmpty, MaxLength, IsOptional, IsNumber, Min, IsUUID } from 'class-validator';
+﻿import {
+  IsString,
+  IsNotEmpty,
+  MaxLength,
+  IsOptional,
+  IsNumber,
+  Min,
+  IsUUID,
+} from 'class-validator';
 
 export class CreateScDto {
   @IsUUID()

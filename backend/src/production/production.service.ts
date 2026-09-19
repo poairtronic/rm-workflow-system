@@ -5,17 +5,26 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { MaterialReceipt, ReceiptStatus } from './entities/production-receipt.entity.js';
+import {
+  MaterialReceipt,
+  ReceiptStatus,
+} from './entities/production-receipt.entity.js';
 import { MaterialReceiptItem } from './entities/material-receipt-item.entity.js';
 import { MaterialConsumption } from './entities/material-consumption.entity.js';
-import { MaterialReturn, ReturnStatus } from './entities/material-return.entity.js';
+import {
+  MaterialReturn,
+  ReturnStatus,
+} from './entities/material-return.entity.js';
 import { MaterialReturnItem } from './entities/material-return-item.entity.js';
 import { SalesOrderComponent, ScStatus } from '../sc/entities/sc.entity.js';
 import { MaterialIssue } from '../material-issue/entities/material-issue.entity.js';
 import { RmItem } from '../rm/entities/rm-item.entity.js';
 import { Bin } from '../inventory/entities/bin.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
-import { StockTransaction, TransactionType } from '../inventory/entities/stock-transaction.entity.js';
+import {
+  StockTransaction,
+  TransactionType,
+} from '../inventory/entities/stock-transaction.entity.js';
 import {
   CreateProductionReceiptDto,
   CreateMaterialConsumptionDto,
@@ -55,7 +64,9 @@ export class ProductionService {
       relations: { salesOrderComponent: true, items: true },
     });
     if (!issue) {
-      throw new NotFoundException(`Material Issue with ID "${dto.materialIssueId}" not found.`);
+      throw new NotFoundException(
+        `Material Issue with ID "${dto.materialIssueId}" not found.`,
+      );
     }
 
     const sc = issue.salesOrderComponent;
@@ -78,16 +89,26 @@ export class ProductionService {
         status: ReceiptStatus.RECEIVED,
         remarks: dto.remarks,
       });
-      const savedReceipt = await queryRunner.manager.save(MaterialReceipt, receipt);
+      const savedReceipt = await queryRunner.manager.save(
+        MaterialReceipt,
+        receipt,
+      );
 
       let hasPartial = false;
 
       for (const itemDto of dto.items) {
-        QuantityCalculator.assertPositive(itemDto.quantityReceived, 'Quantity Received');
+        QuantityCalculator.assertPositive(
+          itemDto.quantityReceived,
+          'Quantity Received',
+        );
 
-        const issueItem = issue.items.find(i => i.rmItemId === itemDto.rmItemId);
+        const issueItem = issue.items.find(
+          (i) => i.rmItemId === itemDto.rmItemId,
+        );
         if (!issueItem) {
-          throw new BadRequestException(`RM Item "${itemDto.rmItemId}" was not part of Material Issue "${issue.id}".`);
+          throw new BadRequestException(
+            `RM Item "${itemDto.rmItemId}" was not part of Material Issue "${issue.id}".`,
+          );
         }
 
         let prevReceived = 0;
@@ -99,12 +120,18 @@ export class ProductionService {
           }
         }
 
-        const maxAllowed = QuantityCalculator.roundDecimal(Number(issueItem.quantityIssued) - prevReceived);
+        const maxAllowed = QuantityCalculator.roundDecimal(
+          Number(issueItem.quantityIssued) - prevReceived,
+        );
         if (maxAllowed <= 0) {
-           throw new BadRequestException(`Material Issue for RM Item "${itemDto.rmItemId}" has already been fully received.`);
+          throw new BadRequestException(
+            `Material Issue for RM Item "${itemDto.rmItemId}" has already been fully received.`,
+          );
         }
-        
-        const receivedQty = QuantityCalculator.roundDecimal(itemDto.quantityReceived);
+
+        const receivedQty = QuantityCalculator.roundDecimal(
+          itemDto.quantityReceived,
+        );
         QuantityCalculator.assertWithinLimit(
           receivedQty,
           maxAllowed,
@@ -112,7 +139,7 @@ export class ProductionService {
         );
 
         if (receivedQty < maxAllowed) {
-           hasPartial = true;
+          hasPartial = true;
         }
 
         const receiptItem = this.receiptItemRepo.create({
@@ -149,9 +176,11 @@ export class ProductionService {
     }
   }
 
-
   async recordConsumption(dto: CreateMaterialConsumptionDto, actorId: string) {
-    QuantityCalculator.assertPositive(dto.quantityConsumed, 'Quantity Consumed');
+    QuantityCalculator.assertPositive(
+      dto.quantityConsumed,
+      'Quantity Consumed',
+    );
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -159,18 +188,23 @@ export class ProductionService {
 
     try {
       // 1. Lock the SC to serialize all consumption for this component
-      const sc = await queryRunner.manager.createQueryBuilder(SalesOrderComponent, 'sc')
+      const sc = await queryRunner.manager
+        .createQueryBuilder(SalesOrderComponent, 'sc')
         .where('sc.id = :id', { id: dto.scId })
         .setLock('pessimistic_write')
         .getOne();
 
       if (!sc) {
-        throw new NotFoundException(`Sales Order Component with ID "${dto.scId}" not found.`);
+        throw new NotFoundException(
+          `Sales Order Component with ID "${dto.scId}" not found.`,
+        );
       }
 
       StateMachineValidator.assertScActive(sc.status, 'Record Consumption');
 
-      const rmItem = await queryRunner.manager.findOneBy(RmItem, { id: dto.rmItemId });
+      const rmItem = await queryRunner.manager.findOneBy(RmItem, {
+        id: dto.rmItemId,
+      });
       if (!rmItem) {
         throw new NotFoundException(`RM Item "${dto.rmItemId}" not found.`);
       }
@@ -180,7 +214,8 @@ export class ProductionService {
       }
 
       // 2. Fetch all valid receipts for this SC
-      const receiptItems = await queryRunner.manager.createQueryBuilder(MaterialReceiptItem, 'mri')
+      const receiptItems = await queryRunner.manager
+        .createQueryBuilder(MaterialReceiptItem, 'mri')
         .innerJoin('mri.materialReceipt', 'mr')
         .innerJoin('mr.materialIssue', 'mi')
         .where('mi.sc_id = :scId', { scId: dto.scId })
@@ -194,9 +229,12 @@ export class ProductionService {
       totalReceived = QuantityCalculator.roundDecimal(totalReceived);
 
       // 3. Fetch all previous consumptions for this SC/Item
-      const previousConsumptions = await queryRunner.manager.find(MaterialConsumption, {
-        where: { scId: dto.scId, rmItemId: dto.rmItemId }
-      });
+      const previousConsumptions = await queryRunner.manager.find(
+        MaterialConsumption,
+        {
+          where: { scId: dto.scId, rmItemId: dto.rmItemId },
+        },
+      );
 
       let totalConsumed = 0;
       for (const pc of previousConsumptions) {
@@ -205,7 +243,9 @@ export class ProductionService {
       totalConsumed = QuantityCalculator.roundDecimal(totalConsumed);
 
       // 4. Validate quantity
-      const availableForConsumption = QuantityCalculator.roundDecimal(totalReceived - totalConsumed);
+      const availableForConsumption = QuantityCalculator.roundDecimal(
+        totalReceived - totalConsumed,
+      );
 
       QuantityCalculator.assertWithinLimit(
         dto.quantityConsumed,
@@ -223,7 +263,10 @@ export class ProductionService {
         remarks: dto.remarks,
       });
 
-      const saved = await queryRunner.manager.save(MaterialConsumption, consumption);
+      const saved = await queryRunner.manager.save(
+        MaterialConsumption,
+        consumption,
+      );
 
       // CRITICAL: Production consumption DOES NOT alter inventory stock (prevents double-deduction)
       // Return is future workflow. No StockBalance or StockTransaction updates.
@@ -245,31 +288,37 @@ export class ProductionService {
 
     try {
       // 1. Lock the SC to serialize all return requests for this component
-      const sc = await queryRunner.manager.createQueryBuilder(SalesOrderComponent, 'sc')
+      const sc = await queryRunner.manager
+        .createQueryBuilder(SalesOrderComponent, 'sc')
         .where('sc.id = :id', { id: dto.scId })
         .setLock('pessimistic_write')
         .getOne();
 
       if (!sc) {
-        throw new NotFoundException(`Sales Order Component with ID "${dto.scId}" not found.`);
+        throw new NotFoundException(
+          `Sales Order Component with ID "${dto.scId}" not found.`,
+        );
       }
 
       StateMachineValidator.assertScActive(sc.status, 'Record Return');
 
       // 2. Fetch all valid receipts for this SC
-      const receiptItems = await queryRunner.manager.createQueryBuilder(MaterialReceiptItem, 'mri')
+      const receiptItems = await queryRunner.manager
+        .createQueryBuilder(MaterialReceiptItem, 'mri')
         .innerJoin('mri.materialReceipt', 'mr')
         .innerJoin('mr.materialIssue', 'mi')
         .where('mi.sc_id = :scId', { scId: dto.scId })
         .getMany();
 
       // 3. Fetch all previous consumptions for this SC
-      const previousConsumptions = await queryRunner.manager.createQueryBuilder(MaterialConsumption, 'mc')
+      const previousConsumptions = await queryRunner.manager
+        .createQueryBuilder(MaterialConsumption, 'mc')
         .where('mc.sc_id = :scId', { scId: dto.scId })
         .getMany();
 
       // 4. Fetch all previous returns for this SC
-      const allReturns = await queryRunner.manager.createQueryBuilder(MaterialReturn, 'mr')
+      const allReturns = await queryRunner.manager
+        .createQueryBuilder(MaterialReturn, 'mr')
         .leftJoinAndSelect('mr.items', 'items')
         .where('mr.sc_id = :scId', { scId: dto.scId })
         .getMany();
@@ -280,38 +329,48 @@ export class ProductionService {
         status: ReturnStatus.PENDING_STORE_ACK,
         remarks: dto.remarks,
       });
-      const savedReturn = await queryRunner.manager.save(MaterialReturn, returnRec);
+      const savedReturn = await queryRunner.manager.save(
+        MaterialReturn,
+        returnRec,
+      );
 
       for (const itemDto of dto.items) {
-        QuantityCalculator.assertPositive(itemDto.quantityReturned, 'Quantity Returned');
+        QuantityCalculator.assertPositive(
+          itemDto.quantityReturned,
+          'Quantity Returned',
+        );
 
         // Calculate exactly how much is available
         let totalReceived = 0;
         for (const r of receiptItems) {
-            if (r.rmItemId === itemDto.rmItemId) {
-                totalReceived += Number(r.quantityReceived) || 0;
-            }
+          if (r.rmItemId === itemDto.rmItemId) {
+            totalReceived += Number(r.quantityReceived) || 0;
+          }
         }
-        
+
         let totalConsumed = 0;
         for (const c of previousConsumptions) {
-            if (c.rmItemId === itemDto.rmItemId) {
-                totalConsumed += Number(c.consumedQuantity) || 0;
-            }
+          if (c.rmItemId === itemDto.rmItemId) {
+            totalConsumed += Number(c.consumedQuantity) || 0;
+          }
         }
-        
+
         let totalReturned = 0;
         for (const ret of allReturns) {
-            if (ret.status !== ReturnStatus.REJECTED) {
-                for (const item of ret.items) {
-                    if (item.rmItemId === itemDto.rmItemId) {
-                        totalReturned += Number(item.quantityReturned) || 0;
-                    }
-                }
+          if (ret.status !== ReturnStatus.REJECTED) {
+            for (const item of ret.items) {
+              if (item.rmItemId === itemDto.rmItemId) {
+                totalReturned += Number(item.quantityReturned) || 0;
+              }
             }
+          }
         }
-        
-        const unaccounted = QuantityCalculator.calculateUnaccounted(totalReceived, totalConsumed, totalReturned);
+
+        const unaccounted = QuantityCalculator.calculateUnaccounted(
+          totalReceived,
+          totalConsumed,
+          totalReturned,
+        );
 
         QuantityCalculator.assertWithinLimit(
           itemDto.quantityReturned,
@@ -322,7 +381,9 @@ export class ProductionService {
         const returnItem = queryRunner.manager.create(MaterialReturnItem, {
           materialReturnId: savedReturn.id,
           rmItemId: itemDto.rmItemId,
-          quantityReturned: QuantityCalculator.roundDecimal(itemDto.quantityReturned),
+          quantityReturned: QuantityCalculator.roundDecimal(
+            itemDto.quantityReturned,
+          ),
           remarks: itemDto.remarks,
         });
         await queryRunner.manager.save(MaterialReturnItem, returnItem);
@@ -344,12 +405,18 @@ export class ProductionService {
   }
 
   async verifyReturn(returnId: string, dto: VerifyReturnDto, actorId: string) {
-    const destinationBin = await this.binRepo.findOneBy({ id: dto.destinationBinId });
+    const destinationBin = await this.binRepo.findOneBy({
+      id: dto.destinationBinId,
+    });
     if (!destinationBin) {
-      throw new NotFoundException(`Destination Bin "${dto.destinationBinId}" not found.`);
+      throw new NotFoundException(
+        `Destination Bin "${dto.destinationBinId}" not found.`,
+      );
     }
     if (!destinationBin.isActive) {
-      throw new BadRequestException(`Destination Bin "${destinationBin.code}" is inactive.`);
+      throw new BadRequestException(
+        `Destination Bin "${destinationBin.code}" is inactive.`,
+      );
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -357,7 +424,8 @@ export class ProductionService {
     await queryRunner.startTransaction();
 
     try {
-      const returnRec = await queryRunner.manager.createQueryBuilder(MaterialReturn, 'mr')
+      const returnRec = await queryRunner.manager
+        .createQueryBuilder(MaterialReturn, 'mr')
         .innerJoinAndSelect('mr.items', 'items')
         .innerJoinAndSelect('items.rmItem', 'rmItem')
         .where('mr.id = :id', { id: returnId })
@@ -365,16 +433,22 @@ export class ProductionService {
         .getOne();
 
       if (!returnRec) {
-        throw new NotFoundException(`Material Return with ID "${returnId}" not found.`);
+        throw new NotFoundException(
+          `Material Return with ID "${returnId}" not found.`,
+        );
       }
 
       StateMachineValidator.assertReturnPending(returnRec.status);
 
       for (const item of returnRec.items) {
-        const qtyToReturn = QuantityCalculator.roundDecimal(item.quantityReturned);
-        
+        const qtyToReturn = QuantityCalculator.roundDecimal(
+          item.quantityReturned,
+        );
+
         if (!item.rmItem.mappedProductId) {
-          throw new BadRequestException(`RM Item ${item.rmItem.id} has no mapped product ID. Cannot verify return.`);
+          throw new BadRequestException(
+            `RM Item ${item.rmItem.id} has no mapped product ID. Cannot verify return.`,
+          );
         }
 
         // Atomic stock restoration at destination bin. Use ON CONFLICT DO UPDATE to ensure balance row is created if missing.
@@ -383,7 +457,7 @@ export class ProductionService {
            VALUES ($1, $2, $3, NOW(), NOW())
            ON CONFLICT (product_id, bin_id) 
            DO UPDATE SET current_quantity = stock_balances.current_quantity + EXCLUDED.current_quantity, updated_at = NOW()`,
-          [item.rmItem.mappedProductId, dto.destinationBinId, qtyToReturn]
+          [item.rmItem.mappedProductId, dto.destinationBinId, qtyToReturn],
         );
 
         // Immutable StockTransaction for RETURN
@@ -401,7 +475,7 @@ export class ProductionService {
 
         await queryRunner.manager.query(
           `UPDATE stock_balances SET last_transaction_id = $1 WHERE bin_id = $2 AND product_id = $3`,
-          [savedTx.id, dto.destinationBinId, item.rmItem.mappedProductId]
+          [savedTx.id, dto.destinationBinId, item.rmItem.mappedProductId],
         );
       }
 
@@ -417,7 +491,11 @@ export class ProductionService {
 
       return this.returnRepo.findOne({
         where: { id: returnId },
-        relations: { items: { rmItem: true }, returnedBy: true, confirmedBy: true },
+        relations: {
+          items: { rmItem: true },
+          returnedBy: true,
+          confirmedBy: true,
+        },
       });
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -439,10 +517,13 @@ export class ProductionService {
     });
 
     if (!sc) {
-      throw new NotFoundException(`Sales Order Component with ID "${scId}" not found.`);
+      throw new NotFoundException(
+        `Sales Order Component with ID "${scId}" not found.`,
+      );
     }
 
-    const receiptItems = await this.dataSource.getRepository(MaterialReceiptItem)
+    const receiptItems = await this.dataSource
+      .getRepository(MaterialReceiptItem)
       .createQueryBuilder('mri')
       .innerJoin('mri.materialReceipt', 'mr')
       .innerJoin('mr.materialIssue', 'mi')
@@ -490,7 +571,11 @@ export class ProductionService {
       });
       returned = QuantityCalculator.roundDecimal(returned);
 
-      const unaccounted = QuantityCalculator.calculateUnaccounted(received, consumed, returned);
+      const unaccounted = QuantityCalculator.calculateUnaccounted(
+        received,
+        consumed,
+        returned,
+      );
 
       return {
         rmItemId: rmItem.id,
@@ -514,4 +599,3 @@ export class ProductionService {
     };
   }
 }
-

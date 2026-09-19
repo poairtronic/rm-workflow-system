@@ -5,13 +5,19 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { MaterialIssue, MaterialIssueType } from './entities/material-issue.entity.js';
+import {
+  MaterialIssue,
+  MaterialIssueType,
+} from './entities/material-issue.entity.js';
 import { MaterialIssueItem } from './entities/material-issue-item.entity.js';
 import { SalesOrderComponent, ScStatus } from '../sc/entities/sc.entity.js';
 import { RmItem } from '../rm/entities/rm-item.entity.js';
 import { Bin } from '../inventory/entities/bin.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
-import { StockTransaction, TransactionType } from '../inventory/entities/stock-transaction.entity.js';
+import {
+  StockTransaction,
+  TransactionType,
+} from '../inventory/entities/stock-transaction.entity.js';
 import { CreateMaterialIssueDto } from './dto/material-issue.dto.js';
 import { QuantityCalculator } from '../common/utils/quantity-calculator.js';
 import { StateMachineValidator } from '../common/utils/state-machine-validator.js';
@@ -35,13 +41,17 @@ export class MaterialIssueService {
   async createIssue(dto: CreateMaterialIssueDto, actorId: string) {
     const sc = await this.scRepo.findOneBy({ id: dto.scId });
     if (!sc) {
-      throw new NotFoundException(`Sales Order Component with ID "${dto.scId}" not found.`);
+      throw new NotFoundException(
+        `Sales Order Component with ID "${dto.scId}" not found.`,
+      );
     }
 
     StateMachineValidator.assertScActive(sc.status, 'Material Issue');
 
     if (!dto.items || dto.items.length === 0) {
-      throw new BadRequestException(`Material issue must contain at least one item.`);
+      throw new BadRequestException(
+        `Material issue must contain at least one item.`,
+      );
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -63,21 +73,30 @@ export class MaterialIssueService {
       const issueItems: MaterialIssueItem[] = [];
 
       for (const itemDto of dto.items) {
-        QuantityCalculator.assertPositive(itemDto.quantityIssued, 'Quantity Issued');
+        QuantityCalculator.assertPositive(
+          itemDto.quantityIssued,
+          'Quantity Issued',
+        );
 
         const rmItem = await queryRunner.manager.findOne(RmItem, {
           where: { id: itemDto.rmItemId },
           relations: { rmRequest: true },
         });
         if (!rmItem) {
-          throw new NotFoundException(`RM Item "${itemDto.rmItemId}" not found.`);
+          throw new NotFoundException(
+            `RM Item "${itemDto.rmItemId}" not found.`,
+          );
         }
-        
+
         if (rmItem.rmRequest.status !== 'REVIEWED') {
-          throw new BadRequestException(`RM Request must be REVIEWED before Material Issue. Current status: ${rmItem.rmRequest.status}`);
+          throw new BadRequestException(
+            `RM Request must be REVIEWED before Material Issue. Current status: ${rmItem.rmRequest.status}`,
+          );
         }
         if (!rmItem.mappedProductId) {
-          throw new BadRequestException(`RM Item "${rmItem.id}" has no mapped Product. Stores Review must explicitly map it first.`);
+          throw new BadRequestException(
+            `RM Item "${rmItem.id}" has no mapped Product. Stores Review must explicitly map it first.`,
+          );
         }
 
         const bin = await queryRunner.manager.findOne(Bin, {
@@ -95,8 +114,12 @@ export class MaterialIssueService {
           where: { binId: itemDto.binId, productId: rmItem.mappedProductId },
         });
 
-        const availQty = balance ? QuantityCalculator.roundDecimal(Number(balance.currentQuantity)) : 0;
-        const requestedQty = QuantityCalculator.roundDecimal(itemDto.quantityIssued);
+        const availQty = balance
+          ? QuantityCalculator.roundDecimal(Number(balance.currentQuantity))
+          : 0;
+        const requestedQty = QuantityCalculator.roundDecimal(
+          itemDto.quantityIssued,
+        );
 
         QuantityCalculator.assertWithinLimit(
           requestedQty,
@@ -113,7 +136,9 @@ export class MaterialIssueService {
         );
 
         if (updateResult[1] === 0) {
-          throw new BadRequestException(`Insufficient stock in bin "${bin.code}". Concurrency conflict or no balance found.`);
+          throw new BadRequestException(
+            `Insufficient stock in bin "${bin.code}". Concurrency conflict or no balance found.`,
+          );
         }
 
         // Log immutable StockTransaction
@@ -143,7 +168,9 @@ export class MaterialIssueService {
           batchNumber: itemDto.batchNumber,
           remarks: itemDto.remarks,
         });
-        issueItems.push(await queryRunner.manager.save(MaterialIssueItem, issueItem));
+        issueItems.push(
+          await queryRunner.manager.save(MaterialIssueItem, issueItem),
+        );
       }
 
       // Update SC status
@@ -193,4 +220,3 @@ export class MaterialIssueService {
     return issue;
   }
 }
-

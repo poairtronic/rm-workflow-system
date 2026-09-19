@@ -7,10 +7,7 @@ import { Customer } from '../customers/entities/customer.entity.js';
 import { AuthModule } from '../auth/auth.module.js';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([PurchaseOrder, Customer]),
-    AuthModule,
-  ],
+  imports: [TypeOrmModule.forFeature([PurchaseOrder, Customer]), AuthModule],
   controllers: [PoController],
   providers: [PoService],
   exports: [PoService],

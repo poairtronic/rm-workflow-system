@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class Phase7MasterDataAndStorageHierarchy1700000000004
-  implements MigrationInterface
-{
+export class Phase7MasterDataAndStorageHierarchy1700000000004 implements MigrationInterface {
   name = 'Phase7MasterDataAndStorageHierarchy1700000000004';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -186,116 +184,114 @@ export class Phase7MasterDataAndStorageHierarchy1700000000004
 
     // 10. Performance Indexes
     await queryRunner.query(
-      `CREATE INDEX "IDX_products_family_id" ON "products" ("family_id")`
+      `CREATE INDEX "IDX_products_family_id" ON "products" ("family_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_product_families_category_id" ON "product_families" ("category_id")`
+      `CREATE INDEX "IDX_product_families_category_id" ON "product_families" ("category_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_warehouse_locations_warehouse_id" ON "warehouse_locations" ("warehouse_id")`
+      `CREATE INDEX "IDX_warehouse_locations_warehouse_id" ON "warehouse_locations" ("warehouse_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_racks_location_id" ON "racks" ("location_id")`
+      `CREATE INDEX "IDX_racks_location_id" ON "racks" ("location_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_bins_rack_id" ON "bins" ("rack_id")`
+      `CREATE INDEX "IDX_bins_rack_id" ON "bins" ("rack_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_stock_balances_bin_id" ON "stock_balances" ("bin_id")`
+      `CREATE INDEX "IDX_stock_balances_bin_id" ON "stock_balances" ("bin_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_stock_transactions_product_created" ON "stock_transactions" ("product_id", "created_at" DESC)`
+      `CREATE INDEX "IDX_stock_transactions_product_created" ON "stock_transactions" ("product_id", "created_at" DESC)`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_stock_transactions_source_bin" ON "stock_transactions" ("source_bin_id")`
+      `CREATE INDEX "IDX_stock_transactions_source_bin" ON "stock_transactions" ("source_bin_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_stock_transactions_destination_bin" ON "stock_transactions" ("destination_bin_id")`
+      `CREATE INDEX "IDX_stock_transactions_destination_bin" ON "stock_transactions" ("destination_bin_id")`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_stock_transactions_destination_bin"`
+      `DROP INDEX IF EXISTS "IDX_stock_transactions_destination_bin"`,
     );
     await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_stock_transactions_source_bin"`
+      `DROP INDEX IF EXISTS "IDX_stock_transactions_source_bin"`,
     );
     await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_stock_transactions_product_created"`
+      `DROP INDEX IF EXISTS "IDX_stock_transactions_product_created"`,
     );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_stock_balances_bin_id"`
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_stock_balances_bin_id"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_bins_rack_id"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_racks_location_id"`);
     await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_warehouse_locations_warehouse_id"`
+      `DROP INDEX IF EXISTS "IDX_warehouse_locations_warehouse_id"`,
     );
     await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_product_families_category_id"`
+      `DROP INDEX IF EXISTS "IDX_product_families_category_id"`,
     );
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_products_family_id"`);
 
     await queryRunner.query(
-      `ALTER TABLE "stock_transactions" DROP CONSTRAINT IF EXISTS "FK_stock_transactions_destination_bin_id"`
+      `ALTER TABLE "stock_transactions" DROP CONSTRAINT IF EXISTS "FK_stock_transactions_destination_bin_id"`,
     );
     await queryRunner.query(
-      `ALTER TABLE "stock_transactions" DROP CONSTRAINT IF EXISTS "FK_stock_transactions_source_bin_id"`
+      `ALTER TABLE "stock_transactions" DROP CONSTRAINT IF EXISTS "FK_stock_transactions_source_bin_id"`,
     );
     await queryRunner.query(
-      `ALTER TABLE "stock_transactions" DROP CONSTRAINT IF EXISTS "FK_stock_transactions_product_id"`
+      `ALTER TABLE "stock_transactions" DROP CONSTRAINT IF EXISTS "FK_stock_transactions_product_id"`,
     );
     await queryRunner.query(
-      `ALTER TABLE "stock_transactions" DROP COLUMN IF EXISTS "destination_bin_id"`
+      `ALTER TABLE "stock_transactions" DROP COLUMN IF EXISTS "destination_bin_id"`,
     );
     await queryRunner.query(
-      `ALTER TABLE "stock_transactions" DROP COLUMN IF EXISTS "source_bin_id"`
+      `ALTER TABLE "stock_transactions" DROP COLUMN IF EXISTS "source_bin_id"`,
     );
     await queryRunner.query(
-      `ALTER TABLE "stock_transactions" DROP COLUMN IF EXISTS "product_id"`
-    );
-
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "UQ_stock_balances_product_bin"`
-    );
-    await queryRunner.query(
-      `ALTER TABLE "stock_balances" DROP CONSTRAINT IF EXISTS "FK_stock_balances_bin_id"`
-    );
-    await queryRunner.query(
-      `ALTER TABLE "stock_balances" DROP CONSTRAINT IF EXISTS "FK_stock_balances_product_id"`
-    );
-    await queryRunner.query(
-      `ALTER TABLE "stock_balances" DROP COLUMN IF EXISTS "bin_id"`
-    );
-    await queryRunner.query(
-      `ALTER TABLE "stock_balances" DROP COLUMN IF EXISTS "product_id"`
+      `ALTER TABLE "stock_transactions" DROP COLUMN IF EXISTS "product_id"`,
     );
 
     await queryRunner.query(
-      `ALTER TABLE "bins" DROP CONSTRAINT IF EXISTS "FK_bins_rack_id"`
+      `DROP INDEX IF EXISTS "UQ_stock_balances_product_bin"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "stock_balances" DROP CONSTRAINT IF EXISTS "FK_stock_balances_bin_id"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "stock_balances" DROP CONSTRAINT IF EXISTS "FK_stock_balances_product_id"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "stock_balances" DROP COLUMN IF EXISTS "bin_id"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "stock_balances" DROP COLUMN IF EXISTS "product_id"`,
+    );
+
+    await queryRunner.query(
+      `ALTER TABLE "bins" DROP CONSTRAINT IF EXISTS "FK_bins_rack_id"`,
     );
     await queryRunner.query(`DROP TABLE IF EXISTS "bins"`);
 
     await queryRunner.query(
-      `ALTER TABLE "racks" DROP CONSTRAINT IF EXISTS "FK_racks_location_id"`
+      `ALTER TABLE "racks" DROP CONSTRAINT IF EXISTS "FK_racks_location_id"`,
     );
     await queryRunner.query(`DROP TABLE IF EXISTS "racks"`);
 
     await queryRunner.query(
-      `ALTER TABLE "warehouse_locations" DROP CONSTRAINT IF EXISTS "FK_warehouse_locations_warehouse_id"`
+      `ALTER TABLE "warehouse_locations" DROP CONSTRAINT IF EXISTS "FK_warehouse_locations_warehouse_id"`,
     );
     await queryRunner.query(`DROP TABLE IF EXISTS "warehouse_locations"`);
 
     await queryRunner.query(`DROP TABLE IF EXISTS "warehouses"`);
 
     await queryRunner.query(
-      `ALTER TABLE "products" DROP CONSTRAINT IF EXISTS "FK_products_family_id"`
+      `ALTER TABLE "products" DROP CONSTRAINT IF EXISTS "FK_products_family_id"`,
     );
     await queryRunner.query(`DROP TABLE IF EXISTS "products"`);
 
     await queryRunner.query(
-      `ALTER TABLE "product_families" DROP CONSTRAINT IF EXISTS "FK_product_families_category_id"`
+      `ALTER TABLE "product_families" DROP CONSTRAINT IF EXISTS "FK_product_families_category_id"`,
     );
     await queryRunner.query(`DROP TABLE IF EXISTS "product_families"`);
 

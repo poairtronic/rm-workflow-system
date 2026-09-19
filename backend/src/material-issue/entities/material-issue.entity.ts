@@ -27,9 +27,13 @@ export class MaterialIssue {
   @Column({ name: 'sc_id' })
   scId!: string;
 
-  @ManyToOne('SalesOrderComponent', (sc: SalesOrderComponent) => sc.materialIssues, {
-    onDelete: 'RESTRICT',
-  })
+  @ManyToOne(
+    'SalesOrderComponent',
+    (sc: SalesOrderComponent) => sc.materialIssues,
+    {
+      onDelete: 'RESTRICT',
+    },
+  )
   @JoinColumn({ name: 'sc_id' })
   salesOrderComponent!: SalesOrderComponent;
 

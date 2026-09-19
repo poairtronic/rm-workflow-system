@@ -7,14 +7,15 @@ import { ScService } from './sc.service.js';
 import { ScController } from './sc.controller.js';
 import { AuthModule } from '../auth/auth.module.js';
 
+import { ProductionModule } from '../production/production.module.js';
+import { AdditionalRequestModule } from '../additional-request/additional-request.module.js';
+
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      SalesOrderComponent,
-      PurchaseOrder,
-      Customer,
-    ]),
+    TypeOrmModule.forFeature([SalesOrderComponent, PurchaseOrder, Customer]),
     AuthModule,
+    ProductionModule,
+    AdditionalRequestModule,
   ],
   controllers: [ScController],
   providers: [ScService],

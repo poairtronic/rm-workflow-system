@@ -1,6 +1,16 @@
-import { IsOptional, IsEnum, IsInt, Min, Max, IsDateString } from 'class-validator';
+import {
+  IsOptional,
+  IsEnum,
+  IsInt,
+  Min,
+  Max,
+  IsDateString,
+} from 'class-validator';
 import { Type } from 'class-transformer';
-import { TransactionType, AdjustmentDirection } from '../entities/stock-transaction.entity.js';
+import {
+  TransactionType,
+  AdjustmentDirection,
+} from '../entities/stock-transaction.entity.js';
 
 export class GetTransactionFilterDto {
   @IsOptional()

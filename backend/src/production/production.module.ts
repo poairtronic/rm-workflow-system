@@ -33,4 +33,3 @@ import { Bin } from '../inventory/entities/bin.entity.js';
   exports: [ProductionService],
 })
 export class ProductionModule {}
-

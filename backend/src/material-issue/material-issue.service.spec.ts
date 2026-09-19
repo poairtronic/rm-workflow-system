@@ -31,11 +31,25 @@ describe('MaterialIssueService', () => {
       rollbackTransaction: vi.fn(),
       release: vi.fn(),
       manager: {
-        save: vi.fn((entity, data) => Promise.resolve({ id: 'saved-id', ...data })),
+        save: vi.fn((entity, data) =>
+          Promise.resolve({ id: 'saved-id', ...data }),
+        ),
         findOne: vi.fn((entity, options) => {
-          if (options.where?.id === 'rm-item-1') return Promise.resolve({ id: 'rm-item-1', material: 'Steel', mappedProductId: 'prod-1', rmRequest: { status: 'REVIEWED' } });
-          if (options.where?.id === 'bin-1') return Promise.resolve({ id: 'bin-1', code: 'BIN-A1', isActive: true });
-          if (options.where?.binId === 'bin-1') return Promise.resolve({ currentQuantity: 100 });
+          if (options.where?.id === 'rm-item-1')
+            return Promise.resolve({
+              id: 'rm-item-1',
+              material: 'Steel',
+              mappedProductId: 'prod-1',
+              rmRequest: { status: 'REVIEWED' },
+            });
+          if (options.where?.id === 'bin-1')
+            return Promise.resolve({
+              id: 'bin-1',
+              code: 'BIN-A1',
+              isActive: true,
+            });
+          if (options.where?.binId === 'bin-1')
+            return Promise.resolve({ currentQuantity: 100 });
           return Promise.resolve(null);
         }),
         query: vi.fn().mockResolvedValue([[], 1]),
@@ -58,8 +72,16 @@ describe('MaterialIssueService', () => {
   });
 
   it('should issue stock atomically from exact bin and update SC status', async () => {
-    scRepo.findOneBy.mockResolvedValue({ id: 'sc-1', scNumber: 'SC-001', status: ScStatus.SUBMITTED });
-    issueRepo.findOne.mockResolvedValue({ id: 'issue-1', issueNumber: 'ISS-100', items: [] });
+    scRepo.findOneBy.mockResolvedValue({
+      id: 'sc-1',
+      scNumber: 'SC-001',
+      status: ScStatus.SUBMITTED,
+    });
+    issueRepo.findOne.mockResolvedValue({
+      id: 'issue-1',
+      issueNumber: 'ISS-100',
+      items: [],
+    });
 
     const dto = {
       scId: 'sc-1',
@@ -78,14 +100,25 @@ describe('MaterialIssueService', () => {
   });
 
   it('should reject issue when stock in bin is insufficient', async () => {
-    scRepo.findOneBy.mockResolvedValue({ id: 'sc-1', scNumber: 'SC-001', status: ScStatus.SUBMITTED });
+    scRepo.findOneBy.mockResolvedValue({
+      id: 'sc-1',
+      scNumber: 'SC-001',
+      status: ScStatus.SUBMITTED,
+    });
 
     // Override manager findOne to return insufficient stock
     const qr = dataSource.createQueryRunner();
     qr.manager.findOne = vi.fn((entity, options) => {
-      if (options.where?.id === 'rm-item-1') return Promise.resolve({ id: 'rm-item-1', mappedProductId: 'prod-1', rmRequest: { status: 'REVIEWED' } });
-      if (options.where?.id === 'bin-1') return Promise.resolve({ id: 'bin-1', code: 'BIN-A1', isActive: true });
-      if (options.where?.binId === 'bin-1') return Promise.resolve({ currentQuantity: 5 }); // Only 5 available!
+      if (options.where?.id === 'rm-item-1')
+        return Promise.resolve({
+          id: 'rm-item-1',
+          mappedProductId: 'prod-1',
+          rmRequest: { status: 'REVIEWED' },
+        });
+      if (options.where?.id === 'bin-1')
+        return Promise.resolve({ id: 'bin-1', code: 'BIN-A1', isActive: true });
+      if (options.where?.binId === 'bin-1')
+        return Promise.resolve({ currentQuantity: 5 }); // Only 5 available!
       return Promise.resolve(null);
     });
 
@@ -100,6 +133,8 @@ describe('MaterialIssueService', () => {
       ],
     };
 
-    await expect(service.createIssue(dto, 'stores-user-1')).rejects.toThrow(BadRequestException);
+    await expect(service.createIssue(dto, 'stores-user-1')).rejects.toThrow(
+      BadRequestException,
+    );
   });
 });

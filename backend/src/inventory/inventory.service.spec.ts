@@ -4,7 +4,11 @@ import { ConflictException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { InventoryItem } from './entities/inventory-item.entity.js';
 import { StockBalance } from './entities/stock-balance.entity.js';
-import { StockTransaction, TransactionType, AdjustmentDirection } from './entities/stock-transaction.entity.js';
+import {
+  StockTransaction,
+  TransactionType,
+  AdjustmentDirection,
+} from './entities/stock-transaction.entity.js';
 import { StockStatusFilter } from './dto/get-inventory-filter.dto.js';
 import { DataSource } from 'typeorm';
 
@@ -78,7 +82,9 @@ describe('InventoryService', () => {
     service = module.get<InventoryService>(InventoryService);
     inventoryItemRepository = module.get(getRepositoryToken(InventoryItem));
     stockBalanceRepository = module.get(getRepositoryToken(StockBalance));
-    stockTransactionRepository = module.get(getRepositoryToken(StockTransaction));
+    stockTransactionRepository = module.get(
+      getRepositoryToken(StockTransaction),
+    );
   });
 
   it('should be defined', () => {
@@ -89,16 +95,18 @@ describe('InventoryService', () => {
     it('should throw ConflictException on duplicate item (code 23505)', async () => {
       const qr = dataSource.createQueryRunner();
       qr.manager.save.mockRejectedValueOnce({ code: '23505' });
-      
+
       inventoryItemRepository.create.mockReturnValue({});
 
-      await expect(service.create({
-        material: 'TEST',
-        materialType: 'TEST',
-        grade: 'TEST',
-        size: 'TEST',
-        unit: 'KG',
-      })).rejects.toThrow(ConflictException);
+      await expect(
+        service.create({
+          material: 'TEST',
+          materialType: 'TEST',
+          grade: 'TEST',
+          size: 'TEST',
+          unit: 'KG',
+        }),
+      ).rejects.toThrow(ConflictException);
 
       expect(qr.rollbackTransaction).toHaveBeenCalled();
     });
@@ -109,9 +117,11 @@ describe('InventoryService', () => {
       inventoryItemRepository.findOne.mockResolvedValueOnce({ id: '123' });
       inventoryItemRepository.save.mockRejectedValueOnce({ code: '23505' });
 
-      await expect(service.update('123', {
-        material: 'TEST',
-      })).rejects.toThrow(ConflictException);
+      await expect(
+        service.update('123', {
+          material: 'TEST',
+        }),
+      ).rejects.toThrow(ConflictException);
     });
   });
 
@@ -121,18 +131,22 @@ describe('InventoryService', () => {
       qr.manager.findOne.mockResolvedValueOnce({ id: 'item-1' }); // Item exists
       qr.manager.save.mockResolvedValueOnce({ id: 'tx-1' }); // Transaction saved
 
-      await service.addStockTransaction('item-1', {
-        transactionType: TransactionType.STOCK_IN,
-        quantity: 100,
-        referenceType: 'MANUAL',
-      }, 'user-1');
+      await service.addStockTransaction(
+        'item-1',
+        {
+          transactionType: TransactionType.STOCK_IN,
+          quantity: 100,
+          referenceType: 'MANUAL',
+        },
+        'user-1',
+      );
 
       expect(qr.startTransaction).toHaveBeenCalled();
-      
+
       // Should execute atomic update with '+'
       expect(qr.manager.query).toHaveBeenCalledWith(
         expect.stringContaining('current_quantity = current_quantity + $1'),
-        [100, 'tx-1', 'item-1']
+        [100, 'tx-1', 'item-1'],
       );
 
       expect(qr.commitTransaction).toHaveBeenCalled();
@@ -143,16 +157,20 @@ describe('InventoryService', () => {
       qr.manager.findOne.mockResolvedValueOnce({ id: 'item-1' }); // Item exists
       qr.manager.save.mockResolvedValueOnce({ id: 'tx-1' }); // Transaction saved
 
-      await service.addStockTransaction('item-1', {
-        transactionType: TransactionType.STOCK_OUT,
-        quantity: 50,
-        referenceType: 'MANUAL',
-      }, 'user-1');
+      await service.addStockTransaction(
+        'item-1',
+        {
+          transactionType: TransactionType.STOCK_OUT,
+          quantity: 50,
+          referenceType: 'MANUAL',
+        },
+        'user-1',
+      );
 
       // Should execute atomic update with '-'
       expect(qr.manager.query).toHaveBeenCalledWith(
         expect.stringContaining('current_quantity = current_quantity - $1'),
-        [50, 'tx-1', 'item-1']
+        [50, 'tx-1', 'item-1'],
       );
     });
   });
@@ -160,26 +178,38 @@ describe('InventoryService', () => {
   describe('stockIn', () => {
     it('should successfully execute a Stock In transaction atomically', async () => {
       const qr = dataSource.createQueryRunner();
-      
+
       // Mocks for successful flow
       qr.manager.findOne
         .mockResolvedValueOnce({ id: 'item-1' }) // Item exists
-        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 0 }) // Balance check
-        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 25.5 }); // Final fetch after update
-      
+        .mockResolvedValueOnce({
+          id: 'bal-1',
+          inventoryItemId: 'item-1',
+          currentQuantity: 0,
+        }) // Balance check
+        .mockResolvedValueOnce({
+          id: 'bal-1',
+          inventoryItemId: 'item-1',
+          currentQuantity: 25.5,
+        }); // Final fetch after update
+
       qr.manager.save.mockResolvedValueOnce({ id: 'tx-1' }); // Transaction saved
-      
-      const result = await service.stockIn('item-1', {
-        quantity: 25.5,
-        referenceType: 'PO',
-      }, 'user-1');
+
+      const result = await service.stockIn(
+        'item-1',
+        {
+          quantity: 25.5,
+          referenceType: 'PO',
+        },
+        'user-1',
+      );
 
       expect(qr.startTransaction).toHaveBeenCalled();
-      
+
       // Should execute atomic update with '+'
       expect(qr.manager.query).toHaveBeenCalledWith(
         expect.stringContaining('current_quantity = current_quantity + $1'),
-        [25.5, 'tx-1', 'item-1']
+        [25.5, 'tx-1', 'item-1'],
       );
 
       expect(qr.commitTransaction).toHaveBeenCalled();
@@ -188,18 +218,28 @@ describe('InventoryService', () => {
 
     it('should rollback if the balance update fails', async () => {
       const qr = dataSource.createQueryRunner();
-      
+
       qr.manager.findOne
         .mockResolvedValueOnce({ id: 'item-1' }) // Item exists
-        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 0 }) // Balance check
+        .mockResolvedValueOnce({
+          id: 'bal-1',
+          inventoryItemId: 'item-1',
+          currentQuantity: 0,
+        }) // Balance check
         .mockResolvedValueOnce(null); // Simulate final fetch failing (update failed)
-      
+
       qr.manager.save.mockResolvedValueOnce({ id: 'tx-1' }); // Transaction saved
-      
-      await expect(service.stockIn('item-1', {
-        quantity: 10,
-        referenceType: 'PO',
-      }, 'user-1')).rejects.toThrow();
+
+      await expect(
+        service.stockIn(
+          'item-1',
+          {
+            quantity: 10,
+            referenceType: 'PO',
+          },
+          'user-1',
+        ),
+      ).rejects.toThrow();
 
       expect(qr.rollbackTransaction).toHaveBeenCalled();
       expect(qr.commitTransaction).not.toHaveBeenCalled();
@@ -209,27 +249,40 @@ describe('InventoryService', () => {
   describe('stockOut', () => {
     it('should successfully execute a Stock Out transaction atomically', async () => {
       const qr = dataSource.createQueryRunner();
-      
+
       qr.manager.findOne
         .mockResolvedValueOnce({ id: 'item-1' }) // Item exists
-        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 100 }) // Current balance
-        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 75 }); // Final balance
-      
+        .mockResolvedValueOnce({
+          id: 'bal-1',
+          inventoryItemId: 'item-1',
+          currentQuantity: 100,
+        }) // Current balance
+        .mockResolvedValueOnce({
+          id: 'bal-1',
+          inventoryItemId: 'item-1',
+          currentQuantity: 75,
+        }); // Final balance
+
       qr.manager.query
         .mockResolvedValueOnce([[], 1]) // atomic decrement returns 1 affected row
         .mockResolvedValueOnce([[], 1]); // last_transaction_id update
-        
+
       qr.manager.save.mockResolvedValueOnce({ id: 'tx-1' }); // Transaction saved
-      
-      const result = await service.stockOut('item-1', {
-        quantity: 25,
-        referenceType: 'MANUAL',
-      }, 'user-1');
+
+      const result = await service.stockOut(
+        'item-1',
+        {
+          quantity: 25,
+          referenceType: 'MANUAL',
+        },
+        'user-1',
+      );
 
       expect(qr.startTransaction).toHaveBeenCalled();
-      expect(qr.manager.query).toHaveBeenNthCalledWith(1,
+      expect(qr.manager.query).toHaveBeenNthCalledWith(
+        1,
         expect.stringContaining('current_quantity = current_quantity - $1'),
-        [25, 'item-1']
+        [25, 'item-1'],
       );
       expect(qr.commitTransaction).toHaveBeenCalled();
       expect(result.balance!.currentQuantity).toBe(75);
@@ -237,22 +290,34 @@ describe('InventoryService', () => {
 
     it('should allow exact full-stock withdrawal', async () => {
       const qr = dataSource.createQueryRunner();
-      
+
       qr.manager.findOne
         .mockResolvedValueOnce({ id: 'item-1' }) // Item exists
-        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 100 }) // Current balance
-        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 0 }); // Final balance
-      
+        .mockResolvedValueOnce({
+          id: 'bal-1',
+          inventoryItemId: 'item-1',
+          currentQuantity: 100,
+        }) // Current balance
+        .mockResolvedValueOnce({
+          id: 'bal-1',
+          inventoryItemId: 'item-1',
+          currentQuantity: 0,
+        }); // Final balance
+
       qr.manager.query
         .mockResolvedValueOnce([[], 1]) // 1 row updated
-        .mockResolvedValueOnce([[], 1]); 
-        
-      qr.manager.save.mockResolvedValueOnce({ id: 'tx-1' }); 
-      
-      const result = await service.stockOut('item-1', {
-        quantity: 100,
-        referenceType: 'MANUAL',
-      }, 'user-1');
+        .mockResolvedValueOnce([[], 1]);
+
+      qr.manager.save.mockResolvedValueOnce({ id: 'tx-1' });
+
+      const result = await service.stockOut(
+        'item-1',
+        {
+          quantity: 100,
+          referenceType: 'MANUAL',
+        },
+        'user-1',
+      );
 
       expect(qr.commitTransaction).toHaveBeenCalled();
       expect(result.balance!.currentQuantity).toBe(0);
@@ -260,17 +325,27 @@ describe('InventoryService', () => {
 
     it('should throw BadRequestException if affected rows is 0 (insufficient stock)', async () => {
       const qr = dataSource.createQueryRunner();
-      
+
       qr.manager.findOne
         .mockResolvedValueOnce({ id: 'item-1' }) // Item exists
-        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 100 }); // Current balance
-      
+        .mockResolvedValueOnce({
+          id: 'bal-1',
+          inventoryItemId: 'item-1',
+          currentQuantity: 100,
+        }); // Current balance
+
       qr.manager.query.mockResolvedValueOnce([[], 0]); // 0 rows updated
-      
-      await expect(service.stockOut('item-1', {
-        quantity: 101,
-        referenceType: 'MANUAL',
-      }, 'user-1')).rejects.toThrow('Insufficient stock.');
+
+      await expect(
+        service.stockOut(
+          'item-1',
+          {
+            quantity: 101,
+            referenceType: 'MANUAL',
+          },
+          'user-1',
+        ),
+      ).rejects.toThrow('Insufficient stock.');
 
       expect(qr.rollbackTransaction).toHaveBeenCalled();
       expect(qr.commitTransaction).not.toHaveBeenCalled();
@@ -279,15 +354,21 @@ describe('InventoryService', () => {
 
     it('should throw exception if balance record does not exist', async () => {
       const qr = dataSource.createQueryRunner();
-      
+
       qr.manager.findOne
         .mockResolvedValueOnce({ id: 'item-1' }) // Item exists
         .mockResolvedValueOnce(null); // No balance record
-      
-      await expect(service.stockOut('item-1', {
-        quantity: 10,
-        referenceType: 'MANUAL',
-      }, 'user-1')).rejects.toThrow('Insufficient stock (no balance record found).');
+
+      await expect(
+        service.stockOut(
+          'item-1',
+          {
+            quantity: 10,
+            referenceType: 'MANUAL',
+          },
+          'user-1',
+        ),
+      ).rejects.toThrow('Insufficient stock (no balance record found).');
 
       expect(qr.rollbackTransaction).toHaveBeenCalled();
       expect(qr.manager.query).not.toHaveBeenCalled();
@@ -295,18 +376,28 @@ describe('InventoryService', () => {
 
     it('should rollback if transaction insertion fails', async () => {
       const qr = dataSource.createQueryRunner();
-      
+
       qr.manager.findOne
-        .mockResolvedValueOnce({ id: 'item-1' }) 
-        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 100 }); 
-      
+        .mockResolvedValueOnce({ id: 'item-1' })
+        .mockResolvedValueOnce({
+          id: 'bal-1',
+          inventoryItemId: 'item-1',
+          currentQuantity: 100,
+        });
+
       qr.manager.query.mockResolvedValueOnce([[], 1]); // decrement succeeds
       qr.manager.save.mockRejectedValueOnce(new Error('DB Error')); // save fails
-      
-      await expect(service.stockOut('item-1', {
-        quantity: 10,
-        referenceType: 'MANUAL',
-      }, 'user-1')).rejects.toThrow('DB Error');
+
+      await expect(
+        service.stockOut(
+          'item-1',
+          {
+            quantity: 10,
+            referenceType: 'MANUAL',
+          },
+          'user-1',
+        ),
+      ).rejects.toThrow('DB Error');
 
       expect(qr.rollbackTransaction).toHaveBeenCalled();
     });
@@ -315,29 +406,42 @@ describe('InventoryService', () => {
   describe('stockAdjustment', () => {
     it('should successfully execute a Stock Adjustment INCREASE atomically', async () => {
       const qr = dataSource.createQueryRunner();
-      
+
       qr.manager.findOne
-        .mockResolvedValueOnce({ id: 'item-1' }) 
-        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 100 }) 
-        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 125 }); 
-      
+        .mockResolvedValueOnce({ id: 'item-1' })
+        .mockResolvedValueOnce({
+          id: 'bal-1',
+          inventoryItemId: 'item-1',
+          currentQuantity: 100,
+        })
+        .mockResolvedValueOnce({
+          id: 'bal-1',
+          inventoryItemId: 'item-1',
+          currentQuantity: 125,
+        });
+
       qr.manager.query
-        .mockResolvedValueOnce([[], 1]) 
-        .mockResolvedValueOnce([[], 1]); 
-        
-      qr.manager.save.mockResolvedValueOnce({ id: 'tx-1' }); 
-      
-      const result = await service.stockAdjustment('item-1', {
-        quantity: 25,
-        direction: AdjustmentDirection.INCREASE,
-        referenceType: 'MANUAL',
-        remarks: 'Found extra',
-      }, 'user-1');
+        .mockResolvedValueOnce([[], 1])
+        .mockResolvedValueOnce([[], 1]);
+
+      qr.manager.save.mockResolvedValueOnce({ id: 'tx-1' });
+
+      const result = await service.stockAdjustment(
+        'item-1',
+        {
+          quantity: 25,
+          direction: AdjustmentDirection.INCREASE,
+          referenceType: 'MANUAL',
+          remarks: 'Found extra',
+        },
+        'user-1',
+      );
 
       expect(qr.startTransaction).toHaveBeenCalled();
-      expect(qr.manager.query).toHaveBeenNthCalledWith(1,
+      expect(qr.manager.query).toHaveBeenNthCalledWith(
+        1,
         expect.stringContaining('current_quantity = current_quantity + $1'),
-        [25, 'item-1']
+        [25, 'item-1'],
       );
       expect(qr.commitTransaction).toHaveBeenCalled();
       expect(result.balance!.currentQuantity).toBe(125);
@@ -345,29 +449,42 @@ describe('InventoryService', () => {
 
     it('should successfully execute a Stock Adjustment DECREASE atomically', async () => {
       const qr = dataSource.createQueryRunner();
-      
+
       qr.manager.findOne
-        .mockResolvedValueOnce({ id: 'item-1' }) 
-        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 100 }) 
-        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 75 }); 
-      
+        .mockResolvedValueOnce({ id: 'item-1' })
+        .mockResolvedValueOnce({
+          id: 'bal-1',
+          inventoryItemId: 'item-1',
+          currentQuantity: 100,
+        })
+        .mockResolvedValueOnce({
+          id: 'bal-1',
+          inventoryItemId: 'item-1',
+          currentQuantity: 75,
+        });
+
       qr.manager.query
-        .mockResolvedValueOnce([[], 1]) 
-        .mockResolvedValueOnce([[], 1]); 
-        
-      qr.manager.save.mockResolvedValueOnce({ id: 'tx-1' }); 
-      
-      const result = await service.stockAdjustment('item-1', {
-        quantity: 25,
-        direction: AdjustmentDirection.DECREASE,
-        referenceType: 'MANUAL',
-        remarks: 'Lost items',
-      }, 'user-1');
+        .mockResolvedValueOnce([[], 1])
+        .mockResolvedValueOnce([[], 1]);
+
+      qr.manager.save.mockResolvedValueOnce({ id: 'tx-1' });
+
+      const result = await service.stockAdjustment(
+        'item-1',
+        {
+          quantity: 25,
+          direction: AdjustmentDirection.DECREASE,
+          referenceType: 'MANUAL',
+          remarks: 'Lost items',
+        },
+        'user-1',
+      );
 
       expect(qr.startTransaction).toHaveBeenCalled();
-      expect(qr.manager.query).toHaveBeenNthCalledWith(1,
+      expect(qr.manager.query).toHaveBeenNthCalledWith(
+        1,
         expect.stringContaining('current_quantity = current_quantity - $1'),
-        [25, 'item-1']
+        [25, 'item-1'],
       );
       expect(qr.commitTransaction).toHaveBeenCalled();
       expect(result.balance!.currentQuantity).toBe(75);
@@ -375,19 +492,29 @@ describe('InventoryService', () => {
 
     it('should throw exception if DECREASE affects 0 rows (insufficient stock)', async () => {
       const qr = dataSource.createQueryRunner();
-      
+
       qr.manager.findOne
-        .mockResolvedValueOnce({ id: 'item-1' }) 
-        .mockResolvedValueOnce({ id: 'bal-1', inventoryItemId: 'item-1', currentQuantity: 100 });
-      
+        .mockResolvedValueOnce({ id: 'item-1' })
+        .mockResolvedValueOnce({
+          id: 'bal-1',
+          inventoryItemId: 'item-1',
+          currentQuantity: 100,
+        });
+
       qr.manager.query.mockResolvedValueOnce([[], 0]); // 0 rows affected
-        
-      await expect(service.stockAdjustment('item-1', {
-        quantity: 101,
-        direction: AdjustmentDirection.DECREASE,
-        referenceType: 'MANUAL',
-        remarks: 'Missing items',
-      }, 'user-1')).rejects.toThrow('Insufficient stock for adjustment decrease.');
+
+      await expect(
+        service.stockAdjustment(
+          'item-1',
+          {
+            quantity: 101,
+            direction: AdjustmentDirection.DECREASE,
+            referenceType: 'MANUAL',
+            remarks: 'Missing items',
+          },
+          'user-1',
+        ),
+      ).rejects.toThrow('Insufficient stock for adjustment decrease.');
 
       expect(qr.rollbackTransaction).toHaveBeenCalled();
       expect(qr.manager.save).not.toHaveBeenCalled();
@@ -395,17 +522,23 @@ describe('InventoryService', () => {
 
     it('should throw exception if balance record does not exist', async () => {
       const qr = dataSource.createQueryRunner();
-      
+
       qr.manager.findOne
         .mockResolvedValueOnce({ id: 'item-1' }) // Item exists
         .mockResolvedValueOnce(null); // No balance record
-      
-      await expect(service.stockAdjustment('item-1', {
-        quantity: 10,
-        direction: AdjustmentDirection.INCREASE,
-        referenceType: 'MANUAL',
-        remarks: 'Missing items',
-      }, 'user-1')).rejects.toThrow('Insufficient stock (no balance record found).');
+
+      await expect(
+        service.stockAdjustment(
+          'item-1',
+          {
+            quantity: 10,
+            direction: AdjustmentDirection.INCREASE,
+            referenceType: 'MANUAL',
+            remarks: 'Missing items',
+          },
+          'user-1',
+        ),
+      ).rejects.toThrow('Insufficient stock (no balance record found).');
 
       expect(qr.rollbackTransaction).toHaveBeenCalled();
       expect(qr.manager.query).not.toHaveBeenCalled();
@@ -430,19 +563,25 @@ describe('InventoryService', () => {
         leftJoinAndSelect: vi.fn().mockReturnThis(),
         getMany: vi.fn().mockResolvedValue([mockItem]),
       };
-      (inventoryItemRepository.createQueryBuilder as any).mockReturnValue(qbItem);
+      (inventoryItemRepository.createQueryBuilder as any).mockReturnValue(
+        qbItem,
+      );
 
       const qbTx: any = {
         select: vi.fn().mockReturnThis(),
         addSelect: vi.fn().mockReturnThis(),
         groupBy: vi.fn().mockReturnThis(),
-        getRawMany: vi.fn().mockResolvedValue([{
-          inventoryItemId: 'item-1',
-          totalIn: 30, // 100 + 30 = 130
-          totalOut: 10, // 130 - 10 = 120
-        }]),
+        getRawMany: vi.fn().mockResolvedValue([
+          {
+            inventoryItemId: 'item-1',
+            totalIn: 30, // 100 + 30 = 130
+            totalOut: 10, // 130 - 10 = 120
+          },
+        ]),
       };
-      (stockTransactionRepository.createQueryBuilder as any).mockReturnValue(qbTx);
+      (stockTransactionRepository.createQueryBuilder as any).mockReturnValue(
+        qbTx,
+      );
 
       const result = await service.getReconciliation();
       expect(result).toHaveLength(1);
@@ -465,19 +604,25 @@ describe('InventoryService', () => {
         leftJoinAndSelect: vi.fn().mockReturnThis(),
         getMany: vi.fn().mockResolvedValue([mockItem]),
       };
-      (inventoryItemRepository.createQueryBuilder as any).mockReturnValue(qbItem);
+      (inventoryItemRepository.createQueryBuilder as any).mockReturnValue(
+        qbItem,
+      );
 
       const qbTx: any = {
         select: vi.fn().mockReturnThis(),
         addSelect: vi.fn().mockReturnThis(),
         groupBy: vi.fn().mockReturnThis(),
-        getRawMany: vi.fn().mockResolvedValue([{
-          inventoryItemId: 'item-1',
-          totalIn: 30,
-          totalOut: 10,
-        }]),
+        getRawMany: vi.fn().mockResolvedValue([
+          {
+            inventoryItemId: 'item-1',
+            totalIn: 30,
+            totalOut: 10,
+          },
+        ]),
       };
-      (stockTransactionRepository.createQueryBuilder as any).mockReturnValue(qbTx);
+      (stockTransactionRepository.createQueryBuilder as any).mockReturnValue(
+        qbTx,
+      );
 
       const result = await service.getReconciliation();
       expect(result[0].status).toBe('MISMATCH');
@@ -499,7 +644,9 @@ describe('InventoryService', () => {
         leftJoinAndSelect: vi.fn().mockReturnThis(),
         getMany: vi.fn().mockResolvedValue([mockItem]),
       };
-      (inventoryItemRepository.createQueryBuilder as any).mockReturnValue(qbItem);
+      (inventoryItemRepository.createQueryBuilder as any).mockReturnValue(
+        qbItem,
+      );
 
       const qbTx: any = {
         select: vi.fn().mockReturnThis(),
@@ -507,7 +654,9 @@ describe('InventoryService', () => {
         groupBy: vi.fn().mockReturnThis(),
         getRawMany: vi.fn().mockResolvedValue([]),
       };
-      (stockTransactionRepository.createQueryBuilder as any).mockReturnValue(qbTx);
+      (stockTransactionRepository.createQueryBuilder as any).mockReturnValue(
+        qbTx,
+      );
 
       const result = await service.getReconciliation();
       expect(result[0].status).toBe('NOT_RECONCILABLE');
@@ -525,7 +674,9 @@ describe('InventoryService', () => {
         leftJoinAndSelect: vi.fn().mockReturnThis(),
         getMany: vi.fn().mockResolvedValue([mockItem]),
       };
-      (inventoryItemRepository.createQueryBuilder as any).mockReturnValue(qbItem);
+      (inventoryItemRepository.createQueryBuilder as any).mockReturnValue(
+        qbItem,
+      );
 
       const qbTx: any = {
         select: vi.fn().mockReturnThis(),
@@ -533,7 +684,9 @@ describe('InventoryService', () => {
         groupBy: vi.fn().mockReturnThis(),
         getRawMany: vi.fn().mockResolvedValue([]),
       };
-      (stockTransactionRepository.createQueryBuilder as any).mockReturnValue(qbTx);
+      (stockTransactionRepository.createQueryBuilder as any).mockReturnValue(
+        qbTx,
+      );
 
       const result = await service.getReconciliation();
       expect(result[0].status).toBe('NOT_RECONCILABLE');
@@ -546,7 +699,9 @@ describe('InventoryService', () => {
         where: vi.fn().mockReturnThis(),
         getMany: vi.fn().mockResolvedValue([]),
       };
-      (inventoryItemRepository.createQueryBuilder as any).mockReturnValue(qbItem);
+      (inventoryItemRepository.createQueryBuilder as any).mockReturnValue(
+        qbItem,
+      );
 
       const qbTx: any = {
         select: vi.fn().mockReturnThis(),
@@ -555,11 +710,17 @@ describe('InventoryService', () => {
         groupBy: vi.fn().mockReturnThis(),
         getRawMany: vi.fn().mockResolvedValue([]),
       };
-      (stockTransactionRepository.createQueryBuilder as any).mockReturnValue(qbTx);
+      (stockTransactionRepository.createQueryBuilder as any).mockReturnValue(
+        qbTx,
+      );
 
       await service.getReconciliation('item-1');
-      expect(qbItem.where).toHaveBeenCalledWith('item.id = :id', { id: 'item-1' });
-      expect(qbTx.where).toHaveBeenCalledWith('tx.inventory_item_id = :id', { id: 'item-1' });
+      expect(qbItem.where).toHaveBeenCalledWith('item.id = :id', {
+        id: 'item-1',
+      });
+      expect(qbTx.where).toHaveBeenCalledWith('tx.inventory_item_id = :id', {
+        id: 'item-1',
+      });
     });
   });
 
@@ -576,7 +737,10 @@ describe('InventoryService', () => {
       inventoryItemRepository.createQueryBuilder.mockReturnValue(qbItem);
 
       const result = await service.findAll();
-      expect(qbItem.leftJoinAndSelect).toHaveBeenCalledWith('item.stockBalance', 'balance');
+      expect(qbItem.leftJoinAndSelect).toHaveBeenCalledWith(
+        'item.stockBalance',
+        'balance',
+      );
       expect(qbItem.skip).toHaveBeenCalledWith(0);
       expect(qbItem.take).toHaveBeenCalledWith(10);
       expect(result.total).toBe(0);
@@ -597,7 +761,7 @@ describe('InventoryService', () => {
       await service.findAll({ search: 'OHNS' } as any);
       expect(qbItem.andWhere).toHaveBeenCalledWith(
         '(item.material ILIKE :search OR item.materialType ILIKE :search OR item.grade ILIKE :search OR item.size ILIKE :search)',
-        { search: '%OHNS%' }
+        { search: '%OHNS%' },
       );
     });
 
@@ -613,8 +777,12 @@ describe('InventoryService', () => {
       };
       inventoryItemRepository.createQueryBuilder.mockReturnValue(qbItem);
 
-      await service.findAll({ stockStatus: StockStatusFilter.LOW_STOCK } as any);
-      expect(qbItem.andWhere).toHaveBeenCalledWith('COALESCE(balance.current_quantity, 0) < item.minimum_stock_level');
+      await service.findAll({
+        stockStatus: StockStatusFilter.LOW_STOCK,
+      } as any);
+      expect(qbItem.andWhere).toHaveBeenCalledWith(
+        'COALESCE(balance.current_quantity, 0) < item.minimum_stock_level',
+      );
     });
 
     it('should apply pagination parameters', async () => {
@@ -652,9 +820,16 @@ describe('InventoryService', () => {
       stockTransactionRepository.createQueryBuilder.mockReturnValue(qbTx);
 
       const result = await service.getTransactions('item-1');
-      expect(qbTx.where).toHaveBeenCalledWith('tx.inventory_item_id = :inventoryItemId', { inventoryItemId: 'item-1' });
+      expect(qbTx.where).toHaveBeenCalledWith(
+        'tx.inventory_item_id = :inventoryItemId',
+        { inventoryItemId: 'item-1' },
+      );
       expect(qbTx.leftJoin).toHaveBeenCalledWith('tx.createdBy', 'user');
-      expect(qbTx.addSelect).toHaveBeenCalledWith(['user.id', 'user.name', 'user.email']);
+      expect(qbTx.addSelect).toHaveBeenCalledWith([
+        'user.id',
+        'user.name',
+        'user.email',
+      ]);
       expect(qbTx.orderBy).toHaveBeenCalledWith('tx.createdAt', 'DESC');
       expect(qbTx.skip).toHaveBeenCalledWith(0);
       expect(qbTx.take).toHaveBeenCalledWith(10);
@@ -680,10 +855,13 @@ describe('InventoryService', () => {
         startDate: '2023-01-01',
       } as any);
 
-      expect(qbTx.andWhere).toHaveBeenCalledWith('tx.transactionType = :transactionType', { transactionType: TransactionType.STOCK_IN });
-      expect(qbTx.andWhere).toHaveBeenCalledWith('tx.createdAt >= :startDate', { startDate: '2023-01-01' });
+      expect(qbTx.andWhere).toHaveBeenCalledWith(
+        'tx.transactionType = :transactionType',
+        { transactionType: TransactionType.STOCK_IN },
+      );
+      expect(qbTx.andWhere).toHaveBeenCalledWith('tx.createdAt >= :startDate', {
+        startDate: '2023-01-01',
+      });
     });
   });
 });
-
-

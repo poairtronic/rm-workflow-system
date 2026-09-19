@@ -2,7 +2,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { RmService } from './rm.service.js';
 import { RmRequestStatus, FormType } from './entities/rm-request.entity.js';
 import { ScStatus } from '../sc/entities/sc.entity.js';
-import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 
 describe('RmService', () => {
   let service: RmService;
@@ -33,7 +37,10 @@ describe('RmService', () => {
     scRepo.findOneBy.mockResolvedValue({ id: 'sc-1', scNumber: 'SC-001' });
     rmRepo.findOneBy.mockResolvedValue(null);
 
-    const rm = await service.createRm({ scId: 'sc-1', remarks: 'New RM Request' }, 'designer-1');
+    const rm = await service.createRm(
+      { scId: 'sc-1', remarks: 'New RM Request' },
+      'designer-1',
+    );
 
     expect(rm).toBeDefined();
     expect(rm.status).toBe(RmRequestStatus.DRAFT);
@@ -48,7 +55,9 @@ describe('RmService', () => {
     };
     rmRepo.findOne.mockResolvedValue(rm);
 
-    const submittedRm = await service.submitRm('rm-1', { remarks: 'Submitted for stores verification' });
+    const submittedRm = await service.submitRm('rm-1', {
+      remarks: 'Submitted for stores verification',
+    });
 
     expect(submittedRm.status).toBe(RmRequestStatus.SUBMITTED);
     expect(rm.salesOrderComponent.status).toBe(ScStatus.SUBMITTED);

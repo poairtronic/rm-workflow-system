@@ -1,4 +1,11 @@
-﻿import { IsString, IsNotEmpty, IsOptional, MaxLength, IsDateString, IsUUID } from 'class-validator';
+﻿import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  MaxLength,
+  IsDateString,
+  IsUUID,
+} from 'class-validator';
 
 export class CreatePoDto {
   @IsString()

@@ -1,4 +1,3 @@
-
 import { InventoryItem } from '../inventory/entities/inventory-item.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import { AppDataSource } from '../config/data-source.js';
@@ -41,7 +40,7 @@ async function seedInventory() {
       unit: 'NOS',
       minimumStockLevel: 10,
       isActive: true,
-    }
+    },
   ];
 
   for (const itemData of testItems) {
@@ -50,8 +49,8 @@ async function seedInventory() {
         material: itemData.material,
         materialType: itemData.materialType,
         grade: itemData.grade,
-        size: itemData.size
-      }
+        size: itemData.size,
+      },
     });
 
     if (!existing) {
@@ -66,7 +65,9 @@ async function seedInventory() {
 
       console.log(`[Seed] Added item: ${itemData.material} ${itemData.size}`);
     } else {
-      console.log(`[Seed] Item already exists: ${itemData.material} ${itemData.size}`);
+      console.log(
+        `[Seed] Item already exists: ${itemData.material} ${itemData.size}`,
+      );
     }
   }
 

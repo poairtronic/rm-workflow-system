@@ -6,7 +6,11 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { RmRequest, RmRequestStatus, FormType } from './entities/rm-request.entity.js';
+import {
+  RmRequest,
+  RmRequestStatus,
+  FormType,
+} from './entities/rm-request.entity.js';
 import { RmItem, AvailabilityStatus } from './entities/rm-item.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import { SalesOrderComponent, ScStatus } from '../sc/entities/sc.entity.js';
@@ -30,12 +34,16 @@ export class RmService {
   async createRm(dto: CreateRmDto, actorId: string) {
     const sc = await this.scRepo.findOneBy({ id: dto.scId });
     if (!sc) {
-      throw new NotFoundException(`Sales Order Component with ID "${dto.scId}" not found.`);
+      throw new NotFoundException(
+        `Sales Order Component with ID "${dto.scId}" not found.`,
+      );
     }
 
     const existingRm = await this.rmRepo.findOneBy({ scId: dto.scId });
     if (existingRm) {
-      throw new ConflictException(`RM Request already exists for SC "${sc.scNumber}".`);
+      throw new ConflictException(
+        `RM Request already exists for SC "${sc.scNumber}".`,
+      );
     }
 
     const rm = this.rmRepo.create({
@@ -90,7 +98,9 @@ export class RmService {
     }
 
     if (!rm.items || rm.items.length === 0) {
-      throw new BadRequestException(`Cannot submit an RM Request without any Material Items.`);
+      throw new BadRequestException(
+        `Cannot submit an RM Request without any Material Items.`,
+      );
     }
 
     StateMachineValidator.assertRmDraft(rm.status, 'submit RM Request');
@@ -132,7 +142,11 @@ export class RmService {
       where: { id },
       relations: {
         salesOrderComponent: { purchaseOrder: true },
-        items: { materialIssues: true, materialConsumptions: true, materialReturns: true },
+        items: {
+          materialIssues: true,
+          materialConsumptions: true,
+          materialReturns: true,
+        },
         createdBy: true,
       },
     });
@@ -152,8 +166,13 @@ export class RmService {
       throw new NotFoundException(`RM Request with ID "${rmId}" not found.`);
     }
 
-    if (rm.status !== RmRequestStatus.SUBMITTED && rm.status !== RmRequestStatus.REVIEWED) {
-      throw new BadRequestException(`RM Request must be SUBMITTED to be reviewed. Current status: ${rm.status}`);
+    if (
+      rm.status !== RmRequestStatus.SUBMITTED &&
+      rm.status !== RmRequestStatus.REVIEWED
+    ) {
+      throw new BadRequestException(
+        `RM Request must be SUBMITTED to be reviewed. Current status: ${rm.status}`,
+      );
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -162,9 +181,11 @@ export class RmService {
 
     try {
       for (const mapping of dto.itemMappings) {
-        const item = rm.items.find(i => i.id === mapping.rmItemId);
+        const item = rm.items.find((i) => i.id === mapping.rmItemId);
         if (!item) {
-          throw new BadRequestException(`RM Item "${mapping.rmItemId}" does not belong to this RM Request.`);
+          throw new BadRequestException(
+            `RM Item "${mapping.rmItemId}" does not belong to this RM Request.`,
+          );
         }
 
         if (mapping.productId) {
@@ -172,7 +193,10 @@ export class RmService {
             where: { productId: mapping.productId },
           });
 
-          const totalAvailable = balances.reduce((sum, b) => sum + Number(b.currentQuantity), 0);
+          const totalAvailable = balances.reduce(
+            (sum, b) => sum + Number(b.currentQuantity),
+            0,
+          );
           const reqQty = Number(item.quantity);
 
           item.mappedProductId = mapping.productId;

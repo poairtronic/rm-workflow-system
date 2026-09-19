@@ -73,10 +73,18 @@ export class Phase9Inventory1700000000001 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "stock_transactions" DROP CONSTRAINT "FK_stock_transactions_created_by_id"`);
-    await queryRunner.query(`ALTER TABLE "stock_transactions" DROP CONSTRAINT "FK_stock_transactions_inventory_item_id"`);
-    await queryRunner.query(`ALTER TABLE "stock_balances" DROP CONSTRAINT "FK_stock_balances_last_transaction_id"`);
-    await queryRunner.query(`ALTER TABLE "stock_balances" DROP CONSTRAINT "FK_stock_balances_inventory_item_id"`);
+    await queryRunner.query(
+      `ALTER TABLE "stock_transactions" DROP CONSTRAINT "FK_stock_transactions_created_by_id"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "stock_transactions" DROP CONSTRAINT "FK_stock_transactions_inventory_item_id"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "stock_balances" DROP CONSTRAINT "FK_stock_balances_last_transaction_id"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "stock_balances" DROP CONSTRAINT "FK_stock_balances_inventory_item_id"`,
+    );
     await queryRunner.query(`DROP TABLE "stock_transactions"`);
     await queryRunner.query(`DROP TABLE "stock_balances"`);
     await queryRunner.query(`DROP TABLE "inventory_items"`);

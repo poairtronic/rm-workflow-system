@@ -40,10 +40,7 @@ export class RmController {
 
   @Post(':id/submit')
   @Roles(UserRole.DESIGNER, UserRole.ADMIN)
-  submitRm(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: SubmitRmDto,
-  ) {
+  submitRm(@Param('id', ParseUUIDPipe) id: string, @Body() dto: SubmitRmDto) {
     return this.rmService.submitRm(id, dto);
   }
 
@@ -86,5 +83,3 @@ export class RmController {
     return this.rmService.findOne(id);
   }
 }
-
-

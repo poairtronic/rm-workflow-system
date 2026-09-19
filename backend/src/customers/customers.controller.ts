@@ -1,4 +1,13 @@
-﻿import { Controller, Get, Post, Body, Patch, Param, UseGuards, ParseUUIDPipe } from '@nestjs/common';
+﻿import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  UseGuards,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { CustomersService } from './customers.service.js';
 import { CreateCustomerDto } from './dto/create-customer.dto.js';
 import { UpdateCustomerDto } from './dto/update-customer.dto.js';
@@ -25,14 +34,28 @@ export class CustomersController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.PRODUCTION, UserRole.DESIGNER, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER)
+  @Roles(
+    UserRole.ADMIN,
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.DESIGNER,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+  )
   findAll() {
     return this.customersService.findAll();
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.PRODUCTION, UserRole.DESIGNER, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER)
+  @Roles(
+    UserRole.ADMIN,
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.DESIGNER,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+  )
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.customersService.findOne(id);
   }
@@ -40,7 +63,10 @@ export class CustomersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Patch(':id')
   @Roles(UserRole.ADMIN, UserRole.STORES)
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() updateCustomerDto: UpdateCustomerDto) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateCustomerDto: UpdateCustomerDto,
+  ) {
     return this.customersService.update(id, updateCustomerDto);
   }
 }

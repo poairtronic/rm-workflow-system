@@ -1,4 +1,11 @@
-import { IsString, IsNotEmpty, IsNumber, Min, IsEnum, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  Min,
+  IsEnum,
+  IsOptional,
+} from 'class-validator';
 import { TransactionType } from '../entities/stock-transaction.entity.js';
 
 export class CreateStockTransactionDto {

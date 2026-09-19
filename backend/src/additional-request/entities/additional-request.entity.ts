@@ -38,9 +38,13 @@ export class AdditionalMaterialRequest {
   @Column({ name: 'sc_id' })
   scId!: string;
 
-  @ManyToOne('SalesOrderComponent', (sc: SalesOrderComponent) => sc.additionalRequests, {
-    onDelete: 'RESTRICT',
-  })
+  @ManyToOne(
+    'SalesOrderComponent',
+    (sc: SalesOrderComponent) => sc.additionalRequests,
+    {
+      onDelete: 'RESTRICT',
+    },
+  )
   @JoinColumn({ name: 'sc_id' })
   salesOrderComponent!: SalesOrderComponent;
 
@@ -89,9 +93,13 @@ export class AdditionalMaterialRequest {
   @JoinColumn({ name: 'approved_by_id' })
   approvedBy?: User;
 
-  @OneToMany('AdditionalMaterialRequestItem', (item: AdditionalMaterialRequestItem) => item.request, {
-    cascade: true,
-  })
+  @OneToMany(
+    'AdditionalMaterialRequestItem',
+    (item: AdditionalMaterialRequestItem) => item.request,
+    {
+      cascade: true,
+    },
+  )
   items!: AdditionalMaterialRequestItem[];
 
   @CreateDateColumn({ name: 'created_at' })

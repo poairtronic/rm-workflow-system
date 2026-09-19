@@ -1,4 +1,11 @@
-import { IsString, IsNotEmpty, IsNumber, Min, IsOptional, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  Min,
+  IsOptional,
+  IsEnum,
+} from 'class-validator';
 import { AdjustmentDirection } from '../entities/stock-transaction.entity.js';
 
 export class CreateStockAdjustmentDto {

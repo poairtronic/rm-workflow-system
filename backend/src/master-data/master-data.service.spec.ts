@@ -24,7 +24,9 @@ describe('MasterDataService', () => {
     skip: vi.fn().mockReturnThis(),
     take: vi.fn().mockReturnThis(),
     getOne: vi.fn().mockResolvedValue(result),
-    getManyAndCount: vi.fn().mockResolvedValue([result ? [result] : [], result ? 1 : 0]),
+    getManyAndCount: vi
+      .fn()
+      .mockResolvedValue([result ? [result] : [], result ? 1 : 0]),
   });
 
   beforeEach(() => {
@@ -101,18 +103,32 @@ describe('MasterDataService', () => {
   describe('Product Categories', () => {
     it('1. should create a valid category', async () => {
       const res = await service.createCategory({ name: '  Raw Metal  ' });
-      expect(categoryRepo.create).toHaveBeenCalledWith({ name: 'Raw Metal', isActive: true });
+      expect(categoryRepo.create).toHaveBeenCalledWith({
+        name: 'Raw Metal',
+        isActive: true,
+      });
       expect(res.name).toBe('Raw Metal');
     });
 
     it('2. should reject duplicate category name', async () => {
-      categoryRepo.createQueryBuilder = vi.fn(() => createMockQueryBuilder({ id: 'cat-1', name: 'Raw Metal' }));
-      await expect(service.createCategory({ name: 'Raw Metal' })).rejects.toThrow(ConflictException);
+      categoryRepo.createQueryBuilder = vi.fn(() =>
+        createMockQueryBuilder({ id: 'cat-1', name: 'Raw Metal' }),
+      );
+      await expect(
+        service.createCategory({ name: 'Raw Metal' }),
+      ).rejects.toThrow(ConflictException);
     });
 
     it('3. should update category name and active state', async () => {
-      categoryRepo.findOne.mockResolvedValue({ id: 'cat-1', name: 'Raw Metal', isActive: true });
-      const res = await service.updateCategory('cat-1', { name: 'Alloys', isActive: false });
+      categoryRepo.findOne.mockResolvedValue({
+        id: 'cat-1',
+        name: 'Raw Metal',
+        isActive: true,
+      });
+      const res = await service.updateCategory('cat-1', {
+        name: 'Alloys',
+        isActive: false,
+      });
       expect(res.name).toBe('Alloys');
       expect(res.isActive).toBe(false);
     });
@@ -123,24 +139,35 @@ describe('MasterDataService', () => {
   // ==========================================
   describe('Product Families', () => {
     it('4. should create a valid family', async () => {
-      categoryRepo.findOneBy.mockResolvedValue({ id: 'cat-1', name: 'Raw Metal' });
-      const res = await service.createFamily({ categoryId: 'cat-1', name: 'Steel Rods' });
+      categoryRepo.findOneBy.mockResolvedValue({
+        id: 'cat-1',
+        name: 'Raw Metal',
+      });
+      const res = await service.createFamily({
+        categoryId: 'cat-1',
+        name: 'Steel Rods',
+      });
       expect(res.name).toBe('Steel Rods');
     });
 
     it('5. should reject family creation if category does not exist', async () => {
       categoryRepo.findOneBy.mockResolvedValue(null);
-      await expect(service.createFamily({ categoryId: 'cat-invalid', name: 'Steel Rods' })).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.createFamily({ categoryId: 'cat-invalid', name: 'Steel Rods' }),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('6. should reject duplicate family name within same category', async () => {
-      categoryRepo.findOneBy.mockResolvedValue({ id: 'cat-1', name: 'Raw Metal' });
-      familyRepo.createQueryBuilder = vi.fn(() => createMockQueryBuilder({ id: 'fam-1', name: 'Steel Rods' }));
-      await expect(service.createFamily({ categoryId: 'cat-1', name: 'Steel Rods' })).rejects.toThrow(
-        ConflictException,
+      categoryRepo.findOneBy.mockResolvedValue({
+        id: 'cat-1',
+        name: 'Raw Metal',
+      });
+      familyRepo.createQueryBuilder = vi.fn(() =>
+        createMockQueryBuilder({ id: 'fam-1', name: 'Steel Rods' }),
       );
+      await expect(
+        service.createFamily({ categoryId: 'cat-1', name: 'Steel Rods' }),
+      ).rejects.toThrow(ConflictException);
     });
   });
 
@@ -149,7 +176,10 @@ describe('MasterDataService', () => {
   // ==========================================
   describe('Products', () => {
     it('7. should create a product without creating stock balances', async () => {
-      familyRepo.findOneBy.mockResolvedValue({ id: 'fam-1', name: 'Steel Rods' });
+      familyRepo.findOneBy.mockResolvedValue({
+        id: 'fam-1',
+        name: 'Steel Rods',
+      });
       const res = await service.createProduct({
         familyId: 'fam-1',
         name: 'OHNS 25 Dia Rod',
@@ -187,14 +217,21 @@ describe('MasterDataService', () => {
   // ==========================================
   describe('Warehouses', () => {
     it('10. should create warehouse with normalized uppercase code', async () => {
-      const res = await service.createWarehouse({ code: '  wh-01  ', name: 'Main Yard' });
+      const res = await service.createWarehouse({
+        code: '  wh-01  ',
+        name: 'Main Yard',
+      });
       expect(res.code).toBe('WH-01');
       expect(res.name).toBe('Main Yard');
     });
 
     it('11. should reject duplicate warehouse code', async () => {
-      warehouseRepo.createQueryBuilder = vi.fn(() => createMockQueryBuilder({ id: 'wh-1', code: 'WH-01' }));
-      await expect(service.createWarehouse({ code: 'WH-01', name: 'Yard 2' })).rejects.toThrow(ConflictException);
+      warehouseRepo.createQueryBuilder = vi.fn(() =>
+        createMockQueryBuilder({ id: 'wh-1', code: 'WH-01' }),
+      );
+      await expect(
+        service.createWarehouse({ code: 'WH-01', name: 'Yard 2' }),
+      ).rejects.toThrow(ConflictException);
     });
   });
 
@@ -204,14 +241,22 @@ describe('MasterDataService', () => {
   describe('Warehouse Locations', () => {
     it('12. should create location under warehouse', async () => {
       warehouseRepo.findOneBy.mockResolvedValue({ id: 'wh-1', code: 'WH-01' });
-      const res = await service.createLocation({ warehouseId: 'wh-1', code: 'loc-a', name: 'Bay A' });
+      const res = await service.createLocation({
+        warehouseId: 'wh-1',
+        code: 'loc-a',
+        name: 'Bay A',
+      });
       expect(res.code).toBe('LOC-A');
     });
 
     it('13. should reject location if warehouse does not exist', async () => {
       warehouseRepo.findOneBy.mockResolvedValue(null);
       await expect(
-        service.createLocation({ warehouseId: 'wh-invalid', code: 'LOC-A', name: 'Bay A' }),
+        service.createLocation({
+          warehouseId: 'wh-invalid',
+          code: 'LOC-A',
+          name: 'Bay A',
+        }),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -222,7 +267,11 @@ describe('MasterDataService', () => {
   describe('Racks', () => {
     it('14. should create rack under location', async () => {
       locationRepo.findOneBy.mockResolvedValue({ id: 'loc-1', code: 'LOC-A' });
-      const res = await service.createRack({ locationId: 'loc-1', code: 'rack-01', name: 'Heavy Rack 1' });
+      const res = await service.createRack({
+        locationId: 'loc-1',
+        code: 'rack-01',
+        name: 'Heavy Rack 1',
+      });
       expect(res.code).toBe('RACK-01');
     });
   });
@@ -233,7 +282,11 @@ describe('MasterDataService', () => {
   describe('Bins', () => {
     it('15. should create bin under rack', async () => {
       rackRepo.findOneBy.mockResolvedValue({ id: 'rack-1', code: 'RACK-01' });
-      const res = await service.createBin({ rackId: 'rack-1', code: 'bin-a1', name: 'Slot A-1' });
+      const res = await service.createBin({
+        rackId: 'rack-1',
+        code: 'bin-a1',
+        name: 'Slot A-1',
+      });
       expect(res.code).toBe('BIN-A1');
     });
   });

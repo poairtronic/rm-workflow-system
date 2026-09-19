@@ -45,18 +45,32 @@ export class InventoryController {
     UserRole.SENIOR_MANAGER,
     UserRole.GENERAL_MANAGER,
   )
-  findAll(@Query(new ValidationPipe({ transform: true })) filterDto: GetInventoryFilterDto) {
+  findAll(
+    @Query(new ValidationPipe({ transform: true }))
+    filterDto: GetInventoryFilterDto,
+  ) {
     return this.inventoryService.findAll(filterDto);
   }
 
   @Get('reconciliation')
-  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.DESIGNER, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER)
+  @Roles(
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.DESIGNER,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+  )
   getReconciliation(): Promise<ReconciliationResultDto[]> {
     return this.inventoryService.getReconciliation();
   }
 
   @Get('reconciliation/workflow')
-  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER)
+  @Roles(
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+  )
   getWorkflowReconciliation() {
     return this.inventoryService.getWorkflowReconciliation();
   }
@@ -74,17 +88,22 @@ export class InventoryController {
   }
 
   @Get(':id/reconciliation')
-  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.DESIGNER, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER)
-  getSingleReconciliation(@Param('id') id: string): Promise<ReconciliationResultDto[]> {
+  @Roles(
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.DESIGNER,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+  )
+  getSingleReconciliation(
+    @Param('id') id: string,
+  ): Promise<ReconciliationResultDto[]> {
     return this.inventoryService.getReconciliation(id);
   }
 
   @Patch(':id')
   @Roles(UserRole.STORES, UserRole.ADMIN)
-  update(
-    @Param('id') id: string,
-    @Body() updateDto: UpdateInventoryItemDto,
-  ) {
+  update(@Param('id') id: string, @Body() updateDto: UpdateInventoryItemDto) {
     return this.inventoryService.update(id, updateDto);
   }
 
@@ -101,10 +120,16 @@ export class InventoryController {
   }
 
   @Get(':id/transactions')
-  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER)
+  @Roles(
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+  )
   getTransactions(
     @Param('id') id: string,
-    @Query(new ValidationPipe({ transform: true })) filterDto: GetTransactionFilterDto,
+    @Query(new ValidationPipe({ transform: true }))
+    filterDto: GetTransactionFilterDto,
   ) {
     return this.inventoryService.getTransactions(id, filterDto);
   }
@@ -147,6 +172,8 @@ export class InventoryController {
     @Request() _req: any,
   ) {
     // Unrestricted direct stock mutation is disabled in Phase 10.3 to enforce proper movement semantics.
-    throw new NotImplementedException('Direct generic stock mutation is restricted. Use dedicated workflows (Phase 10.4+).');
+    throw new NotImplementedException(
+      'Direct generic stock mutation is restricted. Use dedicated workflows (Phase 10.4+).',
+    );
   }
 }

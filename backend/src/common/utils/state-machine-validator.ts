@@ -19,7 +19,10 @@ export class StateMachineValidator {
   /**
    * Asserts that RM Request is in DRAFT state for modification.
    */
-  static assertRmDraft(status: RmRequestStatus, actionName = 'modify RM'): void {
+  static assertRmDraft(
+    status: RmRequestStatus,
+    actionName = 'modify RM',
+  ): void {
     if (status === RmRequestStatus.SUBMITTED) {
       throw new BadRequestException(
         `Cannot ${actionName} on an already SUBMITTED RM Request.`,
@@ -52,7 +55,10 @@ export class StateMachineValidator {
         `Additional Material Request has already been ISSUED. Duplicate issue blocked.`,
       );
     }
-    if (status === AdditionalRequestStatus.CANCELLED || status === AdditionalRequestStatus.REJECTED) {
+    if (
+      status === AdditionalRequestStatus.CANCELLED ||
+      status === AdditionalRequestStatus.REJECTED
+    ) {
       throw new BadRequestException(
         `Cannot issue material for a ${status} Additional Request.`,
       );

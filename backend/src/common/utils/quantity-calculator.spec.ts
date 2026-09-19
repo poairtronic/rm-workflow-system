@@ -18,18 +18,28 @@ describe('QuantityCalculator', () => {
 
   it('should assert positive quantities for movements', () => {
     expect(() => QuantityCalculator.assertPositive(10, 'Qty')).not.toThrow();
-    expect(() => QuantityCalculator.assertPositive(0, 'Qty')).toThrow(BadRequestException);
-    expect(() => QuantityCalculator.assertPositive(-5, 'Qty')).toThrow(BadRequestException);
+    expect(() => QuantityCalculator.assertPositive(0, 'Qty')).toThrow(
+      BadRequestException,
+    );
+    expect(() => QuantityCalculator.assertPositive(-5, 'Qty')).toThrow(
+      BadRequestException,
+    );
   });
 
   it('should assert non-negative quantities', () => {
     expect(() => QuantityCalculator.assertNonNegative(0, 'Qty')).not.toThrow();
     expect(() => QuantityCalculator.assertNonNegative(15, 'Qty')).not.toThrow();
-    expect(() => QuantityCalculator.assertNonNegative(-0.01, 'Qty')).toThrow(BadRequestException);
+    expect(() => QuantityCalculator.assertNonNegative(-0.01, 'Qty')).toThrow(
+      BadRequestException,
+    );
   });
 
   it('should reject requested quantity exceeding available limit', () => {
-    expect(() => QuantityCalculator.assertWithinLimit(50, 100, 'Exceeded')).not.toThrow();
-    expect(() => QuantityCalculator.assertWithinLimit(100.001, 100, 'Exceeded')).toThrow(BadRequestException);
+    expect(() =>
+      QuantityCalculator.assertWithinLimit(50, 100, 'Exceeded'),
+    ).not.toThrow();
+    expect(() =>
+      QuantityCalculator.assertWithinLimit(100.001, 100, 'Exceeded'),
+    ).toThrow(BadRequestException);
   });
 });

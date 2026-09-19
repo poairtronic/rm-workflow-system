@@ -1,4 +1,8 @@
-﻿import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+﻿import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Customer } from './entities/customer.entity.js';
@@ -18,10 +22,12 @@ export class CustomersService {
 
   async create(createDto: CreateCustomerDto) {
     const existing = await this.customerRepository.findOne({
-      where: { code: createDto.code }
+      where: { code: createDto.code },
     });
     if (existing) {
-      throw new ConflictException(`Customer with code ${createDto.code} already exists`);
+      throw new ConflictException(
+        `Customer with code ${createDto.code} already exists`,
+      );
     }
 
     const customer = this.customerRepository.create(createDto);
@@ -30,14 +36,14 @@ export class CustomersService {
 
   async findAll() {
     return await this.customerRepository.find({
-      order: { name: 'ASC' }
+      order: { name: 'ASC' },
     });
   }
 
   async findOne(id: string) {
     const customer = await this.customerRepository.findOne({
       where: { id },
-      relations: { purchaseOrders: true }
+      relations: { purchaseOrders: true },
     });
     if (!customer) {
       throw new NotFoundException(`Customer with id ${id} not found`);
@@ -47,13 +53,15 @@ export class CustomersService {
 
   async update(id: string, updateDto: UpdateCustomerDto) {
     const customer = await this.findOne(id);
-    
+
     if (updateDto.code && updateDto.code !== customer.code) {
       const existing = await this.customerRepository.findOne({
-        where: { code: updateDto.code }
+        where: { code: updateDto.code },
       });
       if (existing) {
-        throw new ConflictException(`Customer with code ${updateDto.code} already exists`);
+        throw new ConflictException(
+          `Customer with code ${updateDto.code} already exists`,
+        );
       }
     }
 

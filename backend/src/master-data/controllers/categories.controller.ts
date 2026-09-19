@@ -15,10 +15,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../auth/guards/roles.guard.js';
 import { Roles } from '../../auth/decorators/roles.decorator.js';
 import { UserRole } from '../../auth/enums/role.enum.js';
-import {
-  CreateCategoryDto,
-  UpdateCategoryDto,
-} from '../dto/category.dto.js';
+import { CreateCategoryDto, UpdateCategoryDto } from '../dto/category.dto.js';
 import { MasterFilterDto } from '../dto/master-filter.dto.js';
 
 @Controller('api/categories')

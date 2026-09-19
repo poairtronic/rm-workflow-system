@@ -1,4 +1,4 @@
-﻿import {
+import {
   Injectable,
   NotFoundException,
   ConflictException,
@@ -9,6 +9,10 @@ import { Repository } from 'typeorm';
 import { SalesOrderComponent, ScStatus } from './entities/sc.entity.js';
 import { PurchaseOrder } from '../po/entities/po.entity.js';
 import { CreateScDto, CompleteScDto, CloseScDto } from './dto/sc.dto.js';
+import { ProductionService } from '../production/production.service.js';
+import { AdditionalRequestService } from '../additional-request/additional-request.service.js';
+import { AdditionalRequestStatus } from '../additional-request/entities/additional-request.entity.js';
+import { ReturnStatus } from '../production/entities/material-return.entity.js';
 
 @Injectable()
 export class ScService {
@@ -17,6 +21,8 @@ export class ScService {
     private readonly scRepo: Repository<SalesOrderComponent>,
     @InjectRepository(PurchaseOrder)
     private readonly poRepo: Repository<PurchaseOrder>,
+    private readonly productionService: ProductionService,
+    private readonly additionalRequestService: AdditionalRequestService,
   ) {}
 
   async createSc(dto: CreateScDto) {
@@ -27,7 +33,9 @@ export class ScService {
       where: { id: dto.poId },
     });
     if (!po) {
-      throw new NotFoundException(`Purchase Order with ID "${dto.poId}" not found.`);
+      throw new NotFoundException(
+        `Purchase Order with ID "${dto.poId}" not found.`,
+      );
     }
 
     // Check if SC already exists under the SAME PO
@@ -35,7 +43,9 @@ export class ScService {
       where: { scNumber: trimmedScNumber, poId: dto.poId },
     });
     if (existingSc) {
-      throw new ConflictException(`SC with number "${trimmedScNumber}" already exists under this PO.`);
+      throw new ConflictException(
+        `SC with number "${trimmedScNumber}" already exists under this PO.`,
+      );
     }
 
     const sc = this.scRepo.create({
@@ -51,7 +61,12 @@ export class ScService {
     return this.scRepo.save(sc);
   }
 
-  async findAll(query?: { poId?: string; scNumber?: string; status?: ScStatus; search?: string }) {
+  async findAll(query?: {
+    poId?: string;
+    scNumber?: string;
+    status?: ScStatus;
+    search?: string;
+  }) {
     const qb = this.scRepo
       .createQueryBuilder('sc')
       .leftJoinAndSelect('sc.purchaseOrder', 'po')
@@ -62,7 +77,9 @@ export class ScService {
       qb.andWhere('sc.poId = :poId', { poId: query.poId });
     }
     if (query?.scNumber) {
-      qb.andWhere('sc.scNumber ILIKE :scNumber', { scNumber: `%${query.scNumber}%` });
+      qb.andWhere('sc.scNumber ILIKE :scNumber', {
+        scNumber: `%${query.scNumber}%`,
+      });
     }
     if (query?.status) {
       qb.andWhere('sc.status = :status', { status: query.status });
@@ -92,7 +109,9 @@ export class ScService {
     });
 
     if (!sc) {
-      throw new NotFoundException(`Sales Order Component with ID "${id}" not found.`);
+      throw new NotFoundException(
+        `Sales Order Component with ID "${id}" not found.`,
+      );
     }
     return sc;
   }
@@ -100,10 +119,56 @@ export class ScService {
   async completeSc(id: string, actorId: string, dto?: CompleteScDto) {
     const sc = await this.findOne(id);
     if (sc.status === ScStatus.COMPLETED) {
-      throw new BadRequestException(`SC "${sc.scNumber}" is already COMPLETED.`);
+      throw new BadRequestException(
+        `SC "${sc.scNumber}" is already COMPLETED.`,
+      );
     }
     if (sc.status === ScStatus.CLOSED) {
-      throw new BadRequestException(`SC "${sc.scNumber}" is already CLOSED and cannot be completed again.`);
+      throw new BadRequestException(
+        `SC "${sc.scNumber}" is already CLOSED and cannot be completed again.`,
+      );
+    }
+
+    // 1. Verify Status
+    if (sc.status !== ScStatus.IN_PRODUCTION && sc.status !== ScStatus.ADDITIONAL_REQUEST) {
+      throw new BadRequestException(
+        `SC "${sc.scNumber}" cannot be completed from status ${sc.status}. Must be IN_PRODUCTION or ADDITIONAL_REQUEST.`,
+      );
+    }
+
+    // 2. Check pending Additional Requests
+    const pendingAddlReqs = await this.additionalRequestService.findAll(id);
+    const hasPendingAddl = pendingAddlReqs.some(
+      (r) =>
+        r.status === AdditionalRequestStatus.REQUESTED ||
+        r.status === AdditionalRequestStatus.APPROVED,
+    );
+    if (hasPendingAddl) {
+      throw new BadRequestException(
+        `Cannot complete SC with pending additional material requests.`,
+      );
+    }
+
+    // 3. Check pending Material Returns
+    const hasPendingReturns = await this.scRepo.manager
+      .createQueryBuilder('material_returns', 'mr')
+      .where('mr.sc_id = :id', { id })
+      .andWhere('mr.status = :status', { status: ReturnStatus.PENDING_STORE_ACK })
+      .getCount() > 0;
+    if (hasPendingReturns) {
+      throw new BadRequestException(
+        `Cannot complete SC with pending material returns awaiting Stores ACK.`,
+      );
+    }
+
+    // 4. Check Unaccounted = 0
+    const accounting = await this.productionService.getAccounting(id);
+    for (const item of accounting.items) {
+      if (item.unaccounted > 0) {
+        throw new BadRequestException(
+          `Cannot complete SC: RM Item ${item.rmItemId} has ${item.unaccounted} unaccounted quantity.`,
+        );
+      }
     }
 
     sc.status = ScStatus.COMPLETED;
@@ -119,8 +184,10 @@ export class ScService {
     if (sc.status === ScStatus.CLOSED) {
       throw new BadRequestException(`SC "${sc.scNumber}" is already CLOSED.`);
     }
-    if (sc.status === ScStatus.DRAFT) {
-      throw new BadRequestException(`Cannot close a DRAFT SC.`);
+    if (sc.status !== ScStatus.COMPLETED) {
+      throw new BadRequestException(
+        `SC "${sc.scNumber}" cannot be closed from status ${sc.status}. Must be COMPLETED first.`,
+      );
     }
 
     sc.status = ScStatus.CLOSED;

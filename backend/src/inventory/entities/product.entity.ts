@@ -15,7 +15,9 @@ import type { StockTransaction } from './stock-transaction.entity.js';
 
 @Entity('products')
 @Check(`"minimum_inventory" >= 0`)
-@Check(`"maximum_inventory" IS NULL OR "maximum_inventory" >= "minimum_inventory"`)
+@Check(
+  `"maximum_inventory" IS NULL OR "maximum_inventory" >= "minimum_inventory"`,
+)
 export class Product {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

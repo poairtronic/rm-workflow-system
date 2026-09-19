@@ -22,7 +22,10 @@ export class Warehouse {
   @Column({ name: 'is_active', default: true })
   isActive!: boolean;
 
-  @OneToMany('WarehouseLocation', (location: WarehouseLocation) => location.warehouse)
+  @OneToMany(
+    'WarehouseLocation',
+    (location: WarehouseLocation) => location.warehouse,
+  )
   locations?: WarehouseLocation[];
 
   @CreateDateColumn({ name: 'created_at' })

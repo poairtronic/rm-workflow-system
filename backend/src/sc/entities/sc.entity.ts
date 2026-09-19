@@ -81,7 +81,10 @@ export class SalesOrderComponent {
   @OneToMany(() => RmItem, (item) => item.salesOrderComponent)
   rmItems!: RmItem[];
 
-  @OneToMany('MaterialIssue', (issue: MaterialIssue) => issue.salesOrderComponent)
+  @OneToMany(
+    'MaterialIssue',
+    (issue: MaterialIssue) => issue.salesOrderComponent,
+  )
   materialIssues!: MaterialIssue[];
 
   @OneToMany(() => MaterialConsumption, (c) => c.salesOrderComponent)
@@ -90,7 +93,10 @@ export class SalesOrderComponent {
   @OneToMany(() => MaterialReturn, (r) => r.salesOrderComponent)
   materialReturns!: MaterialReturn[];
 
-  @OneToMany('AdditionalMaterialRequest', (r: AdditionalMaterialRequest) => r.salesOrderComponent)
+  @OneToMany(
+    'AdditionalMaterialRequest',
+    (r: AdditionalMaterialRequest) => r.salesOrderComponent,
+  )
   additionalRequests!: AdditionalMaterialRequest[];
 
   @Column({
@@ -116,4 +122,3 @@ export class SalesOrderComponent {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt!: Date;
 }
-

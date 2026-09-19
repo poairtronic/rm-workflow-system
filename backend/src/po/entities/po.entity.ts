@@ -39,7 +39,10 @@ export class PurchaseOrder {
   @Column({ nullable: true, length: 255 })
   remarks?: string;
 
-  @OneToMany('SalesOrderComponent', (sc: SalesOrderComponent) => sc.purchaseOrder)
+  @OneToMany(
+    'SalesOrderComponent',
+    (sc: SalesOrderComponent) => sc.purchaseOrder,
+  )
   salesOrderComponents!: SalesOrderComponent[];
 
   @CreateDateColumn({ name: 'created_at' })

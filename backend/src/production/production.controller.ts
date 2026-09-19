@@ -33,7 +33,10 @@ export class ProductionController {
 
   @Post('consume')
   @Roles(UserRole.PRODUCTION, UserRole.ADMIN)
-  recordConsumption(@Body() dto: CreateMaterialConsumptionDto, @Req() req: any) {
+  recordConsumption(
+    @Body() dto: CreateMaterialConsumptionDto,
+    @Req() req: any,
+  ) {
     return this.productionService.recordConsumption(dto, req.user.userId);
   }
 
@@ -66,4 +69,3 @@ export class ProductionController {
     return this.productionService.getAccounting(scId);
   }
 }
-

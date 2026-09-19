@@ -75,7 +75,9 @@ describe('RolesGuard - RBAC Security Matrix', () => {
   });
 
   it('RBAC-013: Role guard rejects unauthorized role', () => {
-    vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue([UserRole.PRODUCTION]);
+    vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue([
+      UserRole.PRODUCTION,
+    ]);
     const context = createMockContext({ role: UserRole.DESIGNER });
     expect(rolesGuard.canActivate(context)).toBe(false);
   });
@@ -87,25 +89,37 @@ describe('RolesGuard - RBAC Security Matrix', () => {
   });
 
   it('RBAC-017: Senior Manager cannot perform unauthorized write action', () => {
-    vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue([UserRole.PRODUCTION, UserRole.STORES]);
+    vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue([
+      UserRole.PRODUCTION,
+      UserRole.STORES,
+    ]);
     const context = createMockContext({ role: UserRole.SENIOR_MANAGER });
     expect(rolesGuard.canActivate(context)).toBe(false);
   });
 
   it('RBAC-018: General Manager cannot perform unauthorized write action', () => {
-    vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue([UserRole.PRODUCTION, UserRole.STORES]);
+    vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue([
+      UserRole.PRODUCTION,
+      UserRole.STORES,
+    ]);
     const context = createMockContext({ role: UserRole.GENERAL_MANAGER });
     expect(rolesGuard.canActivate(context)).toBe(false);
   });
 
   it('RBAC-019: Production cannot perform Stores Issue', () => {
-    vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue([UserRole.STORES, UserRole.ADMIN]);
+    vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue([
+      UserRole.STORES,
+      UserRole.ADMIN,
+    ]);
     const context = createMockContext({ role: UserRole.PRODUCTION });
     expect(rolesGuard.canActivate(context)).toBe(false);
   });
 
   it('RBAC-020: Designer cannot perform Stores Issue', () => {
-    vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue([UserRole.STORES, UserRole.ADMIN]);
+    vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue([
+      UserRole.STORES,
+      UserRole.ADMIN,
+    ]);
     const context = createMockContext({ role: UserRole.DESIGNER });
     expect(rolesGuard.canActivate(context)).toBe(false);
   });

@@ -1,4 +1,8 @@
-﻿import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+﻿import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PurchaseOrder } from './entities/po.entity.js';
@@ -21,17 +25,21 @@ export class PoService {
 
   async create(createDto: CreatePoDto) {
     const existing = await this.poRepository.findOne({
-      where: { poNumber: createDto.poNumber }
+      where: { poNumber: createDto.poNumber },
     });
     if (existing) {
-      throw new ConflictException(`Purchase Order with number ${createDto.poNumber} already exists`);
+      throw new ConflictException(
+        `Purchase Order with number ${createDto.poNumber} already exists`,
+      );
     }
 
     const customer = await this.customerRepository.findOne({
-      where: { id: createDto.customerId }
+      where: { id: createDto.customerId },
     });
     if (!customer) {
-      throw new NotFoundException(`Customer with id ${createDto.customerId} not found`);
+      throw new NotFoundException(
+        `Customer with id ${createDto.customerId} not found`,
+      );
     }
 
     const po = this.poRepository.create(createDto);
@@ -41,14 +49,14 @@ export class PoService {
   async findAll() {
     return await this.poRepository.find({
       relations: { customer: true },
-      order: { createdAt: 'DESC' }
+      order: { createdAt: 'DESC' },
     });
   }
 
   async findOne(id: string) {
     const po = await this.poRepository.findOne({
       where: { id },
-      relations: { customer: true, salesOrderComponents: true }
+      relations: { customer: true, salesOrderComponents: true },
     });
     if (!po) {
       throw new NotFoundException(`Purchase Order with id ${id} not found`);
@@ -61,19 +69,23 @@ export class PoService {
 
     if (updateDto.poNumber && updateDto.poNumber !== po.poNumber) {
       const existing = await this.poRepository.findOne({
-        where: { poNumber: updateDto.poNumber }
+        where: { poNumber: updateDto.poNumber },
       });
       if (existing) {
-        throw new ConflictException(`Purchase Order with number ${updateDto.poNumber} already exists`);
+        throw new ConflictException(
+          `Purchase Order with number ${updateDto.poNumber} already exists`,
+        );
       }
     }
 
     if (updateDto.customerId && updateDto.customerId !== po.customerId) {
       const customer = await this.customerRepository.findOne({
-        where: { id: updateDto.customerId }
+        where: { id: updateDto.customerId },
       });
       if (!customer) {
-        throw new NotFoundException(`Customer with id ${updateDto.customerId} not found`);
+        throw new NotFoundException(
+          `Customer with id ${updateDto.customerId} not found`,
+        );
       }
     }
 

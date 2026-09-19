@@ -91,7 +91,7 @@ export class RmRequest {
   })
   completedAt?: Date;
 
-    @Column({
+  @Column({
     name: 'reviewed_at',
     type: 'timestamp with time zone',
     nullable: true,
@@ -117,5 +117,3 @@ export class RmRequest {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt!: Date;
 }
-
-

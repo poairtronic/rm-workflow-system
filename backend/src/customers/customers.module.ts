@@ -6,10 +6,7 @@ import { Customer } from './entities/customer.entity.js';
 import { AuthModule } from '../auth/auth.module.js';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Customer]),
-    AuthModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Customer]), AuthModule],
   controllers: [CustomersController],
   providers: [CustomersService],
   exports: [CustomersService],

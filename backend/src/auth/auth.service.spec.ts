@@ -19,7 +19,6 @@ describe('AuthService', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
 
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -120,8 +119,9 @@ describe('AuthService', () => {
 
   it('should create dev test tokens for roles', () => {
     const result = authService.createDevTestToken(UserRole.SENIOR_MANAGER);
-    expect(result.accessToken).toContain('00000000-0000-0000-0000-000000000005');
+    expect(result.accessToken).toContain(
+      '00000000-0000-0000-0000-000000000005',
+    );
     expect(result.user.role).toBe(UserRole.SENIOR_MANAGER);
   });
 });
-

@@ -53,4 +53,3 @@ export class MaterialIssueController {
     return this.materialIssueService.findOne(id);
   }
 }
-

@@ -1,4 +1,12 @@
-import { IsString, IsNotEmpty, MaxLength, IsUUID, IsNumber, Min, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  MaxLength,
+  IsUUID,
+  IsNumber,
+  Min,
+  IsOptional,
+} from 'class-validator';
 
 export class CreateRmDto {
   @IsUUID('4')

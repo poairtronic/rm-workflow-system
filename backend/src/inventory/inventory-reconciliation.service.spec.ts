@@ -41,25 +41,37 @@ describe('InventoryReconciliationService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InventoryReconciliationService,
-        { provide: getRepositoryToken(InventoryItem), useValue: inventoryItemRepo },
-        { provide: getRepositoryToken(StockBalance), useValue: stockBalanceRepo },
+        {
+          provide: getRepositoryToken(InventoryItem),
+          useValue: inventoryItemRepo,
+        },
+        {
+          provide: getRepositoryToken(StockBalance),
+          useValue: stockBalanceRepo,
+        },
         { provide: getRepositoryToken(Product), useValue: productRepo },
         { provide: getRepositoryToken(Bin), useValue: {} },
         { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
 
-    service = module.get<InventoryReconciliationService>(InventoryReconciliationService);
+    service = module.get<InventoryReconciliationService>(
+      InventoryReconciliationService,
+    );
   });
 
   it('MAPPING-001: Deterministic InventoryItem -> Product mapping', async () => {
     inventoryItemRepo.find.mockResolvedValue([
-      { id: 'legacy-1', material: 'PROD-A', stockBalance: { currentQuantity: 10 } }
+      {
+        id: 'legacy-1',
+        material: 'PROD-A',
+        stockBalance: { currentQuantity: 10 },
+      },
     ]);
     productRepo.findOne.mockResolvedValue({ id: 'target-prod-1' });
 
     const result = await service.dryRunMapping();
-    
+
     expect(result.totalLegacyItems).toBe(1);
     expect(result.unmappedBins).toBe(1); // Because bin logic explicitly flags UNMAPPED_BIN as fallback right now
     expect(result.records[0].mapping_status).toBe('UNMAPPED_BIN');
@@ -68,34 +80,42 @@ describe('InventoryReconciliationService', () => {
 
   it('MAPPING-002: Unmapped Product is not automatically created', async () => {
     inventoryItemRepo.find.mockResolvedValue([
-      { id: 'legacy-1', material: 'PROD-X', stockBalance: { currentQuantity: 10 } }
+      {
+        id: 'legacy-1',
+        material: 'PROD-X',
+        stockBalance: { currentQuantity: 10 },
+      },
     ]);
     productRepo.findOne.mockResolvedValue(null);
 
     const result = await service.dryRunMapping();
-    
+
     expect(result.unmappedProducts).toBe(1);
     expect(result.records[0].mapping_status).toBe('UNMAPPED_PRODUCT');
     expect(result.records[0].product_id).toBeNull();
   });
 
   it('MAPPING-008: Quantity mismatch is flagged', async () => {
-    // For this test we bypass the UNMAPPED_BIN by overriding the mapping Status in the loop logic 
-    // or simulate a scenario where Bin was matched. 
-    // Wait, the dry run hardcodes UNMAPPED_BIN because of legacy schema limitation. 
+    // For this test we bypass the UNMAPPED_BIN by overriding the mapping Status in the loop logic
+    // or simulate a scenario where Bin was matched.
+    // Wait, the dry run hardcodes UNMAPPED_BIN because of legacy schema limitation.
     // We will just verify it correctly detects UNMAPPED_BIN.
     inventoryItemRepo.find.mockResolvedValue([
-      { id: 'legacy-1', material: 'PROD-A', stockBalance: { currentQuantity: 10 } }
+      {
+        id: 'legacy-1',
+        material: 'PROD-A',
+        stockBalance: { currentQuantity: 10 },
+      },
     ]);
     productRepo.findOne.mockResolvedValue({ id: 'target-prod-1' });
-    
+
     const result = await service.dryRunMapping();
-    expect(result.targetBalanceMatches).toBe(0); 
+    expect(result.targetBalanceMatches).toBe(0);
   });
-  
+
   it('MAPPING-015: Rollback occurs on migration failure', async () => {
     inventoryItemRepo.find.mockRejectedValue(new Error('DB Error'));
-    
+
     const result = await service.dryRunMapping();
     expect(result.totalLegacyItems).toBe(0);
   });

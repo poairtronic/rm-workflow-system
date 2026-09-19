@@ -12,7 +12,11 @@ export class QuantityCalculator {
   /**
    * Calculates unaccounted quantity: RECEIVED - CONSUMED - RETURNED
    */
-  static calculateUnaccounted(received: number, consumed: number, returned: number): number {
+  static calculateUnaccounted(
+    received: number,
+    consumed: number,
+    returned: number,
+  ): number {
     const rec = this.roundDecimal(received);
     const con = this.roundDecimal(consumed);
     const ret = this.roundDecimal(returned);
@@ -26,7 +30,9 @@ export class QuantityCalculator {
   static assertPositive(quantity: number, fieldName = 'Quantity'): void {
     const qty = this.roundDecimal(quantity);
     if (qty <= 0) {
-      throw new BadRequestException(`${fieldName} must be greater than zero. Received: ${quantity}`);
+      throw new BadRequestException(
+        `${fieldName} must be greater than zero. Received: ${quantity}`,
+      );
     }
   }
 
@@ -36,18 +42,26 @@ export class QuantityCalculator {
   static assertNonNegative(quantity: number, fieldName = 'Quantity'): void {
     const qty = this.roundDecimal(quantity);
     if (qty < 0) {
-      throw new BadRequestException(`${fieldName} cannot be negative. Received: ${quantity}`);
+      throw new BadRequestException(
+        `${fieldName} cannot be negative. Received: ${quantity}`,
+      );
     }
   }
 
   /**
    * Validates that requested quantity does not exceed available limit.
    */
-  static assertWithinLimit(requested: number, limit: number, errorMessage: string): void {
+  static assertWithinLimit(
+    requested: number,
+    limit: number,
+    errorMessage: string,
+  ): void {
     const req = this.roundDecimal(requested);
     const lim = this.roundDecimal(limit);
     if (req > lim + 0.0005) {
-      throw new BadRequestException(`${errorMessage} Requested: ${req}, Available Limit: ${lim}`);
+      throw new BadRequestException(
+        `${errorMessage} Requested: ${req}, Available Limit: ${lim}`,
+      );
     }
   }
 }

@@ -30,4 +30,3 @@ import { Role } from '../roles/entities/role.entity.js';
   exports: [AuthService, PassportModule, JwtModule],
 })
 export class AuthModule {}
-

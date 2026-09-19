@@ -1,19 +1,34 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { InventoryItem } from './entities/inventory-item.entity.js';
 import { StockBalance } from './entities/stock-balance.entity.js';
-import { StockTransaction, TransactionType, AdjustmentDirection } from './entities/stock-transaction.entity.js';
+import {
+  StockTransaction,
+  TransactionType,
+  AdjustmentDirection,
+} from './entities/stock-transaction.entity.js';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto.js';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto.js';
 import { CreateStockTransactionDto } from './dto/create-stock-transaction.dto.js';
 import { CreateStockInDto } from './dto/create-stock-in.dto.js';
 import { CreateStockOutDto } from './dto/create-stock-out.dto.js';
 import { CreateStockAdjustmentDto } from './dto/create-stock-adjustment.dto.js';
-import { GetInventoryFilterDto, StockStatusFilter } from './dto/get-inventory-filter.dto.js';
+import {
+  GetInventoryFilterDto,
+  StockStatusFilter,
+} from './dto/get-inventory-filter.dto.js';
 import { GetTransactionFilterDto } from './dto/get-transaction-filter.dto.js';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto.js';
-import { ReconciliationResultDto, ReconciliationStatus } from './dto/reconciliation-result.dto.js';
+import {
+  ReconciliationResultDto,
+  ReconciliationStatus,
+} from './dto/reconciliation-result.dto.js';
 
 @Injectable()
 export class InventoryService {
@@ -27,10 +42,19 @@ export class InventoryService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async findAll(filterDto?: GetInventoryFilterDto): Promise<PaginatedResponseDto<InventoryItem>> {
-    const { search, stockStatus, isActive, page = 1, pageSize = 10 } = filterDto || {};
-    
-    const query = this.inventoryItemRepository.createQueryBuilder('item')
+  async findAll(
+    filterDto?: GetInventoryFilterDto,
+  ): Promise<PaginatedResponseDto<InventoryItem>> {
+    const {
+      search,
+      stockStatus,
+      isActive,
+      page = 1,
+      pageSize = 10,
+    } = filterDto || {};
+
+    const query = this.inventoryItemRepository
+      .createQueryBuilder('item')
       .leftJoinAndSelect('item.stockBalance', 'balance')
       .orderBy('item.material', 'ASC')
       .addOrderBy('item.size', 'ASC');
@@ -39,7 +63,7 @@ export class InventoryService {
       const searchPattern = `%${search}%`;
       query.andWhere(
         '(item.material ILIKE :search OR item.materialType ILIKE :search OR item.grade ILIKE :search OR item.size ILIKE :search)',
-        { search: searchPattern }
+        { search: searchPattern },
       );
     }
 
@@ -49,9 +73,13 @@ export class InventoryService {
 
     if (stockStatus) {
       if (stockStatus === StockStatusFilter.LOW_STOCK) {
-        query.andWhere('COALESCE(balance.current_quantity, 0) < item.minimum_stock_level');
+        query.andWhere(
+          'COALESCE(balance.current_quantity, 0) < item.minimum_stock_level',
+        );
       } else if (stockStatus === StockStatusFilter.NORMAL) {
-        query.andWhere('COALESCE(balance.current_quantity, 0) >= item.minimum_stock_level');
+        query.andWhere(
+          'COALESCE(balance.current_quantity, 0) >= item.minimum_stock_level',
+        );
       }
     }
 
@@ -101,7 +129,9 @@ export class InventoryService {
     } catch (error: any) {
       await queryRunner.rollbackTransaction();
       if (error.code === '23505') {
-        throw new ConflictException('An inventory item with this exact combination of material, type, grade, and size already exists.');
+        throw new ConflictException(
+          'An inventory item with this exact combination of material, type, grade, and size already exists.',
+        );
       }
       throw error;
     } finally {
@@ -116,7 +146,9 @@ export class InventoryService {
       return await this.inventoryItemRepository.save(item);
     } catch (error: any) {
       if (error.code === '23505') {
-        throw new ConflictException('An inventory item with this exact combination of material, type, grade, and size already exists.');
+        throw new ConflictException(
+          'An inventory item with this exact combination of material, type, grade, and size already exists.',
+        );
       }
       throw error;
     }
@@ -127,15 +159,28 @@ export class InventoryService {
       where: { inventoryItemId },
     });
     if (!balance) {
-      throw new NotFoundException(`Stock balance for item ${inventoryItemId} not found`);
+      throw new NotFoundException(
+        `Stock balance for item ${inventoryItemId} not found`,
+      );
     }
     return balance;
   }
 
-  async getTransactions(inventoryItemId: string, filterDto?: GetTransactionFilterDto): Promise<PaginatedResponseDto<StockTransaction>> {
-    const { transactionType, adjustmentDirection, startDate, endDate, page = 1, pageSize = 10 } = filterDto || {};
+  async getTransactions(
+    inventoryItemId: string,
+    filterDto?: GetTransactionFilterDto,
+  ): Promise<PaginatedResponseDto<StockTransaction>> {
+    const {
+      transactionType,
+      adjustmentDirection,
+      startDate,
+      endDate,
+      page = 1,
+      pageSize = 10,
+    } = filterDto || {};
 
-    const query = this.stockTransactionRepository.createQueryBuilder('tx')
+    const query = this.stockTransactionRepository
+      .createQueryBuilder('tx')
       .where('tx.inventory_item_id = :inventoryItemId', { inventoryItemId })
       .leftJoin('tx.createdBy', 'user')
       .addSelect(['user.id', 'user.name', 'user.email'])
@@ -143,11 +188,15 @@ export class InventoryService {
       .addOrderBy('tx.id', 'DESC');
 
     if (transactionType) {
-      query.andWhere('tx.transactionType = :transactionType', { transactionType });
+      query.andWhere('tx.transactionType = :transactionType', {
+        transactionType,
+      });
     }
 
     if (adjustmentDirection && transactionType === TransactionType.ADJUSTMENT) {
-      query.andWhere('tx.adjustmentDirection = :adjustmentDirection', { adjustmentDirection });
+      query.andWhere('tx.adjustmentDirection = :adjustmentDirection', {
+        adjustmentDirection,
+      });
     }
 
     if (startDate) {
@@ -172,19 +221,26 @@ export class InventoryService {
     };
   }
 
-  async getReconciliation(inventoryItemId?: string): Promise<ReconciliationResultDto[]> {
-    const query = this.stockBalanceRepository.createQueryBuilder('balance')
+  async getReconciliation(
+    inventoryItemId?: string,
+  ): Promise<ReconciliationResultDto[]> {
+    const query = this.stockBalanceRepository
+      .createQueryBuilder('balance')
       .leftJoinAndSelect('balance.inventoryItem', 'item')
       .leftJoinAndSelect('balance.product', 'product')
       .leftJoinAndSelect('balance.bin', 'bin');
 
     if (inventoryItemId) {
-      query.where('balance.inventory_item_id = :id OR balance.product_id = :id OR balance.id = :id', { id: inventoryItemId });
+      query.where(
+        'balance.inventory_item_id = :id OR balance.product_id = :id OR balance.id = :id',
+        { id: inventoryItemId },
+      );
     }
 
     const balances = await query.getMany();
 
-    const txQuery = this.stockTransactionRepository.createQueryBuilder('tx')
+    const txQuery = this.stockTransactionRepository
+      .createQueryBuilder('tx')
       .select('tx.inventory_item_id', 'inventoryItemId')
       .addSelect('tx.product_id', 'productId')
       .addSelect('tx.source_bin_id', 'sourceBinId')
@@ -200,14 +256,19 @@ export class InventoryService {
       .addGroupBy('tx.adjustment_direction');
 
     if (inventoryItemId) {
-      const balanceIds = balances.map(b => b.inventoryItemId).filter(id => id);
-      const productIds = balances.map(b => b.productId).filter(id => id);
+      const balanceIds = balances
+        .map((b) => b.inventoryItemId)
+        .filter((id) => id);
+      const productIds = balances.map((b) => b.productId).filter((id) => id);
 
       if (balanceIds.length > 0 || productIds.length > 0) {
-        txQuery.andWhere('(tx.inventory_item_id IN (:...balanceIds) OR tx.product_id IN (:...productIds))', { 
-          balanceIds: balanceIds.length > 0 ? balanceIds : ['none'],
-          productIds: productIds.length > 0 ? productIds : ['none']
-        });
+        txQuery.andWhere(
+          '(tx.inventory_item_id IN (:...balanceIds) OR tx.product_id IN (:...productIds))',
+          {
+            balanceIds: balanceIds.length > 0 ? balanceIds : ['none'],
+            productIds: productIds.length > 0 ? productIds : ['none'],
+          },
+        );
       } else {
         return [];
       }
@@ -215,28 +276,49 @@ export class InventoryService {
 
     const txAgg = await txQuery.getRawMany();
 
-    const results: ReconciliationResultDto[] = balances.map(balance => {
+    const results: ReconciliationResultDto[] = balances.map((balance) => {
       let ledgerMovement = 0;
 
       for (const row of txAgg) {
         const qty = parseFloat(row.total) || 0;
         const type = row.type as TransactionType;
-        
-        const matchesLegacy = !!(balance.inventoryItemId && row.inventoryItemId === balance.inventoryItemId);
-        const matchesModernTarget = !!(balance.productId && row.productId === balance.productId && row.destinationBinId === balance.binId);
-        const matchesModernSource = !!(balance.productId && row.productId === balance.productId && row.sourceBinId === balance.binId);
+
+        const matchesLegacy = !!(
+          balance.inventoryItemId &&
+          row.inventoryItemId === balance.inventoryItemId
+        );
+        const matchesModernTarget = !!(
+          balance.productId &&
+          row.productId === balance.productId &&
+          row.destinationBinId === balance.binId
+        );
+        const matchesModernSource = !!(
+          balance.productId &&
+          row.productId === balance.productId &&
+          row.sourceBinId === balance.binId
+        );
 
         let txQty = 0;
-        
-        if (type === TransactionType.STOCK_IN || type === TransactionType.RETURN || (type === TransactionType.ADJUSTMENT && row.adjustmentDirection === AdjustmentDirection.INCREASE)) {
-           if (matchesLegacy || matchesModernTarget) txQty += qty;
+
+        if (
+          type === TransactionType.STOCK_IN ||
+          type === TransactionType.RETURN ||
+          (type === TransactionType.ADJUSTMENT &&
+            row.adjustmentDirection === AdjustmentDirection.INCREASE)
+        ) {
+          if (matchesLegacy || matchesModernTarget) txQty += qty;
         } else if (type === TransactionType.TRANSFER) {
-           if (matchesModernTarget) txQty += qty;
-           if (matchesModernSource) txQty -= qty;
-        } else if (type === TransactionType.STOCK_OUT || type === TransactionType.STORES_ISSUE || (type === TransactionType.ADJUSTMENT && row.adjustmentDirection === AdjustmentDirection.DECREASE)) {
-           if (matchesLegacy || matchesModernSource) txQty -= qty;
+          if (matchesModernTarget) txQty += qty;
+          if (matchesModernSource) txQty -= qty;
+        } else if (
+          type === TransactionType.STOCK_OUT ||
+          type === TransactionType.STORES_ISSUE ||
+          (type === TransactionType.ADJUSTMENT &&
+            row.adjustmentDirection === AdjustmentDirection.DECREASE)
+        ) {
+          if (matchesLegacy || matchesModernSource) txQty -= qty;
         }
-        
+
         ledgerMovement += txQty;
       }
 
@@ -245,7 +327,10 @@ export class InventoryService {
       let expectedBalance: number | null = null;
       let difference: number | null = null;
 
-      if (balance.openingBalance === null || balance.openingBalance === undefined) {
+      if (
+        balance.openingBalance === null ||
+        balance.openingBalance === undefined
+      ) {
         reason = 'OPENING_BASELINE_MISSING';
       } else {
         const currentBalance = Number(balance.currentQuantity);
@@ -268,12 +353,17 @@ export class InventoryService {
         productName: balance.product?.name || undefined,
         binId: balance.binId || undefined,
         binCode: balance.bin?.code || undefined,
-        material: balance.product?.name || balance.inventoryItem?.material || 'Unknown',
+        material:
+          balance.product?.name || balance.inventoryItem?.material || 'Unknown',
         grade: balance.inventoryItem?.grade || 'N/A',
         size: balance.inventoryItem?.size || 'N/A',
         currentBalance: Number(balance.currentQuantity),
         ledgerMovement: ledgerMovement,
-        openingBalance: balance.openingBalance !== null && balance.openingBalance !== undefined ? Number(balance.openingBalance) : null,
+        openingBalance:
+          balance.openingBalance !== null &&
+          balance.openingBalance !== undefined
+            ? Number(balance.openingBalance)
+            : null,
         expectedBalance,
         difference,
         status,
@@ -314,10 +404,16 @@ export class InventoryService {
 
       for (const row of txAgg) {
         const qty = parseFloat(row.total) || 0;
-        if (row.destinationBinId === binId && (row.type === 'STOCK_IN' || row.type === 'RETURN')) {
+        if (
+          row.destinationBinId === binId &&
+          (row.type === 'STOCK_IN' || row.type === 'RETURN')
+        ) {
           inQty += qty;
         }
-        if (row.sourceBinId === binId && (row.type === 'STOCK_OUT' || row.type === 'STORES_ISSUE')) {
+        if (
+          row.sourceBinId === binId &&
+          (row.type === 'STOCK_OUT' || row.type === 'STORES_ISSUE')
+        ) {
           outQty += qty;
         }
       }
@@ -341,7 +437,9 @@ export class InventoryService {
 
     return {
       timestamp: new Date().toISOString(),
-      reconciliationStatus: binReconResults.every((r) => r.status === 'MATCH') ? 'CLEAN' : 'DISCREPANCY_DETECTED',
+      reconciliationStatus: binReconResults.every((r) => r.status === 'MATCH')
+        ? 'CLEAN'
+        : 'DISCREPANCY_DETECTED',
       binBalances: binReconResults,
     };
   }
@@ -361,7 +459,9 @@ export class InventoryService {
         where: { id: inventoryItemId },
       });
       if (!item) {
-        throw new NotFoundException(`Inventory item ${inventoryItemId} not found`);
+        throw new NotFoundException(
+          `Inventory item ${inventoryItemId} not found`,
+        );
       }
 
       // 1.5 Fetch current balance to get target mappings if they exist
@@ -374,22 +474,30 @@ export class InventoryService {
         ...createTxDto,
         inventoryItemId,
         productId: currentBalance?.productId,
-        sourceBinId: createTxDto.transactionType === TransactionType.STOCK_OUT ? currentBalance?.binId : undefined,
-        destinationBinId: createTxDto.transactionType === TransactionType.STOCK_IN ? currentBalance?.binId : undefined,
+        sourceBinId:
+          createTxDto.transactionType === TransactionType.STOCK_OUT
+            ? currentBalance?.binId
+            : undefined,
+        destinationBinId:
+          createTxDto.transactionType === TransactionType.STOCK_IN
+            ? currentBalance?.binId
+            : undefined,
         createdById: userId,
       });
       const savedTx = await queryRunner.manager.save(transaction);
 
       // 3. Update stock balance atomically
       const { transactionType, quantity } = createTxDto;
-      
+
       let mathOperator = '';
       if (transactionType === TransactionType.STOCK_IN) {
         mathOperator = '+';
       } else if (transactionType === TransactionType.STOCK_OUT) {
         mathOperator = '-';
       } else if (transactionType === TransactionType.ADJUSTMENT) {
-        throw new BadRequestException('ADJUSTMENT transaction type logic needs explicit delta specification');
+        throw new BadRequestException(
+          'ADJUSTMENT transaction type logic needs explicit delta specification',
+        );
       }
 
       if (mathOperator) {
@@ -399,7 +507,7 @@ export class InventoryService {
                last_transaction_id = $2, 
                updated_at = NOW() 
            WHERE inventory_item_id = $3`,
-          [quantity, savedTx.id, inventoryItemId]
+          [quantity, savedTx.id, inventoryItemId],
         );
       }
 
@@ -427,7 +535,9 @@ export class InventoryService {
         where: { id: inventoryItemId },
       });
       if (!item) {
-        throw new NotFoundException(`Inventory item ${inventoryItemId} not found`);
+        throw new NotFoundException(
+          `Inventory item ${inventoryItemId} not found`,
+        );
       }
 
       // Fallback for seed data without initial balance.
@@ -462,7 +572,7 @@ export class InventoryService {
              last_transaction_id = $2, 
              updated_at = NOW() 
          WHERE inventory_item_id = $3`,
-        [dto.quantity, savedTx.id, inventoryItemId]
+        [dto.quantity, savedTx.id, inventoryItemId],
       );
 
       const finalBalance = await queryRunner.manager.findOne(StockBalance, {
@@ -470,11 +580,13 @@ export class InventoryService {
       });
 
       if (!finalBalance) {
-        throw new BadRequestException('Failed to update stock balance atomically');
+        throw new BadRequestException(
+          'Failed to update stock balance atomically',
+        );
       }
 
       await queryRunner.commitTransaction();
-      
+
       return {
         transaction: savedTx,
         balance: finalBalance,
@@ -501,16 +613,20 @@ export class InventoryService {
         where: { id: inventoryItemId },
       });
       if (!item) {
-        throw new NotFoundException(`Inventory item ${inventoryItemId} not found`);
+        throw new NotFoundException(
+          `Inventory item ${inventoryItemId} not found`,
+        );
       }
 
       // We don't auto-create balance for stockOut; it must exist and have enough stock.
       const currentBalance = await queryRunner.manager.findOne(StockBalance, {
         where: { inventoryItemId },
       });
-      
+
       if (!currentBalance) {
-        throw new BadRequestException('Insufficient stock (no balance record found).');
+        throw new BadRequestException(
+          'Insufficient stock (no balance record found).',
+        );
       }
 
       // Atomic stock decrement check and update
@@ -519,7 +635,7 @@ export class InventoryService {
          SET current_quantity = current_quantity - $1, 
              updated_at = NOW() 
          WHERE inventory_item_id = $2 AND current_quantity >= $1`,
-        [dto.quantity, inventoryItemId]
+        [dto.quantity, inventoryItemId],
       );
 
       if (updateResult[1] === 0) {
@@ -548,7 +664,7 @@ export class InventoryService {
         `UPDATE stock_balances 
          SET last_transaction_id = $1 
          WHERE inventory_item_id = $2`,
-        [savedTx.id, inventoryItemId]
+        [savedTx.id, inventoryItemId],
       );
 
       const finalBalance = await queryRunner.manager.findOne(StockBalance, {
@@ -556,7 +672,7 @@ export class InventoryService {
       });
 
       await queryRunner.commitTransaction();
-      
+
       return {
         transaction: savedTx,
         balance: finalBalance,
@@ -583,15 +699,19 @@ export class InventoryService {
         where: { id: inventoryItemId },
       });
       if (!item) {
-        throw new NotFoundException(`Inventory item ${inventoryItemId} not found`);
+        throw new NotFoundException(
+          `Inventory item ${inventoryItemId} not found`,
+        );
       }
 
       const currentBalance = await queryRunner.manager.findOne(StockBalance, {
         where: { inventoryItemId },
       });
-      
+
       if (!currentBalance) {
-        throw new BadRequestException('Insufficient stock (no balance record found).');
+        throw new BadRequestException(
+          'Insufficient stock (no balance record found).',
+        );
       }
 
       let updateResult;
@@ -602,7 +722,7 @@ export class InventoryService {
            SET current_quantity = current_quantity + $1, 
                updated_at = NOW() 
            WHERE inventory_item_id = $2`,
-          [dto.quantity, inventoryItemId]
+          [dto.quantity, inventoryItemId],
         );
       } else if (dto.direction === AdjustmentDirection.DECREASE) {
         updateResult = await queryRunner.manager.query(
@@ -610,11 +730,13 @@ export class InventoryService {
            SET current_quantity = current_quantity - $1, 
                updated_at = NOW() 
            WHERE inventory_item_id = $2 AND current_quantity >= $1`,
-          [dto.quantity, inventoryItemId]
+          [dto.quantity, inventoryItemId],
         );
 
         if (updateResult[1] === 0) {
-          throw new BadRequestException('Insufficient stock for adjustment decrease.');
+          throw new BadRequestException(
+            'Insufficient stock for adjustment decrease.',
+          );
         }
       } else {
         throw new BadRequestException('Invalid adjustment direction.');
@@ -623,8 +745,14 @@ export class InventoryService {
       const transaction = this.stockTransactionRepository.create({
         inventoryItemId,
         productId: currentBalance.productId,
-        sourceBinId: dto.direction === AdjustmentDirection.DECREASE ? currentBalance.binId : undefined,
-        destinationBinId: dto.direction === AdjustmentDirection.INCREASE ? currentBalance.binId : undefined,
+        sourceBinId:
+          dto.direction === AdjustmentDirection.DECREASE
+            ? currentBalance.binId
+            : undefined,
+        destinationBinId:
+          dto.direction === AdjustmentDirection.INCREASE
+            ? currentBalance.binId
+            : undefined,
         transactionType: TransactionType.ADJUSTMENT,
         quantity: dto.quantity,
         adjustmentDirection: dto.direction,
@@ -639,7 +767,7 @@ export class InventoryService {
         `UPDATE stock_balances 
          SET last_transaction_id = $1 
          WHERE inventory_item_id = $2`,
-        [savedTx.id, inventoryItemId]
+        [savedTx.id, inventoryItemId],
       );
 
       const finalBalance = await queryRunner.manager.findOne(StockBalance, {
@@ -647,7 +775,7 @@ export class InventoryService {
       });
 
       await queryRunner.commitTransaction();
-      
+
       return {
         transaction: savedTx,
         balance: finalBalance,

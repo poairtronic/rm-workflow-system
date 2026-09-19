@@ -30,13 +30,14 @@ export class AuthService {
       relations: { role: true },
     });
 
-
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
     if (!user.isActive) {
-      throw new UnauthorizedException('User account is inactive. Contact Administrator.');
+      throw new UnauthorizedException(
+        'User account is inactive. Contact Administrator.',
+      );
     }
 
     const isMatch = await bcrypt.compare(pass, user.passwordHash);
@@ -99,7 +100,7 @@ export class AuthService {
       SENIOR_MANAGER: '00000000-0000-0000-0000-000000000005',
       GENERAL_MANAGER: '00000000-0000-0000-0000-000000000006',
     };
-    
+
     return this.signToken({
       userId: mockUuids[role] || '00000000-0000-0000-0000-000000000000',
       name: `Dev ${role} User`,
@@ -109,4 +110,3 @@ export class AuthService {
     });
   }
 }
-
