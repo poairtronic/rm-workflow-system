@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -52,17 +53,23 @@ export class FamiliesController {
   }
 
   @Post()
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STORES)
   createFamily(@Body() dto: CreateFamilyDto) {
     return this.masterDataService.createFamily(dto);
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STORES)
   updateFamily(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateFamilyDto,
   ) {
     return this.masterDataService.updateFamily(id, dto);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.STORES)
+  deleteFamily(@Param('id', ParseUUIDPipe) id: string) {
+    return this.masterDataService.deleteFamily(id);
   }
 }

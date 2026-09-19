@@ -261,6 +261,22 @@ export class MasterDataService {
     return this.familyRepo.save(family);
   }
 
+  async deleteFamily(id: string) {
+    const family = await this.findFamilyById(id);
+    const productCount = await this.productRepo.count({
+      where: { familyId: id },
+    });
+
+    if (productCount > 0) {
+      throw new ConflictException(
+        `Cannot delete family "${family.name}" because it contains ${productCount} products. Deactivate it instead.`,
+      );
+    }
+
+    await this.familyRepo.remove(family);
+    return { success: true, message: `Family "${family.name}" deleted successfully.` };
+  }
+
   // ==========================================
   // 3. PRODUCTS
   // ==========================================

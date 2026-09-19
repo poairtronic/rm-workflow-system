@@ -1,4 +1,5 @@
 import { IsString, IsNotEmpty, MaxLength, IsUUID, IsOptional, IsBoolean } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateFamilyDto {
   @IsUUID('4')
@@ -6,6 +7,7 @@ export class CreateFamilyDto {
   categoryId!: string;
 
   @IsString()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsNotEmpty()
   @MaxLength(100)
   name!: string;
@@ -22,6 +24,7 @@ export class UpdateFamilyDto {
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsNotEmpty()
   @MaxLength(100)
   name?: string;

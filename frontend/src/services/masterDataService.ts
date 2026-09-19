@@ -122,11 +122,17 @@ export const masterDataService = {
   getFamilies: async (params?: MasterFilterParams): Promise<PaginatedResponse<Family>> => {
     return api.get<PaginatedResponse<Family>>(`/families${buildQuery(params)}`);
   },
+  getFamilyById: async (id: string): Promise<Family> => {
+    return api.get<Family>(`/families/${id}`);
+  },
   createFamily: async (data: { categoryId: string; name: string; isActive?: boolean }): Promise<Family> => {
     return api.post<Family>('/families', data);
   },
   updateFamily: async (id: string, data: { categoryId?: string; name?: string; isActive?: boolean }): Promise<Family> => {
     return api.patch<Family>(`/families/${id}`, data);
+  },
+  deleteFamily: async (id: string): Promise<{ success: boolean; message: string }> => {
+    return api.delete<{ success: boolean; message: string }>(`/families/${id}`);
   },
 
   // Products

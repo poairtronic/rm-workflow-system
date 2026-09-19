@@ -1,0 +1,13 @@
+$kind: collection
+name: 'RM Workflow System'
+description: 'API collection for the RM Workflow System - a NestJS backend for managing raw material requests, production workflows, inventory, and more.'
+variables:
+  - key: base_url
+    value: 'http://localhost:3000'
+  - key: auth_token
+    value: ''
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{auth_token}}'
