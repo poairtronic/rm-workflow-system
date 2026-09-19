@@ -173,50 +173,79 @@ export class InventoryService {
   }
 
   async getReconciliation(inventoryItemId?: string): Promise<ReconciliationResultDto[]> {
-    const query = this.inventoryItemRepository.createQueryBuilder('item')
-      .leftJoinAndSelect('item.stockBalance', 'balance');
+    const query = this.stockBalanceRepository.createQueryBuilder('balance')
+      .leftJoinAndSelect('balance.inventoryItem', 'item')
+      .leftJoinAndSelect('balance.product', 'product')
+      .leftJoinAndSelect('balance.bin', 'bin');
 
     if (inventoryItemId) {
-      query.where('item.id = :id', { id: inventoryItemId });
+      query.where('balance.inventory_item_id = :id OR balance.product_id = :id OR balance.id = :id', { id: inventoryItemId });
     }
 
-    const items = await query.getMany();
+    const balances = await query.getMany();
 
     const txQuery = this.stockTransactionRepository.createQueryBuilder('tx')
       .select('tx.inventory_item_id', 'inventoryItemId')
-      .addSelect(`SUM(CASE WHEN tx.transaction_type = 'STOCK_IN' OR (tx.transaction_type = 'ADJUSTMENT' AND tx.adjustment_direction = 'INCREASE') THEN tx.quantity ELSE 0 END)`, 'totalIn')
-      .addSelect(`SUM(CASE WHEN tx.transaction_type = 'STOCK_OUT' OR (tx.transaction_type = 'ADJUSTMENT' AND tx.adjustment_direction = 'DECREASE') THEN tx.quantity ELSE 0 END)`, 'totalOut');
+      .addSelect('tx.product_id', 'productId')
+      .addSelect('tx.source_bin_id', 'sourceBinId')
+      .addSelect('tx.destination_bin_id', 'destinationBinId')
+      .addSelect('tx.transaction_type', 'type')
+      .addSelect('tx.adjustment_direction', 'adjustmentDirection')
+      .addSelect('SUM(tx.quantity)', 'total')
+      .groupBy('tx.inventory_item_id')
+      .addGroupBy('tx.product_id')
+      .addGroupBy('tx.source_bin_id')
+      .addGroupBy('tx.destination_bin_id')
+      .addGroupBy('tx.transaction_type')
+      .addGroupBy('tx.adjustment_direction');
 
     if (inventoryItemId) {
-      txQuery.where('tx.inventory_item_id = :id', { id: inventoryItemId });
+      const balanceIds = balances.map(b => b.inventoryItemId).filter(id => id);
+      const productIds = balances.map(b => b.productId).filter(id => id);
+
+      if (balanceIds.length > 0 || productIds.length > 0) {
+        txQuery.andWhere('(tx.inventory_item_id IN (:...balanceIds) OR tx.product_id IN (:...productIds))', { 
+          balanceIds: balanceIds.length > 0 ? balanceIds : ['none'],
+          productIds: productIds.length > 0 ? productIds : ['none']
+        });
+      } else {
+        return [];
+      }
     }
 
-    const aggregations = await txQuery
-      .groupBy('tx.inventory_item_id')
-      .getRawMany();
+    const txAgg = await txQuery.getRawMany();
 
-    const aggMap = new Map<string, { totalIn: number, totalOut: number }>();
-    for (const row of aggregations) {
-      aggMap.set(row.inventoryItemId, {
-        totalIn: parseFloat(row.totalIn) || 0,
-        totalOut: parseFloat(row.totalOut) || 0,
-      });
-    }
+    const results: ReconciliationResultDto[] = balances.map(balance => {
+      let ledgerMovement = 0;
 
-    const results: ReconciliationResultDto[] = items.map(item => {
-      const balance = item.stockBalance;
-      const agg = aggMap.get(item.id) || { totalIn: 0, totalOut: 0 };
-      
-      const ledgerMovement = agg.totalIn - agg.totalOut;
+      for (const row of txAgg) {
+        const qty = parseFloat(row.total) || 0;
+        const type = row.type as TransactionType;
+        
+        const matchesLegacy = !!(balance.inventoryItemId && row.inventoryItemId === balance.inventoryItemId);
+        const matchesModernTarget = !!(balance.productId && row.productId === balance.productId && row.destinationBinId === balance.binId);
+        const matchesModernSource = !!(balance.productId && row.productId === balance.productId && row.sourceBinId === balance.binId);
+
+        let txQty = 0;
+        
+        if (type === TransactionType.STOCK_IN || type === TransactionType.RETURN || (type === TransactionType.ADJUSTMENT && row.adjustmentDirection === AdjustmentDirection.INCREASE)) {
+           if (matchesLegacy || matchesModernTarget) txQty += qty;
+        } else if (type === TransactionType.TRANSFER) {
+           if (matchesModernTarget) txQty += qty;
+           if (matchesModernSource) txQty -= qty;
+        } else if (type === TransactionType.STOCK_OUT || type === TransactionType.STORES_ISSUE || (type === TransactionType.ADJUSTMENT && row.adjustmentDirection === AdjustmentDirection.DECREASE)) {
+           if (matchesLegacy || matchesModernSource) txQty -= qty;
+        }
+        
+        ledgerMovement += txQty;
+      }
 
       let status = ReconciliationStatus.NOT_RECONCILABLE;
       let reason: string | undefined = undefined;
       let expectedBalance: number | null = null;
       let difference: number | null = null;
 
-      if (!balance) {
-        reason = 'MISSING_BALANCE';
-      } else if (balance.openingBalance === null || balance.openingBalance === undefined) {
+      if (balance.openingBalance === null || balance.openingBalance === undefined) {
         reason = 'OPENING_BASELINE_MISSING';
       } else {
         const currentBalance = Number(balance.currentQuantity);
@@ -224,23 +253,27 @@ export class InventoryService {
         expectedBalance = opening + ledgerMovement;
         difference = currentBalance - expectedBalance;
 
-        // Decimal safe comparison up to 3 decimal places
         if (Math.abs(difference) < 0.0005) {
           status = ReconciliationStatus.MATCH;
-          difference = 0; // Normalize to exact 0
+          difference = 0;
         } else {
           status = ReconciliationStatus.MISMATCH;
         }
       }
 
       return {
-        inventoryItemId: item.id,
-        material: item.material,
-        grade: item.grade,
-        size: item.size,
-        currentBalance: balance ? Number(balance.currentQuantity) : 0,
+        stockBalanceId: balance.id,
+        inventoryItemId: balance.inventoryItemId || undefined,
+        productId: balance.productId || undefined,
+        productName: balance.product?.name || undefined,
+        binId: balance.binId || undefined,
+        binCode: balance.bin?.code || undefined,
+        material: balance.product?.name || balance.inventoryItem?.material || 'Unknown',
+        grade: balance.inventoryItem?.grade || 'N/A',
+        size: balance.inventoryItem?.size || 'N/A',
+        currentBalance: Number(balance.currentQuantity),
         ledgerMovement: ledgerMovement,
-        openingBalance: balance?.openingBalance !== null && balance?.openingBalance !== undefined ? Number(balance.openingBalance) : null,
+        openingBalance: balance.openingBalance !== null && balance.openingBalance !== undefined ? Number(balance.openingBalance) : null,
         expectedBalance,
         difference,
         status,

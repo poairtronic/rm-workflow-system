@@ -25,7 +25,8 @@ interface InventoryItem {
 }
 
 interface ReconciliationResult {
-  inventoryItemId: string;
+  stockBalanceId: string;
+  inventoryItemId?: string;
   material: string;
   grade: string;
   size: string;
@@ -419,7 +420,7 @@ export const InventoryPage: React.FC<{
                     </tr>
                   ) : (
                     reconData.map(result => (
-                      <tr key={result.inventoryItemId} className="hover:bg-gray-50 transition-colors">
+                      <tr key={result.stockBalanceId} className="hover:bg-gray-50 transition-colors">
                         <td className="p-4 font-medium">{result.material}</td>
                         <td className="p-4">{result.grade} / {result.size}</td>
                         <td className="p-4 text-right font-mono font-bold">
