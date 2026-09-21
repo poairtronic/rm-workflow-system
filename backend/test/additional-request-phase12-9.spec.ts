@@ -435,7 +435,7 @@ describe('Phase 12.9 - Additional Material Request', () => {
         items: [{ rmItemId: rmItem1, quantity: 20 }],
       }),
     });
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(409); // Idempotency blocks multiple active requests
 
     const getRes = await fetch(
       `${BASE_URL}/additional-requests?scId=${scId1}`,
@@ -445,8 +445,8 @@ describe('Phase 12.9 - Additional Material Request', () => {
     );
     const list = await getRes.json();
 
-    // Should have 2 requests for SC1 (1 from ADDL_05, 1 from ADDL_06)
-    expect(list.length).toBe(2);
+    // Should have 1 request for SC1 because the duplicate was rejected
+    expect(list.length).toBe(1);
   });
 
   it('ADDL_07: Should completely isolate requests across different SCs and POs', async () => {
@@ -475,7 +475,7 @@ describe('Phase 12.9 - Additional Material Request', () => {
     );
     const list2 = await getRes2.json();
 
-    expect(list1.length).toBe(2); // From SC1
+    expect(list1.length).toBe(1); // From SC1 (duplicate blocked)
     expect(list2.length).toBe(1); // Only SC2
 
     // Verify traceability context

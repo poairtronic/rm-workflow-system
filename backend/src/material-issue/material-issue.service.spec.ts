@@ -44,6 +44,7 @@ describe('MaterialIssueService', () => {
           if (options.where?.id === 'rm-item-1')
             return Promise.resolve({
               id: 'rm-item-1',
+              scId: 'sc-1',
               material: 'Steel',
               mappedProductId: 'prod-1',
               rmRequest: { status: 'REVIEWED' },
@@ -124,6 +125,7 @@ describe('MaterialIssueService', () => {
       if (options.where?.id === 'rm-item-1')
         return Promise.resolve({
           id: 'rm-item-1',
+          scId: 'sc-1',
           mappedProductId: 'prod-1',
           rmRequest: { status: 'REVIEWED' },
         });

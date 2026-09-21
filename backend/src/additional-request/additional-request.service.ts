@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -96,8 +97,17 @@ export class AdditionalRequestService {
 
       // CRITICAL: Additional material request DOES NOT alter inventory stock
       return this.findOne(savedRequest.id);
-    } catch (error) {
+    } catch (error: any) {
       await queryRunner.rollbackTransaction();
+      if (
+        error?.code === '23505' ||
+        (error?.message && error.message.includes('UNIQUE constraint failed')) ||
+        (error?.message && error.message.includes('idx_single_active_request'))
+      ) {
+        throw new ConflictException(
+          `An active additional material request already exists for this SC.`,
+        );
+      }
       throw error;
     } finally {
       await queryRunner.release();

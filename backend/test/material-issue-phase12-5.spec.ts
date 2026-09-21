@@ -267,10 +267,10 @@ describe('Phase 12.5 - Stores Material Issue', () => {
     expect(tx.rows[0].created_by_id).toBe(STORES_ID); // Actor attribution verified!
   });
 
-  it('ISSUE_03: Should correctly handle CONCURRENCY and block double deduction', async () => {
+  it('ISSUE_03: Should correctly block concurrent issue attempts (Duplicate Prevention)', async () => {
     // Current stock is 70.
     // Send two concurrent requests for 50 each.
-    // Only one should succeed.
+    // Both should be rejected (409) because an INITIAL_ISSUE already exists (from ISSUE_02).
 
     const reqBody = JSON.stringify({
       scId: scId1,
@@ -298,21 +298,21 @@ describe('Phase 12.5 - Stores Material Issue', () => {
 
     const statuses = [res1.status, res2.status].sort();
 
-    // One must succeed (201) and one must fail (400 Insufficient stock or conflict)
-    expect(statuses[0]).toBe(201);
-    expect(statuses[1]).toBe(400);
+    // Both must fail with 409 because of Duplicate Prevention (INITIAL_ISSUE exists)
+    expect(statuses[0]).toBe(409);
+    expect(statuses[1]).toBe(409);
 
-    // Verify stock is precisely 20. (70 - 50 = 20)
+    // Verify stock is still 70 (no deduction)
     const balAfter = await pgClient.query(
       `SELECT current_quantity FROM stock_balances WHERE product_id = '${productId1}' AND bin_id = '${binId}'`,
     );
-    expect(Number(balAfter.rows[0].current_quantity)).toBe(20);
+    expect(Number(balAfter.rows[0].current_quantity)).toBe(70);
 
-    // Verify only 2 STORES_ISSUE transactions exist total (the first 30, and the new 50)
+    // Verify only 1 STORES_ISSUE transaction exists total (from ISSUE_02)
     const txs = await pgClient.query(`
       SELECT quantity FROM stock_transactions 
       WHERE product_id = '${productId1}' AND transaction_type = 'STORES_ISSUE'
     `);
-    expect(txs.rows.length).toBe(2);
+    expect(txs.rows.length).toBe(1);
   });
 });

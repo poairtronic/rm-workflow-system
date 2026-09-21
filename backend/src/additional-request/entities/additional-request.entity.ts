@@ -30,6 +30,10 @@ export enum AdditionalRequestStatus {
 }
 
 @Entity('additional_material_requests')
+@Index('idx_single_active_request', ['scId'], {
+  unique: true,
+  where: "status IN ('REQUESTED', 'APPROVED')",
+})
 export class AdditionalMaterialRequest {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

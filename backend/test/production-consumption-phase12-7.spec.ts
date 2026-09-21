@@ -198,6 +198,9 @@ describe('Phase 12.7 - Production Consumption', () => {
       },
       body: JSON.stringify({ scId, rmItemId: rmItem1, quantityConsumed: 15 }),
     });
+    if (res.status !== 201) {
+      console.error(await res.text());
+    }
     expect(res.status).toBe(201);
     const data = await res.json();
     expect(Number(data.consumedQuantity)).toBe(15);

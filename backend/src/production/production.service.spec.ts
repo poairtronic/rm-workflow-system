@@ -88,7 +88,7 @@ describe('ProductionService', () => {
         }),
         findOneBy: vi.fn((entity, condition) => {
           if (entity.name === 'RmItem') {
-            return Promise.resolve({ id: 'rm-1', material: 'Test Material' });
+            return Promise.resolve({ id: 'rm-1', scId: 'sc-1', material: 'Test Material' });
           }
           return Promise.resolve(null);
         }),
@@ -186,6 +186,8 @@ describe('ProductionService', () => {
           received: 50,
           consumed: 10,
           returned: 0,
+          pendingReturned: 0,
+          wip: 40,
           unaccounted: 40,
         },
       ],

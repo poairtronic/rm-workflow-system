@@ -42,6 +42,11 @@ export class CreateProductionReceiptDto {
   @IsOptional()
   @IsString()
   remarks?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  idempotencyKey?: string;
 }
 
 export class CreateMaterialConsumptionDto {

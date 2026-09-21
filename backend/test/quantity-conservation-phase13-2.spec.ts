@@ -30,6 +30,18 @@ describe('Phase 13.2 - Quantity Conservation Hardening', () => {
     const adminRoleRes = await pgClient.query(`SELECT id FROM roles LIMIT 1`);
     const adminRoleId = adminRoleRes.rows[0]?.id;
 
+    await pgClient.query(`
+      INSERT INTO users (id, email, password_hash, name, role_id, is_active)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (id) DO NOTHING
+    `, [ADMIN_ID, 'admin@example.com', 'hash', 'Admin User', adminRoleId, true]);
+    
+    await pgClient.query(`
+      INSERT INTO users (id, email, password_hash, name, role_id, is_active)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (id) DO NOTHING
+    `, [PROD_ID, 'prod@example.com', 'hash', 'Prod User', adminRoleId, true]);
+
     adminToken = jwt.sign(
       { sub: ADMIN_ID, role: 'ADMIN', roles: ['ADMIN'] },
       process.env.JWT_SECRET || 'your_development_jwt_secret_min_32_characters',
@@ -45,13 +57,15 @@ describe('Phase 13.2 - Quantity Conservation Hardening', () => {
       headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'Quantity Customer', code: `QC-${Date.now()}`, isActive: true }),
     });
+    if (!customerRes.ok) throw new Error('customerRes: ' + await customerRes.text());
     const customerId = (await customerRes.json()).id;
 
     const poRes = await fetch(`${BASE_URL}/po`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ poNumber: `QPO-${Date.now()}`, customerId }),
+      body: JSON.stringify({ customerId, poNumber: `PO-Q1-${Date.now()}` }),
     });
+    if (!poRes.ok) throw new Error('poRes: ' + await poRes.text());
     const poId = (await poRes.json()).id;
 
     // SC1
@@ -60,6 +74,7 @@ describe('Phase 13.2 - Quantity Conservation Hardening', () => {
       headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ poId, scNumber: `SC-Q1-${Date.now()}`, productName: 'Widget A', targetQuantity: 10 }),
     });
+    if (!scRes1.ok) throw new Error('scRes1: ' + await scRes1.text());
     scId1 = (await scRes1.json()).id;
 
     // SC2
@@ -70,12 +85,12 @@ describe('Phase 13.2 - Quantity Conservation Hardening', () => {
     });
     scId2 = (await scRes2.json()).id;
 
-    // RM for SC1
     const rRes1 = await fetch(`${BASE_URL}/rm`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ scId: scId1 }),
     });
+    if (!rRes1.ok) throw new Error('rRes1: ' + await rRes1.text());
     const rmId1 = (await rRes1.json()).id;
 
     const itemRes1_1 = await fetch(`${BASE_URL}/rm/${rmId1}/items`, {
@@ -83,6 +98,7 @@ describe('Phase 13.2 - Quantity Conservation Hardening', () => {
       headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ material: 'Aluminium', grade: '6061', size: '10x10', quantity: 100 }),
     });
+    if (itemRes1_1.status !== 201) console.error('itemRes1_1 failed:', await itemRes1_1.clone().text());
     rmItem1_sc1 = (await itemRes1_1.json()).id;
 
     const itemRes1_2 = await fetch(`${BASE_URL}/rm/${rmId1}/items`, {
@@ -155,6 +171,7 @@ describe('Phase 13.2 - Quantity Conservation Hardening', () => {
         items: [{ rmItemId: rmItem1_sc1, binId, quantityIssued: 100 }, { rmItemId: rmItem2_sc1, binId, quantityIssued: 50 }],
       }),
     });
+    if (issueRes1.status !== 201) console.error('issueRes1 failed:', await issueRes1.clone().text());
     materialIssueId_sc1 = (await issueRes1.json()).id;
 
     // Issue SC2 (Full)
@@ -195,6 +212,9 @@ describe('Phase 13.2 - Quantity Conservation Hardening', () => {
 
     const [res1, res2] = await Promise.all([req1, req2]);
     const statuses = [res1.status, res2.status].sort();
+    
+    if (res1.status !== 201) console.error('res1 failed:', await res1.clone().text());
+    if (res2.status !== 201) console.error('res2 failed:', await res2.clone().text());
     
     // One should succeed, one should fail (since 60+60 > 100)
     expect(statuses).toEqual([201, 400]);

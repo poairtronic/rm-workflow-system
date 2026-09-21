@@ -39,10 +39,12 @@ export class RmService {
       );
     }
 
-    const existingRm = await this.rmRepo.findOneBy({ scId: dto.scId });
-    if (existingRm) {
-      throw new ConflictException(
-        `RM Request already exists for SC "${sc.scNumber}".`,
+    const existing = await this.rmRepo.findOne({
+      where: { scId: dto.scId },
+    });
+    if (existing) {
+      throw new BadRequestException(
+        `RM Request already exists for SC ID "${dto.scId}".`,
       );
     }
 
@@ -60,7 +62,7 @@ export class RmService {
   async addRmItem(rmId: string, dto: CreateRmItemDto) {
     const rm = await this.rmRepo.findOne({
       where: { id: rmId },
-      relations: { items: true },
+      relations: { items: true, salesOrderComponent: true },
     });
     if (!rm) {
       throw new NotFoundException(`RM Request with ID "${rmId}" not found.`);
@@ -70,7 +72,7 @@ export class RmService {
 
     const item = this.rmItemRepo.create({
       rmFormId: rm.id,
-      scId: rm.scId,
+      scId: rm.scId || rm.salesOrderComponent?.id,
       material: dto.material.trim(),
       materialType: dto.materialType || 'ROUND_BAR',
       grade: dto.grade.trim(),

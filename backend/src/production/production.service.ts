@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -82,6 +83,11 @@ export class ProductionService {
       });
 
       const sc = issueWithRelations!.salesOrderComponent;
+      if (dto.scId && sc.id !== dto.scId) {
+        throw new BadRequestException(
+          `Material Issue "${issue.id}" does not belong to SC "${dto.scId}".`,
+        );
+      }
       StateMachineValidator.assertScActive(sc.status, 'Receive Material');
 
       // 2. Prevent over-receipt by querying all existing receipts for this issue within the transaction
@@ -95,6 +101,7 @@ export class ProductionService {
         receivedById: actorId,
         status: ReceiptStatus.RECEIVED,
         remarks: dto.remarks,
+        idempotencyKey: dto.idempotencyKey,
       });
       const savedReceipt = await queryRunner.manager.save(
         MaterialReceipt,
@@ -175,8 +182,17 @@ export class ProductionService {
         where: { id: savedReceipt.id },
         relations: { items: { rmItem: true }, receivedBy: true },
       });
-    } catch (error) {
+    } catch (error: any) {
       await queryRunner.rollbackTransaction();
+      if (
+        error?.code === '23505' ||
+        (error?.message && error.message.includes('UNIQUE constraint failed')) ||
+        (error?.message && error.message.includes('idempotency_key'))
+      ) {
+        throw new ConflictException(
+          `Production receipt with this idempotency key has already been processed.`,
+        );
+      }
       throw error;
     } finally {
       await queryRunner.release();
@@ -216,8 +232,11 @@ export class ProductionService {
         throw new NotFoundException(`RM Item "${dto.rmItemId}" not found.`);
       }
 
-      if (rmItem.scId !== dto.scId && !rmItem.salesOrderComponent) {
-        // Just extra safety if we need to verify relation
+      if (rmItem.scId !== dto.scId) {
+        require('fs').appendFileSync('debug_sc.txt', JSON.stringify({ location: 'consume', rmItem, dto }) + '\n');
+        throw new BadRequestException(
+          `RM Item "${dto.rmItemId}" does not belong to SC "${dto.scId}".`,
+        );
       }
 
       // 2. Fetch all valid receipts for this SC
@@ -367,6 +386,16 @@ export class ProductionService {
           'Quantity Returned',
         );
 
+        const rmItem = await queryRunner.manager.findOneBy(RmItem, { id: itemDto.rmItemId });
+        if (!rmItem) {
+          throw new NotFoundException(`RM Item "${itemDto.rmItemId}" not found.`);
+        }
+        if (rmItem.scId !== dto.scId) {
+          throw new BadRequestException(
+            `RM Item "${itemDto.rmItemId}" does not belong to SC "${dto.scId}".`,
+          );
+        }
+
         // Calculate exactly how much is available
         let totalReceived = 0;
         for (const r of receiptItems) {
@@ -467,7 +496,15 @@ export class ProductionService {
 
       StateMachineValidator.assertReturnPending(returnRec.status);
 
-      for (const item of returnRec.items) {
+      // Deterministically sort items by mapped product ID to prevent lock-ordering deadlocks
+      // during ON CONFLICT DO UPDATE across concurrent return verifications hitting the same destination bin.
+      const sortedItems = [...returnRec.items].sort((a, b) => {
+        const prodA = a.rmItem.mappedProductId || '';
+        const prodB = b.rmItem.mappedProductId || '';
+        return prodA.localeCompare(prodB);
+      });
+
+      for (const item of sortedItems) {
         const qtyToReturn = QuantityCalculator.roundDecimal(
           item.quantityReturned,
         );

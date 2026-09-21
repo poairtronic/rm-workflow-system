@@ -45,6 +45,10 @@ export class MaterialReceipt {
   })
   status!: ReceiptStatus;
 
+  @Index({ unique: true, where: "idempotency_key IS NOT NULL" })
+  @Column({ name: 'idempotency_key', length: 100, nullable: true })
+  idempotencyKey?: string;
+
   @Column({ type: 'text', nullable: true })
   remarks?: string;
 

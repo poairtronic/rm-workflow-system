@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -74,7 +75,13 @@ export class MaterialIssueService {
       const savedIssue = await queryRunner.manager.save(MaterialIssue, issue);
       const issueItems: MaterialIssueItem[] = [];
 
-      for (const itemDto of dto.items) {
+      // Deterministically sort items by binId and rmItemId to prevent lock-ordering deadlocks during concurrent issues
+      const sortedItems = [...dto.items].sort((a, b) => {
+        if (a.binId !== b.binId) return a.binId.localeCompare(b.binId);
+        return a.rmItemId.localeCompare(b.rmItemId);
+      });
+
+      for (const itemDto of sortedItems) {
         QuantityCalculator.assertPositive(
           itemDto.quantityIssued,
           'Quantity Issued',
@@ -87,6 +94,12 @@ export class MaterialIssueService {
         if (!rmItem) {
           throw new NotFoundException(
             `RM Item "${itemDto.rmItemId}" not found.`,
+          );
+        }
+        if (rmItem.scId !== dto.scId) {
+          console.error('ERROR_LOG: createIssue mismatch', { rmItem_scId: rmItem.scId, dto_scId: dto.scId });
+          throw new BadRequestException(
+            `RM Item "${itemDto.rmItemId}" does not belong to SC "${dto.scId}".`,
           );
         }
 
@@ -182,8 +195,17 @@ export class MaterialIssueService {
       await queryRunner.commitTransaction();
 
       return this.findOne(savedIssue.id);
-    } catch (error) {
+    } catch (error: any) {
       await queryRunner.rollbackTransaction();
+      if (
+        error?.code === '23505' ||
+        (error?.message && error.message.includes('UNIQUE constraint failed')) ||
+        (error?.message && error.message.includes('idx_material_issue_initial'))
+      ) {
+        throw new ConflictException(
+          `Initial Material Issue for SC "${dto.scId}" has already been processed.`,
+        );
+      }
       throw error;
     } finally {
       await queryRunner.release();
