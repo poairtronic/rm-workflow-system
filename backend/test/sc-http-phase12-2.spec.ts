@@ -37,7 +37,7 @@ describe('Phase 12.2 - SC Real HTTP / Real DB Independence Verification', () => 
     await pgClient.query(`
       INSERT INTO users (id, name, email, password_hash, role_id, is_active)
       VALUES ('${ADMIN_ID}', 'Admin User', 'admin@example.com', 'hash', '${roleId}', true)
-      ON CONFLICT (email) DO NOTHING;
+      ON CONFLICT (id) DO NOTHING;
     `);
 
     // Generate valid JWT Token directly

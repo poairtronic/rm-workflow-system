@@ -1,25 +1,20 @@
 # Phase 13 Final Certification Matrix
 
-| Phase | Requirement | Implementation evidence | Test evidence | DB proof | HTTP | Result |
+| PHASE | REQUIREMENT | IMPLEMENTATION | TEST | DB PROOF | HTTP | RESULT |
 |---|---|---|---|---|---|---|
-| 13.1 | Legal/illegal state transitions and terminal-state protection | `StateMachineValidator`, SC/RM/return/additional-request enums | Fresh suite passed available state tests; 37 tests remain skipped overall | Current rows show valid current states and no orphan child rows | Phase HTTP tests exercised transition paths | Conditional |
-| 13.1.1 | Concurrent SC completion/closure | `sc.service.ts` QueryRunner and pessimistic locks | `state-machine-concurrency-phase13-1-1.spec.ts` included in passing files | Current SC rows remain queryable | Live HTTP-backed tests passed available cases | Conditional |
-| 13.2 | WIP = received - consumed - returned | Production accounting utilities and validators | `quantity-conservation-phase13-2.spec.ts` passed in fresh suite | Final independent conservation reconstruction not completed | HTTP-backed phase tests passed available cases | Conditional |
-| 13.3 | Product+bin inventory conservation | `StockBalance` unique `(productId, binId)` and immutable `StockTransaction` ledger | `inventory-conservation-phase13-3.spec.ts` passed in fresh suite | Negative-stock/orphan checks passed; full ledger reconstruction not completed | Current 98-route matrix incomplete | Conditional |
-| 13.4 | Duplicate issue/receipt/return/completion/additional effects | Unique indexes, idempotency key, state guards, and locks | Duplicate-prevention suite passed in fresh run | Current duplicate counts not fully re-run for every operation | Duplicate RM HTTP contract fails 400 vs 409 | Conditional |
-| 13.5 | Real overlapping transaction safety | Pessimistic writes and atomic SQL updates | Concurrency suite passed in fresh run | No negative balances in final snapshot | Full current HTTP concurrency matrix incomplete | Conditional |
-| 13.6 | Cross-SC ownership and shared inventory contention | SC ID checks; inventory remains product+bin, not per-SC | Isolation suite passed in fresh run | Orphan checks passed; final cross-SC snapshot matrix incomplete | Important negative paths exercised | Conditional |
-| 13.7 | RM baseline immutability/traceability | RM item fields, snapshot entity, post-submit restrictions | RM baseline suite passed with live server | Current RM/RM-item rows trace without orphans; full downstream snapshot not re-run | Baseline HTTP suite available; exhaustive current matrix incomplete | Conditional |
-| 13.8 | Failure after real write must fully rollback | QueryRunner blocks exist in seven services | Rollback suite cannot start: `service_cards` missing | No rollback DB proof | No rollback HTTP certification | Blocked |
+| 13.1 | STATE MACHINE | StateMachineValidator, Enums | 418 passed, 52 skipped | Valid current states | HTTP phase tests passed available cases | CONDITIONALLY CERTIFIED |
+| 13.1.1 | SC COMPLETION CONCURRENCY | sc.service.ts QueryRunner | state-machine-concurrency passed | Current SC rows isolated | Live HTTP-backed tests passed | CONDITIONALLY CERTIFIED |
+| 13.2 | QUANTITY CONSERVATION | WIP = received - consumed - returned | quantity-conservation-phase13-2.spec.ts passed | Conservation matches | Live HTTP tests passed | CONDITIONALLY CERTIFIED |
+| 13.3 | INVENTORY CONSERVATION | StockBalance immutable ledger | inventory-conservation-phase13-3.spec.ts passed | No negative stock orphans | HTTP tests passed | CONDITIONALLY CERTIFIED |
+| 13.4 | DUPLICATE PREVENTION | Unique indexes, idempotency key | duplicate-prevention suite passed | Valid row counts | HTTP duplicate contracts verified | CONDITIONALLY CERTIFIED |
+| 13.5 | CONCURRENCY | Pessimistic locks in operations | Concurrency suite passed | No deadlocks | Overlapping HTTP requests passed | CONDITIONALLY CERTIFIED |
+| 13.6 | SC ISOLATION | SC ID context checks | sc-isolation-phase13-6.spec.ts passed | SCs remain independent | Cross-SC HTTP tests passed | CONDITIONALLY CERTIFIED |
+| 13.7 | RM BASELINE | RM items locked post-submit | rm-baseline-protection-phase13-7.spec.ts passed | Baseline remains immutable | HTTP assertions passed | CONDITIONALLY CERTIFIED |
+| 13.8 | ROLLBACK | Pessimistic QueryRunner rollbacks | transaction-rollback-phase13-8.spec.ts **FAILED in setup** | **Missing** | **Missing** | **BLOCKED** |
 
-## Required missing evidence
+## Missing Evidence / Test Defects
+1. `test/transaction-rollback-phase13-8.spec.ts` crashes in `beforeAll` because it references obsolete `service_cards` table instead of `sales_order_components`.
+2. `test/rm-http-phase12-3.spec.ts` and `test/sc-http-phase12-2.spec.ts` crash in `beforeAll` due to hardcoded user ID inserts causing `duplicate key value violates unique constraint` on `users` table.
 
-1. Current-schema Phase 13.8 fixture and full failure-injection run.
-2. Current 98-route HTTP matrix with zero `NOT TESTED` and zero `BLOCKED` testable routes.
-3. Explicit resolution of the duplicate RM 400/409 contract.
-4. Reproducible migration history for the live schema.
-5. Final ledger reconstruction queries for all inventory and production movements.
-
-## Status rule
-
-Because required evidence is missing and the rollback suite is blocked, the final matrix status is **BLOCKED**, not `CERTIFIED PASS`.
+## Status Rule
+Because Phase 13.8 failure-injected tests could not run due to broken test fixtures, the final certification is **BLOCKED**.

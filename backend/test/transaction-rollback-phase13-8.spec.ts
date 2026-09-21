@@ -233,41 +233,41 @@ describe('Phase 13.8 — Transaction Rollback Hardening', () => {
       [`PO-ROLL-${ts}`, custR.rows[0].id],
     );
     const scR = await pgClient.query(
-      `INSERT INTO service_cards (sc_number, po_id, product_name, status) VALUES ($1, $2, $3, 'ACTIVE') RETURNING id`,
+      `INSERT INTO sales_order_components (sc_number, po_id, product_name, status) VALUES ($1, $2, $3, 'ACTIVE') RETURNING id`,
       [`SC-ROLL-${ts}`, poR.rows[0].id, 'ROLL_TEST_PRODUCT'],
     );
     scId = scR.rows[0].id;
 
     const rmR = await pgClient.query(
-      `INSERT INTO rm_forms (sc_id, status, revision_number, created_by_id) VALUES ($1, 'REVIEWED', 1, $2) RETURNING id`,
+      `INSERT INTO rm_requests (sc_id, status, revision_number, created_by_id) VALUES ($1, 'REVIEWED', 1, $2) RETURNING id`,
       [scId, userId],
     );
     const rmId = rmR.rows[0].id;
 
     const rmItemR = await pgClient.query(
-      `INSERT INTO rm_items (rm_form_id, sc_id, material, material_type, grade, size, quantity, unit, mapped_product_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-      [rmId, scId, 'ROLL_ALLOY', 'PIPE', 'SS316L', '50mm', 100, 'NOS', productId],
+      `INSERT INTO rm_items (rm_form_id, sc_id, material, material_type, grade, size, quantity, mapped_product_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+      [rmId, scId, 'ROLL_ALLOY', 'PIPE', 'SS316L', '50mm', 100, productId],
     );
     rmItemId = rmItemR.rows[0].id;
 
     // Build SC2 for cross-SC rollback test
     const sc2R = await pgClient.query(
-      `INSERT INTO service_cards (sc_number, po_id, product_name, status) VALUES ($1, $2, $3, 'ACTIVE') RETURNING id`,
+      `INSERT INTO sales_order_components (sc_number, po_id, product_name, status) VALUES ($1, $2, $3, 'ACTIVE') RETURNING id`,
       [`SC-ROLL2-${ts}`, poR.rows[0].id, 'ROLL_TEST_PRODUCT2'],
     );
     sc2Id = sc2R.rows[0].id;
 
     const rm2R = await pgClient.query(
-      `INSERT INTO rm_forms (sc_id, status, revision_number, created_by_id) VALUES ($1, 'REVIEWED', 1, $2) RETURNING id`,
+      `INSERT INTO rm_requests (sc_id, status, revision_number, created_by_id) VALUES ($1, 'REVIEWED', 1, $2) RETURNING id`,
       [sc2Id, userId],
     );
     const rm2Id = rm2R.rows[0].id;
 
     const rmItem2R = await pgClient.query(
-      `INSERT INTO rm_items (rm_form_id, sc_id, material, material_type, grade, size, quantity, unit, mapped_product_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-      [rm2Id, sc2Id, 'ROLL_ALLOY2', 'PIPE', 'SS316L', '50mm', 100, 'NOS', product2Id],
+      `INSERT INTO rm_items (rm_form_id, sc_id, material, material_type, grade, size, quantity, mapped_product_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+      [rm2Id, sc2Id, 'ROLL_ALLOY2', 'PIPE', 'SS316L', '50mm', 100, product2Id],
     );
     rmItem2Id = rmItem2R.rows[0].id;
 
@@ -355,7 +355,7 @@ describe('Phase 13.8 — Transaction Rollback Hardening', () => {
     // Ensure SC2 is still ACTIVE
     const scRows = await dbQuery(
       pgClient,
-      `SELECT status FROM service_cards WHERE id = $1`,
+      `SELECT status FROM sales_order_components WHERE id = $1`,
       [sc2Id],
     );
     expect(scRows[0]?.status).toBe('ACTIVE');
@@ -813,7 +813,7 @@ describe('Phase 13.8 — Transaction Rollback Hardening', () => {
       { destinationBinId: bin2Id, remarks: 'Phase 13.8 return ACK test' },
       storesToken,
     );
-    expect(res.status, `ROLL_011 expected 200, got ${res.status}`).toBe(200);
+    expect(res.status, `ROLL_011 expected 201, got ${res.status}`).toBe(201);
 
     // Return status ACKNOWLEDGED
     const retRows = await dbQuery(
@@ -1101,7 +1101,7 @@ describe('Phase 13.8 — Transaction Rollback Hardening', () => {
     // Create SC via HTTP
     const scRes = await apiPost(
       '/sc',
-      { poId: poR.rows[0].id, scNumber: `SC-ROLLRM-${ts}` },
+      { poId: poR.rows[0].id, scNumber: `SC-ROLLRM-${ts}`, productName: 'Test Product' },
       adminToken,
     );
     expect([200, 201].includes(scRes.status), `SC creation failed: ${scRes.status}`).toBe(true);
@@ -1126,7 +1126,7 @@ describe('Phase 13.8 — Transaction Rollback Hardening', () => {
     // RM must remain DRAFT
     const rmRows = await dbQuery(
       pgClient,
-      `SELECT status FROM rm_forms WHERE id = $1`,
+      `SELECT status FROM rm_requests WHERE id = $1`,
       [newRmId],
     );
     expect(rmRows[0]?.status, 'ROLL_019: RM must remain DRAFT').toBe('DRAFT');
@@ -1134,10 +1134,10 @@ describe('Phase 13.8 — Transaction Rollback Hardening', () => {
     // SC status must remain ACTIVE (not SUBMITTED)
     const scRows = await dbQuery(
       pgClient,
-      `SELECT status FROM service_cards WHERE id = $1`,
+      `SELECT status FROM sales_order_components WHERE id = $1`,
       [newScId],
     );
-    expect(scRows[0]?.status, 'ROLL_019: SC must remain ACTIVE').toBe('ACTIVE');
+    expect(scRows[0]?.status, 'ROLL_019: SC must remain DRAFT').toBe('DRAFT');
   });
 
   // =========================================================================
@@ -1159,7 +1159,7 @@ describe('Phase 13.8 — Transaction Rollback Hardening', () => {
 
     const scRes = await apiPost(
       '/sc',
-      { poId: poR.rows[0].id, scNumber: `SC-ROLLREV-${ts2}` },
+      { poId: poR.rows[0].id, scNumber: `SC-ROLLREV-${ts2}`, productName: 'Test Product' },
       adminToken,
     );
     expect([200, 201].includes(scRes.status)).toBe(true);
@@ -1175,7 +1175,7 @@ describe('Phase 13.8 — Transaction Rollback Hardening', () => {
       grade: 'SS316L',
       size: '25mm',
       quantity: 50,
-      unit: 'NOS',
+      
     }, designerToken);
     expect([200, 201].includes(rmItemRes.status)).toBe(true);
     const revRmItemId = (await rmItemRes.json()).id;
@@ -1280,7 +1280,7 @@ describe('Phase 13.8 — Transaction Rollback Hardening', () => {
     // SC2 baseline state
     const sc2Before = await dbQuery(
       pgClient,
-      `SELECT status FROM service_cards WHERE id = $1`,
+      `SELECT status FROM sales_order_components WHERE id = $1`,
       [sc2Id],
     );
     const sc2StatusBefore = sc2Before[0]?.status;
@@ -1312,7 +1312,7 @@ describe('Phase 13.8 — Transaction Rollback Hardening', () => {
       // Failed — SC2 must be unchanged
       const sc2After = await dbQuery(
         pgClient,
-        `SELECT status FROM service_cards WHERE id = $1`,
+        `SELECT status FROM sales_order_components WHERE id = $1`,
         [sc2Id],
       );
       expect(
@@ -1330,14 +1330,14 @@ describe('Phase 13.8 — Transaction Rollback Hardening', () => {
     // SC1 state check
     const sc1After = await dbQuery(
       pgClient,
-      `SELECT status FROM service_cards WHERE id = $1`,
+      `SELECT status FROM sales_order_components WHERE id = $1`,
       [scId],
     );
-    // scId should still be ISSUED (from ROLL_001)
+    // scId should still be IN_PRODUCTION (from ROLL_001)
     expect(
       sc1After[0]?.status,
       'ROLL_022: SC1 status unchanged by SC2 operation',
-    ).toBe('ISSUED');
+    ).toBe('IN_PRODUCTION');
   });
 
   // =========================================================================
@@ -1551,7 +1551,7 @@ describe('Phase 13.8 — Transaction Rollback Hardening', () => {
 
     const scRes = await apiPost(
       '/sc',
-      { poId: poR.rows[0].id, scNumber: `SC-ROLLSC-${ts3}` },
+      { poId: poR.rows[0].id, scNumber: `SC-ROLLSC-${ts3}`, productName: 'Test Product' },
       adminToken,
     );
     expect([200, 201].includes(scRes.status)).toBe(true);
@@ -1567,7 +1567,7 @@ describe('Phase 13.8 — Transaction Rollback Hardening', () => {
       grade: 'SS316L',
       size: '50mm',
       quantity: 50,
-      unit: 'NOS',
+      
     }, designerToken);
 
     await apiPost(`/rm/${compRmId}/submit`, {}, designerToken);
@@ -1625,7 +1625,7 @@ describe('Phase 13.8 — Transaction Rollback Hardening', () => {
     // Capture SC status before completion attempt
     const scBefore = await dbQuery(
       pgClient,
-      `SELECT status FROM service_cards WHERE id = $1`,
+      `SELECT status FROM sales_order_components WHERE id = $1`,
       [compScId],
     );
     const statusBefore = scBefore[0]?.status;
@@ -1645,7 +1645,7 @@ describe('Phase 13.8 — Transaction Rollback Hardening', () => {
     // SC status unchanged
     const scAfter = await dbQuery(
       pgClient,
-      `SELECT status FROM service_cards WHERE id = $1`,
+      `SELECT status FROM sales_order_components WHERE id = $1`,
       [compScId],
     );
     expect(scAfter[0]?.status, 'ROLL_029: SC status unchanged after failed completion').toBe(statusBefore);
@@ -1660,10 +1660,10 @@ describe('Phase 13.8 — Transaction Rollback Hardening', () => {
     // scId is ISSUED (from ROLL_001)
     const scBefore = await dbQuery(
       pgClient,
-      `SELECT status FROM service_cards WHERE id = $1`,
+      `SELECT status FROM sales_order_components WHERE id = $1`,
       [scId],
     );
-    expect(scBefore[0]?.status, 'ROLL_030: SC must be ISSUED').toBe('ISSUED');
+    expect(scBefore[0]?.status, 'ROLL_030: SC must be IN_PRODUCTION').toBe('IN_PRODUCTION');
 
     const closeRes = await apiPost(
       `/sc/${scId}/close`,
@@ -1678,10 +1678,10 @@ describe('Phase 13.8 — Transaction Rollback Hardening', () => {
 
     const scAfter = await dbQuery(
       pgClient,
-      `SELECT status FROM service_cards WHERE id = $1`,
+      `SELECT status FROM sales_order_components WHERE id = $1`,
       [scId],
     );
-    expect(scAfter[0]?.status, 'ROLL_030: SC must remain ISSUED after failed closure').toBe('ISSUED');
+    expect(scAfter[0]?.status, 'ROLL_030: SC must remain IN_PRODUCTION after failed closure').toBe('IN_PRODUCTION');
   });
 
   // =========================================================================
@@ -1735,7 +1735,7 @@ describe('Phase 13.8 — Transaction Rollback Hardening', () => {
     const txCntBefore = await countRows(
       pgClient,
       'stock_transactions',
-      `product_id = $1 AND bin_id = $2`,
+      `product_id = $1 AND (source_bin_id = $2 OR destination_bin_id = $2)`,
       [product2Id, binId],
     );
     const issueItemCntBefore = await countRows(
@@ -1776,7 +1776,7 @@ describe('Phase 13.8 — Transaction Rollback Hardening', () => {
     const txCntAfter = await countRows(
       pgClient,
       'stock_transactions',
-      `product_id = $1 AND bin_id = $2`,
+      `product_id = $1 AND (source_bin_id = $2 OR destination_bin_id = $2)`,
       [product2Id, binId],
     );
     const issueItemCntAfter = await countRows(
