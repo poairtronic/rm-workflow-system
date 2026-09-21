@@ -94,4 +94,32 @@ export const workflowService = {
     api.post<any>('/api/additional-requests', { scId, items, remarks }),
   getAdditionalRequests: (scId?: string) =>
     api.get<any[]>(`/api/additional-requests${scId ? `?scId=${scId}` : ''}`),
+
+  // Files & Documents (Phase 14.3, 14.5)
+  uploadFile: (formData: FormData) => api.upload<any>('/api/files', formData),
+  getRmDocuments: (rmId: string) => api.get<any[]>(`/api/rm/${rmId}/documents`),
+  attachRmDocument: (rmId: string, fileId: string, documentType?: string) =>
+    api.post<any>(`/api/rm/${rmId}/documents`, { fileId, documentType }),
+  detachRmDocument: (rmId: string, attachmentId: string) =>
+    api.delete<any>(`/api/rm/${rmId}/documents/${attachmentId}`),
+  getRmDocumentDownloadUrl: (rmId: string, attachmentId: string) =>
+    api.get<{ url: string }>(`/api/rm/${rmId}/documents/${attachmentId}/download`),
+
+  // PO Supporting Documents (Phase 14.5)
+  getPoDocuments: (poId: string) => api.get<any[]>(`/api/po/${poId}/documents`),
+  attachPoDocument: (poId: string, fileId: string, documentType?: string) =>
+    api.post<any>(`/api/po/${poId}/documents`, { fileId, documentType }),
+  detachPoDocument: (poId: string, attachmentId: string) =>
+    api.delete<any>(`/api/po/${poId}/documents/${attachmentId}`),
+  getPoDocumentDownloadUrl: (poId: string, attachmentId: string) =>
+    api.get<{ url: string }>(`/api/po/${poId}/documents/${attachmentId}/download`),
+
+  // SC Supporting Documents (Phase 14.5)
+  getScDocuments: (scId: string) => api.get<any[]>(`/api/sc/${scId}/documents`),
+  attachScDocument: (scId: string, fileId: string, documentType?: string) =>
+    api.post<any>(`/api/sc/${scId}/documents`, { fileId, documentType }),
+  detachScDocument: (scId: string, attachmentId: string) =>
+    api.delete<any>(`/api/sc/${scId}/documents/${attachmentId}`),
+  getScDocumentDownloadUrl: (scId: string, attachmentId: string) =>
+    api.get<{ url: string }>(`/api/sc/${scId}/documents/${attachmentId}/download`),
 };

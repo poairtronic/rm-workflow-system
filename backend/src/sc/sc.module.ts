@@ -9,6 +9,10 @@ import { AuthModule } from '../auth/auth.module.js';
 
 import { ProductionModule } from '../production/production.module.js';
 import { AdditionalRequestModule } from '../additional-request/additional-request.module.js';
+import { AttachmentsModule } from '../attachments/attachments.module.js';
+import { FilesModule } from '../files/files.module.js';
+import { forwardRef } from '@nestjs/common';
+import { ScDocumentsController } from './sc-documents.controller.js';
 
 @Module({
   imports: [
@@ -16,8 +20,10 @@ import { AdditionalRequestModule } from '../additional-request/additional-reques
     AuthModule,
     ProductionModule,
     AdditionalRequestModule,
+    forwardRef(() => AttachmentsModule),
+    FilesModule,
   ],
-  controllers: [ScController],
+  controllers: [ScController, ScDocumentsController],
   providers: [ScService],
   exports: [ScService],
 })

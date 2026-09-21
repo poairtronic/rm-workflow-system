@@ -1,5 +1,6 @@
-import { IsEnum, IsUUID, IsNotEmpty } from 'class-validator';
+import { IsEnum, IsUUID, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { AttachmentContext } from '../entities/attachment.entity.js';
+import { RmDocumentType } from '../enums/rm-document-type.enum.js';
 
 export class CreateAttachmentDto {
   @IsUUID()
@@ -13,4 +14,8 @@ export class CreateAttachmentDto {
   @IsUUID()
   @IsNotEmpty()
   recordId!: string;
+
+  @IsOptional()
+  @IsString()
+  documentType?: string;
 }

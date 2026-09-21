@@ -42,6 +42,9 @@ export class Attachment {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive!: boolean;
 
+  @Column({ name: 'document_type', type: 'varchar', length: 50, nullable: true })
+  documentType?: string;
+
   @Column({ name: 'created_by_id', type: 'uuid' })
   createdById!: string;
 

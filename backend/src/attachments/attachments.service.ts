@@ -112,6 +112,7 @@ export class AttachmentsService {
       fileId: dto.fileId,
       context: dto.context,
       recordId: dto.recordId,
+      documentType: dto.documentType,
       createdById: userId,
     });
 

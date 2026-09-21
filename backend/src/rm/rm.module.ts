@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module.js';
 import { RmRequest } from './entities/rm-request.entity.js';
@@ -8,6 +8,8 @@ import { RmItemSnapshot } from './entities/rm-item-snapshot.entity.js';
 import { SalesOrderComponent } from '../sc/entities/sc.entity.js';
 import { RmService } from './rm.service.js';
 import { RmController } from './rm.controller.js';
+import { AttachmentsModule } from '../attachments/attachments.module.js';
+import { FilesModule } from '../files/files.module.js';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { RmController } from './rm.controller.js';
       SalesOrderComponent,
     ]),
     AuthModule,
+    forwardRef(() => AttachmentsModule),
+    FilesModule,
   ],
   controllers: [RmController],
   providers: [RmService],

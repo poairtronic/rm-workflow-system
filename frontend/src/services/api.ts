@@ -99,6 +99,32 @@ class ApiClient {
     }
     return response.json();
   }
+
+  async upload<T>(endpoint: string, formData: FormData): Promise<T> {
+    const headers: Record<string, string> = {};
+    const token = localStorage.getItem('rm_access_token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!response.ok) {
+      let errorMsg = `UPLOAD ${endpoint} failed: ${response.status} ${response.statusText}`;
+      try {
+        const errorJson = await response.json();
+        if (errorJson?.message) {
+          errorMsg = Array.isArray(errorJson.message)
+            ? errorJson.message.join(', ')
+            : errorJson.message;
+        }
+      } catch {}
+      throw new Error(errorMsg);
+    }
+    return response.json();
+  }
 }
 
 export const api = new ApiClient();

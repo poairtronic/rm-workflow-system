@@ -25,14 +25,14 @@ describe('Phase 14.2 - Attachment Association', () => {
 
     let adminRole = (await pgClient.query(`SELECT id FROM roles WHERE name = 'ADMIN' LIMIT 1`)).rows[0]?.id;
     if (!adminRole) {
-      const insRole = await pgClient.query(`INSERT INTO roles (name) VALUES ('ADMIN') RETURNING id`);
-      adminRole = insRole.rows[0].id;
+      await pgClient.query(`INSERT INTO roles (name) VALUES ('ADMIN') ON CONFLICT (name) DO NOTHING`);
+      adminRole = (await pgClient.query(`SELECT id FROM roles WHERE name = 'ADMIN' LIMIT 1`)).rows[0]?.id;
     }
     
     let designerRole = (await pgClient.query(`SELECT id FROM roles WHERE name = 'DESIGNER' LIMIT 1`)).rows[0]?.id;
     if (!designerRole) {
-      const insRole = await pgClient.query(`INSERT INTO roles (name) VALUES ('DESIGNER') RETURNING id`);
-      designerRole = insRole.rows[0].id;
+      await pgClient.query(`INSERT INTO roles (name) VALUES ('DESIGNER') ON CONFLICT (name) DO NOTHING`);
+      designerRole = (await pgClient.query(`SELECT id FROM roles WHERE name = 'DESIGNER' LIMIT 1`)).rows[0]?.id;
     }
 
     // 2. Users

@@ -77,7 +77,7 @@ export const AppDataSource = new DataSource({
   type: 'postgres',
   url: dbUrl,
   entities: ALL_ENTITIES,
-  migrations: ['database/migrations/*.ts'],
+  migrations: ['src/database/migrations/*.ts'],
   synchronize: false,
   ssl: isSsl ? { rejectUnauthorized: false } : false,
 });

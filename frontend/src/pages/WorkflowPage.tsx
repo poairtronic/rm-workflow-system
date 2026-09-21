@@ -6,6 +6,9 @@ import { StatusAlert } from '../components/feedback/StatusAlert';
 import { workflowService } from '../services/workflowService';
 import type { SC, MaterialAccounting } from '../services/workflowService';
 import { masterDataService } from '../services/masterDataService';
+import { RmDocumentsSection } from '../features/rm/components/RmDocumentsSection';
+import { PoDocumentsSection } from '../features/po/components/PoDocumentsSection';
+import { ScDocumentsSection } from '../features/sc/components/ScDocumentsSection';
 
 interface WorkflowPageProps {
   currentView?: string;
@@ -389,6 +392,21 @@ export const WorkflowPage: React.FC<WorkflowPageProps> = ({
                       </Button>
                     </div>
                   </form>
+                )}
+
+                {/* RM Supporting Documents Section */}
+                {selectedSc.rmRequest?.id && (
+                  <RmDocumentsSection rmRequestId={selectedSc.rmRequest.id} />
+                )}
+
+                {/* SC Supporting Documents Section */}
+                {selectedSc.id && (
+                  <ScDocumentsSection scId={selectedSc.id} />
+                )}
+
+                {/* PO Supporting Documents Section */}
+                {selectedSc.poId && (
+                  <PoDocumentsSection poId={selectedSc.poId} />
                 )}
 
                 {/* Stores Stock Issue Panel */}
