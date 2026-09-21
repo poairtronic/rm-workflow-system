@@ -74,27 +74,29 @@ describe('Phase 14.6 - File Authorization (e2e)', () => {
       designerUser = await createUser('designer_auth@example.com', roleDesigner!.id);
       storesUser = await createUser('stores_auth@example.com', roleStores!.id);
 
-      adminToken = jwtService.sign({ userId: adminUser.id, email: adminUser.email, role: UserRole.ADMIN, roles: [UserRole.ADMIN] });
-      designerToken = jwtService.sign({ userId: designerUser.id, email: designerUser.email, role: UserRole.DESIGNER, roles: [UserRole.DESIGNER] });
-      storesToken = jwtService.sign({ userId: storesUser.id, email: storesUser.email, role: UserRole.STORES, roles: [UserRole.STORES] });
-      unauthorizedToken = jwtService.sign({ userId: '00000000-0000-0000-0000-000000000000', email: 'none@example.com', role: 'UNKNOWN', roles: [] });
+      adminToken = jwtService.sign({ sub: adminUser.id, email: adminUser.email, role: UserRole.ADMIN, roles: [UserRole.ADMIN] });
+      designerToken = jwtService.sign({ sub: designerUser.id, email: designerUser.email, role: UserRole.DESIGNER, roles: [UserRole.DESIGNER] });
+      storesToken = jwtService.sign({ sub: storesUser.id, email: storesUser.email, role: UserRole.STORES, roles: [UserRole.STORES] });
+      unauthorizedToken = jwtService.sign({ sub: '00000000-0000-0000-0000-000000000000', email: 'none@example.com', role: 'UNKNOWN', roles: [] });
+
+      const uniqueSuffix = Date.now().toString();
 
       // Create PO
       po1 = queryRunner.manager.create(PurchaseOrder, {
-        poNumber: 'PO-AUTH-001',
+        poNumber: `PO-AUTH-${uniqueSuffix}`,
         customerId: (await queryRunner.manager.query(`SELECT id FROM customers LIMIT 1`))[0].id,
       });
       await queryRunner.manager.save(po1);
 
       // Create SCs
       sc1 = queryRunner.manager.create(SalesOrderComponent, {
-        scNumber: 'SC-AUTH-001',
+        scNumber: `SC-AUTH-1-${uniqueSuffix}`,
         poId: po1.id,
         productName: 'Prod A',
         status: ScStatus.DRAFT,
       });
       sc2 = queryRunner.manager.create(SalesOrderComponent, {
-        scNumber: 'SC-AUTH-002',
+        scNumber: `SC-AUTH-2-${uniqueSuffix}`,
         poId: po1.id,
         productName: 'Prod B',
         status: ScStatus.DRAFT,
@@ -110,8 +112,9 @@ describe('Phase 14.6 - File Authorization (e2e)', () => {
           originalName: name,
           mimeType: 'text/plain',
           size: 100,
-          storageKey: `local/${name}.txt`,
+          storageKey: `local/${name}-${uniqueSuffix}.txt`,
           createdById: owner,
+          provider: 'LOCAL',
         });
         await queryRunner.manager.save(file);
         fs.writeFileSync(path.join(storageDir, `${name}.txt`), 'test content');
