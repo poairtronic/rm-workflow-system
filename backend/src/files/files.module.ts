@@ -1,7 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from '../auth/auth.module.js';
+import { AttachmentsModule } from '../attachments/attachments.module.js';
 import { FilesController } from './files.controller.js';
 import { FilesService } from './files.service.js';
 import { UploadedFile } from './entities/uploaded-file.entity.js';
@@ -13,6 +14,7 @@ import { SupabaseStorageProvider } from './storage/supabase-storage.provider.js'
     TypeOrmModule.forFeature([UploadedFile]),
     ConfigModule,
     AuthModule,
+    forwardRef(() => AttachmentsModule),
   ],
   controllers: [FilesController],
   providers: [

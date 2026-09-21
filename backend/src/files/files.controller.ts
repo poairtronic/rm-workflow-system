@@ -15,13 +15,19 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FilesService } from './files.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { AttachmentsService } from '../attachments/attachments.service.js';
+import { forwardRef, Inject } from '@nestjs/common';
 
 import 'multer';
 
 @Controller('api/files')
 @UseGuards(JwtAuthGuard)
 export class FilesController {
-  constructor(private readonly filesService: FilesService) {}
+  constructor(
+    private readonly filesService: FilesService,
+    @Inject(forwardRef(() => AttachmentsService))
+    private readonly attachmentsService: AttachmentsService,
+  ) {}
 
   @Post()
   @UseInterceptors(FileInterceptor('file'))
@@ -60,7 +66,8 @@ export class FilesController {
   }
 
   @Get(':id')
-  async getFileMetadata(@Param('id') id: string) {
+  async getFileMetadata(@Req() req: any, @Param('id') id: string) {
+    await this.attachmentsService.checkFileAccess(id, req.user, 'READ');
     const file = await this.filesService.getFileMetadata(id);
     return {
       id: file.id,
@@ -73,13 +80,15 @@ export class FilesController {
   }
 
   @Get(':id/download')
-  async getFileDownloadUrl(@Param('id') id: string) {
+  async getFileDownloadUrl(@Req() req: any, @Param('id') id: string) {
+    await this.attachmentsService.checkFileAccess(id, req.user, 'READ');
     const url = await this.filesService.getFileDownloadUrl(id);
     return { url };
   }
 
   @Delete(':id')
   async removeFile(@Req() req: any, @Param('id') id: string) {
+    await this.attachmentsService.checkFileAccess(id, req.user, 'DELETE');
     const userId = req.user.userId;
     await this.filesService.removeFile(userId, id);
     return { success: true };

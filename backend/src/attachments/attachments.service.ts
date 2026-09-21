@@ -156,4 +156,76 @@ export class AttachmentsService {
     attachment.isActive = false;
     await this.attachmentRepo.save(attachment);
   }
+
+  async checkFileAccess(fileId: string, user: { userId: string, roles: UserRole[] }, action: 'READ' | 'WRITE' | 'DELETE'): Promise<void> {
+    const file = await this.filesService.getFileMetadata(fileId);
+    
+    // Fetch all active attachments
+    const attachments = await this.attachmentRepo.find({ where: { fileId, isActive: true } });
+    
+    if (attachments.length === 0) {
+      // Unattached file policy: Only creator or ADMIN can access.
+      if (file.createdById !== user.userId && !user.roles.includes(UserRole.ADMIN)) {
+        throw new ForbiddenException('Unauthorized access to unattached file');
+      }
+      return;
+    }
+
+    const isAdmin = user.roles.includes(UserRole.ADMIN);
+    if (isAdmin) return; // Admins have global access
+
+    if (action === 'DELETE') {
+      if (file.createdById !== user.userId) {
+        throw new ForbiddenException('Only the creator or an ADMIN can delete this file.');
+      }
+      // If they are the creator, they can delete it even if it's attached. 
+      // (Or maybe we shouldn't allow deleting attached files? The prompt doesn't specify, but typically creator can delete their own files).
+      return;
+    }
+
+    // If attached, check if user role allows READ/WRITE for any of the attached contexts
+    let hasAccess = false;
+    
+    for (const att of attachments) {
+      const allowedRoles = this.getAllowedRolesForContext(att.context, action);
+      const userHasRole = allowedRoles.some(role => user.roles.includes(role));
+      
+      if (userHasRole) {
+        try {
+          // Verify existence of target record
+          switch (att.context) {
+            case AttachmentContext.PO: await this.poService.findOne(att.recordId); break;
+            case AttachmentContext.SC:
+            case AttachmentContext.PRODUCTION: await this.scService.findOne(att.recordId); break;
+            case AttachmentContext.RM_REQUEST: await this.rmService.findOne(att.recordId); break;
+            case AttachmentContext.ADDITIONAL_MATERIAL_REQUEST: await this.amrService.findOne(att.recordId); break;
+          }
+          hasAccess = true;
+          break;
+        } catch (e) {
+          // Record doesn't exist, ignore and check other attachments
+        }
+      }
+    }
+
+    if (!hasAccess) {
+      throw new ForbiddenException('Unauthorized access to file based on business record');
+    }
+  }
+
+  private getAllowedRolesForContext(context: AttachmentContext, action: 'READ' | 'WRITE' | 'DELETE'): UserRole[] {
+    if (action === 'READ') {
+      return [UserRole.ADMIN, UserRole.DESIGNER, UserRole.STORES, UserRole.PRODUCTION, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER];
+    }
+    
+    // WRITE / DELETE
+    switch (context) {
+      case AttachmentContext.PO: return [UserRole.ADMIN, UserRole.STORES];
+      case AttachmentContext.SC: return [UserRole.ADMIN, UserRole.DESIGNER, UserRole.STORES, UserRole.PRODUCTION];
+      case AttachmentContext.PRODUCTION: return [UserRole.ADMIN, UserRole.DESIGNER, UserRole.STORES, UserRole.PRODUCTION];
+      case AttachmentContext.RM_REQUEST: return [UserRole.ADMIN, UserRole.DESIGNER];
+      case AttachmentContext.ADDITIONAL_MATERIAL_REQUEST: return [UserRole.ADMIN, UserRole.DESIGNER, UserRole.PRODUCTION];
+    }
+    return [];
+  }
 }

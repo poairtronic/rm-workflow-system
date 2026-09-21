@@ -334,7 +334,7 @@ describe('Phase 14.5 — PO / SC Supporting Documents Certification', () => {
     const prodAttach = await fetch(`${BASE_URL}/sc/${scId1}/production-documents`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${prodToken}` },
-      body: JSON.stringify({ fileId: file1Id, documentType: 'WORK_INSTRUCTION' }),
+      body: JSON.stringify({ fileId: file1Id, documentType: 'MACHINING_INSTRUCTION' }),
     });
     expect(prodAttach.status).toBe(201);
     const prodAttachId = (await prodAttach.json()).id;
