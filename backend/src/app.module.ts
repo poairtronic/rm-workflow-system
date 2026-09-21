@@ -22,6 +22,7 @@ import { AnalyticsModule } from './analytics/analytics.module.js';
 import { AuditModule } from './audit/audit.module.js';
 import { InventoryModule } from './inventory/inventory.module.js';
 import { MasterDataModule } from './master-data/master-data.module.js';
+import { FilesModule } from './files/files.module.js';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { MasterDataModule } from './master-data/master-data.module.js';
     AuditModule,
     InventoryModule,
     MasterDataModule,
+    FilesModule,
   ],
 
   controllers: [AppController],
