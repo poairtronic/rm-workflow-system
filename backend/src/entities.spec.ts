@@ -45,8 +45,8 @@ import {
 } from './inventory/entities/stock-transaction.entity.js';
 
 describe('Phase 7 & 8 TypeORM Entity Definitions & Contracts', () => {
-  it('should register all 31 domain entities in ALL_ENTITIES', () => {
-    expect(ALL_ENTITIES).toHaveLength(31);
+  it('should register all 32 domain entities in ALL_ENTITIES', () => {
+    expect(ALL_ENTITIES).toHaveLength(32);
     expect(ALL_ENTITIES).toContain(Role);
     expect(ALL_ENTITIES).toContain(User);
     expect(ALL_ENTITIES).toContain(Customer);

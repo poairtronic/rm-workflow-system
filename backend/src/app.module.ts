@@ -23,6 +23,7 @@ import { AuditModule } from './audit/audit.module.js';
 import { InventoryModule } from './inventory/inventory.module.js';
 import { MasterDataModule } from './master-data/master-data.module.js';
 import { FilesModule } from './files/files.module.js';
+import { AttachmentsModule } from './attachments/attachments.module.js';
 
 @Module({
   imports: [
@@ -73,6 +74,7 @@ import { FilesModule } from './files/files.module.js';
     InventoryModule,
     MasterDataModule,
     FilesModule,
+    AttachmentsModule,
   ],
 
   controllers: [AppController],

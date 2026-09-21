@@ -30,6 +30,7 @@ import { Bin } from '../inventory/entities/bin.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import { StockTransaction } from '../inventory/entities/stock-transaction.entity.js';
 import { UploadedFile } from '../files/entities/uploaded-file.entity.js';
+import { Attachment } from '../attachments/entities/attachment.entity.js';
 
 export const ALL_ENTITIES = [
   Role,
@@ -63,6 +64,7 @@ export const ALL_ENTITIES = [
   StockBalance,
   StockTransaction,
   UploadedFile,
+  Attachment,
 ];
 
 const dbUrl =
