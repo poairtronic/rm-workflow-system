@@ -108,23 +108,19 @@ describe('Phase 14.6 - File Authorization (e2e)', () => {
       const storageDir = path.join(process.cwd(), 'backend', '.storage');
       if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
 
-      const createFile = async (name: string, owner: string) => {
-        const file = queryRunner.manager.create(UploadedFile, {
-          originalName: name,
-          mimeType: 'text/plain',
-          size: 100,
-          storageKey: `local/${name}-${uniqueSuffix}.txt`,
-          createdById: owner,
-          provider: 'LOCAL',
-        });
-        await queryRunner.manager.save(file);
-        fs.writeFileSync(path.join(storageDir, `${name}.txt`), 'test content');
-        return file;
+      const createFile = async (name: string, token: string) => {
+        const pdfBuf = Buffer.from(`%PDF-1.4 content for ${name}`);
+        const res = await request(app.getHttpServer())
+          .post('/api/files')
+          .set('Authorization', `Bearer ${token}`)
+          .attach('file', pdfBuf, `${name}.pdf`);
+        expect(res.status).toBe(201);
+        return res.body;
       };
 
-      fileA = await createFile('fileA', designerUser.id);
-      fileB = await createFile('fileB', designerUser.id);
-      unattachedFile = await createFile('unattachedFile', designerUser.id);
+      fileA = await createFile('fileA', designerToken);
+      fileB = await createFile('fileB', designerToken);
+      unattachedFile = await createFile('unattachedFile', designerToken);
 
       // Attach FileA to SC1, FileB to SC2
       const attA = queryRunner.manager.create(Attachment, {
