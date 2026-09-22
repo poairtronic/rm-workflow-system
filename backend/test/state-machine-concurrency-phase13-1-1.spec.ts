@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { test, expect, beforeAll, describe, afterAll } from 'vitest';
 import { Client } from 'pg';
 

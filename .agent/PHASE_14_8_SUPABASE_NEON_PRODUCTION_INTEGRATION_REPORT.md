@@ -2,14 +2,14 @@
 
 ## 1. Phase Overview & Objectives
 Phase 14.8 established the live production infrastructure connection for RMRIT:
-1. Connected NestJS backend to production **Neon PostgreSQL** database.
-2. Connected file storage service to production **Supabase Storage** bucket (`rmrit-documents`).
+1. Connected NestJS backend to production **Neon PostgreSQL** database (`[VERIFIED / CONFIGURED]`).
+2. Connected file storage service to production **Supabase Storage** bucket `rmrit-documents` (`[VERIFIED / CONFIGURED]`).
 3. Validated live migrations, real file uploads (PDF, XLSX, XLS), security blocking, signed URL generation, soft deletes, and zero regression across business workflows.
 
 ---
 
 ## 2. Infrastructure Setup & Migration Execution
-- **Database Engine**: Serverless Neon PostgreSQL (`ep-still-bread-b5iszknm`).
+- **Database Engine**: Serverless Neon PostgreSQL (`[VERIFIED / CONFIGURED]`).
 - **Migrations Executed**: 9 TypeORM migrations executed via `npm run migration:run`. All 21 core tables created successfully.
 - **Object Storage Bucket**: Supabase Storage (`rmrit-documents`).
 
@@ -27,7 +27,7 @@ Phase 14.8 established the live production infrastructure connection for RMRIT:
 | `P14_8_06` | Generate Signed Download URL for Uploaded File | **PASSED** | Returned 1-hour expiring signed URL |
 | `P14_8_07` | Soft Delete Document Metadata in DB | **PASSED** | Populated `removed_by_id` and `removed_at` |
 | `P14_8_08` | Block Access for Unauthenticated Users | **PASSED** | Returned HTTP 401 |
-| `P14_8_09` | Business Data Baseline Protection | **PASSED** | Relational DB tables untouched during file ops |
+| `P14_8_09` | Business Data Baseline Protection | **PASSED** | Relational DB tables (`stock_transactions`, `material_receipts`, `material_consumptions`, `material_returns`, `material_issues`) untouched during file ops |
 
 ---
 

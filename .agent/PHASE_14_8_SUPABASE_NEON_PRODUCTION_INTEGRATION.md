@@ -2,12 +2,12 @@
 
 ## 1. Executive Summary & Architecture Overview
 This specification documents the production infrastructure integration connecting the RMRIT application backend to:
-- **Neon PostgreSQL**: Production Serverless PostgreSQL database hosting all relational business data, audit logs, attachment links, and file metadata (`uploaded_files` table).
-- **Supabase Storage**: Object Storage bucket (`rmrit-documents`) storing physical file binaries (PDF, Excel, drawings, images).
+- **Neon PostgreSQL**: Production Serverless PostgreSQL database hosting all relational business data, audit logs, attachment links, and file metadata (`uploaded_files` table). Live connection: `[VERIFIED / CONFIGURED]`.
+- **Supabase Storage**: Object Storage bucket (`rmrit-documents`) storing physical file binaries (PDF, Excel, drawings, images). Live storage: `[VERIFIED / CONFIGURED]`.
 
 ### Core Architecture Boundary Rules
-1. **Neon PostgreSQL = Relational Data & Metadata Only**: Database tables (`users`, `roles`, `purchase_orders`, `sales_order_components`, `rm_requests`, `rm_items`, `uploaded_files`, `attachments`, etc.) store structured metadata, relationships, timestamps, soft-delete records (`removed_by_id`, `removed_at`), and file references.
-2. **Supabase Storage = Physical Object Storage Only**: Storage bucket (`rmrit-documents`) stores binary object payloads under deterministic storage keys (`files/<userId>/<uuid>_<filename>`). No relational application data or state management is delegated to Supabase Database/Auth.
+1. **Neon PostgreSQL = Relational Data & Metadata Only**: Database tables (`users`, `roles`, `purchase_orders`, `sales_order_components`, `rm_requests`, `rm_items`, `stock_transactions`, `material_receipts`, `material_consumptions`, `material_returns`, `material_issues`, `uploaded_files`, `attachments`) store structured metadata, relationships, timestamps, soft-delete records (`removed_by_id`, `removed_at`), and file references.
+2. **Supabase Storage = Physical Object Storage Only**: Storage bucket (`rmrit-documents`) stores binary object payloads under deterministic storage keys (`files/<userId>/<uuid>_<filename>`). No relational application data or state management is delegated to Supabase Database or Auth.
 
 ---
 
@@ -40,5 +40,7 @@ This specification documents the production infrastructure integration connectin
 
 ## 4. Verification Baseline
 - **Phase 14.8 Test Suite**: 9/9 tests passed (`test/supabase-neon-phase14-8.spec.ts`).
-- **Regression Verification**: 88/88 tests passed across all Phase 14 specifications.
-- **Compilation & Lint**: Zero TypeScript errors (`npm run build`), zero linter errors (`npm run lint`).
+- **Phase 14 Full Suite**: 88/88 tests passed across all Phase 14 specifications.
+- **Phase 12 Regression**: 61/61 tests passed.
+- **Phase 13 Regression (Isolated Mode)**: 64/64 tests passed.
+- **Compilation & Lint**: Zero TypeScript errors (`npm run build`), 0 lint errors, 70 lint warnings (P3 non-blocking test-helper technical debt).

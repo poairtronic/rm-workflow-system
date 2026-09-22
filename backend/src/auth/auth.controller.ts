@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -38,6 +39,9 @@ export class AuthController {
 
   @Post('dev-token')
   getDevToken(@Body() body: { role?: UserRole }) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new ForbiddenException('Dev token endpoint is strictly disabled in production');
+    }
     const targetRole = body?.role ?? UserRole.ADMIN;
     return this.authService.createDevTestToken(targetRole);
   }
