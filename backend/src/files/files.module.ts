@@ -23,11 +23,32 @@ import { SupabaseStorageProvider } from './storage/supabase-storage.provider.js'
       provide: 'STORAGE_PROVIDER',
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        // If SUPABASE_URL exists, use Supabase provider, else fallback to local
+        const isProduction =
+          configService.get<string>('NODE_ENV') === 'production';
+        const providerConfig = configService
+          .get<string>('STORAGE_PROVIDER')
+          ?.toUpperCase();
         const supabaseUrl = configService.get<string>('SUPABASE_URL');
-        if (supabaseUrl && supabaseUrl.trim() !== '') {
+        const supabaseKey =
+          configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') ||
+          configService.get<string>('SUPABASE_SERVICE_KEY');
+
+        if (isProduction) {
+          if (!supabaseUrl || !supabaseKey) {
+            throw new Error(
+              'Production configuration failure: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be configured in production.',
+            );
+          }
           return new SupabaseStorageProvider(configService);
         }
+
+        if (
+          providerConfig === 'SUPABASE' ||
+          (supabaseUrl && supabaseUrl.trim() !== '')
+        ) {
+          return new SupabaseStorageProvider(configService);
+        }
+
         return new LocalStorageProvider();
       },
     },

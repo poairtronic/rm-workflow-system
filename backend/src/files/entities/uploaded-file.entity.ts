@@ -41,6 +41,16 @@ export class UploadedFile {
   @JoinColumn({ name: 'created_by_id' })
   createdBy!: User;
 
+  @Column({ name: 'removed_by_id', nullable: true })
+  removedById?: string;
+
+  @ManyToOne(() => User, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'removed_by_id' })
+  removedBy?: User;
+
+  @Column({ name: 'removed_at', type: 'timestamp', nullable: true })
+  removedAt?: Date;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 

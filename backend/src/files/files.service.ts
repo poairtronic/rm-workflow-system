@@ -93,6 +93,8 @@ export class FilesService {
 
     // Soft delete metadata
     file.isActive = false;
+    file.removedById = userId;
+    file.removedAt = new Date();
     await this.uploadedFileRepository.save(file);
 
     // Optionally attempt to remove from physical storage

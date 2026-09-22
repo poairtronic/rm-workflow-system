@@ -8,7 +8,9 @@ import {
   UseInterceptors,
   UploadedFile as NestUploadedFile,
   BadRequestException,
-  ParseFilePipeBuilder,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileValidator,
   HttpStatus,
   Req,
 } from '@nestjs/common';
@@ -19,6 +21,44 @@ import { AttachmentsService } from '../attachments/attachments.service.js';
 import { forwardRef, Inject } from '@nestjs/common';
 
 import 'multer';
+
+export class AllowedFileTypeValidator extends FileValidator<{
+  allowedMimes: string[];
+}> {
+  isValid(file?: Express.Multer.File): boolean {
+    if (!file) return false;
+    const mime = (file.mimetype || '').toLowerCase();
+    const name = (file.originalname || '').toLowerCase();
+
+    const allowedMimes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'application/pdf',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/x-excel',
+      'application/x-msexcel',
+      'application/excel',
+    ];
+
+    const isMimeMatch = allowedMimes.some(
+      (m) => mime.includes(m) || m.includes(mime),
+    );
+    const isExtMatch = /\.(jpeg|jpg|png|pdf|xls|xlsx)$/i.test(name);
+
+    // Reject executable scripts explicitly even if spoofed
+    if (/\.(exe|js|py|sh|bat|cmd|dll|so|app)$/i.test(name)) {
+      return false;
+    }
+
+    return isMimeMatch || isExtMatch;
+  }
+
+  buildErrorMessage(): string {
+    return 'Validation failed (file type not allowed. Allowed types: JPEG, PNG, PDF, XLS, XLSX)';
+  }
+}
 
 @Controller('api/files')
 @UseGuards(JwtAuthGuard)
@@ -34,28 +74,25 @@ export class FilesController {
   async uploadFile(
     @Req() req: any,
     @NestUploadedFile(
-      new ParseFilePipeBuilder()
-        .addFileTypeValidator({
-          fileType: /(jpeg|jpg|png|pdf)$/, // Regex for allowed types
-        })
-        .addMaxSizeValidator({
-          maxSize: 5 * 1024 * 1024, // 5MB
-        })
-        .build({
-          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
-        }),
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
+          new AllowedFileTypeValidator({ allowedMimes: [] }),
+        ],
+        errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+      }),
     )
     file: Express.Multer.File,
   ) {
     if (!file) {
       throw new BadRequestException('No file provided');
     }
-    
+
     // Uploader attribution comes straight from the JWT
     const userId = req.user.userId;
-    
+
     const uploadedFile = await this.filesService.uploadFile(userId, file);
-    
+
     return {
       id: uploadedFile.id,
       originalName: uploadedFile.originalName,

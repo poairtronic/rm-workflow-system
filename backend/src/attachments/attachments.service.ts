@@ -128,7 +128,7 @@ export class AttachmentsService {
 
   async findOne(id: string) {
     const attachment = await this.attachmentRepo.findOne({
-      where: { id, isActive: true },
+      where: { id, isActive: true, file: { isActive: true } },
       relations: { file: true },
     });
 
@@ -141,7 +141,7 @@ export class AttachmentsService {
 
   async list(context: AttachmentContext, recordId: string) {
     return this.attachmentRepo.find({
-      where: { context, recordId, isActive: true },
+      where: { context, recordId, isActive: true, file: { isActive: true } },
       relations: { file: true },
       order: { createdAt: 'DESC' },
     });
