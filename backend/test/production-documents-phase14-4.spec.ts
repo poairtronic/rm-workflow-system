@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as jwt from 'jsonwebtoken';
 import { Client } from 'pg';
@@ -15,7 +16,10 @@ let testSc2Id = '';
 
 describe('Phase 14.4 - Production Documents', () => {
   beforeAll(async () => {
-    pgClient = new Client('postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db');
+    pgClient = new Client(
+      process.env.DATABASE_URL ||
+        'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
+    );
     await pgClient.connect();
 
     // 1. Setup Admin user
@@ -64,7 +68,7 @@ describe('Phase 14.4 - Production Documents', () => {
     const rmItemId = rmRes.rows[0].id;
 
     // We don't need manual transactions. Accounting should just show 0 received, 0 consumed.
-  });
+  }, 30000);
 
   afterAll(async () => {
     await pgClient.end();

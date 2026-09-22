@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { describe, beforeAll, afterAll, it, expect } from 'vitest';
 import * as jwt from 'jsonwebtoken';
 import { Client } from 'pg';
@@ -30,7 +31,8 @@ describe('Phase 14.3 — RM Documents Certification', () => {
 
   beforeAll(async () => {
     pgClient = new Client(
-      'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
+      process.env.DATABASE_URL ||
+        'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
     );
     await pgClient.connect();
 
@@ -143,7 +145,7 @@ describe('Phase 14.3 — RM Documents Certification', () => {
       }),
     });
     rmItemId1 = (await itemRes.json()).id;
-  });
+  }, 30000);
 
   afterAll(async () => {
     await pgClient.end();
@@ -371,5 +373,5 @@ describe('Phase 14.3 — RM Documents Certification', () => {
       expect(snapshotItemsAfter[i].quantity).toBe(snapshotItemsBefore[i].quantity);
       expect(snapshotItemsAfter[i].length).toBe(snapshotItemsBefore[i].length);
     }
-  });
+  }, 30000);
 });

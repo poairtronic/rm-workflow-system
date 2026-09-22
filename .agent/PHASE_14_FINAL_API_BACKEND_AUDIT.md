@@ -158,8 +158,8 @@ A live runtime introspection was performed on the active NestJS Express applicat
    - No obsolete table references like `service_cards` or `rm_forms` remain in active entities.
 
 5. **External Infrastructure Status**:
-   - **Neon Database**: Active development environment connects locally to PostgreSQL `rm_workflow_db`. Live remote Neon URL is not configured locally (**BLOCKED**).
-   - **Supabase Storage**: `SupabaseStorageProvider` is wired in `FilesModule`. In development, defaults securely to `LocalStorageProvider`. Production requires `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. Live remote Supabase project is not provisioned locally (**BLOCKED**).
+   - **Neon Database**: Active live cloud connection verified: `ep-still-bread-b5iszknm-pooler.c-7.us-east-2.aws.neon.tech/neondb` (**PASS**).
+   - **Supabase Storage**: Connected to live project `https://tegljiqxtgmjungqytjz.supabase.co` with bucket `rmrit-documents` (**PASS**). Upload, signed download, and delete operations tested and operational.
 
 6. **Technical Risks & Limitations**:
    - Test suites running fully in parallel occasionally collide on shared database seed tables (e.g. `roles` / `users`). Running tests per-phase or with `--no-file-parallelism` is recommended for CI.

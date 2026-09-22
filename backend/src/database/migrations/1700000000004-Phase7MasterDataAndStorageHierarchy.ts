@@ -6,7 +6,7 @@ export class Phase7MasterDataAndStorageHierarchy1700000000004 implements Migrati
   public async up(queryRunner: QueryRunner): Promise<void> {
     // 1. Create product_categories
     await queryRunner.query(`
-      CREATE TABLE "product_categories" (
+      CREATE TABLE IF NOT EXISTS "product_categories" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "name" character varying(100) NOT NULL,
         "is_active" boolean NOT NULL DEFAULT true,
@@ -19,7 +19,7 @@ export class Phase7MasterDataAndStorageHierarchy1700000000004 implements Migrati
 
     // 2. Create product_families
     await queryRunner.query(`
-      CREATE TABLE "product_families" (
+      CREATE TABLE IF NOT EXISTS "product_families" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "category_id" uuid NOT NULL,
         "name" character varying(100) NOT NULL,
@@ -32,13 +32,16 @@ export class Phase7MasterDataAndStorageHierarchy1700000000004 implements Migrati
     `);
 
     await queryRunner.query(`
-      ALTER TABLE "product_families"
-      ADD CONSTRAINT "FK_product_families_category_id" FOREIGN KEY ("category_id") REFERENCES "product_categories"("id") ON DELETE RESTRICT ON UPDATE NO ACTION
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_product_families_category_id') THEN
+          ALTER TABLE "product_families" ADD CONSTRAINT "FK_product_families_category_id" FOREIGN KEY ("category_id") REFERENCES "product_categories"("id") ON DELETE RESTRICT ON UPDATE NO ACTION;
+        END IF;
+      END $$;
     `);
 
     // 3. Create products
     await queryRunner.query(`
-      CREATE TABLE "products" (
+      CREATE TABLE IF NOT EXISTS "products" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "family_id" uuid NOT NULL,
         "name" character varying(255) NOT NULL,
@@ -55,13 +58,16 @@ export class Phase7MasterDataAndStorageHierarchy1700000000004 implements Migrati
     `);
 
     await queryRunner.query(`
-      ALTER TABLE "products"
-      ADD CONSTRAINT "FK_products_family_id" FOREIGN KEY ("family_id") REFERENCES "product_families"("id") ON DELETE RESTRICT ON UPDATE NO ACTION
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_products_family_id') THEN
+          ALTER TABLE "products" ADD CONSTRAINT "FK_products_family_id" FOREIGN KEY ("family_id") REFERENCES "product_families"("id") ON DELETE RESTRICT ON UPDATE NO ACTION;
+        END IF;
+      END $$;
     `);
 
     // 4. Create warehouses
     await queryRunner.query(`
-      CREATE TABLE "warehouses" (
+      CREATE TABLE IF NOT EXISTS "warehouses" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "code" character varying(50) NOT NULL,
         "name" character varying(100) NOT NULL,
@@ -76,7 +82,7 @@ export class Phase7MasterDataAndStorageHierarchy1700000000004 implements Migrati
 
     // 5. Create warehouse_locations
     await queryRunner.query(`
-      CREATE TABLE "warehouse_locations" (
+      CREATE TABLE IF NOT EXISTS "warehouse_locations" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "warehouse_id" uuid NOT NULL,
         "code" character varying(50) NOT NULL,
@@ -90,13 +96,16 @@ export class Phase7MasterDataAndStorageHierarchy1700000000004 implements Migrati
     `);
 
     await queryRunner.query(`
-      ALTER TABLE "warehouse_locations"
-      ADD CONSTRAINT "FK_warehouse_locations_warehouse_id" FOREIGN KEY ("warehouse_id") REFERENCES "warehouses"("id") ON DELETE RESTRICT ON UPDATE NO ACTION
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_warehouse_locations_warehouse_id') THEN
+          ALTER TABLE "warehouse_locations" ADD CONSTRAINT "FK_warehouse_locations_warehouse_id" FOREIGN KEY ("warehouse_id") REFERENCES "warehouses"("id") ON DELETE RESTRICT ON UPDATE NO ACTION;
+        END IF;
+      END $$;
     `);
 
     // 6. Create racks
     await queryRunner.query(`
-      CREATE TABLE "racks" (
+      CREATE TABLE IF NOT EXISTS "racks" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "location_id" uuid NOT NULL,
         "code" character varying(50) NOT NULL,
@@ -110,13 +119,16 @@ export class Phase7MasterDataAndStorageHierarchy1700000000004 implements Migrati
     `);
 
     await queryRunner.query(`
-      ALTER TABLE "racks"
-      ADD CONSTRAINT "FK_racks_location_id" FOREIGN KEY ("location_id") REFERENCES "warehouse_locations"("id") ON DELETE RESTRICT ON UPDATE NO ACTION
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_racks_location_id') THEN
+          ALTER TABLE "racks" ADD CONSTRAINT "FK_racks_location_id" FOREIGN KEY ("location_id") REFERENCES "warehouse_locations"("id") ON DELETE RESTRICT ON UPDATE NO ACTION;
+        END IF;
+      END $$;
     `);
 
     // 7. Create bins
     await queryRunner.query(`
-      CREATE TABLE "bins" (
+      CREATE TABLE IF NOT EXISTS "bins" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "rack_id" uuid NOT NULL,
         "code" character varying(50) NOT NULL,
@@ -130,8 +142,11 @@ export class Phase7MasterDataAndStorageHierarchy1700000000004 implements Migrati
     `);
 
     await queryRunner.query(`
-      ALTER TABLE "bins"
-      ADD CONSTRAINT "FK_bins_rack_id" FOREIGN KEY ("rack_id") REFERENCES "racks"("id") ON DELETE RESTRICT ON UPDATE NO ACTION
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_bins_rack_id') THEN
+          ALTER TABLE "bins" ADD CONSTRAINT "FK_bins_rack_id" FOREIGN KEY ("rack_id") REFERENCES "racks"("id") ON DELETE RESTRICT ON UPDATE NO ACTION;
+        END IF;
+      END $$;
     `);
 
     // 8. Alter stock_balances for Product + Bin support
@@ -139,21 +154,23 @@ export class Phase7MasterDataAndStorageHierarchy1700000000004 implements Migrati
       ALTER TABLE "stock_balances" ALTER COLUMN "inventory_item_id" DROP NOT NULL
     `);
     await queryRunner.query(`
-      ALTER TABLE "stock_balances" ADD COLUMN "product_id" uuid
+      ALTER TABLE "stock_balances" ADD COLUMN IF NOT EXISTS "product_id" uuid
     `);
     await queryRunner.query(`
-      ALTER TABLE "stock_balances" ADD COLUMN "bin_id" uuid
+      ALTER TABLE "stock_balances" ADD COLUMN IF NOT EXISTS "bin_id" uuid
     `);
     await queryRunner.query(`
-      ALTER TABLE "stock_balances"
-      ADD CONSTRAINT "FK_stock_balances_product_id" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE NO ACTION
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_stock_balances_product_id') THEN
+          ALTER TABLE "stock_balances" ADD CONSTRAINT "FK_stock_balances_product_id" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE NO ACTION;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_stock_balances_bin_id') THEN
+          ALTER TABLE "stock_balances" ADD CONSTRAINT "FK_stock_balances_bin_id" FOREIGN KEY ("bin_id") REFERENCES "bins"("id") ON DELETE RESTRICT ON UPDATE NO ACTION;
+        END IF;
+      END $$;
     `);
     await queryRunner.query(`
-      ALTER TABLE "stock_balances"
-      ADD CONSTRAINT "FK_stock_balances_bin_id" FOREIGN KEY ("bin_id") REFERENCES "bins"("id") ON DELETE RESTRICT ON UPDATE NO ACTION
-    `);
-    await queryRunner.query(`
-      CREATE UNIQUE INDEX "UQ_stock_balances_product_bin" ON "stock_balances" ("product_id", "bin_id") WHERE "product_id" IS NOT NULL AND "bin_id" IS NOT NULL
+      CREATE UNIQUE INDEX IF NOT EXISTS "UQ_stock_balances_product_bin" ON "stock_balances" ("product_id", "bin_id") WHERE "product_id" IS NOT NULL AND "bin_id" IS NOT NULL
     `);
 
     // 9. Alter stock_transactions for Product + sourceBin / destinationBin support
@@ -161,54 +178,55 @@ export class Phase7MasterDataAndStorageHierarchy1700000000004 implements Migrati
       ALTER TABLE "stock_transactions" ALTER COLUMN "inventory_item_id" DROP NOT NULL
     `);
     await queryRunner.query(`
-      ALTER TABLE "stock_transactions" ADD COLUMN "product_id" uuid
+      ALTER TABLE "stock_transactions" ADD COLUMN IF NOT EXISTS "product_id" uuid
     `);
     await queryRunner.query(`
-      ALTER TABLE "stock_transactions" ADD COLUMN "source_bin_id" uuid
+      ALTER TABLE "stock_transactions" ADD COLUMN IF NOT EXISTS "source_bin_id" uuid
     `);
     await queryRunner.query(`
-      ALTER TABLE "stock_transactions" ADD COLUMN "destination_bin_id" uuid
+      ALTER TABLE "stock_transactions" ADD COLUMN IF NOT EXISTS "destination_bin_id" uuid
     `);
     await queryRunner.query(`
-      ALTER TABLE "stock_transactions"
-      ADD CONSTRAINT "FK_stock_transactions_product_id" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE NO ACTION
-    `);
-    await queryRunner.query(`
-      ALTER TABLE "stock_transactions"
-      ADD CONSTRAINT "FK_stock_transactions_source_bin_id" FOREIGN KEY ("source_bin_id") REFERENCES "bins"("id") ON DELETE RESTRICT ON UPDATE NO ACTION
-    `);
-    await queryRunner.query(`
-      ALTER TABLE "stock_transactions"
-      ADD CONSTRAINT "FK_stock_transactions_destination_bin_id" FOREIGN KEY ("destination_bin_id") REFERENCES "bins"("id") ON DELETE RESTRICT ON UPDATE NO ACTION
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_stock_transactions_product_id') THEN
+          ALTER TABLE "stock_transactions" ADD CONSTRAINT "FK_stock_transactions_product_id" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE NO ACTION;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_stock_transactions_source_bin_id') THEN
+          ALTER TABLE "stock_transactions" ADD CONSTRAINT "FK_stock_transactions_source_bin_id" FOREIGN KEY ("source_bin_id") REFERENCES "bins"("id") ON DELETE RESTRICT ON UPDATE NO ACTION;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_stock_transactions_destination_bin_id') THEN
+          ALTER TABLE "stock_transactions" ADD CONSTRAINT "FK_stock_transactions_destination_bin_id" FOREIGN KEY ("destination_bin_id") REFERENCES "bins"("id") ON DELETE RESTRICT ON UPDATE NO ACTION;
+        END IF;
+      END $$;
     `);
 
     // 10. Performance Indexes
     await queryRunner.query(
-      `CREATE INDEX "IDX_products_family_id" ON "products" ("family_id")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_products_family_id" ON "products" ("family_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_product_families_category_id" ON "product_families" ("category_id")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_product_families_category_id" ON "product_families" ("category_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_warehouse_locations_warehouse_id" ON "warehouse_locations" ("warehouse_id")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_warehouse_locations_warehouse_id" ON "warehouse_locations" ("warehouse_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_racks_location_id" ON "racks" ("location_id")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_racks_location_id" ON "racks" ("location_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_bins_rack_id" ON "bins" ("rack_id")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_bins_rack_id" ON "bins" ("rack_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_stock_balances_bin_id" ON "stock_balances" ("bin_id")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_stock_balances_bin_id" ON "stock_balances" ("bin_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_stock_transactions_product_created" ON "stock_transactions" ("product_id", "created_at" DESC)`,
+      `CREATE INDEX IF NOT EXISTS "IDX_stock_transactions_product_created" ON "stock_transactions" ("product_id", "created_at" DESC)`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_stock_transactions_source_bin" ON "stock_transactions" ("source_bin_id")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_stock_transactions_source_bin" ON "stock_transactions" ("source_bin_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_stock_transactions_destination_bin" ON "stock_transactions" ("destination_bin_id")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_stock_transactions_destination_bin" ON "stock_transactions" ("destination_bin_id")`,
     );
   }
 

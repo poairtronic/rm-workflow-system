@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { describe, beforeAll, afterAll, it, expect } from 'vitest';
 import * as jwt from 'jsonwebtoken';
 import { Client } from 'pg';
@@ -29,7 +30,8 @@ describe('Phase 14.5 — PO / SC Supporting Documents Certification', () => {
 
   beforeAll(async () => {
     pgClient = new Client(
-      'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
+      process.env.DATABASE_URL ||
+        'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
     );
     await pgClient.connect();
 
@@ -119,7 +121,7 @@ describe('Phase 14.5 — PO / SC Supporting Documents Certification', () => {
 
     const sc2Res = await pgClient.query(`INSERT INTO sales_order_components (sc_number, po_id, product_name, target_quantity, status) VALUES ('SC-145-B-${runId}', $1, 'Prod B', 20, 'ACTIVE') RETURNING id`, [poId2]);
     scId2 = sc2Res.rows[0].id;
-  });
+  }, 30000);
 
   afterAll(async () => {
     await pgClient.end();

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as jwt from 'jsonwebtoken';
 import { Client } from 'pg';
@@ -284,7 +285,9 @@ describe('Phase 14.8 — Supabase Storage + Neon Production Integration', () => 
     expect(res.status).toBe(401);
   });
 
-  it('P14_8_09: Business data baseline regression protection (File ops leave relational DB untouched)', async () => {
+  it(
+    'P14_8_09: Business data baseline regression protection (File ops leave relational DB untouched)',
+    async () => {
     // Count rows in relational tables before file ops
     const usersBefore = (await pgClient.query(`SELECT COUNT(*) FROM users`)).rows[0].count;
     const poBefore = (await pgClient.query(`SELECT COUNT(*) FROM purchase_orders`)).rows[0].count;
@@ -318,5 +321,5 @@ describe('Phase 14.8 — Supabase Storage + Neon Production Integration', () => 
     expect(usersAfter).toBe(usersBefore);
     expect(poAfter).toBe(poBefore);
     expect(scAfter).toBe(scBefore);
-  });
+  }, 30000);
 });

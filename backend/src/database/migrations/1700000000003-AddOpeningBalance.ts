@@ -1,22 +1,17 @@
-import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddOpeningBalance1700000000003 implements MigrationInterface {
   name = 'AddOpeningBalance1700000000003';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.addColumn(
-      'stock_balances',
-      new TableColumn({
-        name: 'opening_balance',
-        type: 'numeric',
-        precision: 12,
-        scale: 3,
-        isNullable: true,
-      }),
+    await queryRunner.query(
+      `ALTER TABLE "stock_balances" ADD COLUMN IF NOT EXISTS "opening_balance" numeric(12,3)`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.dropColumn('stock_balances', 'opening_balance');
+    await queryRunner.query(
+      `ALTER TABLE "stock_balances" DROP COLUMN IF EXISTS "opening_balance"`,
+    );
   }
 }

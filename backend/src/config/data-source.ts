@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { DataSource } from 'typeorm';
 import { Role } from '../roles/entities/role.entity.js';
 import { User } from '../users/entities/user.entity.js';

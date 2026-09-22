@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as jwt from 'jsonwebtoken';
 import { Client } from 'pg';
@@ -12,7 +13,8 @@ const ADMIN_ID = '55555555-5555-5555-5555-555555555555';
 describe('Phase 14.1 - File Upload Foundation', () => {
   beforeAll(async () => {
     pgClient = new Client(
-      'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
+      process.env.DATABASE_URL ||
+        'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
     );
     await pgClient.connect();
 

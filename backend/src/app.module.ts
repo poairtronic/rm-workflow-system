@@ -48,7 +48,7 @@ import { AttachmentsModule } from './attachments/attachments.module.js';
           url: dbUrl,
           entities: ALL_ENTITIES,
           autoLoadEntities: true,
-          synchronize: configService.get<string>('NODE_ENV') !== 'production',
+          synchronize: false,
           ssl: isSsl ? { rejectUnauthorized: false } : false,
           retryAttempts: 2,
           retryDelay: 3000,
