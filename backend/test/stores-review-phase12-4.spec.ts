@@ -20,7 +20,7 @@ const ADMIN_ID = '44444444-4444-4444-4444-444444444444';
 describe('Phase 12.4 - Stores Review / Inventory Verification', () => {
   beforeAll(async () => {
     pgClient = new Client(
-      'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
+      process.env.DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
     );
     await pgClient.connect();
 
@@ -31,15 +31,20 @@ describe('Phase 12.4 - Stores Review / Inventory Verification', () => {
     let roleId = roleRes.rows[0]?.id;
 
     // Seed mock admin
-    await pgClient.query(`
-      INSERT INTO users (id, name, email, password_hash, role_id, is_active)
-      VALUES ('${ADMIN_ID}', 'Admin User 2', 'admin2@example.com', 'hash', '${roleId}', true)
-      ON CONFLICT (email) DO NOTHING;
-    `);
+    let userRes = await pgClient.query(`SELECT id FROM users WHERE email = 'admin2@example.com' LIMIT 1`);
+    let adminUserId = userRes.rows[0]?.id;
+    if (!adminUserId) {
+      const insUser = await pgClient.query(`
+        INSERT INTO users (id, name, email, password_hash, role_id, is_active)
+        VALUES ('${ADMIN_ID}', 'Admin User 2', 'admin2@example.com', 'hash', '${roleId}', true)
+        RETURNING id
+      `);
+      adminUserId = insUser.rows[0].id;
+    }
 
     adminToken = jwt.sign(
       {
-        sub: ADMIN_ID,
+        sub: adminUserId,
         email: 'admin2@example.com',
         role: 'ADMIN',
         roles: ['ADMIN', 'DESIGNER', 'STORES', 'PRODUCTION'],

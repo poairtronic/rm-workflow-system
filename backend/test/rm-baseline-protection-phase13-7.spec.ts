@@ -20,7 +20,7 @@ describe('Phase 13.7 - RM Baseline Protection', () => {
 
   beforeAll(async () => {
     pgClient = new Client(
-      'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
+      process.env.DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
     );
     await pgClient.connect();
 

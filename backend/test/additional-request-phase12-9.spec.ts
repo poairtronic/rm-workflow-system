@@ -19,11 +19,9 @@ describe('Phase 12.9 - Additional Material Request', () => {
   let binId: string;
 
   beforeAll(async () => {
-    pgClient = new Client({
-      connectionString:
-        process.env.DATABASE_URL ||
-        'postgres://postgres:postgres@localhost:5432/rm_workflow_db',
-    });
+    pgClient = new Client(
+      process.env.DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
+    );
     await pgClient.connect();
 
     // 1. Get Tokens

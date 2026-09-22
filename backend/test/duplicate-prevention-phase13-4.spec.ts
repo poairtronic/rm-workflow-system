@@ -16,7 +16,7 @@ describe('Phase 13.4 - Duplicate Prevention & Idempotency Hardening', () => {
     pgClient = new Client({
       connectionString:
         process.env.DATABASE_URL ||
-        'postgres://postgres:postgres@localhost:5432/rm_workflow_db',
+        'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
     });
     await pgClient.connect();
 

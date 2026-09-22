@@ -22,9 +22,14 @@ const PROD_ID = '77777777-7777-7777-7777-777777777777';
 
 describe('Phase 13.2 - Quantity Conservation Hardening', () => {
   beforeAll(async () => {
-    pgClient = new Client(
-      'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
-    );
+    pgClient = new Client({
+      connectionString:
+        process.env.DATABASE_URL ||
+        'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
+      ssl: process.env.DATABASE_URL?.includes('neon.tech')
+        ? { rejectUnauthorized: false }
+        : undefined,
+    });
     await pgClient.connect();
 
     const adminRoleRes = await pgClient.query(`SELECT id FROM roles LIMIT 1`);

@@ -20,7 +20,7 @@ const STORES_ID = '66666666-6666-6666-6666-666666666666';
 describe('Phase 12.5 - Stores Material Issue', () => {
   beforeAll(async () => {
     pgClient = new Client(
-      'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
+      process.env.DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
     );
     await pgClient.connect();
 

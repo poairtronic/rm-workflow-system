@@ -21,7 +21,7 @@ const PROD_ID = '77777777-7777-7777-7777-777777777777';
 describe('Phase 12.6 - Production Receipt', () => {
   beforeAll(async () => {
     pgClient = new Client(
-      'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
+      process.env.DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
     );
     await pgClient.connect();
 

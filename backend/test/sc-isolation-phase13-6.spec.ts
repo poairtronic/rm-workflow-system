@@ -94,11 +94,10 @@ describe('Phase 13.6 SC Isolation Hardening (e2e)', () => {
 
       const customer = await queryRunner.manager.save(Customer, queryRunner.manager.create(Customer, { name: 'Iso Customer', code: 'ISO' }));
       
+
       const po = await queryRunner.manager.save(PurchaseOrder, queryRunner.manager.create(PurchaseOrder, {
         poNumber: 'PO-ISO',
         customerId: customer.id,
-        orderDate: new Date(),
-        targetDeliveryDate: new Date(),
         status: 'DRAFT',
       }));
 

@@ -20,11 +20,9 @@ let legacyItem1Id: string;
 
 describe('Phase 13.3 - Inventory Conservation Hardening', () => {
   beforeAll(async () => {
-    pgClient = new Client({
-      connectionString:
-        process.env.DATABASE_URL ||
-        'postgres://postgres:postgres@localhost:5432/rm_workflow_db',
-    });
+    pgClient = new Client(
+      process.env.DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:5432/rm_workflow_db',
+    );
     await pgClient.connect();
 
     const uRes = await pgClient.query(`SELECT id FROM users LIMIT 1`);
