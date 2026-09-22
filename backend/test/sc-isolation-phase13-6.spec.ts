@@ -58,66 +58,109 @@ describe('Phase 13.6 SC Isolation Hardening (e2e)', () => {
     return jwtService.sign({ sub: userId, email, roles });
   };
 
+  let basePo: PurchaseOrder;
+
   const setupBaseData = async () => {
     const queryRunner = dataSource.createQueryRunner();
     await queryRunner.connect();
-    
-    await queryRunner.manager.query(`TRUNCATE TABLE stock_transactions, stock_balances, sales_order_components, purchase_orders, products, product_families, product_categories, bins, racks, warehouse_locations, warehouses, users, roles, customers CASCADE`);
 
     try {
-      const adminRole = await queryRunner.manager.save(Role, queryRunner.manager.create(Role, { name: UserRole.ADMIN, description: 'Admin' }));
-      const storesRole = await queryRunner.manager.save(Role, queryRunner.manager.create(Role, { name: UserRole.STORES, description: 'Stores' }));
-      const productionRole = await queryRunner.manager.save(Role, queryRunner.manager.create(Role, { name: UserRole.PRODUCTION, description: 'Production' }));
+      let adminRole = await queryRunner.manager.findOneBy(Role, { name: UserRole.ADMIN });
+      if (!adminRole) {
+        adminRole = await queryRunner.manager.save(Role, queryRunner.manager.create(Role, { name: UserRole.ADMIN, description: 'Admin' }));
+      }
+      let storesRole = await queryRunner.manager.findOneBy(Role, { name: UserRole.STORES });
+      if (!storesRole) {
+        storesRole = await queryRunner.manager.save(Role, queryRunner.manager.create(Role, { name: UserRole.STORES, description: 'Stores' }));
+      }
+      let productionRole = await queryRunner.manager.findOneBy(Role, { name: UserRole.PRODUCTION });
+      if (!productionRole) {
+        productionRole = await queryRunner.manager.save(Role, queryRunner.manager.create(Role, { name: UserRole.PRODUCTION, description: 'Production' }));
+      }
 
-      const adminUser = await queryRunner.manager.save(User, queryRunner.manager.create(User, {
-        email: 'admin_iso@example.com',
-        name: 'Admin User',
-        passwordHash: 'hash',
-        roleId: adminRole.id,
-      }));
-      const storesUser = await queryRunner.manager.save(User, queryRunner.manager.create(User, {
-        email: 'stores_iso@example.com',
-        name: 'Stores User',
-        passwordHash: 'hash',
-        roleId: storesRole.id,
-      }));
-      const productionUser = await queryRunner.manager.save(User, queryRunner.manager.create(User, {
-        email: 'production_iso@example.com',
-        name: 'Production User',
-        passwordHash: 'hash',
-        roleId: productionRole.id,
-      }));
+      let adminUser = await queryRunner.manager.findOneBy(User, { email: 'admin_iso@example.com' });
+      if (!adminUser) {
+        adminUser = await queryRunner.manager.save(User, queryRunner.manager.create(User, {
+          email: 'admin_iso@example.com',
+          name: 'Admin User',
+          passwordHash: 'hash',
+          roleId: adminRole.id,
+        }));
+      }
+      let storesUser = await queryRunner.manager.findOneBy(User, { email: 'stores_iso@example.com' });
+      if (!storesUser) {
+        storesUser = await queryRunner.manager.save(User, queryRunner.manager.create(User, {
+          email: 'stores_iso@example.com',
+          name: 'Stores User',
+          passwordHash: 'hash',
+          roleId: storesRole.id,
+        }));
+      }
+      let productionUser = await queryRunner.manager.findOneBy(User, { email: 'production_iso@example.com' });
+      if (!productionUser) {
+        productionUser = await queryRunner.manager.save(User, queryRunner.manager.create(User, {
+          email: 'production_iso@example.com',
+          name: 'Production User',
+          passwordHash: 'hash',
+          roleId: productionRole.id,
+        }));
+      }
 
       adminToken = generateToken(adminUser.id, adminUser.email, [UserRole.ADMIN]);
       storesToken = generateToken(storesUser.id, storesUser.email, [UserRole.STORES]);
       productionToken = generateToken(productionUser.id, productionUser.email, [UserRole.PRODUCTION]);
 
-      const customer = await queryRunner.manager.save(Customer, queryRunner.manager.create(Customer, { name: 'Iso Customer', code: 'ISO' }));
-      
+      const ts = Date.now();
+      const customer = await queryRunner.manager.save(Customer, queryRunner.manager.create(Customer, {
+        name: 'Iso Customer ' + ts,
+        code: 'ISO_' + ts,
+      }));
 
-      const po = await queryRunner.manager.save(PurchaseOrder, queryRunner.manager.create(PurchaseOrder, {
-        poNumber: 'PO-ISO',
+      basePo = await queryRunner.manager.save(PurchaseOrder, queryRunner.manager.create(PurchaseOrder, {
+        poNumber: 'PO-ISO-' + ts,
         customerId: customer.id,
         status: 'DRAFT',
       }));
 
-      const category = await queryRunner.manager.save(ProductCategory, queryRunner.manager.create(ProductCategory, { name: 'Cat Iso', code: 'C-ISO' }));
-      const family = await queryRunner.manager.save(ProductFamily, queryRunner.manager.create(ProductFamily, { name: 'Fam Iso', code: 'F-ISO', categoryId: category.id }));
+      const category = await queryRunner.manager.save(ProductCategory, queryRunner.manager.create(ProductCategory, {
+        name: 'Cat Iso ' + ts,
+        code: 'C-ISO-' + ts,
+      }));
+      const family = await queryRunner.manager.save(ProductFamily, queryRunner.manager.create(ProductFamily, {
+        name: 'Fam Iso ' + ts,
+        code: 'F-ISO-' + ts,
+        categoryId: category.id,
+      }));
       baseProduct1 = await queryRunner.manager.save(Product, queryRunner.manager.create(Product, {
-        name: 'Product 1',
-        partNumber: 'P1',
+        name: 'Product 1 ' + ts,
+        partNumber: 'P1_' + ts,
         familyId: family.id,
       }));
       baseProduct2 = await queryRunner.manager.save(Product, queryRunner.manager.create(Product, {
-        name: 'Product 2',
-        partNumber: 'P2',
+        name: 'Product 2 ' + ts,
+        partNumber: 'P2_' + ts,
         familyId: family.id,
       }));
 
-      const warehouse = await queryRunner.manager.save(Warehouse, queryRunner.manager.create(Warehouse, { name: 'WH Iso', code: 'W-ISO' }));
-      const location = await queryRunner.manager.save(WarehouseLocation, queryRunner.manager.create(WarehouseLocation, { name: 'Loc Iso', code: 'L-ISO', warehouseId: warehouse.id }));
-      const rack = await queryRunner.manager.save(Rack, queryRunner.manager.create(Rack, { name: 'Rack Iso', code: 'Rack Iso', locationId: location.id }));
-      baseBin1 = await queryRunner.manager.save(Bin, queryRunner.manager.create(Bin, { name: 'Bin 1', code: 'Bin 1', rackId: rack.id }));
+      const warehouse = await queryRunner.manager.save(Warehouse, queryRunner.manager.create(Warehouse, {
+        name: 'WH Iso ' + ts,
+        code: 'W-ISO-' + ts,
+      }));
+      const location = await queryRunner.manager.save(WarehouseLocation, queryRunner.manager.create(WarehouseLocation, {
+        name: 'Loc Iso ' + ts,
+        code: 'L-ISO-' + ts,
+        warehouseId: warehouse.id,
+      }));
+      const rack = await queryRunner.manager.save(Rack, queryRunner.manager.create(Rack, {
+        name: 'Rack Iso ' + ts,
+        code: 'R-ISO-' + ts,
+        locationId: location.id,
+      }));
+      baseBin1 = await queryRunner.manager.save(Bin, queryRunner.manager.create(Bin, {
+        name: 'Bin 1 ' + ts,
+        code: 'B-ISO-' + ts,
+        rackId: rack.id,
+      }));
 
       await queryRunner.manager.save(StockBalance, queryRunner.manager.create(StockBalance, {
         productId: baseProduct1.id,
@@ -135,17 +178,17 @@ describe('Phase 13.6 SC Isolation Hardening (e2e)', () => {
     }
   };
 
-  const createScAndRm = async (scNumber: string, productId: string) => {
+  const createScAndRm = async (scPrefix: string, productId: string) => {
     const queryRunner = dataSource.createQueryRunner();
     await queryRunner.connect();
     let sc: SalesOrderComponent, rmRequest: RmRequest, rmItem: RmItem;
+    const uniqueScNumber = `${scPrefix}_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
     try {
-      const po = await queryRunner.manager.findOneBy(PurchaseOrder, { poNumber: 'PO-ISO' });
       const user = await queryRunner.manager.findOneBy(User, { email: 'admin_iso@example.com' });
-      
+
       sc = await queryRunner.manager.save(SalesOrderComponent, queryRunner.manager.create(SalesOrderComponent, {
-        scNumber,
-        poId: po!.id,
+        scNumber: uniqueScNumber,
+        poId: basePo.id,
         status: ScStatus.STORES_PENDING,
         productName: 'ProdName',
         description: 'Test SC',
@@ -157,7 +200,7 @@ describe('Phase 13.6 SC Isolation Hardening (e2e)', () => {
         scId: sc.id,
         status: RmRequestStatus.REVIEWED,
         createdById: user!.id,
-        requestNumber: `RM-${scNumber}`,
+        requestNumber: `RM-${uniqueScNumber}`,
         requestedById: user!.id,
       }));
 
