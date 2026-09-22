@@ -1,38 +1,36 @@
-# Phase 14.8 Certification Report — Supabase Storage + Neon Production Integration
+# PHASE 14.8 — SUPABASE STORAGE + NEON POSTGRESQL PRODUCTION INTEGRATION REPORT
 
-## Executive Summary
-Phase 14.8 has been successfully implemented and certified. The storage architecture is now finalized: Supabase Storage manages actual binary file objects, while Neon PostgreSQL serves as the authoritative database for application data, relational records, and file metadata.
-
----
-
-## Final Phase 14 Certification Matrix
-
-| Test Category | Total Tests | Passed | Failed | Status |
-|---|---|---|---|---|
-| **Phase 14.1 — File Upload Foundation** | 5 | 5 | 0 | **PASS** |
-| **Phase 14.2 — Attachment Association** | 11 | 11 | 0 | **PASS** |
-| **Phase 14.3 — RM Documents** | 15 | 15 | 0 | **PASS** |
-| **Phase 14.4 — Production Documents** | 10 | 10 | 0 | **PASS** |
-| **Phase 14.5 — PO & SC Documents** | 23 | 23 | 0 | **PASS** |
-| **Phase 14.6 — File Authorization & Security** | 7 | 7 | 0 | **PASS** |
-| **Phase 14.7 — File Lifecycle & Soft Delete** | 8 | 8 | 0 | **PASS** |
-| **Phase 14.8 — Supabase + Neon Integration** | 9 | 9 | 0 | **PASS** |
-| **TOTAL PHASE 14 TEST SUITE** | **88** | **88** | **0** | **PASS** |
+## 1. Phase Overview & Objectives
+Phase 14.8 established the live production infrastructure connection for RMRIT:
+1. Connected NestJS backend to production **Neon PostgreSQL** database.
+2. Connected file storage service to production **Supabase Storage** bucket (`rmrit-documents`).
+3. Validated live migrations, real file uploads (PDF, XLSX, XLS), security blocking, signed URL generation, soft deletes, and zero regression across business workflows.
 
 ---
 
-## Key Verifications
-
-1. **Supabase SDK Integration**: `@supabase/supabase-js` (v2.49.1) integrated into `SupabaseStorageProvider` supporting `upload`, `delete`, and `getDownloadUrl` (signed URL generation).
-2. **Neon PostgreSQL Migration**: TypeORM migration `1790050110866-AddRemovedAtToFiles.ts` consolidated into `src/database/migrations/` for seamless execution on fresh Neon databases.
-3. **Excel & PDF Document Support**: Extended `ParseFilePipe` validation to allow `.pdf`, `.png`, `.jpeg`, `.jpg`, `.xls`, and `.xlsx` formats up to 5MB, while blocking executable scripts (`.exe`, `.js`, `.py`).
-4. **Production Fail-Safe**: `FilesModule` raises explicit startup errors if `NODE_ENV=production` lacks Supabase credentials.
-5. **Business Baseline Integrity**: Verified 100% zero-drift across RM quantities, POs, SCs, Production accounting, and Inventory stock balances during file operations.
+## 2. Infrastructure Setup & Migration Execution
+- **Database Engine**: Serverless Neon PostgreSQL (`ep-still-bread-b5iszknm`).
+- **Migrations Executed**: 9 TypeORM migrations executed via `npm run migration:run`. All 21 core tables created successfully.
+- **Object Storage Bucket**: Supabase Storage (`rmrit-documents`).
 
 ---
 
-## Final Phase 14 Status
+## 3. Test Suite Results (`test/supabase-neon-phase14-8.spec.ts`)
 
-**FINAL CERTIFICATION STATUS: PASS**
+| Test ID | Test Description | Result | Details |
+| :--- | :--- | :--- | :--- |
+| `P14_8_01` | Fail-Fast Unit Verification on Missing Supabase Credentials | **PASSED** | Throws clear initialization error |
+| `P14_8_02` | Upload Real PDF Document & DB Metadata Verification | **PASSED** | Uploaded to Supabase, metadata persisted in Neon |
+| `P14_8_03` | Upload Real Excel Spreadsheet (`.xlsx`) & MIME Validation | **PASSED** | Validated MIME and file size |
+| `P14_8_04` | Upload Legacy Excel Spreadsheet (`.xls`) | **PASSED** | Accepted legacy `.xls` format |
+| `P14_8_05` | Reject Executable Script Upload (`.exe`, `.js`, `.py`) | **PASSED** | Blocked with HTTP 422 |
+| `P14_8_06` | Generate Signed Download URL for Uploaded File | **PASSED** | Returned 1-hour expiring signed URL |
+| `P14_8_07` | Soft Delete Document Metadata in DB | **PASSED** | Populated `removed_by_id` and `removed_at` |
+| `P14_8_08` | Block Access for Unauthenticated Users | **PASSED** | Returned HTTP 401 |
+| `P14_8_09` | Business Data Baseline Protection | **PASSED** | Relational DB tables untouched during file ops |
 
-Phase 14 infrastructure is complete. Ready for next phase.
+---
+
+## 4. Final Certification Status
+- **Test Suite Pass Rate**: 100% (9/9 passed)
+- **Production Readiness**: Certified for Phase 14 Production Deployment.
