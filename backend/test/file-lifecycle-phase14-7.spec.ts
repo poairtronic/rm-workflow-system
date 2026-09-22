@@ -56,7 +56,8 @@ describe('Phase 14.7 - File Lifecycle (e2e)', () => {
       const createRole = async (name: UserRole) => {
         let role = await queryRunner.manager.findOneBy<{ id: string; name: string }>('roles', { name });
         if (!role) {
-          role = await queryRunner.manager.save('roles', { name, description: name });
+          const ins = await queryRunner.manager.query(`INSERT INTO roles (name, description) VALUES ($1, $1) RETURNING id, name`, [name]);
+          role = ins[0];
         }
         return role;
       };
@@ -78,8 +79,8 @@ describe('Phase 14.7 - File Lifecycle (e2e)', () => {
         return user;
       };
 
-      adminUser = await createUser('admin_lifecycle@example.com', roleAdmin!.id);
-      designerUser = await createUser('designer_lifecycle@example.com', roleDesigner!.id);
+      adminUser = await createUser('admin_lifecycle@example.com', roleAdmin.id);
+      designerUser = await createUser('designer_lifecycle@example.com', roleDesigner.id);
 
       adminToken = jwtService.sign({ sub: adminUser.id, email: adminUser.email, role: UserRole.ADMIN, roles: [UserRole.ADMIN] });
       designerToken = jwtService.sign({ sub: designerUser.id, email: designerUser.email, role: UserRole.DESIGNER, roles: [UserRole.DESIGNER] });
@@ -121,8 +122,8 @@ describe('Phase 14.7 - File Lifecycle (e2e)', () => {
         grade: '304',
         size: '1mm',
         length: 2,
-        unit: 'pcs',
-        quantity: '100',
+        weightUnit: 'pcs',
+        quantity: 100,
       });
       await queryRunner.manager.save(rmItem1);
 
@@ -263,9 +264,9 @@ describe('Phase 14.7 - File Lifecycle (e2e)', () => {
     it('LFC-8: Unauthorized remove blocked', async () => {
       // Try to remove unattached fileC as un-authorized token (non-creator, non-admin)
       // Actually we'll create a new token for stores to try and delete designer's file
-      const roleStores = await dataSource.getRepository('Role').findOneBy({ name: UserRole.STORES });
-      const storesUser = await dataSource.getRepository(User).findOneBy({ roleId: roleStores.id });
-      const storesToken = jwtService.sign({ sub: storesUser.id, email: storesUser.email, role: UserRole.STORES, roles: [UserRole.STORES] });
+      const roleStores = await dataSource.getRepository<{ id: string; name: string }>('roles').findOneBy({ name: UserRole.STORES });
+      const storesUser = await dataSource.getRepository(User).findOneBy({ roleId: roleStores?.id });
+      const storesToken = jwtService.sign({ sub: storesUser?.id, email: storesUser?.email, role: UserRole.STORES, roles: [UserRole.STORES] });
 
       await request(app.getHttpServer())
         .delete(`/api/files/${fileC.id}`)
