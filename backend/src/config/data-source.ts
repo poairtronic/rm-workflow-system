@@ -1,4 +1,27 @@
 import 'dotenv/config';
+import dns from 'node:dns';
+
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch {
+  // Use default OS DNS servers if setServers is restricted
+}
+
+const originalLookup = dns.lookup;
+(dns as any).lookup = (hostname: string, options: any, callback: any) => {
+  let cb = callback;
+  let opts = options;
+  if (typeof options === 'function') {
+    cb = options;
+    opts = {};
+  }
+  if (hostname && hostname.includes('neon.tech')) {
+    const forcedOpts = typeof opts === 'object' && opts !== null ? { ...opts, family: 4 } : { family: 4 };
+    return originalLookup(hostname, forcedOpts, cb);
+  }
+  return originalLookup(hostname, opts, cb);
+};
+
 import { DataSource } from 'typeorm';
 import { Role } from '../roles/entities/role.entity.js';
 import { User } from '../users/entities/user.entity.js';
@@ -32,6 +55,7 @@ import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import { StockTransaction } from '../inventory/entities/stock-transaction.entity.js';
 import { UploadedFile } from '../files/entities/uploaded-file.entity.js';
 import { Attachment } from '../attachments/entities/attachment.entity.js';
+import { EmailJob } from '../email/entities/email-job.entity.js';
 
 export const ALL_ENTITIES = [
   Role,
@@ -66,6 +90,7 @@ export const ALL_ENTITIES = [
   StockTransaction,
   UploadedFile,
   Attachment,
+  EmailJob,
 ];
 
 const dbUrl =

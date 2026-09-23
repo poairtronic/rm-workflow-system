@@ -24,6 +24,7 @@ import { InventoryModule } from './inventory/inventory.module.js';
 import { MasterDataModule } from './master-data/master-data.module.js';
 import { FilesModule } from './files/files.module.js';
 import { AttachmentsModule } from './attachments/attachments.module.js';
+import { EmailModule } from './email/email.module.js';
 
 @Module({
   imports: [
@@ -75,6 +76,7 @@ import { AttachmentsModule } from './attachments/attachments.module.js';
     MasterDataModule,
     FilesModule,
     AttachmentsModule,
+    EmailModule,
   ],
 
   controllers: [AppController],
