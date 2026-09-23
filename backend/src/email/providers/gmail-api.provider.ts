@@ -98,17 +98,20 @@ export class GmailApiProvider implements IEmailProvider {
    * Constructs an RFC 2822 compliant MIME message string.
    */
   public buildMimeMessage(message: EmailDeliveryMessage): string {
-    const sender = this.senderEmail || 'me';
-    const recipient = message.recipientName
-      ? `"${message.recipientName.replace(/"/g, '')}" <${message.to}>`
-      : message.to;
+    const sanitizeHeader = (val?: string) => (val ? val.replace(/[\r\n]+/g, ' ').trim() : '');
+
+    const sender = sanitizeHeader(this.senderEmail || 'me');
+    const safeTo = sanitizeHeader(message.to);
+    const safeName = message.recipientName ? sanitizeHeader(message.recipientName.replace(/"/g, '')) : '';
+    const recipient = safeName ? `"${safeName}" <${safeTo}>` : safeTo;
+    const safeSubject = sanitizeHeader(message.subject);
 
     const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
 
     const lines: string[] = [
       `From: ${sender}`,
       `To: ${recipient}`,
-      `Subject: ${message.subject}`,
+      `Subject: ${safeSubject}`,
       `MIME-Version: 1.0`,
       `Content-Type: multipart/alternative; boundary="${boundary}"`,
       ``,

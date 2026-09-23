@@ -15,15 +15,50 @@ export class EmailQueueService {
 
   /**
    * Enqueues a new email job transactionally into Neon PostgreSQL.
+   * Enforces recipient validation, header injection protection, and server-managed state.
    */
   async enqueueJob(jobData: Partial<EmailJob>): Promise<EmailJob> {
+    const rawRecipient = (jobData.recipientEmail || '').trim();
+
+    // Recipient Validation & Header Injection Protection
+    if (
+      !rawRecipient ||
+      rawRecipient.includes('\r') ||
+      rawRecipient.includes('\n') ||
+      rawRecipient.includes(',') ||
+      rawRecipient.includes(';') ||
+      !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(rawRecipient)
+    ) {
+      throw new Error(`Invalid or malformed recipient email address: "${jobData.recipientEmail}"`);
+    }
+
+    const sanitizedSubject = jobData.subject
+      ? jobData.subject.replace(/[\r\n]+/g, ' ').trim()
+      : jobData.subject;
+
+    const sanitizedRecipientName = jobData.recipientName
+      ? jobData.recipientName.replace(/[\r\n]+/g, ' ').replace(/"/g, '').trim()
+      : jobData.recipientName;
+
+    const idempotencyKey = jobData.idempotencyKey || `job_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
     const job = this.emailJobRepository.create({
+      ...jobData,
+      idempotencyKey,
+      recipientEmail: rawRecipient,
+      subject: sanitizedSubject,
+      recipientName: sanitizedRecipientName,
+      // Security hardening: enforce server-authoritative initial state
       status: EmailJobStatus.PENDING,
       attempts: 0,
       maxAttempts: jobData.maxAttempts ?? 3,
       priority: jobData.priority ?? 100,
-      provider: jobData.provider ?? EmailProvider.GMAIL_API,
-      ...jobData,
+      provider: EmailProvider.GMAIL_API,
+      lockedAt: null,
+      lockedBy: null,
+      sentAt: null,
+      providerMessageId: null,
+      lastError: null,
     });
 
     return await this.emailJobRepository.save(job);
