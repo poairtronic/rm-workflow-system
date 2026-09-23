@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -18,6 +19,7 @@ import { CreateRmDto, CreateRmItemDto, SubmitRmDto } from './dto/rm.dto.js';
 import { StoresReviewRmDto } from './dto/stores-review.dto.js';
 import { QuantityCalculator } from '../common/utils/quantity-calculator.js';
 import { StateMachineValidator } from '../common/utils/state-machine-validator.js';
+import { WorkflowNotificationService } from '../notifications/workflow-notification.service.js';
 
 @Injectable()
 export class RmService {
@@ -29,6 +31,8 @@ export class RmService {
     @InjectRepository(SalesOrderComponent)
     private readonly scRepo: Repository<SalesOrderComponent>,
     private readonly dataSource: DataSource,
+    @Optional()
+    private readonly workflowNotificationService?: WorkflowNotificationService,
   ) {}
 
   async createRm(dto: CreateRmDto, actorId: string) {
@@ -135,6 +139,18 @@ export class RmService {
 
       await queryRunner.manager.save(RmRequest, rm);
       await queryRunner.commitTransaction();
+
+      if (this.workflowNotificationService) {
+        try {
+          await this.workflowNotificationService.notifyRmSubmitted({
+            id: rm.id,
+            rmNumber: rm.salesOrderComponent?.scNumber || rm.id,
+            createdById: rm.createdById,
+          });
+        } catch (err) {
+          // Notification side effect failure should not roll back completed submission
+        }
+      }
 
       return this.findOne(rmId);
     } catch (error) {

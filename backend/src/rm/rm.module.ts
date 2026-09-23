@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 import { RmRequest } from './entities/rm-request.entity.js';
 import { RmItem } from './entities/rm-item.entity.js';
 import { RmFormSc } from './entities/rm-form-sc.entity.js';
@@ -21,6 +22,7 @@ import { FilesModule } from '../files/files.module.js';
       SalesOrderComponent,
     ]),
     AuthModule,
+    NotificationsModule,
     forwardRef(() => AttachmentsModule),
     FilesModule,
   ],

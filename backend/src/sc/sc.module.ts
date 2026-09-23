@@ -11,6 +11,7 @@ import { ProductionModule } from '../production/production.module.js';
 import { AdditionalRequestModule } from '../additional-request/additional-request.module.js';
 import { AttachmentsModule } from '../attachments/attachments.module.js';
 import { FilesModule } from '../files/files.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 import { forwardRef } from '@nestjs/common';
 import { ScDocumentsController } from './sc-documents.controller.js';
 
@@ -22,6 +23,7 @@ import { ScDocumentsController } from './sc-documents.controller.js';
     AdditionalRequestModule,
     forwardRef(() => AttachmentsModule),
     FilesModule,
+    NotificationsModule,
   ],
   controllers: [ScController, ScDocumentsController],
   providers: [ScService],

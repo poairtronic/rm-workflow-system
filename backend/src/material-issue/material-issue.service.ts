@@ -22,6 +22,7 @@ import {
 import { CreateMaterialIssueDto } from './dto/material-issue.dto.js';
 import { QuantityCalculator } from '../common/utils/quantity-calculator.js';
 import { StateMachineValidator } from '../common/utils/state-machine-validator.js';
+import { WorkflowNotificationService } from '../notifications/workflow-notification.service.js';
 
 @Injectable()
 export class MaterialIssueService {
@@ -37,6 +38,7 @@ export class MaterialIssueService {
     @InjectRepository(Bin)
     private readonly binRepo: Repository<Bin>,
     private readonly dataSource: DataSource,
+    private readonly workflowNotificationService: WorkflowNotificationService,
   ) {}
 
   async createIssue(dto: CreateMaterialIssueDto, actorId: string) {
@@ -193,6 +195,17 @@ export class MaterialIssueService {
       await queryRunner.manager.save(SalesOrderComponent, sc);
 
       await queryRunner.commitTransaction();
+
+      // Post-commit notification for MATERIAL_ISSUED
+      try {
+        await this.workflowNotificationService.notifyMaterialIssued({
+          id: savedIssue.id,
+          scId: dto.scId,
+          rmNumber: sc.scNumber,
+        });
+      } catch (notifyErr: any) {
+        console.error('Workflow notification for MATERIAL_ISSUED failed post-commit:', notifyErr);
+      }
 
       return this.findOne(savedIssue.id);
     } catch (error: any) {

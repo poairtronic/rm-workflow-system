@@ -116,4 +116,28 @@ export class EmailAuditService {
       order: { attemptedAt: 'DESC' },
     });
   }
+
+  async logAttempt(params: {
+    emailJobId: string;
+    recipientEmail: string;
+    subject: string;
+    provider: EmailProvider;
+    status: any;
+    providerMessageId?: string;
+    errorMessage?: string;
+  }): Promise<EmailLog> {
+    const logEntry = this.emailLogRepository.create({
+      jobId: params.emailJobId,
+      eventType: 'LOG_ATTEMPT',
+      recipientEmail: params.recipientEmail,
+      subject: params.subject,
+      provider: params.provider,
+      attempt: 1,
+      status: params.status,
+      providerMessageId: params.providerMessageId,
+      errorMessage: params.errorMessage,
+      attemptedAt: new Date(),
+    });
+    return await this.emailLogRepository.save(logEntry);
+  }
 }

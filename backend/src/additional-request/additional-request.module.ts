@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 import { AdditionalRequestController } from './additional-request.controller.js';
 import { AdditionalRequestService } from './additional-request.service.js';
 import { AdditionalMaterialRequest } from './entities/additional-request.entity.js';
@@ -17,6 +18,7 @@ import { RmItem } from '../rm/entities/rm-item.entity.js';
       RmItem,
     ]),
     AuthModule,
+    NotificationsModule,
   ],
   controllers: [AdditionalRequestController],
   providers: [AdditionalRequestService],

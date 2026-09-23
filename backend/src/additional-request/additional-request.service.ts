@@ -15,6 +15,7 @@ import { AdditionalMaterialRequestItem } from './entities/additional-request-ite
 import { SalesOrderComponent, ScStatus } from '../sc/entities/sc.entity.js';
 import { RmItem } from '../rm/entities/rm-item.entity.js';
 import { CreateAdditionalRequestDto } from './dto/additional-request.dto.js';
+import { WorkflowNotificationService } from '../notifications/workflow-notification.service.js';
 
 @Injectable()
 export class AdditionalRequestService {
@@ -27,6 +28,7 @@ export class AdditionalRequestService {
     private readonly scRepo: Repository<SalesOrderComponent>,
     @InjectRepository(RmItem)
     private readonly rmItemRepo: Repository<RmItem>,
+    private readonly workflowNotificationService: WorkflowNotificationService,
   ) {}
 
   async createRequest(dto: CreateAdditionalRequestDto, actorId: string) {
@@ -94,6 +96,18 @@ export class AdditionalRequestService {
       await queryRunner.manager.save(SalesOrderComponent, sc);
 
       await queryRunner.commitTransaction();
+
+      // Post-commit notification for ADDITIONAL_REQUEST
+      try {
+        await this.workflowNotificationService.notifyAdditionalRequest({
+          id: savedRequest.id,
+          scId: dto.scId,
+          rmNumber: sc.scNumber,
+          requestedById: actorId,
+        });
+      } catch (notifyErr: any) {
+        console.error('Workflow notification for ADDITIONAL_REQUEST failed post-commit:', notifyErr);
+      }
 
       // CRITICAL: Additional material request DOES NOT alter inventory stock
       return this.findOne(savedRequest.id);

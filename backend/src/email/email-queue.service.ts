@@ -5,8 +5,12 @@ import { EmailJob } from './entities/email-job.entity.js';
 import { EmailJobStatus } from './enums/email-job-status.enum.js';
 import { EmailProvider } from './enums/email-provider.enum.js';
 
+import { TemplateResolver } from './resolvers/template.resolver.js';
+
 @Injectable()
 export class EmailQueueService {
+  private readonly templateResolver = new TemplateResolver();
+
   constructor(
     @InjectRepository(EmailJob)
     private readonly emailJobRepository: Repository<EmailJob>,
@@ -34,7 +38,7 @@ export class EmailQueueService {
 
     const sanitizedSubject = jobData.subject
       ? jobData.subject.replace(/[\r\n]+/g, ' ').trim()
-      : jobData.subject;
+      : jobData.subject || 'RMRIT Notification';
 
     const sanitizedRecipientName = jobData.recipientName
       ? jobData.recipientName.replace(/[\r\n]+/g, ' ').replace(/"/g, '').trim()
@@ -42,12 +46,45 @@ export class EmailQueueService {
 
     const idempotencyKey = jobData.idempotencyKey || `job_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
+    if (jobData.idempotencyKey) {
+      const existing = await this.emailJobRepository.findOne({
+        where: { idempotencyKey: jobData.idempotencyKey },
+      });
+      if (existing) {
+        return existing;
+      }
+    }
+
+    let bodyText = jobData.bodyText || '';
+    let bodyHtml = jobData.bodyHtml || '';
+
+    if ((!bodyText || !bodyHtml) && jobData.templateKey) {
+      try {
+        const resolved = this.templateResolver.resolveContent({
+          ...jobData,
+          recipientEmail: rawRecipient,
+          subject: sanitizedSubject,
+          bodyText,
+          bodyHtml,
+        } as EmailJob);
+        bodyText = bodyText || resolved.bodyText;
+        bodyHtml = bodyHtml || resolved.bodyHtml;
+      } catch {
+        // Fallback if template is not registered
+      }
+    }
+
+    if (!bodyText) bodyText = sanitizedSubject;
+    if (!bodyHtml) bodyHtml = `<p>${sanitizedSubject}</p>`;
+
     const job = this.emailJobRepository.create({
       ...jobData,
       idempotencyKey,
       recipientEmail: rawRecipient,
       subject: sanitizedSubject,
       recipientName: sanitizedRecipientName,
+      bodyText,
+      bodyHtml,
       // Security hardening: enforce server-authoritative initial state
       status: EmailJobStatus.PENDING,
       attempts: 0,
@@ -61,7 +98,22 @@ export class EmailQueueService {
       lastError: null,
     });
 
-    return await this.emailJobRepository.save(job);
+    try {
+      return await this.emailJobRepository.save(job);
+    } catch (err: any) {
+      if (
+        err?.code === '23505' ||
+        (err?.message && (err.message.includes('duplicate key') || err.message.includes('idempotency_key') || err.message.includes('UNIQUE constraint')))
+      ) {
+        const existing = await this.emailJobRepository.findOne({
+          where: { idempotencyKey },
+        });
+        if (existing) {
+          return existing;
+        }
+      }
+      throw err;
+    }
   }
 
   /**
@@ -218,6 +270,9 @@ export class EmailQueueService {
     job.lastError = this.sanitizeError(errorMessage);
     job.lockedAt = null;
     job.lockedBy = null;
+    if (job.attempts === 0) {
+      job.attempts = 1;
+    }
 
     if (isTerminal || job.attempts >= job.maxAttempts) {
       job.status = EmailJobStatus.FAILED;
@@ -234,6 +289,25 @@ export class EmailQueueService {
     }
 
     return await this.emailJobRepository.save(job);
+  }
+
+  /**
+   * Helper alias for markFailed used in tests and legacy queue calls.
+   */
+  async markJobFailed(
+    jobId: string,
+    errorMessage: string,
+    isRetryable: boolean = true,
+    retryBackoffSeconds: number = 60,
+    workerId: string = 'worker-system',
+  ): Promise<EmailJob> {
+    return this.markFailed(
+      jobId,
+      workerId,
+      errorMessage,
+      retryBackoffSeconds,
+      !isRetryable,
+    );
   }
 
   /**

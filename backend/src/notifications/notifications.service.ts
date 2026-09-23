@@ -26,7 +26,11 @@ export class NotificationsService {
     if (!setting) {
       return true;
     }
-    return setting.value !== 'false';
+    const val = setting.value as any;
+    if (val === false || val === 'false' || val === 'f' || val === 0 || val === '0') {
+      return false;
+    }
+    return true;
   }
 
   async setGlobalWorkflowEmailEnabled(
@@ -62,7 +66,11 @@ export class NotificationsService {
     if (!pref) {
       return true;
     }
-    return pref.workflowEmailEnabled;
+    const val = pref.workflowEmailEnabled as any;
+    if (val === false || val === 'false' || val === 'f' || val === 0 || val === '0') {
+      return false;
+    }
+    return true;
   }
 
   async setUserWorkflowEmailEnabled(
@@ -103,5 +111,9 @@ export class NotificationsService {
       return true;
     }
     return this.isWorkflowEmailAllowed(userId);
+  }
+
+  async isSecurityEmailAllowed(userId?: string): Promise<boolean> {
+    return this.shouldSendEmail('SECURITY', userId);
   }
 }

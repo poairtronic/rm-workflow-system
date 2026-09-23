@@ -13,6 +13,7 @@ import { ProductionService } from '../production/production.service.js';
 import { AdditionalRequestService } from '../additional-request/additional-request.service.js';
 import { AdditionalRequestStatus } from '../additional-request/entities/additional-request.entity.js';
 import { ReturnStatus } from '../production/entities/material-return.entity.js';
+import { WorkflowNotificationService } from '../notifications/workflow-notification.service.js';
 
 @Injectable()
 export class ScService {
@@ -23,6 +24,7 @@ export class ScService {
     private readonly poRepo: Repository<PurchaseOrder>,
     private readonly productionService: ProductionService,
     private readonly additionalRequestService: AdditionalRequestService,
+    private readonly workflowNotificationService: WorkflowNotificationService,
   ) {}
 
   async createSc(dto: CreateScDto) {
@@ -197,6 +199,16 @@ export class ScService {
 
       await queryRunner.manager.save(SalesOrderComponent, sc);
       await queryRunner.commitTransaction();
+
+      // Post-commit notification for SC_COMPLETED
+      try {
+        await this.workflowNotificationService.notifyScCompleted({
+          id: sc.id,
+          scNumber: sc.scNumber,
+        });
+      } catch (notifyErr: any) {
+        console.error('Workflow notification for SC_COMPLETED failed post-commit:', notifyErr);
+      }
 
       return this.findOne(id);
     } catch (error) {
