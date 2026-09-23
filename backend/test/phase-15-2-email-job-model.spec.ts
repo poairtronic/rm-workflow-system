@@ -38,7 +38,8 @@ describe('Phase 15.2 Email Job Database Model Specification', () => {
   });
 
   beforeEach(async () => {
-    // Clean up test email jobs created during testing
+    // Clean up test email logs and email jobs created during testing
+    await dataSource.query(`DELETE FROM "email_logs"`);
     await dataSource.query(`DELETE FROM "email_jobs" WHERE idempotency_key LIKE 'TEST_%' OR idempotency_key LIKE 'test_%'`);
   });
 

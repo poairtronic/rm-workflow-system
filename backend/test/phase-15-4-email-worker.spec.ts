@@ -48,6 +48,7 @@ describe('Phase 15.4 Email Worker Specification (W001–W022)', () => {
   beforeEach(async () => {
     workerService.stop();
     testProvider.reset();
+    await dataSource.query(`DELETE FROM "email_logs"`);
     await dataSource.query(`DELETE FROM "email_jobs"`);
   });
 

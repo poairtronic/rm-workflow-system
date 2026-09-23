@@ -70,6 +70,7 @@ describe('Phase 15.6 — Retry / Failure Handling Specification (R001–R052)', 
   beforeEach(async () => {
     mockProvider.mockHandler = undefined;
     workerService.start(false);
+    await dataSource.query(`DELETE FROM "email_logs"`);
     await dataSource.query(`DELETE FROM "email_jobs"`);
   });
 

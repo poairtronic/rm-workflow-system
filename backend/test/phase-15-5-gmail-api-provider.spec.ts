@@ -70,6 +70,7 @@ describe('Phase 15.5 Gmail API Provider Specification (G001–G040)', () => {
   });
 
   beforeEach(async () => {
+    await dataSource.query(`DELETE FROM "email_logs"`);
     await dataSource.query(`DELETE FROM "email_jobs"`);
   });
 

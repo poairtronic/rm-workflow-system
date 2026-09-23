@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EmailQueueService } from './email-queue.service.js';
+import { EmailAuditService } from './email-audit.service.js';
 import { TemplateResolver, MalformedJobException } from './resolvers/template.resolver.js';
 import {
   type IEmailProvider,
@@ -15,6 +16,7 @@ import {
   EmailDeliveryMessage,
 } from './interfaces/email-provider.interface.js';
 import { EmailJob } from './entities/email-job.entity.js';
+import { EmailJobStatus } from './enums/email-job-status.enum.js';
 import * as os from 'node:os';
 
 @Injectable()
@@ -43,6 +45,8 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
     private readonly emailProvider: IEmailProvider,
     @Optional()
     private readonly configService?: ConfigService,
+    @Optional()
+    private readonly auditService?: EmailAuditService,
   ) {
     const customWorkerId = this.configService?.get<string>('EMAIL_WORKER_ID');
     const hostname = os.hostname() || 'localhost';
@@ -243,6 +247,16 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
           this.workerId,
           result.providerMessageId,
         );
+        if (this.auditService) {
+          await this.auditService.recordAttempt(
+            job,
+            job.attempts,
+            EmailJobStatus.SENT,
+            result.providerMessageId,
+            null,
+            null,
+          );
+        }
         this.logger.log(`Successfully sent EmailJob ${job.id} (providerMsgId: ${result.providerMessageId || 'N/A'})`);
       } else {
         const isRetryable = result.retryable !== false;
@@ -257,6 +271,20 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
           isTerminal,
           this.maxRetryBackoffSeconds,
         );
+
+        if (this.auditService) {
+          const auditStatus = (isTerminal || job.attempts >= job.maxAttempts)
+            ? EmailJobStatus.FAILED
+            : EmailJobStatus.RETRYING;
+          await this.auditService.recordAttempt(
+            job,
+            job.attempts,
+            auditStatus,
+            null,
+            errorMsg,
+            null,
+          );
+        }
 
         if (isTerminal) {
           this.logger.warn(`EmailJob ${job.id} permanently failed: ${errorMsg}`);
@@ -278,6 +306,20 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
         isMalformed,
         this.maxRetryBackoffSeconds,
       );
+
+      if (this.auditService) {
+        const auditStatus = (isMalformed || job.attempts >= job.maxAttempts)
+          ? EmailJobStatus.FAILED
+          : EmailJobStatus.RETRYING;
+        await this.auditService.recordAttempt(
+          job,
+          job.attempts,
+          auditStatus,
+          null,
+          errorMsg,
+          isMalformed ? 'MALFORMED_JOB' : 'RUNTIME_ERROR',
+        );
+      }
 
       this.logger.error(
         `Failed processing EmailJob ${job.id} (${isMalformed ? 'MALFORMED/TERMINAL' : 'RUNTIME_ERROR'}): ${errorMsg}`,

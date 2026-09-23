@@ -2,7 +2,9 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EmailJob } from './entities/email-job.entity.js';
+import { EmailLog } from './entities/email-log.entity.js';
 import { EmailQueueService } from './email-queue.service.js';
+import { EmailAuditService } from './email-audit.service.js';
 import { TemplateResolver } from './resolvers/template.resolver.js';
 import { TestEmailProvider } from './providers/test-email.provider.js';
 import { GmailApiProvider } from './providers/gmail-api.provider.js';
@@ -10,9 +12,10 @@ import { EMAIL_PROVIDER } from './interfaces/email-provider.interface.js';
 import { EmailWorkerService } from './email-worker.service.js';
 
 @Module({
-  imports: [ConfigModule, TypeOrmModule.forFeature([EmailJob])],
+  imports: [ConfigModule, TypeOrmModule.forFeature([EmailJob, EmailLog])],
   providers: [
     EmailQueueService,
+    EmailAuditService,
     TemplateResolver,
     TestEmailProvider,
     GmailApiProvider,
@@ -41,6 +44,7 @@ import { EmailWorkerService } from './email-worker.service.js';
   exports: [
     TypeOrmModule,
     EmailQueueService,
+    EmailAuditService,
     TemplateResolver,
     TestEmailProvider,
     GmailApiProvider,

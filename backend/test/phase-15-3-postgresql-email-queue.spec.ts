@@ -48,7 +48,8 @@ describe('Phase 15.3 PostgreSQL Email Queue Specification (Q001–Q022)', () => 
   });
 
   beforeEach(async () => {
-    // Clean up email_jobs table to avoid cross-test contamination
+    // Clean up email_logs and email_jobs table to avoid cross-test contamination
+    await dataSource.query(`DELETE FROM "email_logs"`);
     await dataSource.query(`DELETE FROM "email_jobs"`);
   });
 
