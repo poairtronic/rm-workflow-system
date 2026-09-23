@@ -313,10 +313,10 @@ describe('Phase 15.10 — Workflow Email Integration Specification (W001–W058)
 
     expect(jobs.length).toBeGreaterThan(0);
 
-    const storesJob = jobs.find((j) => j.recipientUserId === storesUser.id);
-    expect(storesJob).toBeDefined();
-    expect(storesJob?.eventType).toBe('SC_COMPLETED');
-    expect(storesJob?.templateKey).toBe('WORKFLOW_SC_COMPLETED');
+    const designerJob = jobs.find((j) => j.recipientUserId === designerUser.id);
+    expect(designerJob).toBeDefined();
+    expect(designerJob?.eventType).toBe('SC_COMPLETED');
+    expect(designerJob?.templateKey).toBe('WORKFLOW_SC_COMPLETED');
   });
 
   // W017
@@ -331,19 +331,19 @@ describe('Phase 15.10 — Workflow Email Integration Specification (W001–W058)
 
   // W018
   it('W018: SC_COMPLETED respects user preference', async () => {
-    await notificationsService.setUserWorkflowEmailEnabled(storesUser.id, false);
+    await notificationsService.setUserWorkflowEmailEnabled(designerUser.id, false);
 
     const eventId = `test-sc-comp-user-off-${Date.now()}`;
     const jobs = await workflowNotificationService.notifyScCompleted({ id: eventId, scNumber: 'SC-003', designerUserId: designerUser.id });
 
-    const storesJob = jobs.find((j) => j.recipientUserId === storesUser.id);
-    expect(storesJob).toBeUndefined();
+    const designerJob = jobs.find((j) => j.recipientUserId === designerUser.id);
+    expect(designerJob).toBeUndefined();
   });
 
   // W019
   it('W019: SC_COMPLETED only occurs after successful completion', async () => {
     const eventId = `test-sc-comp-tx-${Date.now()}`;
-    const jobKey = `SC_COMPLETED:${eventId}:${storesUser.id}`;
+    const jobKey = `SC_COMPLETED:${eventId}:${designerUser.id}`;
 
     const beforeJob = await emailJobRepo.findOne({ where: { idempotencyKey: jobKey } });
     expect(beforeJob).toBeNull();
@@ -359,10 +359,10 @@ describe('Phase 15.10 — Workflow Email Integration Specification (W001–W058)
     const jobsFirst = await workflowNotificationService.notifyScCompleted({ id: eventId, scNumber: 'SC-005', designerUserId: designerUser.id });
     const jobsSecond = await workflowNotificationService.notifyScCompleted({ id: eventId, scNumber: 'SC-005', designerUserId: designerUser.id });
 
-    const storesJobFirst = jobsFirst.find((j) => j.recipientUserId === storesUser.id);
-    const storesJobSecond = jobsSecond.find((j) => j.recipientUserId === storesUser.id);
+    const designerJobFirst = jobsFirst.find((j) => j.recipientUserId === designerUser.id);
+    const designerJobSecond = jobsSecond.find((j) => j.recipientUserId === designerUser.id);
 
-    expect(storesJobFirst?.id).toBe(storesJobSecond?.id);
+    expect(designerJobFirst?.id).toBe(designerJobSecond?.id);
   });
 
   // W021
@@ -372,7 +372,7 @@ describe('Phase 15.10 — Workflow Email Integration Specification (W001–W058)
 
     const jobs = await workflowNotificationService.notifyScCompleted({ id: sc1Id, scNumber: 'SC-001', designerUserId: designerUser.id });
 
-    const sc2Jobs = await emailJobRepo.find({ where: { idempotencyKey: `SC_COMPLETED:${sc2Id}:${storesUser.id}` } });
+    const sc2Jobs = await emailJobRepo.find({ where: { idempotencyKey: `SC_COMPLETED:${sc2Id}:${designerUser.id}` } });
     expect(sc2Jobs.length).toBe(0);
   });
 
