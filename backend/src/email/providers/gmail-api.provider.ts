@@ -90,6 +90,10 @@ export class GmailApiProvider implements IEmailProvider {
     }
   }
 
+  public get isConfigured(): boolean {
+    return Boolean(this.clientId && this.clientSecret && this.refreshToken && this.senderEmail);
+  }
+
   /**
    * Constructs an RFC 2822 compliant MIME message string.
    */
@@ -203,7 +207,7 @@ export class GmailApiProvider implements IEmailProvider {
   /**
    * Determines whether a Gmail API error is retryable.
    */
-  private determineRetryable(statusCode: any, error: any): boolean {
+  public determineRetryable(statusCode: any, error?: any): boolean {
     const code = Number(statusCode);
     if (!isNaN(code)) {
       if (code === 429 || code >= 500) {

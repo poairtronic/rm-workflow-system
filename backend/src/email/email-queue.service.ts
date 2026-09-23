@@ -139,8 +139,26 @@ export class EmailQueueService {
   }
 
   /**
+   * Sanitizes sensitive information (tokens, secrets, codes) from error messages.
+   */
+  public sanitizeError(msg: string): string {
+    if (!msg) return '';
+    return msg
+      .replace(/GMAIL_CLIENT_SECRET=[^\s&"]+/gi, 'GMAIL_CLIENT_SECRET=[REDACTED]')
+      .replace(/GMAIL_REFRESH_TOKEN=[^\s&"]+/gi, 'GMAIL_REFRESH_TOKEN=[REDACTED]')
+      .replace(/client_secret=[^\s&"]+/gi, 'client_secret=[REDACTED]')
+      .replace(/refresh_token=[^\s&"]+/gi, 'refresh_token=[REDACTED]')
+      .replace(/access_token=[^\s&"]+/gi, 'access_token=[REDACTED]')
+      .replace(/code=[^\s&"]+/gi, 'code=[REDACTED]')
+      .replace(/Bearer\s+[A-Za-z0-9-._~+/]+=*/gi, 'Bearer [REDACTED]')
+      .replace(/Authorization:\s*[^\s,]+/gi, 'Authorization: [REDACTED]')
+      .replace(/password=[^\s&"]+/gi, 'password=[REDACTED]');
+  }
+
+  /**
    * Marks a processing job failure.
    * Evaluates attempts vs maxAttempts to transition to RETRYING or FAILED.
+   * Calculates exponential backoff delay capped by maxBackoffSeconds.
    * Supports explicit terminal failure via isTerminal flag.
    */
   async markFailed(
@@ -149,6 +167,7 @@ export class EmailQueueService {
     errorMessage: string,
     retryBackoffSeconds: number = 60,
     isTerminal: boolean = false,
+    maxBackoffSeconds: number = 3600,
   ): Promise<EmailJob> {
     const job = await this.emailJobRepository.findOne({ where: { id: jobId } });
     if (!job) {
@@ -161,7 +180,7 @@ export class EmailQueueService {
       );
     }
 
-    job.lastError = errorMessage;
+    job.lastError = this.sanitizeError(errorMessage);
     job.lockedAt = null;
     job.lockedBy = null;
 
@@ -170,7 +189,13 @@ export class EmailQueueService {
       job.nextRetryAt = null;
     } else {
       job.status = EmailJobStatus.RETRYING;
-      job.nextRetryAt = new Date(Date.now() + Math.max(1, retryBackoffSeconds) * 1000);
+      const baseDelay = Math.max(1, retryBackoffSeconds);
+      const exponent = Math.max(0, job.attempts - 1);
+      const calculatedDelay = Math.min(
+        Math.max(baseDelay, maxBackoffSeconds),
+        baseDelay * Math.pow(2, exponent),
+      );
+      job.nextRetryAt = new Date(Date.now() + calculatedDelay * 1000);
     }
 
     return await this.emailJobRepository.save(job);

@@ -15,7 +15,6 @@ import {
   EmailDeliveryMessage,
 } from './interfaces/email-provider.interface.js';
 import { EmailJob } from './entities/email-job.entity.js';
-import { EmailJobStatus } from './enums/email-job-status.enum.js';
 import * as os from 'node:os';
 
 @Injectable()
@@ -28,6 +27,7 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
   public batchSize: number = 10;
   public staleThresholdSeconds: number = 300;
   public retryBackoffSeconds: number = 60;
+  public maxRetryBackoffSeconds: number = 3600;
   public shutdownTimeoutMs: number = 10000;
 
   private isRunning: boolean = false;
@@ -68,6 +68,11 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
       this.retryBackoffSeconds = Number(
         this.configService.get('EMAIL_WORKER_RETRY_BACKOFF_SECONDS') ||
           this.retryBackoffSeconds,
+      );
+      this.maxRetryBackoffSeconds = Number(
+        this.configService.get('EMAIL_RETRY_MAX_DELAY') ||
+          this.configService.get('EMAIL_WORKER_MAX_RETRY_BACKOFF_SECONDS') ||
+          this.maxRetryBackoffSeconds,
       );
       this.shutdownTimeoutMs = Number(
         this.configService.get('EMAIL_WORKER_SHUTDOWN_TIMEOUT_MS') ||
@@ -250,6 +255,7 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
           errorMsg,
           this.retryBackoffSeconds,
           isTerminal,
+          this.maxRetryBackoffSeconds,
         );
 
         if (isTerminal) {
@@ -270,6 +276,7 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
         errorMsg,
         this.retryBackoffSeconds,
         isMalformed,
+        this.maxRetryBackoffSeconds,
       );
 
       this.logger.error(
@@ -284,12 +291,14 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
   public sanitizeLog(msg: string): string {
     if (!msg) return '';
     return msg
-      .replace(/GMAIL_CLIENT_SECRET=[^\s&]+/gi, 'GMAIL_CLIENT_SECRET=[REDACTED]')
-      .replace(/GMAIL_REFRESH_TOKEN=[^\s&]+/gi, 'GMAIL_REFRESH_TOKEN=[REDACTED]')
-      .replace(/client_secret=[^\s&]+/gi, 'client_secret=[REDACTED]')
-      .replace(/refresh_token=[^\s&]+/gi, 'refresh_token=[REDACTED]')
-      .replace(/access_token=[^\s&]+/gi, 'access_token=[REDACTED]')
-      .replace(/Bearer\s+[A-Za-z0-9\-\._~\+\/]+=*/gi, 'Bearer [REDACTED]')
-      .replace(/password=[^\s&]+/gi, 'password=[REDACTED]');
+      .replace(/GMAIL_CLIENT_SECRET=[^\s&"]+/gi, 'GMAIL_CLIENT_SECRET=[REDACTED]')
+      .replace(/GMAIL_REFRESH_TOKEN=[^\s&"]+/gi, 'GMAIL_REFRESH_TOKEN=[REDACTED]')
+      .replace(/client_secret=[^\s&"]+/gi, 'client_secret=[REDACTED]')
+      .replace(/refresh_token=[^\s&"]+/gi, 'refresh_token=[REDACTED]')
+      .replace(/access_token=[^\s&"]+/gi, 'access_token=[REDACTED]')
+      .replace(/code=[^\s&"]+/gi, 'code=[REDACTED]')
+      .replace(/Bearer\s+[A-Za-z0-9-._~+/]+=*/gi, 'Bearer [REDACTED]')
+      .replace(/Authorization:\s*[^\s,]+/gi, 'Authorization: [REDACTED]')
+      .replace(/password=[^\s&"]+/gi, 'password=[REDACTED]');
   }
 }
