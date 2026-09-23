@@ -35,6 +35,10 @@ describe('Phase 15.3 PostgreSQL Email Queue Specification (Q001–Q022)', () => 
     dataSource = app.get(DataSource);
     queueService = app.get(EmailQueueService);
     emailJobRepo = dataSource.getRepository(EmailJob);
+
+    await dataSource.query(
+      `ALTER TABLE "email_jobs" ADD COLUMN IF NOT EXISTS "priority" integer NOT NULL DEFAULT 100`,
+    );
   });
 
   afterAll(async () => {
