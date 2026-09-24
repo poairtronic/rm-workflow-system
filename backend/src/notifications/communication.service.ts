@@ -8,6 +8,7 @@ import { EmailQueueService } from '../email/email-queue.service.js';
 import { NotificationsService } from './notifications.service.js';
 import { EmailJob } from '../email/entities/email-job.entity.js';
 import { TemplateService } from '../email/template.service.js';
+import { EmailIdempotencyService } from '../email/email-idempotency.service.js';
 import {
   RmSubmittedEventPayload,
   MaterialIssuedEventPayload,
@@ -38,6 +39,7 @@ export interface CommunicationEventInput {
 export class CommunicationService {
   private readonly logger = new Logger(CommunicationService.name);
   private readonly templateService: TemplateService;
+  private readonly emailIdempotencyService: EmailIdempotencyService;
 
   constructor(
     @InjectRepository(Notification)
@@ -49,8 +51,10 @@ export class CommunicationService {
     private readonly emailQueueService: EmailQueueService,
     private readonly notificationsService: NotificationsService,
     @Optional() templateService?: TemplateService,
+    @Optional() emailIdempotencyService?: EmailIdempotencyService,
   ) {
     this.templateService = templateService || new TemplateService();
+    this.emailIdempotencyService = emailIdempotencyService || new EmailIdempotencyService();
   }
 
   /**
@@ -236,7 +240,11 @@ export class CommunicationService {
           ...params.payload,
         });
 
-        const idempotencyKey = `${params.eventType}:${params.targetId}:${user.id}`;
+        const idempotencyKey = this.emailIdempotencyService.generateKey({
+          eventType: params.eventType,
+          entityId: params.targetId,
+          recipientUserId: user.id,
+        });
         const job = await this.emailQueueService.enqueueJob({
           recipientEmail: user.email,
           recipientUserId: user.id,

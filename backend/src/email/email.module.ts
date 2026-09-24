@@ -11,10 +11,12 @@ import { TestEmailProvider } from './providers/test-email.provider.js';
 import { GmailApiProvider } from './providers/gmail-api.provider.js';
 import { EMAIL_PROVIDER } from './interfaces/email-provider.interface.js';
 import { EmailWorkerService } from './email-worker.service.js';
+import { EmailIdempotencyService } from './email-idempotency.service.js';
 
 @Module({
   imports: [ConfigModule, TypeOrmModule.forFeature([EmailJob, EmailLog])],
   providers: [
+    EmailIdempotencyService,
     TemplateService,
     EmailQueueService,
     EmailAuditService,
@@ -45,6 +47,7 @@ import { EmailWorkerService } from './email-worker.service.js';
   ],
   exports: [
     TypeOrmModule,
+    EmailIdempotencyService,
     TemplateService,
     EmailQueueService,
     EmailAuditService,

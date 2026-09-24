@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
 import { EmailJob } from './entities/email-job.entity.js';
@@ -6,16 +6,21 @@ import { EmailJobStatus } from './enums/email-job-status.enum.js';
 import { EmailProvider } from './enums/email-provider.enum.js';
 
 import { TemplateResolver } from './resolvers/template.resolver.js';
+import { EmailIdempotencyService } from './email-idempotency.service.js';
 
 @Injectable()
 export class EmailQueueService {
   private readonly templateResolver = new TemplateResolver();
+  private readonly emailIdempotencyService: EmailIdempotencyService;
 
   constructor(
     @InjectRepository(EmailJob)
     private readonly emailJobRepository: Repository<EmailJob>,
     private readonly dataSource: DataSource,
-  ) {}
+    @Optional() emailIdempotencyService?: EmailIdempotencyService,
+  ) {
+    this.emailIdempotencyService = emailIdempotencyService || new EmailIdempotencyService();
+  }
 
   /**
    * Enqueues a new email job transactionally into Neon PostgreSQL.
@@ -44,11 +49,22 @@ export class EmailQueueService {
       ? jobData.recipientName.replace(/[\r\n]+/g, ' ').replace(/"/g, '').trim()
       : jobData.recipientName;
 
-    const idempotencyKey = jobData.idempotencyKey || `job_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const idempotencyKey =
+      jobData.idempotencyKey ||
+      this.emailIdempotencyService.generateKey({
+        eventType: jobData.eventType || 'GENERIC',
+        entityId:
+          jobData.payload?.entityId ||
+          jobData.payload?.rmRequestId ||
+          jobData.payload?.scId ||
+          jobData.recipientUserId ||
+          `job_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        recipientUserId: jobData.recipientUserId,
+      });
 
-    if (jobData.idempotencyKey) {
+    if (idempotencyKey) {
       const existing = await this.emailJobRepository.findOne({
-        where: { idempotencyKey: jobData.idempotencyKey },
+        where: { idempotencyKey },
       });
       if (existing) {
         return existing;
