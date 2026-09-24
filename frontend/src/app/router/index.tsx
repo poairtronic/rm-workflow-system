@@ -5,6 +5,7 @@ import DashboardPage from '../../pages/DashboardPage';
 import { InventoryPage } from '../../pages/InventoryPage';
 import { MasterDataPage } from '../../pages/MasterDataPage';
 import WorkflowPage from '../../pages/WorkflowPage';
+import { NotificationSettingsPage } from '../../pages/NotificationSettingsPage';
 import { AppLayout } from '../../layouts/AppLayout';
 
 export type CurrentView =
@@ -17,7 +18,8 @@ export type CurrentView =
   | 'monitoring'
   | 'inventory'
   | 'analytics'
-  | 'admin';
+  | 'admin'
+  | 'notifications-settings';
 
 export function AppRouter() {
   const { isAuthenticated, loading } = useAuth();
@@ -42,6 +44,10 @@ export function AppRouter() {
       ) : currentView === 'master-data' ? (
         <AppLayout activeNav={currentView} onNavigate={(nav) => setCurrentView(nav as CurrentView)}>
           <MasterDataPage />
+        </AppLayout>
+      ) : currentView === 'notifications-settings' ? (
+        <AppLayout activeNav={currentView} onNavigate={(nav) => setCurrentView(nav as CurrentView)}>
+          <NotificationSettingsPage />
         </AppLayout>
       ) : ['design-rm', 'stores', 'production', 'sc-completion', 'monitoring'].includes(currentView) ? (
         <WorkflowPage currentView={currentView} onNavigate={(nav) => setCurrentView(nav as CurrentView)} />

@@ -22,6 +22,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     const baseItems = [
       { id: 'dashboard', label: 'Overview & Health' },
       { id: 'inventory', label: 'Inventory' },
+      { id: 'notifications-settings', label: 'Notifications & Alerts' },
     ];
 
     switch (role) {
