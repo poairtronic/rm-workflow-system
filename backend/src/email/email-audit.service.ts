@@ -27,7 +27,9 @@ export class EmailAuditService {
       .replace(/code=[^\s&"]+/gi, 'code=[REDACTED]')
       .replace(/Bearer\s+[A-Za-z0-9-._~+/]+=*/gi, 'Bearer [REDACTED]')
       .replace(/Authorization:\s*[^\s,]+/gi, 'Authorization: [REDACTED]')
-      .replace(/password=[^\s&"]+/gi, 'password=[REDACTED]');
+      .replace(/password=[^\s&"]+/gi, 'password=[REDACTED]')
+      .replace(/reset_token=[^\s&"]+/gi, 'reset_token=[REDACTED]')
+      .replace(/token=[^\s&"]+/gi, 'token=[REDACTED]');
   }
 
   /**
