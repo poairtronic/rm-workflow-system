@@ -58,6 +58,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           { id: 'stores', label: 'Stores Workspace' },
           { id: 'production', label: 'Production Traceability' },
           { id: 'sc-completion', label: 'SC Completion' },
+          { id: 'email-observability', label: 'Email Queue Health' },
           { id: 'admin', label: 'Administration' },
         ];
     }

@@ -10,13 +10,18 @@ import { TemplateService } from './template.service.js';
 import { TestEmailProvider } from './providers/test-email.provider.js';
 import { GmailApiProvider } from './providers/gmail-api.provider.js';
 import { EMAIL_PROVIDER } from './interfaces/email-provider.interface.js';
+import { AuthModule } from '../auth/auth.module.js';
 import { EmailWorkerService } from './email-worker.service.js';
 import { EmailIdempotencyService } from './email-idempotency.service.js';
+import { EmailObservabilityService } from './email-observability.service.js';
+import { EmailController } from './email.controller.js';
 
 @Module({
-  imports: [ConfigModule, TypeOrmModule.forFeature([EmailJob, EmailLog])],
+  imports: [ConfigModule, AuthModule, TypeOrmModule.forFeature([EmailJob, EmailLog])],
+  controllers: [EmailController],
   providers: [
     EmailIdempotencyService,
+    EmailObservabilityService,
     TemplateService,
     EmailQueueService,
     EmailAuditService,
@@ -48,6 +53,7 @@ import { EmailIdempotencyService } from './email-idempotency.service.js';
   exports: [
     TypeOrmModule,
     EmailIdempotencyService,
+    EmailObservabilityService,
     TemplateService,
     EmailQueueService,
     EmailAuditService,

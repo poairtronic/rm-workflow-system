@@ -6,6 +6,7 @@ import { InventoryPage } from '../../pages/InventoryPage';
 import { MasterDataPage } from '../../pages/MasterDataPage';
 import WorkflowPage from '../../pages/WorkflowPage';
 import { NotificationSettingsPage } from '../../pages/NotificationSettingsPage';
+import { EmailObservabilityPage } from '../../pages/EmailObservabilityPage';
 import { AppLayout } from '../../layouts/AppLayout';
 
 export type CurrentView =
@@ -19,7 +20,8 @@ export type CurrentView =
   | 'inventory'
   | 'analytics'
   | 'admin'
-  | 'notifications-settings';
+  | 'notifications-settings'
+  | 'email-observability';
 
 export function AppRouter() {
   const { isAuthenticated, loading } = useAuth();
@@ -48,6 +50,10 @@ export function AppRouter() {
       ) : currentView === 'notifications-settings' ? (
         <AppLayout activeNav={currentView} onNavigate={(nav) => setCurrentView(nav as CurrentView)}>
           <NotificationSettingsPage />
+        </AppLayout>
+      ) : currentView === 'email-observability' ? (
+        <AppLayout activeNav={currentView} onNavigate={(nav) => setCurrentView(nav as CurrentView)}>
+          <EmailObservabilityPage />
         </AppLayout>
       ) : ['design-rm', 'stores', 'production', 'sc-completion', 'monitoring'].includes(currentView) ? (
         <WorkflowPage currentView={currentView} onNavigate={(nav) => setCurrentView(nav as CurrentView)} />
