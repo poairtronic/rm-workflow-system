@@ -1,8 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class Phase1511InAppNotificationsTable1790500000000
-  implements MigrationInterface
-{
+  implements MigrationInterface {
   name = 'Phase1511InAppNotificationsTable1790500000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
