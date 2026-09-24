@@ -245,6 +245,34 @@
   },
   {
     "method": "GET",
+    "path": "/api/notifications"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/notifications/:id/read"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/notifications/preferences/:userId"
+  },
+  {
+    "method": "GET",
+    "path": "/api/notifications/preferences/me"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/notifications/preferences/me"
+  },
+  {
+    "method": "GET",
+    "path": "/api/notifications/settings"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/notifications/settings"
+  },
+  {
+    "method": "GET",
     "path": "/api/notifications/status"
   },
   {
