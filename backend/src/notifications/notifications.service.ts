@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SystemSetting } from './entities/system-setting.entity.js';
 import { UserNotificationPreference } from './entities/user-notification-preference.entity.js';
+import { Notification } from './entities/notification.entity.js';
 
 export const GLOBAL_WORKFLOW_EMAIL_KEY = 'GLOBAL_WORKFLOW_EMAIL_ENABLED';
 
@@ -13,6 +14,8 @@ export class NotificationsService {
     private readonly systemSettingRepository: Repository<SystemSetting>,
     @InjectRepository(UserNotificationPreference)
     private readonly userPrefRepository: Repository<UserNotificationPreference>,
+    @InjectRepository(Notification)
+    private readonly notificationRepository: Repository<Notification>,
   ) {}
 
   getStatus() {
@@ -115,5 +118,33 @@ export class NotificationsService {
 
   async isSecurityEmailAllowed(userId?: string): Promise<boolean> {
     return this.shouldSendEmail('SECURITY', userId);
+  }
+
+  async getUserNotifications(userId: string): Promise<Notification[]> {
+    return await this.notificationRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async markNotificationAsRead(
+    userId: string,
+    notificationId: string,
+  ): Promise<Notification> {
+    const notification = await this.notificationRepository.findOne({
+      where: { id: notificationId },
+    });
+    if (!notification) {
+      throw new NotFoundException(
+        `Notification with ID "${notificationId}" not found.`,
+      );
+    }
+    if (notification.userId !== userId) {
+      throw new ForbiddenException(
+        'Cannot modify notification belonging to another user',
+      );
+    }
+    notification.isRead = true;
+    return await this.notificationRepository.save(notification);
   }
 }

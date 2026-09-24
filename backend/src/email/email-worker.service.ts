@@ -217,7 +217,7 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
     return processedCount;
   }
 
-  private async processSingleJob(job: EmailJob): Promise<void> {
+  public async processSingleJob(job: EmailJob): Promise<void> {
     this.logger.log(`Processing EmailJob ${job.id} (attempt ${job.attempts}/${job.maxAttempts}) to ${job.recipientEmail}`);
 
     try {

@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { EmailJob } from '../entities/email-job.entity.js';
+import { TemplateService, TemplateValidationError } from '../template.service.js';
 
 export interface ResolvedEmailContent {
   subject: string;
@@ -16,46 +17,11 @@ export class MalformedJobException extends Error {
 
 @Injectable()
 export class TemplateResolver {
-  private escapeHtml(str?: string | null): string {
-    if (!str) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
+  private readonly templateService: TemplateService;
 
-  private readonly knownTemplates: Record<
-    string,
-    (payload?: Record<string, any> | null) => ResolvedEmailContent
-  > = {
-    AUTH_PASSWORD_RESET: (payload) => ({
-      subject: 'Security Notice: Password Reset Request',
-      bodyText: `Hello,\n\nA password reset request was received for your account. Reset link: ${payload?.resetUrl || 'N/A'}\n\nIf you did not request this, please contact Security.`,
-      bodyHtml: `<h3>Security Notice: Password Reset Request</h3><p>Hello,</p><p>A password reset request was received for your account. Reset link: <a href="${this.escapeHtml(payload?.resetUrl)}">${this.escapeHtml(payload?.resetUrl) || 'N/A'}</a></p><p>If you did not request this, please contact Security.</p>`,
-    }),
-    WORKFLOW_RM_SUBMITTED: (payload) => ({
-      subject: `[RMRIT Notification] RM Request Submitted: ${payload?.rmNumber || 'RM Request'}`,
-      bodyText: `An RM Request (${payload?.rmNumber || ''}) has been submitted for Stores review.`,
-      bodyHtml: `<h3>RM Request Submitted</h3><p>An RM Request (<strong>${this.escapeHtml(payload?.rmNumber)}</strong>) has been submitted for Stores review.</p>`,
-    }),
-    WORKFLOW_MATERIAL_ISSUED: (payload) => ({
-      subject: `[RMRIT Notification] Material Issued for RM: ${payload?.rmNumber || 'RM Request'}`,
-      bodyText: `Material has been issued by Stores for RM Request ${payload?.rmNumber || ''}.`,
-      bodyHtml: `<h3>Material Issued</h3><p>Material has been issued by Stores for RM Request <strong>${this.escapeHtml(payload?.rmNumber)}</strong>.</p>`,
-    }),
-    WORKFLOW_ADDITIONAL_REQUEST: (payload) => ({
-      subject: `[RMRIT Notification] Additional Material Request: ${payload?.rmNumber || 'RM Request'}`,
-      bodyText: `An additional material request was created for RM Request ${payload?.rmNumber || ''}.`,
-      bodyHtml: `<h3>Additional Material Request</h3><p>An additional material request was created for RM Request <strong>${this.escapeHtml(payload?.rmNumber)}</strong>.</p>`,
-    }),
-    WORKFLOW_SC_COMPLETED: (payload) => ({
-      subject: `[RMRIT Notification] SC Completed: ${payload?.scNumber || 'Sales Component'}`,
-      bodyText: `Sales Component ${payload?.scNumber || ''} has reached COMPLETED status.`,
-      bodyHtml: `<h3>SC Completed</h3><p>Sales Component <strong>${this.escapeHtml(payload?.scNumber)}</strong> has reached COMPLETED status.</p>`,
-    }),
-  };
+  constructor(@Optional() templateService?: TemplateService) {
+    this.templateService = templateService || new TemplateService();
+  }
 
   resolveContent(job: EmailJob): ResolvedEmailContent {
     // 1. Verify recipient email format and check for header injection
@@ -87,15 +53,25 @@ export class TemplateResolver {
       };
     }
 
-    // 4. Resolve via templateKey
-    if (job.templateKey && this.knownTemplates[job.templateKey]) {
-      const templateFn = this.knownTemplates[job.templateKey];
-      const rendered = templateFn(job.payload);
-      return {
-        subject: hasSubject ? sanitizeSubject(job.subject) : sanitizeSubject(rendered.subject),
-        bodyText: hasText ? job.bodyText : rendered.bodyText,
-        bodyHtml: hasHtml ? job.bodyHtml : rendered.bodyHtml,
-      };
+    // 4. Resolve via TemplateService / templateKey
+    if (job.templateKey && this.templateService.isValidTemplateKey(job.templateKey)) {
+      try {
+        const payload = {
+          recipientName: job.recipientName,
+          ...job.payload,
+        };
+        const rendered = this.templateService.render(job.templateKey, payload);
+        return {
+          subject: hasSubject ? sanitizeSubject(job.subject) : sanitizeSubject(rendered.subject),
+          bodyText: hasText ? job.bodyText : rendered.text,
+          bodyHtml: hasHtml ? job.bodyHtml : rendered.html,
+        };
+      } catch (err: any) {
+        if (err instanceof TemplateValidationError) {
+          throw new MalformedJobException(`Template resolution failed for job ${job.id}: ${err.message}`);
+        }
+        throw err;
+      }
     }
 
     // 5. Missing required content and unknown template

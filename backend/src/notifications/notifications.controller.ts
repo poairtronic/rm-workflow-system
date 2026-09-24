@@ -26,6 +26,23 @@ export class NotificationsController {
     return this.notificationsService.getStatus();
   }
 
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  async getMyNotifications(@Request() req: any) {
+    const userId = req.user.userId;
+    return await this.notificationsService.getUserNotifications(userId);
+  }
+
+  @Patch(':id/read')
+  @UseGuards(JwtAuthGuard)
+  async markAsRead(@Request() req: any, @Param('id') notificationId: string) {
+    const userId = req.user.userId;
+    return await this.notificationsService.markNotificationAsRead(
+      userId,
+      notificationId,
+    );
+  }
+
   @Get('settings')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)

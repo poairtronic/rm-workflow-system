@@ -6,6 +6,7 @@ import { EmailLog } from './entities/email-log.entity.js';
 import { EmailQueueService } from './email-queue.service.js';
 import { EmailAuditService } from './email-audit.service.js';
 import { TemplateResolver } from './resolvers/template.resolver.js';
+import { TemplateService } from './template.service.js';
 import { TestEmailProvider } from './providers/test-email.provider.js';
 import { GmailApiProvider } from './providers/gmail-api.provider.js';
 import { EMAIL_PROVIDER } from './interfaces/email-provider.interface.js';
@@ -14,6 +15,7 @@ import { EmailWorkerService } from './email-worker.service.js';
 @Module({
   imports: [ConfigModule, TypeOrmModule.forFeature([EmailJob, EmailLog])],
   providers: [
+    TemplateService,
     EmailQueueService,
     EmailAuditService,
     TemplateResolver,
@@ -43,6 +45,7 @@ import { EmailWorkerService } from './email-worker.service.js';
   ],
   exports: [
     TypeOrmModule,
+    TemplateService,
     EmailQueueService,
     EmailAuditService,
     TemplateResolver,
