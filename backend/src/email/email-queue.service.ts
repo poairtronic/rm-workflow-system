@@ -104,7 +104,7 @@ export class EmailQueueService {
       // Security hardening: enforce server-authoritative initial state
       status: EmailJobStatus.PENDING,
       attempts: 0,
-      maxAttempts: jobData.maxAttempts ?? 3,
+      maxAttempts: Math.min(Math.max(1, jobData.maxAttempts ?? 3), 5),
       priority: jobData.priority ?? 100,
       provider: EmailProvider.GMAIL_API,
       lockedAt: null,
