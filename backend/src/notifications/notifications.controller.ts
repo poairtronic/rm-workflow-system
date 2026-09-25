@@ -3,6 +3,7 @@ import {
   Get,
   Patch,
   Body,
+  Query,
   UseGuards,
   Request,
   Param,
@@ -16,6 +17,7 @@ import { Roles } from '../auth/decorators/roles.decorator.js';
 import { UserRole } from '../auth/enums/role.enum.js';
 import { UpdateGlobalPreferenceDto } from './dto/update-global-preference.dto.js';
 import { UpdateUserPreferenceDto } from './dto/update-user-preference.dto.js';
+import { GetNotificationsQueryDto } from './dto/get-notifications-query.dto.js';
 
 @Controller('api/notifications')
 export class NotificationsController {
@@ -28,9 +30,18 @@ export class NotificationsController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  async getMyNotifications(@Request() req: any) {
-    const userId = req.user.userId;
-    return await this.notificationsService.getUserNotifications(userId);
+  async getMyNotifications(
+    @Request() req: any,
+    @Query() query: GetNotificationsQueryDto,
+  ) {
+    const userId = req.user?.userId || req.user?.sub || req.user?.id;
+    if (query?.userId && query.userId !== userId) {
+      throw new ForbiddenException('Cannot query notifications of another user');
+    }
+    return await this.notificationsService.getUserNotificationsPaginated(
+      userId,
+      query,
+    );
   }
 
   @Patch(':id/read')

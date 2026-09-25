@@ -1,19 +1,19 @@
 import { IsOptional, IsInt, Min, Max, IsString, IsBoolean } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+import { Transform } from 'class-transformer';
 
 export class GetNotificationsQueryDto {
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) => (value !== undefined && value !== null && value !== '' ? Number(value) : undefined))
   @IsInt()
   @Min(1)
-  page?: number = 1;
+  page?: number;
 
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) => (value !== undefined && value !== null && value !== '' ? Number(value) : undefined))
   @IsInt()
   @Min(1)
   @Max(100)
-  limit?: number = 20;
+  limit?: number;
 
   @IsOptional()
   @IsString()
@@ -23,7 +23,7 @@ export class GetNotificationsQueryDto {
   @Transform(({ value }) => {
     if (value === 'true' || value === true || value === '1' || value === 1) return true;
     if (value === 'false' || value === false || value === '0' || value === 0) return false;
-    return value;
+    return undefined;
   })
   @IsBoolean()
   unreadOnly?: boolean;

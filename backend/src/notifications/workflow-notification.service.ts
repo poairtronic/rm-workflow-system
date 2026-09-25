@@ -73,6 +73,10 @@ export class WorkflowNotificationService {
     return result.emailJobs;
   }
 
+  async notifyAdditionalMaterialRequested(event: AdditionalRequestEventPayload): Promise<EmailJob[]> {
+    return this.notifyAdditionalRequest(event);
+  }
+
   /**
    * Event Handler 4: SC_COMPLETED
    * Triggers dual-channel orchestration for SC completion.

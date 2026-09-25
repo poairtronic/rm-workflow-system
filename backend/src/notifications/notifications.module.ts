@@ -12,6 +12,8 @@ import { Notification } from './entities/notification.entity.js';
 import { User } from '../users/entities/user.entity.js';
 import { Role } from '../roles/entities/role.entity.js';
 
+import { NotificationRecipientService } from './notification-recipient.service.js';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -29,11 +31,13 @@ import { Role } from '../roles/entities/role.entity.js';
     NotificationsService,
     WorkflowNotificationService,
     CommunicationService,
+    NotificationRecipientService,
   ],
   exports: [
     NotificationsService,
     WorkflowNotificationService,
     CommunicationService,
+    NotificationRecipientService,
   ],
 })
 export class NotificationsModule {}

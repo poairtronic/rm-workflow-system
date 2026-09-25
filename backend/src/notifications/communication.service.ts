@@ -35,11 +35,14 @@ export interface CommunicationEventInput {
   metadata?: Record<string, any>;
 }
 
+import { NotificationRecipientService } from './notification-recipient.service.js';
+
 @Injectable()
 export class CommunicationService {
   private readonly logger = new Logger(CommunicationService.name);
   private readonly templateService: TemplateService;
   private readonly emailIdempotencyService: EmailIdempotencyService;
+  private readonly recipientService: NotificationRecipientService;
 
   constructor(
     @InjectRepository(Notification)
@@ -52,26 +55,20 @@ export class CommunicationService {
     private readonly notificationsService: NotificationsService,
     @Optional() templateService?: TemplateService,
     @Optional() emailIdempotencyService?: EmailIdempotencyService,
+    @Optional() recipientService?: NotificationRecipientService,
   ) {
     this.templateService = templateService || new TemplateService();
     this.emailIdempotencyService = emailIdempotencyService || new EmailIdempotencyService();
+    this.recipientService =
+      recipientService ||
+      new NotificationRecipientService(userRepository, roleRepository);
   }
 
   /**
    * Resolves active users matching specific role names (e.g., STORES, PRODUCTION, DESIGNER).
    */
   async findUsersByRoles(roleNames: string[]): Promise<User[]> {
-    const roles = await this.roleRepository.find({
-      where: roleNames.map((name) => ({ name })),
-    });
-    if (!roles || roles.length === 0) {
-      return [];
-    }
-    const roleIds = roles.map((r) => r.id);
-    return await this.userRepository.find({
-      where: roleIds.map((roleId) => ({ roleId, isActive: true })),
-      relations: { role: true },
-    });
+    return this.recipientService.findActiveUsersByRoles(roleNames);
   }
 
   /**
@@ -118,11 +115,19 @@ export class CommunicationService {
   async sendEvent(input: CommunicationEventInput): Promise<CommunicationEventResult> {
     this.logger.log(`Orchestrating event "${input.eventType}" for entity "${input.entityType}" (ID: ${input.entityId})`);
 
-    let targetUsers: User[] = [];
+    const actorUserId =
+      input.createdById || input.requestedById || input.metadata?.actorUserId;
+    const specificTargetUserId =
+      input.recipientUserId || input.designerUserId;
+
+    const targetUsers = await this.recipientService.resolveRecipients({
+      eventType: input.eventType,
+      actorUserId,
+      specificTargetUserId,
+    });
 
     switch (input.eventType) {
       case 'RM_SUBMITTED':
-        targetUsers = await this.findUsersByRoles(['STORES', 'ADMIN']);
         return this.orchestrateChannelDelivery({
           eventType: 'RM_SUBMITTED',
           targetUsers,
@@ -136,17 +141,6 @@ export class CommunicationService {
         });
 
       case 'MATERIAL_ISSUED':
-        if (input.recipientUserId) {
-          const specificUser = await this.userRepository.findOne({
-            where: { id: input.recipientUserId, isActive: true },
-          });
-          if (specificUser) {
-            targetUsers.push(specificUser);
-          }
-        }
-        if (targetUsers.length === 0) {
-          targetUsers = await this.findUsersByRoles(['PRODUCTION', 'ADMIN']);
-        }
         return this.orchestrateChannelDelivery({
           eventType: 'MATERIAL_ISSUED',
           targetUsers,
@@ -159,10 +153,10 @@ export class CommunicationService {
           payload: { rmNumber: input.rmNumber || input.entityId, scId: input.scId },
         });
 
+      case 'ADDITIONAL_MATERIAL_REQUESTED':
       case 'ADDITIONAL_REQUEST':
-        targetUsers = await this.findUsersByRoles(['STORES', 'ADMIN']);
         return this.orchestrateChannelDelivery({
-          eventType: 'ADDITIONAL_REQUEST',
+          eventType: input.eventType,
           targetUsers,
           targetEntity: 'ADDITIONAL_REQUEST',
           targetId: input.entityId,
@@ -174,17 +168,6 @@ export class CommunicationService {
         });
 
       case 'SC_COMPLETED':
-        if (input.designerUserId) {
-          const specificUser = await this.userRepository.findOne({
-            where: { id: input.designerUserId, isActive: true },
-          });
-          if (specificUser) {
-            targetUsers.push(specificUser);
-          }
-        }
-        if (targetUsers.length === 0) {
-          targetUsers = await this.findUsersByRoles(['DESIGNER', 'ADMIN']);
-        }
         return this.orchestrateChannelDelivery({
           eventType: 'SC_COMPLETED',
           targetUsers,
@@ -219,7 +202,16 @@ export class CommunicationService {
     const inAppNotifications: Notification[] = [];
     const emailJobs: EmailJob[] = [];
 
-    for (const user of params.targetUsers) {
+    // Deduplicate target recipients by ID to satisfy Section 19 (DUPLICATE RECIPIENT PROTECTION)
+    const userMap = new Map<string, User>();
+    for (const u of params.targetUsers) {
+      if (u && u.id && u.isActive) {
+        userMap.set(u.id, u);
+      }
+    }
+    const uniqueTargetUsers = Array.from(userMap.values());
+
+    for (const user of uniqueTargetUsers) {
       // 1. In-App Notification (Channel 1 - Always created, authoritative)
       const notification = await this.createInAppNotification({
         userId: user.id,
