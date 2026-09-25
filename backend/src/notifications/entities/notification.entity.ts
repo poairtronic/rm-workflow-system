@@ -39,6 +39,10 @@ export class Notification {
   @Column({ type: 'varchar', name: 'target_id', nullable: true, length: 100 })
   targetId?: string;
 
+  @Index('UQ_notifications_idempotency_key', { unique: true })
+  @Column({ type: 'varchar', name: 'idempotency_key', nullable: true, length: 255 })
+  idempotencyKey?: string;
+
   @Index()
   @Column({ name: 'is_read', default: false })
   isRead!: boolean;
@@ -46,3 +50,4 @@ export class Notification {
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 }
+

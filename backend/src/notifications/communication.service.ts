@@ -72,7 +72,7 @@ export class CommunicationService {
   }
 
   /**
-   * Creates an in-app notification idempotently.
+   * Creates an in-app notification idempotently with database-level duplicate protection.
    */
   async createInAppNotification(params: {
     userId: string;
@@ -81,8 +81,28 @@ export class CommunicationService {
     type: string;
     targetEntity?: string;
     targetId?: string;
+    idempotencyKey?: string;
   }): Promise<Notification> {
-    if (params.targetEntity && params.targetId && params.type) {
+    const key =
+      params.idempotencyKey ||
+      (params.type && params.targetId && params.userId
+        ? this.emailIdempotencyService.generateKey({
+            eventType: params.type,
+            entityId: params.targetId,
+            recipientUserId: params.userId,
+          })
+        : undefined);
+
+    if (key) {
+      const existing = await this.notificationRepository.findOne({
+        where: { idempotencyKey: key },
+      });
+      if (existing) {
+        return existing;
+      }
+    }
+
+    if (params.targetEntity && params.targetId && params.type && params.userId) {
       const existing = await this.notificationRepository.findOne({
         where: {
           userId: params.userId,
@@ -96,18 +116,57 @@ export class CommunicationService {
       }
     }
 
-    const notification = this.notificationRepository.create({
-      userId: params.userId,
-      title: params.title,
-      message: params.message,
-      type: params.type,
-      targetEntity: params.targetEntity,
-      targetId: params.targetId,
-      isRead: false,
-    });
+    try {
+      const notification = this.notificationRepository.create({
+        userId: params.userId,
+        title: params.title,
+        message: params.message,
+        type: params.type,
+        targetEntity: params.targetEntity,
+        targetId: params.targetId,
+        idempotencyKey: key,
+        isRead: false,
+      });
 
-    return await this.notificationRepository.save(notification);
+      return await this.notificationRepository.save(notification);
+    } catch (error: any) {
+      const errCode = error?.code || error?.driverError?.code;
+      const errMsg = String(error?.message || '');
+      const isDuplicate =
+        errCode === '23505' ||
+        errMsg.toLowerCase().includes('duplicate key') ||
+        errMsg.includes('UQ_notifications_idempotency_key');
+
+      if (isDuplicate) {
+        this.logger.warn(
+          `Duplicate in-app notification insertion prevented for key "${key}"`,
+        );
+        if (key) {
+          const existing = await this.notificationRepository.findOne({
+            where: { idempotencyKey: key },
+          });
+          if (existing) {
+            return existing;
+          }
+        }
+        if (params.userId && params.targetEntity && params.targetId && params.type) {
+          const existing = await this.notificationRepository.findOne({
+            where: {
+              userId: params.userId,
+              targetEntity: params.targetEntity,
+              targetId: params.targetId,
+              type: params.type,
+            },
+          });
+          if (existing) {
+            return existing;
+          }
+        }
+      }
+      throw error;
+    }
   }
+
 
   /**
    * Central Orchestration Entry Point for Business Events.
@@ -120,11 +179,17 @@ export class CommunicationService {
     const specificTargetUserId =
       input.recipientUserId || input.designerUserId;
 
-    const targetUsers = await this.recipientService.resolveRecipients({
-      eventType: input.eventType,
-      actorUserId,
-      specificTargetUserId,
-    });
+    let targetUsers: User[] = [];
+    try {
+      targetUsers = await this.recipientService.resolveRecipients({
+        eventType: input.eventType,
+        actorUserId,
+        specificTargetUserId,
+      });
+    } catch (recipientErr: any) {
+      this.logger.error(`Recipient resolution failed for event "${input.eventType}": ${recipientErr?.message || recipientErr}`);
+      return { inAppNotifications: [], emailJobs: [] };
+    }
 
     switch (input.eventType) {
       case 'RM_SUBMITTED':
@@ -181,7 +246,8 @@ export class CommunicationService {
         });
 
       default:
-        throw new Error(`Unsupported communication event type: ${input.eventType}`);
+        this.logger.warn(`Unsupported communication event type: ${input.eventType}`);
+        return { inAppNotifications: [], emailJobs: [] };
     }
   }
 
@@ -213,45 +279,57 @@ export class CommunicationService {
 
     for (const user of uniqueTargetUsers) {
       // 1. In-App Notification (Channel 1 - Always created, authoritative)
-      const notification = await this.createInAppNotification({
-        userId: user.id,
-        title: params.title,
-        message: params.message,
-        type: params.eventType,
-        targetEntity: params.targetEntity,
-        targetId: params.targetId,
-      });
-      inAppNotifications.push(notification);
+      try {
+        const notification = await this.createInAppNotification({
+          userId: user.id,
+          title: params.title,
+          message: params.message,
+          type: params.eventType,
+          targetEntity: params.targetEntity,
+          targetId: params.targetId,
+        });
+        if (notification) {
+          inAppNotifications.push(notification);
+        }
+      } catch (inAppErr: any) {
+        this.logger.error(`In-App notification creation failed for recipient ${user.id}: ${inAppErr?.message || inAppErr}`);
+      }
 
       // 2. Email Job (Channel 2 - Optional based on preference)
-      const isAllowed = await this.notificationsService.isWorkflowEmailAllowed(user.id);
-      if (isAllowed) {
-        // Use TemplateService to render template content safely
-        const rendered = this.templateService.render(params.templateKey, {
-          recipientName: user.name,
-          ...params.payload,
-        });
+      try {
+        const isAllowed = await this.notificationsService.isWorkflowEmailAllowed(user.id);
+        if (isAllowed) {
+          // Use TemplateService to render template content safely
+          const rendered = this.templateService.render(params.templateKey, {
+            recipientName: user.name,
+            ...params.payload,
+          });
 
-        const idempotencyKey = this.emailIdempotencyService.generateKey({
-          eventType: params.eventType,
-          entityId: params.targetId,
-          recipientUserId: user.id,
-        });
-        const job = await this.emailQueueService.enqueueJob({
-          recipientEmail: user.email,
-          recipientUserId: user.id,
-          recipientName: user.name,
-          eventType: params.eventType,
-          templateKey: rendered.templateKey,
-          subject: rendered.subject,
-          bodyText: rendered.text,
-          bodyHtml: rendered.html,
-          payload: params.payload,
-          idempotencyKey,
-        });
-        emailJobs.push(job);
-      } else {
-        this.logger.log(`Workflow email suppressed for recipient ${user.id} (${user.email}) due to preferences.`);
+          const idempotencyKey = this.emailIdempotencyService.generateKey({
+            eventType: params.eventType,
+            entityId: params.targetId,
+            recipientUserId: user.id,
+          });
+          const job = await this.emailQueueService.enqueueJob({
+            recipientEmail: user.email,
+            recipientUserId: user.id,
+            recipientName: user.name,
+            eventType: params.eventType,
+            templateKey: rendered.templateKey,
+            subject: rendered.subject,
+            bodyText: rendered.text,
+            bodyHtml: rendered.html,
+            payload: params.payload,
+            idempotencyKey,
+          });
+          if (job) {
+            emailJobs.push(job);
+          }
+        } else {
+          this.logger.log(`Workflow email suppressed for recipient ${user.id} (${user.email}) due to preferences.`);
+        }
+      } catch (emailErr: any) {
+        this.logger.error(`Email job enqueuing failed for recipient ${user.id}: ${emailErr?.message || emailErr}`);
       }
     }
 
