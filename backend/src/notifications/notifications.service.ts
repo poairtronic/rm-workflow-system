@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { SystemSetting } from './entities/system-setting.entity.js';
 import { UserNotificationPreference } from './entities/user-notification-preference.entity.js';
 import { Notification } from './entities/notification.entity.js';
+import { GetNotificationsQueryDto } from './dto/get-notifications-query.dto.js';
 
 export const GLOBAL_WORKFLOW_EMAIL_KEY = 'GLOBAL_WORKFLOW_EMAIL_ENABLED';
 
@@ -123,8 +124,52 @@ export class NotificationsService {
   async getUserNotifications(userId: string): Promise<Notification[]> {
     return await this.notificationRepository.find({
       where: { userId },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: 'DESC', id: 'DESC' },
     });
+  }
+
+  async getUserNotificationsPaginated(
+    userId: string,
+    query: GetNotificationsQueryDto = {},
+  ) {
+    const page = Math.max(1, Number(query.page) || 1);
+    const rawLimit = Number(query.limit) || 20;
+    const limit = Math.min(100, Math.max(1, rawLimit));
+    const skip = (page - 1) * limit;
+
+    const where: any = { userId };
+
+    if (query.unreadOnly) {
+      where.isRead = false;
+    }
+
+    if (query.type) {
+      where.type = query.type;
+    }
+
+    const [items, total] = await this.notificationRepository.findAndCount({
+      where,
+      order: {
+        createdAt: 'DESC',
+        id: 'DESC',
+      },
+      skip,
+      take: limit,
+    });
+
+    const totalPages = Math.ceil(total / limit) || (total === 0 ? 0 : 1);
+
+    return {
+      notifications: items,
+      items,
+      total,
+      page,
+      limit,
+      pageSize: limit,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrevious: page > 1,
+    };
   }
 
   async markNotificationAsRead(

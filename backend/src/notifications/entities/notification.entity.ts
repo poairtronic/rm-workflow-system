@@ -9,6 +9,8 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity.js';
 
+import { NotificationType } from '../enums/notification-type.enum.js';
+
 @Entity('notifications')
 export class Notification {
   @PrimaryGeneratedColumn('uuid')
@@ -22,19 +24,19 @@ export class Notification {
   @JoinColumn({ name: 'user_id' })
   user!: User;
 
-  @Column({ length: 150 })
+  @Column({ type: 'varchar', length: 150 })
   title!: string;
 
   @Column({ type: 'text' })
   message!: string;
 
-  @Column({ length: 50, default: 'INFO' })
-  type!: string;
+  @Column({ type: 'varchar', length: 50, default: NotificationType.INFO })
+  type!: NotificationType | string;
 
-  @Column({ name: 'target_entity', nullable: true, length: 50 })
+  @Column({ type: 'varchar', name: 'target_entity', nullable: true, length: 50 })
   targetEntity?: string;
 
-  @Column({ name: 'target_id', nullable: true, length: 100 })
+  @Column({ type: 'varchar', name: 'target_id', nullable: true, length: 100 })
   targetId?: string;
 
   @Index()

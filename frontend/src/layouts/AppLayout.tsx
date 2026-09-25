@@ -3,6 +3,8 @@ import { APP_CONFIG } from '../app/config';
 import { useAuth } from '../hooks/useAuth';
 import { ROLE_DISPLAY_NAMES } from '../constants/roles';
 import { Button } from '../components/ui/Button';
+import { NotificationBell } from '../components/notifications';
+import '../styles/notifications.css';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -77,6 +79,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         
         {user && (
           <div className="header-user-meta">
+            <NotificationBell />
             <div className="user-info">
               <span className="user-name">{user.name || user.email}</span>
               <span className="user-role-badge">{roleDisplay}</span>
@@ -84,7 +87,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             <Button onClick={logout} variant="secondary" size="sm">
               Sign Out
             </Button>
-
           </div>
         )}
       </header>

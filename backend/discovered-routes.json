@@ -117,6 +117,14 @@
   },
   {
     "method": "GET",
+    "path": "/api/email/observability"
+  },
+  {
+    "method": "GET",
+    "path": "/api/email/queue/observability"
+  },
+  {
+    "method": "GET",
     "path": "/api/families"
   },
   {
