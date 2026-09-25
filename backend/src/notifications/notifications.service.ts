@@ -139,8 +139,12 @@ export class NotificationsService {
 
     const where: any = { userId };
 
-    if (query.unreadOnly) {
+    if (query.isRead !== undefined) {
+      where.isRead = query.isRead;
+    } else if (query.unreadOnly) {
       where.isRead = false;
+    } else if (query.readOnly) {
+      where.isRead = true;
     }
 
     if (query.type) {
@@ -157,12 +161,17 @@ export class NotificationsService {
       take: limit,
     });
 
+    const unreadCount = await this.notificationRepository.count({
+      where: { userId, isRead: false },
+    });
+
     const totalPages = Math.ceil(total / limit) || (total === 0 ? 0 : 1);
 
     return {
       notifications: items,
       items,
       total,
+      unreadCount,
       page,
       limit,
       pageSize: limit,
@@ -170,6 +179,22 @@ export class NotificationsService {
       hasNext: page < totalPages,
       hasPrevious: page > 1,
     };
+  }
+
+  async getUnreadCount(userId: string): Promise<number> {
+    if (!userId) return 0;
+    return await this.notificationRepository.count({
+      where: { userId, isRead: false },
+    });
+  }
+
+  async markAllAsRead(userId: string): Promise<{ success: boolean; count: number; updatedCount: number }> {
+    const result = await this.notificationRepository.update(
+      { userId, isRead: false },
+      { isRead: true },
+    );
+    const count = result.affected || 0;
+    return { success: true, count, updatedCount: count };
   }
 
   async markNotificationAsRead(

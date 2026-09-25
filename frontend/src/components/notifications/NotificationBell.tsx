@@ -15,8 +15,12 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigateTa
     error,
     page,
     totalPages,
+    filter,
+    setFilter,
     refetch,
     setPage,
+    markAsRead,
+    markAllAsRead,
   } = useNotifications({ pollIntervalMs: 60000 }); // Polling every 60s (gentle, non-aggressive)
 
   const togglePanel = () => {
@@ -62,10 +66,14 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigateTa
           error={error}
           page={page}
           totalPages={totalPages}
+          filter={filter}
+          onFilterChange={setFilter}
           onPageChange={setPage}
           onRefresh={refetch}
           onClose={() => setIsOpen(false)}
           onNavigateTarget={onNavigateTarget}
+          onMarkAsRead={markAsRead}
+          onMarkAllAsRead={markAllAsRead}
         />
       )}
     </div>

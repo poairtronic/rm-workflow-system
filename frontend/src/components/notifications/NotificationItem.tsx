@@ -5,13 +5,15 @@ import { formatNotificationType } from '../../types/notification';
 interface NotificationItemProps {
   notification: InAppNotification;
   onNavigateTarget?: (targetEntity?: string | null, targetId?: string | null) => void;
+  onMarkAsRead?: (id: string) => void;
 }
 
 export const NotificationItem: React.FC<NotificationItemProps> = ({
   notification,
   onNavigateTarget,
+  onMarkAsRead,
 }) => {
-  const { title, message, type, targetEntity, targetId, isRead, createdAt } = notification;
+  const { id, title, message, type, targetEntity, targetId, isRead, createdAt } = notification;
 
   const formattedType = formatNotificationType(type);
   const formattedTime = new Date(createdAt).toLocaleString(undefined, {
@@ -22,6 +24,9 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
   });
 
   const handleClick = () => {
+    if (!isRead && onMarkAsRead) {
+      onMarkAsRead(id);
+    }
     if (targetEntity && targetId && onNavigateTarget) {
       onNavigateTarget(targetEntity, targetId);
     }

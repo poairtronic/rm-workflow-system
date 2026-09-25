@@ -9,6 +9,7 @@ import {
   Param,
   ForbiddenException,
   BadRequestException,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
@@ -26,6 +27,21 @@ export class NotificationsController {
   @Get('status')
   getStatus() {
     return this.notificationsService.getStatus();
+  }
+
+  @Get('unread-count')
+  @UseGuards(JwtAuthGuard)
+  async getUnreadCount(@Request() req: any) {
+    const userId = req.user?.userId || req.user?.sub || req.user?.id;
+    const count = await this.notificationsService.getUnreadCount(userId);
+    return { unreadCount: count };
+  }
+
+  @Patch('read-all')
+  @UseGuards(JwtAuthGuard)
+  async markAllAsRead(@Request() req: any) {
+    const userId = req.user?.userId || req.user?.sub || req.user?.id;
+    return await this.notificationsService.markAllAsRead(userId);
   }
 
   @Get()
@@ -46,8 +62,8 @@ export class NotificationsController {
 
   @Patch(':id/read')
   @UseGuards(JwtAuthGuard)
-  async markAsRead(@Request() req: any, @Param('id') notificationId: string) {
-    const userId = req.user.userId;
+  async markAsRead(@Request() req: any, @Param('id', new ParseUUIDPipe()) notificationId: string) {
+    const userId = req.user?.userId || req.user?.sub || req.user?.id;
     return await this.notificationsService.markNotificationAsRead(
       userId,
       notificationId,
