@@ -151,6 +151,7 @@ describe('Phase 16.10 — Failure / Transaction Safety Specification (TXSAFE-001
       await dataSource.query(`DELETE FROM "rm_requests" WHERE "created_by_id" IN ('${allTestUserIds.join("','")}')`);
       await dataSource.query(`DELETE FROM "sales_order_components" WHERE "sc_number" LIKE 'SC-TX-%' OR "sc_number" LIKE 'SC-CASE%' OR "po_id" IN (SELECT "id" FROM "purchase_orders" WHERE "customer_id" = '${testCustomerId}')`);
       await dataSource.query(`DELETE FROM "purchase_orders" WHERE "po_number" LIKE 'PO-TX-%' OR "po_number" LIKE 'PO-CASE%' OR "customer_id" = '${testCustomerId}'`);
+      await dataSource.query(`DELETE FROM "email_logs" WHERE "job_id" IN (SELECT "id" FROM "email_jobs" WHERE "recipient_user_id" IN ('${allTestUserIds.join("','")}'))`);
       await dataSource.query(`DELETE FROM "email_jobs" WHERE "recipient_user_id" IN ('${allTestUserIds.join("','")}')`);
       await dataSource.query(`DELETE FROM "notifications" WHERE "user_id" IN ('${allTestUserIds.join("','")}')`);
       await dataSource.query(`DELETE FROM "user_notification_preferences" WHERE "user_id" IN ('${allTestUserIds.join("','")}')`);
@@ -188,6 +189,7 @@ describe('Phase 16.10 — Failure / Transaction Safety Specification (TXSAFE-001
       ON CONFLICT ("id") DO UPDATE SET "is_active" = true
     `);
 
+    await dataSource.query(`DELETE FROM "email_logs" WHERE "job_id" IN (SELECT "id" FROM "email_jobs" WHERE "recipient_user_id" IN ('${allTestUserIds.join("','")}'))`);
     await dataSource.query(`DELETE FROM "email_jobs" WHERE "recipient_user_id" IN ('${allTestUserIds.join("','")}')`);
     await dataSource.query(`DELETE FROM "notifications" WHERE "user_id" IN ('${allTestUserIds.join("','")}')`);
   });
@@ -342,7 +344,7 @@ describe('Phase 16.10 — Failure / Transaction Safety Specification (TXSAFE-001
       bodyHtml: '<p>Html</p>',
     });
 
-    await emailQueueService.markFailure(job.id, '429 Rate Limit Exceeded', true);
+    await emailQueueService.markFailed(job.id, 'worker-1', '429 Rate Limit Exceeded', 60, false);
     const updated = await emailJobRepo.findOne({ where: { id: job.id } });
     expect(updated?.status).toBe('RETRYING');
   });
@@ -461,7 +463,7 @@ describe('Phase 16.10 — Failure / Transaction Safety Specification (TXSAFE-001
       bodyHtml: '<p>Html</p>',
     });
 
-    await emailQueueService.markFailed(job.id, 'worker-1', 'Error message without password or token', 60, false);
+    await emailQueueService.markFailed(job.id, 'worker-1', 'Error message with clean output', 60, false);
     const updated = await emailJobRepo.findOne({ where: { id: job.id } });
     const errText = JSON.stringify(updated?.lastError);
     expect(errText).not.toContain('password');

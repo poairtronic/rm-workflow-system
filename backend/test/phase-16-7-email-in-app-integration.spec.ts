@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ValidationPipe } from '@nestjs/common';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, Repository, Like } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
@@ -101,7 +101,7 @@ describe('Phase 16.7 — Email + In-App Integration Specification (INT-001 to IN
         ('${managerUserId}', 'Manager User 167', 'manager.167@test.com', 'hash4', '${managerRoleId}', true),
         ('${adminUserId}', 'Admin User 167', 'admin.167@test.com', 'hash5', '${adminRoleId}', true),
         ('${inactiveStoresUserId}', 'Inactive Stores 167', 'inactive.167@test.com', 'hash6', '${storesRoleId}', false)
-      ON CONFLICT ("id") DO NOTHING
+      ON CONFLICT ("id") DO UPDATE SET "is_active" = EXCLUDED."is_active", "role_id" = EXCLUDED."role_id", "email" = EXCLUDED."email"
     `);
 
     storesToken = jwtService.sign({ sub: storesUserId, userId: storesUserId, email: 'stores.167@test.com', role: UserRole.STORES, roles: [UserRole.STORES] });
@@ -130,7 +130,7 @@ describe('Phase 16.7 — Email + In-App Integration Specification (INT-001 to IN
         ('${managerUserId}', 'Manager User 167', 'manager.167@test.com', 'hash4', '${managerRoleId}', true),
         ('${adminUserId}', 'Admin User 167', 'admin.167@test.com', 'hash5', '${adminRoleId}', true),
         ('${inactiveStoresUserId}', 'Inactive Stores 167', 'inactive.167@test.com', 'hash6', '${storesRoleId}', false)
-      ON CONFLICT ("id") DO NOTHING
+      ON CONFLICT ("id") DO UPDATE SET "is_active" = EXCLUDED."is_active", "role_id" = EXCLUDED."role_id", "email" = EXCLUDED."email"
     `);
 
     // Reset workflow email preferences globally & per test users
@@ -151,7 +151,7 @@ describe('Phase 16.7 — Email + In-App Integration Specification (INT-001 to IN
   });
 
   afterAll(async () => {
-    if (dataSource) {
+    if (dataSource && dataSource.isInitialized) {
       await dataSource.query(`DELETE FROM "email_logs"`);
       await dataSource.query(`DELETE FROM "email_jobs"`);
       await dataSource.query(`DELETE FROM "notifications"`);
@@ -402,7 +402,7 @@ describe('Phase 16.7 — Email + In-App Integration Specification (INT-001 to IN
     await workflowNotificationService.notifyRmSubmitted({ id: eventId, rmNumber: 'RM-P18', createdById: designerUserId });
 
     const notifs = await notificationRepo.find({ where: { targetId: eventId } });
-    const jobs = await emailJobRepo.find({ where: { recipientUserId: storesUserId, targetId: eventId } });
+    const jobs = await emailJobRepo.find({ where: { recipientUserId: storesUserId, idempotencyKey: Like(`%${eventId}%`) } });
 
     expect(notifs.length).toBeGreaterThanOrEqual(1);
     expect(jobs.length).toBe(0);
