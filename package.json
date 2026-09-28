@@ -17,7 +17,7 @@
     "format": "npx prettier --write \"**/*.{ts,tsx,js,json,md,css}\"",
     "format:check": "npx prettier --check \"**/*.{ts,tsx,js,json,md,css}\"",
     "db:migrate": "npm --prefix backend run migration:run",
-    "db:seed": "npm --prefix backend run seed"
+    "db:seed": "npm --prefix backend run seed:db"
   },
   "keywords": [
     "rm-workflow",

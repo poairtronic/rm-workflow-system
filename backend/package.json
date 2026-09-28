@@ -24,7 +24,8 @@
     "typeorm": "typeorm-ts-node-esm -d ./src/config/data-source.ts",
     "migration:run": "typeorm-ts-node-esm migration:run -d ./src/config/data-source.ts",
     "migration:revert": "typeorm-ts-node-esm migration:revert -d ./src/config/data-source.ts",
-    "seed": "node --loader ts-node/esm ../database/scripts/run-seed.ts"
+    "seed": "node --loader ts-node/esm ../database/scripts/run-seed.ts",
+    "seed:db": "node seed-runner.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
