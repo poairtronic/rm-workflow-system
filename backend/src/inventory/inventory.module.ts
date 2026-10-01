@@ -15,6 +15,7 @@ import { InventoryReconciliationService } from './inventory-reconciliation.servi
 import { MslEngineService } from './msl-engine.service.js';
 import { MslCalculationService } from './msl-calculation.service.js';
 import { MslAlertService } from './msl-alert.service.js';
+import { MslTriggerService } from './msl-trigger.service.js';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { MslAlertService } from './msl-alert.service.js';
     MslEngineService,
     MslCalculationService,
     MslAlertService,
+    MslTriggerService,
   ],
   exports: [
     InventoryService,
@@ -43,6 +45,7 @@ import { MslAlertService } from './msl-alert.service.js';
     MslEngineService,
     MslCalculationService,
     MslAlertService,
+    MslTriggerService,
   ],
 })
 export class InventoryModule {}

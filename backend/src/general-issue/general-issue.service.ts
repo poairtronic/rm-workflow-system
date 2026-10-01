@@ -197,7 +197,7 @@ export class GeneralIssueService {
       // Post-commit event-driven MSL evaluation (safe & isolated)
       if (this.mslTriggerService) {
         const productIds = dto.items.map((i) => i.productId);
-        this.mslTriggerService.triggerProductsEvaluation(productIds).catch(() => {});
+        await this.mslTriggerService.triggerProductsEvaluation(productIds).catch(() => {});
       }
 
       return (await this.findOne(savedIssue.id))!;
@@ -323,7 +323,7 @@ export class GeneralIssueService {
       // Post-commit event-driven MSL evaluation (safe & isolated)
       if (this.mslTriggerService && items && items.length > 0) {
         const productIds = items.map((i) => i.productId);
-        this.mslTriggerService.triggerProductsEvaluation(productIds).catch(() => {});
+        await this.mslTriggerService.triggerProductsEvaluation(productIds).catch(() => {});
       }
 
       return (await this.findOne(id))!;

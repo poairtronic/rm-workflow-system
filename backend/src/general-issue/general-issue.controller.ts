@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Patch,
   Body,
   UseGuards,
   Get,
@@ -71,6 +72,16 @@ export class GeneralIssueController {
   @Post(':id/cancel')
   @Roles(UserRole.STORES, UserRole.ADMIN)
   async cancelIssue(
+    @Param('id') id: string,
+    @Body() dto: CancelGeneralIssueDto,
+    @Req() req: any,
+  ) {
+    return this.generalIssueService.cancelIssue(id, req.user.userId, dto?.remarks);
+  }
+
+  @Patch(':id/cancel')
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  async cancelIssuePatch(
     @Param('id') id: string,
     @Body() dto: CancelGeneralIssueDto,
     @Req() req: any,
