@@ -245,6 +245,62 @@ export class CommunicationService {
           payload: { scNumber: input.scNumber || input.entityId, scId: input.entityId },
         });
 
+      case 'MSL_LOW_STOCK':
+        return this.orchestrateChannelDelivery({
+          eventType: 'MSL_LOW_STOCK',
+          targetUsers,
+          targetEntity: 'PRODUCT',
+          targetId: input.entityId,
+          title: `Low Stock Alert: ${input.metadata?.productName || input.entityId}`,
+          message: `Product ${input.metadata?.productName || input.entityId} has dropped below Minimum Stock Level (${input.metadata?.currentStock ?? 0} / ${input.metadata?.minimumInventory ?? 0}). Deficit: ${input.metadata?.deficit ?? 0}.`,
+          templateKey: 'MSL_LOW_STOCK',
+          subject: `[RMRIT Alert] Low Stock Warning: ${input.metadata?.productName || input.entityId}`,
+          payload: {
+            productName: input.metadata?.productName || input.entityId,
+            productId: input.entityId,
+            currentStock: input.metadata?.currentStock,
+            minimumInventory: input.metadata?.minimumInventory,
+            deficit: input.metadata?.deficit,
+          },
+        });
+
+      case 'MSL_OUT_OF_STOCK':
+        return this.orchestrateChannelDelivery({
+          eventType: 'MSL_OUT_OF_STOCK',
+          targetUsers,
+          targetEntity: 'PRODUCT',
+          targetId: input.entityId,
+          title: `OUT OF STOCK: ${input.metadata?.productName || input.entityId}`,
+          message: `Product ${input.metadata?.productName || input.entityId} is completely OUT OF STOCK (0 / ${input.metadata?.minimumInventory ?? 0}). Immediate replenishment required.`,
+          templateKey: 'MSL_OUT_OF_STOCK',
+          subject: `[RMRIT Alert] CRITICAL: OUT OF STOCK: ${input.metadata?.productName || input.entityId}`,
+          payload: {
+            productName: input.metadata?.productName || input.entityId,
+            productId: input.entityId,
+            currentStock: 0,
+            minimumInventory: input.metadata?.minimumInventory,
+            deficit: input.metadata?.deficit,
+          },
+        });
+
+      case 'MSL_RESOLVED':
+        return this.orchestrateChannelDelivery({
+          eventType: 'MSL_RESOLVED',
+          targetUsers,
+          targetEntity: 'PRODUCT',
+          targetId: input.entityId,
+          title: `Stock Restored: ${input.metadata?.productName || input.entityId}`,
+          message: `Stock for product ${input.metadata?.productName || input.entityId} has been restored to or above Minimum Stock Level (${input.metadata?.currentStock ?? 0} / ${input.metadata?.minimumInventory ?? 0}).`,
+          templateKey: 'MSL_RESOLVED',
+          subject: `[RMRIT Notice] Stock Restored: ${input.metadata?.productName || input.entityId}`,
+          payload: {
+            productName: input.metadata?.productName || input.entityId,
+            productId: input.entityId,
+            currentStock: input.metadata?.currentStock,
+            minimumInventory: input.metadata?.minimumInventory,
+          },
+        });
+
       default:
         this.logger.warn(`Unsupported communication event type: ${input.eventType}`);
         return { inAppNotifications: [], emailJobs: [] };

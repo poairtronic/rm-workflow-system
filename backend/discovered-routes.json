@@ -225,6 +225,30 @@
   },
   {
     "method": "GET",
+    "path": "/api/inventory/msl"
+  },
+  {
+    "method": "GET",
+    "path": "/api/inventory/msl/alerts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/inventory/msl/breached"
+  },
+  {
+    "method": "POST",
+    "path": "/api/inventory/msl/evaluate"
+  },
+  {
+    "method": "GET",
+    "path": "/api/inventory/msl/products/:id"
+  },
+  {
+    "method": "GET",
+    "path": "/api/inventory/msl/products/:id/history"
+  },
+  {
+    "method": "GET",
     "path": "/api/inventory/reconciliation"
   },
   {

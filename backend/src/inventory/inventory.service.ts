@@ -3,6 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Logger,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -13,6 +15,7 @@ import {
   TransactionType,
   AdjustmentDirection,
 } from './entities/stock-transaction.entity.js';
+import { MslTriggerService } from './msl-trigger.service.js';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto.js';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto.js';
 import { CreateStockTransactionDto } from './dto/create-stock-transaction.dto.js';
@@ -32,6 +35,8 @@ import {
 
 @Injectable()
 export class InventoryService {
+  private readonly logger = new Logger(InventoryService.name);
+
   constructor(
     @InjectRepository(InventoryItem)
     private readonly inventoryItemRepository: Repository<InventoryItem>,
@@ -40,7 +45,22 @@ export class InventoryService {
     @InjectRepository(StockTransaction)
     private readonly stockTransactionRepository: Repository<StockTransaction>,
     private readonly dataSource: DataSource,
+    @Optional()
+    private readonly mslTriggerService?: MslTriggerService,
   ) {}
+
+  /**
+   * Post-commit safe MSL evaluation trigger.
+   */
+  private triggerMslCheck(productId?: string | null) {
+    if (productId && this.mslTriggerService) {
+      this.mslTriggerService.triggerProductEvaluation(productId).catch((err) => {
+        this.logger.error(
+          `[MSL TRIGGER ISOLATION] Post-commit check failed for product ${productId}: ${err?.message || err}`,
+        );
+      });
+    }
+  }
 
   async findAll(
     filterDto?: GetInventoryFilterDto,
@@ -522,6 +542,9 @@ export class InventoryService {
       }
 
       await queryRunner.commitTransaction();
+
+      this.triggerMslCheck(currentBalance?.productId || savedTx.productId);
+
       return savedTx;
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -596,6 +619,8 @@ export class InventoryService {
       }
 
       await queryRunner.commitTransaction();
+
+      this.triggerMslCheck(balanceCheck?.productId || finalBalance.productId);
 
       return {
         transaction: savedTx,
@@ -682,6 +707,8 @@ export class InventoryService {
       });
 
       await queryRunner.commitTransaction();
+
+      this.triggerMslCheck(currentBalance?.productId || finalBalance?.productId);
 
       return {
         transaction: savedTx,
@@ -785,6 +812,8 @@ export class InventoryService {
       });
 
       await queryRunner.commitTransaction();
+
+      this.triggerMslCheck(currentBalance?.productId || finalBalance?.productId);
 
       return {
         transaction: savedTx,

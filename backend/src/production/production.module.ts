@@ -12,6 +12,7 @@ import { SalesOrderComponent } from '../sc/entities/sc.entity.js';
 import { MaterialIssue } from '../material-issue/entities/material-issue.entity.js';
 import { RmItem } from '../rm/entities/rm-item.entity.js';
 import { Bin } from '../inventory/entities/bin.entity.js';
+import { InventoryModule } from '../inventory/inventory.module.js';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { Bin } from '../inventory/entities/bin.entity.js';
       Bin,
     ]),
     AuthModule,
+    InventoryModule,
   ],
   controllers: [ProductionController],
   providers: [ProductionService],

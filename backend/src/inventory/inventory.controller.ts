@@ -10,6 +10,7 @@ import {
   NotImplementedException,
   Query,
   ValidationPipe,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service.js';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto.js';
@@ -83,7 +84,7 @@ export class InventoryController {
     UserRole.SENIOR_MANAGER,
     UserRole.GENERAL_MANAGER,
   )
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.inventoryService.findOne(id);
   }
 

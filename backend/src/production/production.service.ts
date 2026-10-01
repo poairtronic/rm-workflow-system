@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -26,6 +27,7 @@ import {
   StockTransaction,
   TransactionType,
 } from '../inventory/entities/stock-transaction.entity.js';
+import { MslTriggerService } from '../inventory/msl-trigger.service.js';
 import {
   CreateProductionReceiptDto,
   CreateMaterialConsumptionDto,
@@ -57,6 +59,8 @@ export class ProductionService {
     @InjectRepository(Bin)
     private readonly binRepo: Repository<Bin>,
     private readonly dataSource: DataSource,
+    @Optional()
+    private readonly mslTriggerService?: MslTriggerService,
   ) {}
 
   async receiveMaterial(dto: CreateProductionReceiptDto, actorId: string) {
@@ -552,6 +556,20 @@ export class ProductionService {
 
       await queryRunner.manager.save(MaterialReturn, returnRec);
       await queryRunner.commitTransaction();
+
+      // Post-commit event-driven MSL evaluation (safe & isolated)
+      if (this.mslTriggerService && sortedItems.length > 0) {
+        const productIds = Array.from(
+          new Set(
+            sortedItems
+              .map((i) => i.rmItem?.mappedProductId)
+              .filter((id): id is string => Boolean(id)),
+          ),
+        );
+        if (productIds.length > 0) {
+          this.mslTriggerService.triggerProductsEvaluation(productIds).catch(() => {});
+        }
+      }
 
       return this.returnRepo.findOne({
         where: { id: returnId },

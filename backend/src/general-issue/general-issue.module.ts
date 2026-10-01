@@ -8,6 +8,7 @@ import { Product } from '../inventory/entities/product.entity.js';
 import { Bin } from '../inventory/entities/bin.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import { StockTransaction } from '../inventory/entities/stock-transaction.entity.js';
+import { InventoryModule } from '../inventory/inventory.module.js';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { StockTransaction } from '../inventory/entities/stock-transaction.entity
       StockBalance,
       StockTransaction,
     ]),
+    InventoryModule,
   ],
   controllers: [GeneralIssueController],
   providers: [GeneralIssueService],

@@ -171,6 +171,69 @@ export class TemplateService {
         };
       },
     },
+
+    MSL_LOW_STOCK: {
+      key: 'MSL_LOW_STOCK',
+      aliases: ['WORKFLOW_MSL_LOW_STOCK'],
+      requiredVars: ['productName'],
+      allowedVars: ['recipientName', 'productName', 'productId', 'currentStock', 'minimumInventory', 'deficit'],
+      render: (vars, escape) => {
+        const prod = vars.productName || vars.productId || 'Raw Material';
+        const escProd = escape(prod);
+        const name = vars.recipientName ? `${escape(vars.recipientName)}` : '';
+        const greeting = name ? `Hello ${name},\n\n` : '';
+        const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
+        const stock = vars.currentStock !== undefined ? vars.currentStock : 'N/A';
+        const min = vars.minimumInventory !== undefined ? vars.minimumInventory : 'N/A';
+        const deficit = vars.deficit !== undefined ? vars.deficit : 'N/A';
+        return {
+          subject: `[RMRIT Alert] Low Stock Warning: ${prod}`,
+          text: `${greeting}Warning: Product ${prod} has dropped below Minimum Stock Level.\nCurrent Stock: ${stock}\nMinimum Required: ${min}\nDeficit: ${deficit}\n\nPlease take appropriate procurement action.`,
+          html: `<h3>Low Stock Alert</h3>${htmlGreeting}<p>Warning: Product <strong>${escProd}</strong> has dropped below Minimum Stock Level.</p><ul><li><strong>Current Stock:</strong> ${stock}</li><li><strong>Minimum Required:</strong> ${min}</li><li><strong>Deficit:</strong> ${deficit}</li></ul><p>Please take appropriate procurement action.</p>`,
+        };
+      },
+    },
+
+    MSL_OUT_OF_STOCK: {
+      key: 'MSL_OUT_OF_STOCK',
+      aliases: ['WORKFLOW_MSL_OUT_OF_STOCK'],
+      requiredVars: ['productName'],
+      allowedVars: ['recipientName', 'productName', 'productId', 'currentStock', 'minimumInventory', 'deficit'],
+      render: (vars, escape) => {
+        const prod = vars.productName || vars.productId || 'Raw Material';
+        const escProd = escape(prod);
+        const name = vars.recipientName ? `${escape(vars.recipientName)}` : '';
+        const greeting = name ? `Hello ${name},\n\n` : '';
+        const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
+        const min = vars.minimumInventory !== undefined ? vars.minimumInventory : 'N/A';
+        return {
+          subject: `[RMRIT Alert] CRITICAL: OUT OF STOCK: ${prod}`,
+          text: `${greeting}CRITICAL: Product ${prod} is completely OUT OF STOCK (Current Stock: 0, Minimum Required: ${min}).\n\nImmediate restocking is required.`,
+          html: `<h3>CRITICAL: Out of Stock Alert</h3>${htmlGreeting}<p>CRITICAL: Product <strong>${escProd}</strong> is completely <strong>OUT OF STOCK</strong> (Current Stock: 0, Minimum Required: ${min}).</p><p>Immediate restocking is required.</p>`,
+        };
+      },
+    },
+
+    MSL_RESOLVED: {
+      key: 'MSL_RESOLVED',
+      aliases: ['WORKFLOW_MSL_RESOLVED'],
+      requiredVars: ['productName'],
+      allowedVars: ['recipientName', 'productName', 'productId', 'currentStock', 'minimumInventory'],
+      render: (vars, escape) => {
+        const prod = vars.productName || vars.productId || 'Raw Material';
+        const escProd = escape(prod);
+        const name = vars.recipientName ? `${escape(vars.recipientName)}` : '';
+        const greeting = name ? `Hello ${name},\n\n` : '';
+        const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
+        const stock = vars.currentStock !== undefined ? vars.currentStock : 'N/A';
+        const min = vars.minimumInventory !== undefined ? vars.minimumInventory : 'N/A';
+        return {
+          subject: `[RMRIT Notice] Stock Restored: ${prod}`,
+          text: `${greeting}Notice: Stock for product ${prod} has been replenished to or above Minimum Stock Level.\nCurrent Stock: ${stock}\nMinimum Level: ${min}`,
+          html: `<h3>Stock Restored</h3>${htmlGreeting}<p>Notice: Stock for product <strong>${escProd}</strong> has been replenished to or above Minimum Stock Level.</p><p><strong>Current Stock:</strong> ${stock} (Minimum Level: ${min})</p>`,
+        };
+      },
+    },
   };
 
   /**

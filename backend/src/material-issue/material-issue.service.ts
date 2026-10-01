@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -23,6 +24,7 @@ import { CreateMaterialIssueDto } from './dto/material-issue.dto.js';
 import { QuantityCalculator } from '../common/utils/quantity-calculator.js';
 import { StateMachineValidator } from '../common/utils/state-machine-validator.js';
 import { WorkflowNotificationService } from '../notifications/workflow-notification.service.js';
+import { MslTriggerService } from '../inventory/msl-trigger.service.js';
 
 @Injectable()
 export class MaterialIssueService {
@@ -39,6 +41,8 @@ export class MaterialIssueService {
     private readonly binRepo: Repository<Bin>,
     private readonly dataSource: DataSource,
     private readonly workflowNotificationService: WorkflowNotificationService,
+    @Optional()
+    private readonly mslTriggerService?: MslTriggerService,
   ) {}
 
   async createIssue(dto: CreateMaterialIssueDto, actorId: string) {
@@ -76,6 +80,7 @@ export class MaterialIssueService {
 
       const savedIssue = await queryRunner.manager.save(MaterialIssue, issue);
       const issueItems: MaterialIssueItem[] = [];
+      const affectedProductIds = new Set<string>();
 
       // Deterministically sort items by binId and rmItemId to prevent lock-ordering deadlocks during concurrent issues
       const sortedItems = [...dto.items].sort((a, b) => {
@@ -115,6 +120,7 @@ export class MaterialIssueService {
             `RM Item "${rmItem.id}" has no mapped Product. Stores Review must explicitly map it first.`,
           );
         }
+        affectedProductIds.add(rmItem.mappedProductId);
 
         const bin = await queryRunner.manager.findOne(Bin, {
           where: { id: itemDto.binId },
@@ -195,6 +201,13 @@ export class MaterialIssueService {
       await queryRunner.manager.save(SalesOrderComponent, sc);
 
       await queryRunner.commitTransaction();
+
+      // Post-commit event-driven MSL evaluation (safe & isolated)
+      if (this.mslTriggerService && affectedProductIds.size > 0) {
+        this.mslTriggerService
+          .triggerProductsEvaluation(Array.from(affectedProductIds))
+          .catch(() => {});
+      }
 
       // Post-commit notification for MATERIAL_ISSUED
       try {

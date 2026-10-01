@@ -87,6 +87,14 @@ export class NotificationRecipientService {
         monitoringRoles = [UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER];
         break;
 
+      case 'MSL_LOW_STOCK':
+      case 'MSL_OUT_OF_STOCK':
+      case 'MSL_RESOLVED':
+        // Business Rule: MSL breaches and resolutions -> Stores manages stock replenishment. Senior & General Managers monitor.
+        primaryRoles = [UserRole.STORES];
+        monitoringRoles = [UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER];
+        break;
+
       default:
         this.logger.warn(`Unknown/unsupported event type "${eventType}". Returning empty recipient list.`);
         return [];

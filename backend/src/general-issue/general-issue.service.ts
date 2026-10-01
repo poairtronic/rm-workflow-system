@@ -2,12 +2,14 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { GeneralIssue, GeneralIssueStatus } from './entities/general-issue.entity.js';
 import { GeneralIssueItem } from './entities/general-issue-item.entity.js';
 import { CreateGeneralIssueDto } from './dto/general-issue.dto.js';
+import { MslTriggerService } from '../inventory/msl-trigger.service.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import { StockTransaction, TransactionType } from '../inventory/entities/stock-transaction.entity.js';
 import { Bin } from '../inventory/entities/bin.entity.js';
@@ -24,6 +26,8 @@ export class GeneralIssueService {
     @InjectRepository(GeneralIssueItem)
     private readonly issueItemRepo: Repository<GeneralIssueItem>,
     private readonly dataSource: DataSource,
+    @Optional()
+    private readonly mslTriggerService?: MslTriggerService,
   ) {}
 
   async createIssue(dto: CreateGeneralIssueDto, actorId: string): Promise<GeneralIssue> {
@@ -190,6 +194,12 @@ export class GeneralIssueService {
 
       await queryRunner.commitTransaction();
 
+      // Post-commit event-driven MSL evaluation (safe & isolated)
+      if (this.mslTriggerService) {
+        const productIds = dto.items.map((i) => i.productId);
+        this.mslTriggerService.triggerProductsEvaluation(productIds).catch(() => {});
+      }
+
       return (await this.findOne(savedIssue.id))!;
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -309,6 +319,13 @@ export class GeneralIssueService {
       }
 
       await queryRunner.commitTransaction();
+
+      // Post-commit event-driven MSL evaluation (safe & isolated)
+      if (this.mslTriggerService && items && items.length > 0) {
+        const productIds = items.map((i) => i.productId);
+        this.mslTriggerService.triggerProductsEvaluation(productIds).catch(() => {});
+      }
+
       return (await this.findOne(id))!;
     } catch (error) {
       await queryRunner.rollbackTransaction();
