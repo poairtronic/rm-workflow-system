@@ -16,17 +16,24 @@ import {
   VendorCapabilityService,
   VendorProcessValidationResult,
 } from './vendor-capability.service.js';
+import {
+  VendorSlaService,
+  ExpectedReturnCalculationResult,
+} from './vendor-sla.service.js';
 import { CreateVendorDto } from './dto/create-vendor.dto.js';
 import { UpdateVendorDto } from './dto/update-vendor.dto.js';
 import { GetVendorFilterDto } from './dto/get-vendor-filter.dto.js';
 import { AssignVendorCapabilityDto } from './dto/assign-vendor-capability.dto.js';
 import { UpdateVendorCapabilityDto } from './dto/update-vendor-capability.dto.js';
+import { CreateVendorSlaDto } from './dto/create-vendor-sla.dto.js';
+import { UpdateVendorSlaDto } from './dto/update-vendor-sla.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { UserRole } from '../auth/enums/role.enum.js';
 import { Vendor } from './entities/vendor.entity.js';
 import { VendorProcessCapability } from './entities/vendor-process-capability.entity.js';
+import { VendorSla } from './entities/vendor-sla.entity.js';
 
 @Controller('api/vendors')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -34,6 +41,7 @@ export class VendorController {
   constructor(
     private readonly vendorService: VendorService,
     private readonly capabilityService: VendorCapabilityService,
+    private readonly slaService: VendorSlaService,
   ) {}
 
   /**
@@ -67,6 +75,31 @@ export class VendorController {
     @Param('processId', ParseUUIDPipe) processId: string,
   ): Promise<VendorProcessCapability[]> {
     return this.capabilityService.getVendorsForProcess(processId);
+  }
+
+  /**
+   * Update an existing SLA agreement by its UUID.
+   * Placed before /:id to prevent route hijacking.
+   */
+  @Patch('slas/:slaId')
+  @Roles(UserRole.ADMIN, UserRole.STORES)
+  updateSla(
+    @Param('slaId', ParseUUIDPipe) slaId: string,
+    @Body() dto: UpdateVendorSlaDto,
+  ): Promise<VendorSla> {
+    return this.slaService.updateSla(slaId, dto);
+  }
+
+  /**
+   * Delete / remove an SLA agreement by its UUID.
+   * Placed before /:id to prevent route hijacking.
+   */
+  @Delete('slas/:slaId')
+  @Roles(UserRole.ADMIN, UserRole.STORES)
+  removeSla(
+    @Param('slaId', ParseUUIDPipe) slaId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    return this.slaService.removeSla(slaId);
   }
 
   /**
@@ -179,5 +212,58 @@ export class VendorController {
   ): Promise<{ success: boolean; message: string }> {
     return this.capabilityService.removeCapability(vendorId, processId);
   }
-}
 
+  // =========================================================================
+  // VENDOR SLA FOUNDATION (PHASE 18.5)
+  // =========================================================================
+
+  /**
+   * Create or configure an SLA agreement for a vendor and process.
+   * Restricted to ADMIN and STORES roles.
+   */
+  @Post(':id/slas')
+  @Roles(UserRole.ADMIN, UserRole.STORES)
+  createSla(
+    @Param('id', ParseUUIDPipe) vendorId: string,
+    @Body() dto: CreateVendorSlaDto,
+  ): Promise<VendorSla> {
+    return this.slaService.createSla(vendorId, dto);
+  }
+
+  /**
+   * Retrieve all SLA agreements for a vendor.
+   * Read access permitted for all authenticated users.
+   */
+  @Get(':id/slas')
+  getVendorSlas(
+    @Param('id', ParseUUIDPipe) vendorId: string,
+  ): Promise<VendorSla[]> {
+    return this.slaService.getVendorSlas(vendorId);
+  }
+
+  /**
+   * Retrieve active SLA agreement for a vendor and process.
+   * Read access permitted for all authenticated users.
+   */
+  @Get(':id/slas/:processId')
+  getSlaForVendorProcess(
+    @Param('id', ParseUUIDPipe) vendorId: string,
+    @Param('processId', ParseUUIDPipe) processId: string,
+  ): Promise<VendorSla> {
+    return this.slaService.getSlaForVendorProcess(vendorId, processId);
+  }
+
+  /**
+   * Calculate expected return date for DC Type 1 based on vendor SLA days.
+   * Read access permitted for all authenticated users.
+   */
+  @Get(':id/slas/:processId/expected-return')
+  calculateExpectedReturnDate(
+    @Param('id', ParseUUIDPipe) vendorId: string,
+    @Param('processId', ParseUUIDPipe) processId: string,
+    @Query('dispatchDate') dispatchDate?: string,
+  ): Promise<ExpectedReturnCalculationResult> {
+    const parsedDate = dispatchDate ? new Date(dispatchDate) : new Date();
+    return this.slaService.calculateExpectedReturnDate(vendorId, processId, parsedDate);
+  }
+}

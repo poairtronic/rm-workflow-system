@@ -5,7 +5,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  OneToMany,
 } from 'typeorm';
+import { VendorProcessCapability } from './vendor-process-capability.entity.js';
+import { VendorSla } from './vendor-sla.entity.js';
 
 @Entity('vendors')
 @Index('IDX_vendors_code', ['code'], { unique: true })
@@ -48,5 +51,11 @@ export class Vendor {
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
+
+  @OneToMany(() => VendorProcessCapability, (capability) => capability.vendor)
+  capabilities: VendorProcessCapability[];
+
+  @OneToMany(() => VendorSla, (sla) => sla.vendor)
+  slas: VendorSla[];
 }
 
