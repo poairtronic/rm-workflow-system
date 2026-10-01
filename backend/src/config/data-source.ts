@@ -62,6 +62,7 @@ import { GeneralIssue } from '../general-issue/entities/general-issue.entity.js'
 import { GeneralIssueItem } from '../general-issue/entities/general-issue-item.entity.js';
 import { MslAlert } from '../inventory/entities/msl-alert.entity.js';
 import { ProductionProcess } from '../production-process/entities/production-process.entity.js';
+import { Vendor } from '../vendor/entities/vendor.entity.js';
 
 export const ALL_ENTITIES = [
   Role,
@@ -103,6 +104,7 @@ export const ALL_ENTITIES = [
   GeneralIssueItem,
   MslAlert,
   ProductionProcess,
+  Vendor,
 ];
 
 const dbUrl =

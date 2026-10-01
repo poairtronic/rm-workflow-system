@@ -28,6 +28,7 @@ import { AttachmentsModule } from './attachments/attachments.module.js';
 import { EmailModule } from './email/email.module.js';
 import { GeneralIssueModule } from './general-issue/general-issue.module.js';
 import { ProductionProcessModule } from './production-process/production-process.module.js';
+import { VendorModule } from './vendor/vendor.module.js';
 
 @Module({
   imports: [
@@ -83,6 +84,7 @@ import { ProductionProcessModule } from './production-process/production-process
     EmailModule,
     GeneralIssueModule,
     ProductionProcessModule,
+    VendorModule,
   ],
 
   controllers: [AppController],
