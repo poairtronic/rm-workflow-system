@@ -49,6 +49,10 @@ export class ProductionProcessService {
       category: dto.category?.trim() || null,
       description: dto.description?.trim() || null,
       isActive: dto.isActive !== undefined ? dto.isActive : true,
+      isSkippable: dto.isSkippable !== undefined ? dto.isSkippable : false,
+      isRepeatable: dto.isRepeatable !== undefined ? dto.isRepeatable : false,
+      allowsOutsideVendor:
+        dto.allowsOutsideVendor !== undefined ? dto.allowsOutsideVendor : false,
     });
 
     const saved = await this.processRepo.save(process);
@@ -142,6 +146,15 @@ export class ProductionProcessService {
     }
     if (dto.isActive !== undefined) {
       process.isActive = dto.isActive;
+    }
+    if (dto.isSkippable !== undefined) {
+      process.isSkippable = dto.isSkippable;
+    }
+    if (dto.isRepeatable !== undefined) {
+      process.isRepeatable = dto.isRepeatable;
+    }
+    if (dto.allowsOutsideVendor !== undefined) {
+      process.allowsOutsideVendor = dto.allowsOutsideVendor;
     }
 
     const saved = await this.processRepo.save(process);

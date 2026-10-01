@@ -38,4 +38,16 @@ export class CreateProductionProcessDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean = true;
+
+  @IsBoolean()
+  @IsOptional()
+  isSkippable?: boolean = false;
+
+  @IsBoolean()
+  @IsOptional()
+  isRepeatable?: boolean = false;
+
+  @IsBoolean()
+  @IsOptional()
+  allowsOutsideVendor?: boolean = false;
 }

@@ -29,6 +29,15 @@ export class ProductionProcess {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 
+  @Column({ name: 'is_skippable', type: 'boolean', default: false })
+  isSkippable: boolean;
+
+  @Column({ name: 'is_repeatable', type: 'boolean', default: false })
+  isRepeatable: boolean;
+
+  @Column({ name: 'allows_outside_vendor', type: 'boolean', default: false })
+  allowsOutsideVendor: boolean;
+
   @Column({ type: 'text', nullable: true })
   description?: string | null;
 
