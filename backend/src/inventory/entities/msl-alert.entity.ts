@@ -24,7 +24,7 @@ export class MslAlert {
   @Column({ name: 'product_id' })
   productId!: string;
 
-  @ManyToOne(() => Product, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Product, (product) => product.mslAlerts, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'product_id' })
   product!: Product;
 

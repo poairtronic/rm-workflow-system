@@ -161,6 +161,22 @@
   },
   {
     "method": "GET",
+    "path": "/api/general-issue"
+  },
+  {
+    "method": "POST",
+    "path": "/api/general-issue"
+  },
+  {
+    "method": "GET",
+    "path": "/api/general-issue/:id"
+  },
+  {
+    "method": "POST",
+    "path": "/api/general-issue/:id/cancel"
+  },
+  {
+    "method": "GET",
     "path": "/api/health"
   },
   {
@@ -272,6 +288,10 @@
     "path": "/api/notifications/preferences/me"
   },
   {
+    "method": "PATCH",
+    "path": "/api/notifications/read-all"
+  },
+  {
     "method": "GET",
     "path": "/api/notifications/settings"
   },
@@ -282,6 +302,10 @@
   {
     "method": "GET",
     "path": "/api/notifications/status"
+  },
+  {
+    "method": "GET",
+    "path": "/api/notifications/unread-count"
   },
   {
     "method": "GET",

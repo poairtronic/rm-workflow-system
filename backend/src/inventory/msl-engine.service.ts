@@ -1,14 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Product } from './entities/product.entity.js';
 import { StockBalance } from './entities/stock-balance.entity.js';
 import { MslAlert, MslAlertStatus } from './entities/msl-alert.entity.js';
+import { MslCalculationService, MslCalculationResult } from './msl-calculation.service.js';
 
 @Injectable()
 export class MslEngineService {
   private readonly logger = new Logger(MslEngineService.name);
+  private readonly mslCalculationService: MslCalculationService;
 
   constructor(
     @InjectRepository(Product)
@@ -17,7 +19,27 @@ export class MslEngineService {
     private readonly stockBalanceRepo: Repository<StockBalance>,
     @InjectRepository(MslAlert)
     private readonly mslAlertRepo: Repository<MslAlert>,
-  ) {}
+    @Optional()
+    mslCalculationService?: MslCalculationService,
+  ) {
+    this.mslCalculationService =
+      mslCalculationService ||
+      new MslCalculationService(this.productRepo, this.stockBalanceRepo);
+  }
+
+  /**
+   * Check MSL for a specific product on demand.
+   */
+  async checkProductMsl(productId: string): Promise<MslCalculationResult | null> {
+    return this.mslCalculationService.checkProductMsl(productId);
+  }
+
+  /**
+   * Batch evaluate all active products.
+   */
+  async evaluateAllProducts(): Promise<MslCalculationResult[]> {
+    return this.mslCalculationService.evaluateAllProducts();
+  }
 
   async evaluateMslForProduct(productId: string) {
     const product = await this.productRepo.findOne({ where: { id: productId } });

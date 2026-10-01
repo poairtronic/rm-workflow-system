@@ -12,6 +12,7 @@ import {
 import { ProductFamily } from './product-family.entity.js';
 import type { StockBalance } from './stock-balance.entity.js';
 import type { StockTransaction } from './stock-transaction.entity.js';
+import type { MslAlert } from './msl-alert.entity.js';
 
 @Entity('products')
 @Check(`"minimum_inventory" >= 0`)
@@ -60,6 +61,9 @@ export class Product {
 
   @OneToMany('StockTransaction', (tx: any) => tx.product)
   stockTransactions?: StockTransaction[];
+
+  @OneToMany('MslAlert', (alert: any) => alert.product)
+  mslAlerts?: MslAlert[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;

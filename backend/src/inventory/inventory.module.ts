@@ -11,6 +11,7 @@ import { InventoryController } from './inventory.controller.js';
 import { InventoryService } from './inventory.service.js';
 import { InventoryReconciliationService } from './inventory-reconciliation.service.js';
 import { MslEngineService } from './msl-engine.service.js';
+import { MslCalculationService } from './msl-calculation.service.js';
 
 @Module({
   imports: [
@@ -25,7 +26,7 @@ import { MslEngineService } from './msl-engine.service.js';
     AuthModule,
   ],
   controllers: [InventoryController],
-  providers: [InventoryService, InventoryReconciliationService, MslEngineService],
-  exports: [InventoryService, InventoryReconciliationService, MslEngineService],
+  providers: [InventoryService, InventoryReconciliationService, MslEngineService, MslCalculationService],
+  exports: [InventoryService, InventoryReconciliationService, MslEngineService, MslCalculationService],
 })
 export class InventoryModule {}
