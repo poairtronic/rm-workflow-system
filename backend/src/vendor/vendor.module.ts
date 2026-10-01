@@ -15,3 +15,4 @@ import { VendorService } from './vendor.service.js';
   exports: [VendorService],
 })
 export class VendorModule {}
+

@@ -19,3 +19,4 @@ export class GetVendorFilterDto {
   @IsOptional()
   search?: string;
 }
+

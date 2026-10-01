@@ -92,3 +92,4 @@ export class VendorController {
     return this.vendorService.remove(id);
   }
 }
+

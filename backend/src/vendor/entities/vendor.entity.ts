@@ -49,3 +49,4 @@ export class Vendor {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 }
+

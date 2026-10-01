@@ -48,3 +48,4 @@ export class Phase183VendorsTable1790900200000 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE IF EXISTS "vendors"`);
   }
 }
+
