@@ -4,7 +4,6 @@ import * as jwt from 'jsonwebtoken';
 import { Client } from 'pg';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseStorageProvider } from '../src/files/storage/supabase-storage.provider.js';
-import { FilesModule } from '../src/files/files.module.js';
 
 const BASE_URL = 'http://localhost:3000/api';
 let adminToken = '';

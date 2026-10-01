@@ -21,13 +21,12 @@ import { StockBalance } from '../src/inventory/entities/stock-balance.entity.js'
 import { UserRole } from '../src/auth/enums/role.enum.js';
 import { JwtService } from '@nestjs/jwt';
 import { MaterialIssue } from '../src/material-issue/entities/material-issue.entity.js';
-import { MaterialReceipt } from '../src/production/entities/production-receipt.entity.js';
 
 describe('Phase 13.6 SC Isolation Hardening (e2e)', () => {
   let app: INestApplication;
   let dataSource: DataSource;
   let jwtService: JwtService;
-  let adminToken: string;
+  let _adminToken: string;
   let storesToken: string;
   let productionToken: string;
 
@@ -106,7 +105,7 @@ describe('Phase 13.6 SC Isolation Hardening (e2e)', () => {
         }));
       }
 
-      adminToken = generateToken(adminUser.id, adminUser.email, [UserRole.ADMIN]);
+      _adminToken = generateToken(adminUser.id, adminUser.email, [UserRole.ADMIN]);
       storesToken = generateToken(storesUser.id, storesUser.email, [UserRole.STORES]);
       productionToken = generateToken(productionUser.id, productionUser.email, [UserRole.PRODUCTION]);
 
@@ -243,7 +242,7 @@ describe('Phase 13.6 SC Isolation Hardening (e2e)', () => {
   });
 
   it('SCISO_003_004: SC001 context with SC002 Material Issue in Receipt -> REJECT', async () => {
-    const { sc: sc1, rmItem: rm1 } = await createScAndRm('SC001', baseProduct1.id);
+    const { sc: sc1, rmItem: _rm1 } = await createScAndRm('SC001', baseProduct1.id);
     const { sc: sc2, rmItem: rm2 } = await createScAndRm('SC002', baseProduct1.id);
 
     const issue2Res = await request(app.getHttpServer())
@@ -272,7 +271,7 @@ describe('Phase 13.6 SC Isolation Hardening (e2e)', () => {
 
   it('SCISO_005: SC001 context with SC002 RmItem in Consumption -> REJECT', async () => {
     const { sc: sc1 } = await createScAndRm('SC001', baseProduct1.id);
-    const { sc: sc2, rmItem: rm2 } = await createScAndRm('SC002', baseProduct1.id);
+    const { sc: _sc2, rmItem: rm2 } = await createScAndRm('SC002', baseProduct1.id);
 
     const consumeRes = await request(app.getHttpServer())
       .post('/api/production/consume')
@@ -289,7 +288,7 @@ describe('Phase 13.6 SC Isolation Hardening (e2e)', () => {
 
   it('SCISO_006: SC001 context with SC002 RmItem in Return -> REJECT', async () => {
     const { sc: sc1 } = await createScAndRm('SC001', baseProduct1.id);
-    const { sc: sc2, rmItem: rm2 } = await createScAndRm('SC002', baseProduct1.id);
+    const { sc: _sc2, rmItem: rm2 } = await createScAndRm('SC002', baseProduct1.id);
 
     const returnRes = await request(app.getHttpServer())
       .post('/api/production/return')

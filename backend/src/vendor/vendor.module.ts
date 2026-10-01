@@ -25,3 +25,4 @@ import { VendorSlaService } from './vendor-sla.service.js';
   exports: [VendorService, VendorCapabilityService, VendorSlaService],
 })
 export class VendorModule {}
+
