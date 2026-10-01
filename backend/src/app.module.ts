@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { ALL_ENTITIES } from './config/data-source.js';
@@ -25,6 +26,7 @@ import { MasterDataModule } from './master-data/master-data.module.js';
 import { FilesModule } from './files/files.module.js';
 import { AttachmentsModule } from './attachments/attachments.module.js';
 import { EmailModule } from './email/email.module.js';
+import { GeneralIssueModule } from './general-issue/general-issue.module.js';
 
 @Module({
   imports: [
@@ -56,6 +58,7 @@ import { EmailModule } from './email/email.module.js';
         };
       },
     }),
+    ScheduleModule.forRoot(),
     AuthModule,
     UsersModule,
     RolesModule,
@@ -77,6 +80,7 @@ import { EmailModule } from './email/email.module.js';
     FilesModule,
     AttachmentsModule,
     EmailModule,
+    GeneralIssueModule,
   ],
 
   controllers: [AppController],

@@ -6,9 +6,11 @@ import { StockBalance } from './entities/stock-balance.entity.js';
 import { StockTransaction } from './entities/stock-transaction.entity.js';
 import { Product } from './entities/product.entity.js';
 import { Bin } from './entities/bin.entity.js';
+import { MslAlert } from './entities/msl-alert.entity.js';
 import { InventoryController } from './inventory.controller.js';
 import { InventoryService } from './inventory.service.js';
 import { InventoryReconciliationService } from './inventory-reconciliation.service.js';
+import { MslEngineService } from './msl-engine.service.js';
 
 @Module({
   imports: [
@@ -18,11 +20,12 @@ import { InventoryReconciliationService } from './inventory-reconciliation.servi
       StockTransaction,
       Product,
       Bin,
+      MslAlert,
     ]),
     AuthModule,
   ],
   controllers: [InventoryController],
-  providers: [InventoryService, InventoryReconciliationService],
-  exports: [InventoryService, InventoryReconciliationService],
+  providers: [InventoryService, InventoryReconciliationService, MslEngineService],
+  exports: [InventoryService, InventoryReconciliationService, MslEngineService],
 })
 export class InventoryModule {}

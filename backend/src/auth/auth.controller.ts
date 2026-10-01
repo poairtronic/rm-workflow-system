@@ -38,12 +38,12 @@ export class AuthController {
   }
 
   @Post('dev-token')
-  getDevToken(@Body() body: { role?: UserRole }) {
+  getDevToken(@Body() body: { role?: UserRole; userId?: string }) {
     if (process.env.NODE_ENV === 'production') {
       throw new ForbiddenException('Dev token endpoint is strictly disabled in production');
     }
     const targetRole = body?.role ?? UserRole.ADMIN;
-    return this.authService.createDevTestToken(targetRole);
+    return this.authService.createDevTestToken(targetRole, body?.userId);
   }
 
   @UseGuards(JwtAuthGuard)

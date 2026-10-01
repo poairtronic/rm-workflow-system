@@ -28,6 +28,7 @@ export enum RmRequestStatus {
 }
 
 @Entity('rm_requests')
+@Index('IDX_rm_requests_status_created_at', ['status', 'createdAt'])
 export class RmRequest {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

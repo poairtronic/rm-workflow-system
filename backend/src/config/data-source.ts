@@ -58,6 +58,9 @@ import { Attachment } from '../attachments/entities/attachment.entity.js';
 import { EmailJob } from '../email/entities/email-job.entity.js';
 import { SystemSetting } from '../notifications/entities/system-setting.entity.js';
 import { UserNotificationPreference } from '../notifications/entities/user-notification-preference.entity.js';
+import { GeneralIssue } from '../general-issue/entities/general-issue.entity.js';
+import { GeneralIssueItem } from '../general-issue/entities/general-issue-item.entity.js';
+import { MslAlert } from '../inventory/entities/msl-alert.entity.js';
 
 export const ALL_ENTITIES = [
   Role,
@@ -95,6 +98,9 @@ export const ALL_ENTITIES = [
   EmailJob,
   SystemSetting,
   UserNotificationPreference,
+  GeneralIssue,
+  GeneralIssueItem,
+  MslAlert,
 ];
 
 const dbUrl =

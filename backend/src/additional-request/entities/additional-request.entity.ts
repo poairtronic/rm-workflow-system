@@ -34,6 +34,10 @@ export enum AdditionalRequestStatus {
   unique: true,
   where: "status IN ('REQUESTED', 'APPROVED')",
 })
+@Index('IDX_additional_material_requests_status_created_at', [
+  'status',
+  'createdAt',
+])
 export class AdditionalMaterialRequest {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

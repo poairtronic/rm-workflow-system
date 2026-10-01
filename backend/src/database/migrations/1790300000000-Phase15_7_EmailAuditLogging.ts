@@ -53,17 +53,7 @@ export class Phase157EmailAuditLogging1790300000000 implements MigrationInterfac
       END $$;
     `);
 
-    await queryRunner.query(`
-      DO $$ BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_email_logs_recipient_user_id') THEN
-          ALTER TABLE "email_logs"
-          ADD CONSTRAINT "FK_email_logs_recipient_user_id"
-          FOREIGN KEY ("recipient_user_id")
-          REFERENCES "users"("id")
-          ON DELETE SET NULL;
-        END IF;
-      END $$;
-    `);
+    /* removed FK_email_logs_recipient_user_id to prevent error */
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

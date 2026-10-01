@@ -11,6 +11,10 @@ import type { AdditionalMaterialRequest } from './additional-request.entity.js';
 import { RmItem } from '../../rm/entities/rm-item.entity.js';
 
 @Entity('additional_material_request_items')
+@Index('IDX_additional_material_request_items_request_created_at', [
+  'requestId',
+  'createdAt',
+])
 export class AdditionalMaterialRequestItem {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
