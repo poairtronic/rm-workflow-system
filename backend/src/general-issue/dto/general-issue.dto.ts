@@ -3,6 +3,7 @@ import {
   IsString,
   IsOptional,
   IsArray,
+  ArrayNotEmpty,
   ValidateNested,
   IsUUID,
   IsNumber,
@@ -29,6 +30,14 @@ export class GeneralIssueItemDto {
 }
 
 export class CreateGeneralIssueDto {
+  @IsUUID()
+  @IsOptional()
+  scId?: string;
+
+  @IsUUID()
+  @IsOptional()
+  poId?: string;
+
   @IsString()
   @IsOptional()
   department?: string;
@@ -50,7 +59,14 @@ export class CreateGeneralIssueDto {
   remarks?: string;
 
   @IsArray()
+  @ArrayNotEmpty()
   @ValidateNested({ each: true })
   @Type(() => GeneralIssueItemDto)
   items!: GeneralIssueItemDto[];
+}
+
+export class CancelGeneralIssueDto {
+  @IsString()
+  @IsOptional()
+  remarks?: string;
 }

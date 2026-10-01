@@ -1,4 +1,4 @@
-# RMRIT Design System Specification
+RMRIT Design System Specification
 
 A clean, high-density manufacturing design system focused on rapid data scanning, high contrast, and workflow clarity.
 
