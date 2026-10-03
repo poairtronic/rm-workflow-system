@@ -275,4 +275,45 @@ export class DeliveryChallanService {
     }
     return challan;
   }
+
+  async getVendorCustodySummary(vendorId: string) {
+    const items = await this.dataSource.createQueryBuilder(DeliveryChallanItem, 'item')
+      .innerJoinAndSelect('item.challan', 'dc')
+      .innerJoinAndSelect('item.product', 'product')
+      .where('dc.vendorId = :vendorId', { vendorId })
+      .andWhere('dc.status != :status', { status: DeliveryChallanStatus.CLOSED })
+      .andWhere('dc.status != :statusReturned', { statusReturned: DeliveryChallanStatus.RETURNED })
+      .andWhere('item.quantity_dispatched > item.quantity_returned')
+      .getMany();
+    
+    return items.map(item => ({
+      challanId: item.challanId,
+      challanNumber: item.challan.challanNumber,
+      productId: item.productId,
+      productCode: item.product.code,
+      productName: item.product.name,
+      binId: item.binId,
+      quantityDispatched: Number(item.quantityDispatched),
+      quantityReturned: Number(item.quantityReturned),
+      outstandingQuantity: Number(item.quantityDispatched) - Number(item.quantityReturned),
+      dispatchDate: item.challan.dispatchDate,
+    }));
+  }
+
+  async getProductCustodyTotal(productId: string) {
+    const qb = this.dataSource.createQueryBuilder()
+      .select('SUM(item.quantity_dispatched - item.quantity_returned)', 'totalOutstanding')
+      .from(DeliveryChallanItem, 'item')
+      .innerJoin('item.challan', 'dc')
+      .where('item.productId = :productId', { productId })
+      .andWhere('dc.status != :status', { status: DeliveryChallanStatus.CLOSED })
+      .andWhere('dc.status != :statusReturned', { statusReturned: DeliveryChallanStatus.RETURNED })
+      .andWhere('item.quantity_dispatched > item.quantity_returned');
+
+    const result = await qb.getRawOne();
+    return {
+      productId,
+      totalOutstanding: result?.totalOutstanding ? Number(result.totalOutstanding) : 0,
+    };
+  }
 }

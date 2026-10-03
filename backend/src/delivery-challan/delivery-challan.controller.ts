@@ -24,6 +24,17 @@ export class DeliveryChallanController {
     const userId = req.user.userId;
     return this.deliveryChallanService.createType2Challan(dto, userId);
   }
+  @Get('custody/vendor/:vendorId')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER)
+  async getVendorCustodySummary(@Param('vendorId') vendorId: string) {
+    return this.deliveryChallanService.getVendorCustodySummary(vendorId);
+  }
+
+  @Get('custody/product/:productId')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER)
+  async getProductCustodyTotal(@Param('productId') productId: string) {
+    return this.deliveryChallanService.getProductCustodyTotal(productId);
+  }
 
 
   @Get()
