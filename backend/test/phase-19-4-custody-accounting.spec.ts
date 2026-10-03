@@ -68,7 +68,6 @@ describe('Phase 19.4 — DC Stock/Custody Accounting (E2E)', () => {
     if (!fam) fam = await famRepo.save({ categoryId: cat.id, name: 'Metal', isActive: true });
 
     const product = await productRepo.save({ 
-      code: `PRD-CUST-${rand}`, 
       name: `Custody Product ${rand}`, 
       type: 'SEMI_FINISHED', 
       categoryId: cat.id, 

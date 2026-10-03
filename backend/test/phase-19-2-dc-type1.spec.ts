@@ -84,7 +84,7 @@ describe('Phase 19.2 — DC Type 1: Production Process Outward (E2E)', () => {
       let fam = await famRepo.findOne({ where: { name: 'Metal' } });
       if (!fam) fam = await famRepo.save({ categoryId: cat.id, name: 'Metal', isActive: true });
 
-      product = await productRepo.save({ code: `PRD-T1-${rand}`, name: 'Test Product T1', type: 'SEMI_FINISHED', categoryId: cat.id, familyId: fam.id, isActive: true, uom: 'kg' });
+      product = await productRepo.save({ name: `Test Product T1 ${rand}`, type: 'SEMI_FINISHED', categoryId: cat.id, familyId: fam.id, isActive: true, uom: 'kg' });
     }
     testProductId = product.id;
 

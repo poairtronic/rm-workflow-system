@@ -290,7 +290,6 @@ export class DeliveryChallanService {
       challanId: item.challanId,
       challanNumber: item.challan.challanNumber,
       productId: item.productId,
-      productCode: item.product.code,
       productName: item.product.name,
       binId: item.binId,
       quantityDispatched: Number(item.quantityDispatched),
