@@ -37,6 +37,11 @@ export class DeliveryChallanController {
     return this.deliveryChallanService.getProductCustodyTotal(productId);
   }
 
+  @Get('overdue')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER)
+  async getOverdueChallans() {
+    return this.deliveryChallanService.getOverdueChallans();
+  }
 
   @Get()
   async findAll(
@@ -44,8 +49,10 @@ export class DeliveryChallanController {
     @Query('processId') processId?: string,
     @Query('vendorId') vendorId?: string,
     @Query('type') type?: DeliveryChallanType,
+    @Query('isOverdue') isOverdue?: string,
   ) {
-    return this.deliveryChallanService.findAll({ scId, processId, vendorId, type });
+    const isOverdueBool = isOverdue === 'true';
+    return this.deliveryChallanService.findAll({ scId, processId, vendorId, type, isOverdue: isOverdueBool });
   }
 
   @Get(':id')

@@ -1,6 +1,6 @@
 import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, QueryRunner } from 'typeorm';
+import { Repository, DataSource, QueryRunner, LessThan, In } from 'typeorm';
 import { DeliveryChallan, DeliveryChallanType, DeliveryChallanStatus } from './entities/delivery-challan.entity.js';
 import { DeliveryChallanItem } from './entities/delivery-challan-item.entity.js';
 import { CreateDeliveryChallanDto } from './dto/create-delivery-challan.dto.js';
@@ -252,18 +252,40 @@ export class DeliveryChallanService {
     }
   }
 
-  async findAll(filters?: { scId?: string; processId?: string; vendorId?: string; type?: DeliveryChallanType }) {
+  async findAll(filters?: { scId?: string; processId?: string; vendorId?: string; type?: DeliveryChallanType; isOverdue?: boolean }) {
     const where: any = {};
     if (filters?.scId) where.scId = filters.scId;
     if (filters?.processId) where.processId = filters.processId;
     if (filters?.vendorId) where.vendorId = filters.vendorId;
     if (filters?.type) where.type = filters.type;
+    if (filters?.isOverdue) {
+      where.status = In([
+        DeliveryChallanStatus.OPEN,
+        DeliveryChallanStatus.DISPATCHED,
+        DeliveryChallanStatus.PARTIALLY_RETURNED,
+      ]);
+      where.expectedReturnDate = LessThan(new Date());
+    }
 
     return this.challanRepo.find({
       where,
       relations: { items: true },
       order: { createdAt: 'DESC' },
     });
+  }
+
+  isOverdue(challan: DeliveryChallan): boolean {
+    if (challan.status === DeliveryChallanStatus.RETURNED || challan.status === DeliveryChallanStatus.CLOSED) {
+      return false;
+    }
+    if (!challan.expectedReturnDate) {
+      return false;
+    }
+    return new Date() > new Date(challan.expectedReturnDate);
+  }
+
+  async getOverdueChallans(): Promise<DeliveryChallan[]> {
+    return this.findAll({ isOverdue: true });
   }
 
   async findOne(id: string) {
