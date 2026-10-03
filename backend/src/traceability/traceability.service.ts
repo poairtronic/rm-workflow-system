@@ -10,6 +10,8 @@ import { MaterialConsumption } from '../production/entities/material-consumption
 import { MaterialReturn, ReturnStatus } from '../production/entities/material-return.entity.js';
 import { AdditionalMaterialRequest } from '../additional-request/entities/additional-request.entity.js';
 import { StockTransaction, TransactionType } from '../inventory/entities/stock-transaction.entity.js';
+import { Product } from '../inventory/entities/product.entity.js';
+import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import { DeliveryChallan, DeliveryChallanStatus } from '../delivery-challan/entities/delivery-challan.entity.js';
 import { ProductionProcess } from '../production-process/entities/production-process.entity.js';
 import { Vendor } from '../vendor/entities/vendor.entity.js';
@@ -65,6 +67,19 @@ import {
   VendorDcAgeingDistributionDto,
   VendorPerformanceRankingItemDto,
 } from './dto/vendor-traceability.dto.js';
+import {
+  ProcessOutwardAnalyticsResponseDto,
+  ProcessOutwardItemDto,
+  ItemOutwardAnalyticsResponseDto,
+  ItemOutwardItemDto,
+  RmConsumptionFilterDto,
+  RmConsumptionAnalyticsResponseDto,
+  RmConsumptionGroupDto,
+  InventoryMslFilterDto,
+  InventoryMslStatusResponseDto,
+  InventoryMslItemDto,
+  MslStockFilterStatus,
+} from './dto/enterprise-analytics.dto.js';
 
 @Injectable()
 export class TraceabilityService {
@@ -97,6 +112,10 @@ export class TraceabilityService {
     private readonly vendorSlaRepo: Repository<VendorSla>,
     @InjectRepository(GeneralIssue)
     private readonly generalIssueRepo: Repository<GeneralIssue>,
+    @InjectRepository(Product)
+    private readonly productRepo: Repository<Product>,
+    @InjectRepository(StockBalance)
+    private readonly stockBalanceRepo: Repository<StockBalance>,
   ) {}
 
   /**
@@ -1966,6 +1985,429 @@ export class TraceabilityService {
       generatedAt: new Date().toISOString(),
     };
   }
+
+  /**
+   * Phase 20.6 — Aggregated volume and count of Delivery Challans categorized by production process steps.
+   */
+  async getProcessOutwardAnalytics(): Promise<ProcessOutwardAnalyticsResponseDto> {
+    const processes = await this.processRepo.find({
+      order: { sequenceNumber: 'ASC' },
+    });
+
+    const dcs = await this.deliveryChallanRepo.find({
+      relations: { process: true, vendor: true, items: true },
+    });
+
+    // Group DCs by processId
+    const dcsByProcessId = new Map<string, DeliveryChallan[]>();
+    for (const dc of dcs) {
+      if (dc.processId) {
+        let list = dcsByProcessId.get(dc.processId);
+        if (!list) {
+          list = [];
+          dcsByProcessId.set(dc.processId, list);
+        }
+        list.push(dc);
+      }
+    }
+
+    let totalCustodyQty = 0;
+    let activeProcesses = 0;
+
+    const items: ProcessOutwardItemDto[] = processes.map((proc) => {
+      const procDcs = dcsByProcessId.get(proc.id) || [];
+      let openDcCount = 0;
+      let closedDcCount = 0;
+      let overdueDcCount = 0;
+      let totalDispatchedQty = 0;
+      let totalReturnedQty = 0;
+      const vendorNamesSet = new Set<string>();
+      const activeVendorSet = new Set<string>();
+
+      for (const dc of procDcs) {
+        const isClosed =
+          dc.status === DeliveryChallanStatus.CLOSED ||
+          dc.status === DeliveryChallanStatus.RETURNED;
+
+        if (isClosed) {
+          closedDcCount++;
+        } else {
+          openDcCount++;
+          if (dc.vendor?.name) {
+            activeVendorSet.add(dc.vendor.name);
+          }
+        }
+
+        const isOverdue =
+          !isClosed &&
+          !!dc.expectedReturnDate &&
+          new Date(dc.expectedReturnDate).getTime() < Date.now();
+
+        if (isOverdue) {
+          overdueDcCount++;
+        }
+
+        if (dc.vendor?.name) {
+          vendorNamesSet.add(dc.vendor.name);
+        }
+
+        for (const item of dc.items || []) {
+          totalDispatchedQty += Number(item.quantityDispatched) || 0;
+          totalReturnedQty += Number(item.quantityReturned) || 0;
+        }
+      }
+
+      const balanceInCustody = QuantityCalculator.roundDecimal(
+        Math.max(0, totalDispatchedQty - totalReturnedQty),
+      );
+
+      if (procDcs.length > 0) {
+        activeProcesses++;
+      }
+      totalCustodyQty += balanceInCustody;
+
+      return {
+        processId: proc.id,
+        processCode: proc.code,
+        processName: proc.name,
+        sequenceNumber: proc.sequenceNumber,
+        allowsOutsideVendor: proc.allowsOutsideVendor,
+        totalDcCount: procDcs.length,
+        openDcCount,
+        closedDcCount,
+        overdueDcCount,
+        totalDispatchedQty: QuantityCalculator.roundDecimal(totalDispatchedQty),
+        totalReturnedQty: QuantityCalculator.roundDecimal(totalReturnedQty),
+        balanceInCustody,
+        activeVendorCount: activeVendorSet.size,
+        vendorNames: Array.from(vendorNamesSet),
+      };
+    });
+
+    return {
+      summary: {
+        totalProcesses: processes.length,
+        activeProcesses,
+        totalDcs: dcs.length,
+        totalCustodyQty: QuantityCalculator.roundDecimal(totalCustodyQty),
+      },
+      processes: items,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Phase 20.6 — Total quantities dispatched externally per raw material product/item.
+   */
+  async getItemOutwardAnalytics(): Promise<ItemOutwardAnalyticsResponseDto> {
+    const dcs = await this.deliveryChallanRepo.find({
+      relations: {
+        vendor: true,
+        items: {
+          product: {
+            family: {
+              category: true,
+            },
+          },
+        },
+      },
+    });
+
+    const itemMap = new Map<
+      string,
+      {
+        productId: string;
+        productName: string;
+        categoryName: string;
+        familyName: string;
+        uom: string;
+        totalDispatchedQty: number;
+        totalReturnedQty: number;
+        dcSet: Set<string>;
+        vendorSet: Set<string>;
+        activeVendorBalances: Map<string, number>;
+      }
+    >();
+
+    for (const dc of dcs) {
+      const vendorName = dc.vendor?.name ?? 'Unknown Vendor';
+      for (const item of dc.items || []) {
+        const prodId = item.productId || 'UNKNOWN';
+        const prod = item.product;
+        const prodName = prod?.name ?? 'Unknown Product';
+        const catName = prod?.family?.category?.name ?? 'General';
+        const famName = prod?.family?.name ?? 'Standard';
+        const uom = 'PCS';
+
+        let entry = itemMap.get(prodId);
+        if (!entry) {
+          entry = {
+            productId: prodId,
+            productName: prodName,
+            categoryName: catName,
+            familyName: famName,
+            uom,
+            totalDispatchedQty: 0,
+            totalReturnedQty: 0,
+            dcSet: new Set<string>(),
+            vendorSet: new Set<string>(),
+            activeVendorBalances: new Map<string, number>(),
+          };
+          itemMap.set(prodId, entry);
+        }
+
+        const disp = Number(item.quantityDispatched) || 0;
+        const ret = Number(item.quantityReturned) || 0;
+        entry.totalDispatchedQty += disp;
+        entry.totalReturnedQty += ret;
+        entry.dcSet.add(dc.id);
+        if (dc.vendor?.name) {
+          entry.vendorSet.add(dc.vendor.name);
+          const currentBal = entry.activeVendorBalances.get(vendorName) || 0;
+          entry.activeVendorBalances.set(vendorName, currentBal + Math.max(0, disp - ret));
+        }
+      }
+    }
+
+    let globalDispatched = 0;
+    let globalReturned = 0;
+    let globalBalance = 0;
+
+    const items: ItemOutwardItemDto[] = Array.from(itemMap.values()).map((entry) => {
+      const balanceInCustody = QuantityCalculator.roundDecimal(
+        Math.max(0, entry.totalDispatchedQty - entry.totalReturnedQty),
+      );
+
+      globalDispatched += entry.totalDispatchedQty;
+      globalReturned += entry.totalReturnedQty;
+      globalBalance += balanceInCustody;
+
+      const activeVendors = Array.from(entry.activeVendorBalances.entries())
+        .filter(([, bal]) => bal > 0)
+        .map(([vName]) => vName);
+
+      return {
+        productId: entry.productId,
+        productName: entry.productName,
+        categoryName: entry.categoryName,
+        familyName: entry.familyName,
+        uom: entry.uom,
+        totalDispatchedQty: QuantityCalculator.roundDecimal(entry.totalDispatchedQty),
+        totalReturnedQty: QuantityCalculator.roundDecimal(entry.totalReturnedQty),
+        balanceInCustody,
+        dcCount: entry.dcSet.size,
+        vendorCount: entry.vendorSet.size,
+        activeVendors,
+      };
+    });
+
+    // Sort items by balanceInCustody DESC, then totalDispatchedQty DESC
+    items.sort((a, b) => b.balanceInCustody - a.balanceInCustody || b.totalDispatchedQty - a.totalDispatchedQty);
+
+    return {
+      summary: {
+        totalItemsDispatched: items.length,
+        totalDispatchedQty: QuantityCalculator.roundDecimal(globalDispatched),
+        totalReturnedQty: QuantityCalculator.roundDecimal(globalReturned),
+        totalBalanceInCustody: QuantityCalculator.roundDecimal(globalBalance),
+      },
+      items,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Phase 20.6 — Total raw materials consumed across all shop-floor operations grouped by material & category.
+   */
+  async getRmConsumptionAnalytics(
+    filter: RmConsumptionFilterDto,
+  ): Promise<RmConsumptionAnalyticsResponseDto> {
+    const qb = this.consumptionRepo
+      .createQueryBuilder('mc')
+      .leftJoinAndSelect('mc.rmItem', 'rmItem')
+      .leftJoinAndSelect('mc.salesOrderComponent', 'sc')
+      .orderBy('mc.recordedAt', 'DESC');
+
+    if (filter.startDate) {
+      qb.andWhere('mc.recordedAt >= :startDate', { startDate: new Date(filter.startDate) });
+    }
+    if (filter.endDate) {
+      qb.andWhere('mc.recordedAt <= :endDate', { endDate: new Date(filter.endDate) });
+    }
+    if (filter.scId) {
+      qb.andWhere('mc.scId = :scId', { scId: filter.scId });
+    }
+
+    const consumptions = await qb.getMany();
+
+    const groupMap = new Map<
+      string,
+      {
+        materialName: string;
+        materialType: string;
+        grade: string;
+        unit: string;
+        totalConsumedQty: number;
+        consumptionCount: number;
+        scSet: Set<string>;
+        lastRecordedAt: Date;
+      }
+    >();
+
+    const scSetAll = new Set<string>();
+    let totalConsumedQty = 0;
+
+    for (const c of consumptions) {
+      const mat = c.rmItem?.material ?? 'Unknown Material';
+      const type = c.rmItem?.materialType ?? 'ROUND_BAR';
+      const grade = c.rmItem?.grade ?? 'Standard';
+      const unit = c.unit ?? 'KG';
+      const qty = Number(c.consumedQuantity) || 0;
+      const recDate = new Date(c.recordedAt);
+
+      const key = `${mat}__${grade}__${unit}`;
+      let entry = groupMap.get(key);
+      if (!entry) {
+        entry = {
+          materialName: mat,
+          materialType: type,
+          grade,
+          unit,
+          totalConsumedQty: 0,
+          consumptionCount: 0,
+          scSet: new Set<string>(),
+          lastRecordedAt: recDate,
+        };
+        groupMap.set(key, entry);
+      }
+
+      entry.totalConsumedQty += qty;
+      entry.consumptionCount++;
+      if (c.scId) {
+        entry.scSet.add(c.scId);
+        scSetAll.add(c.scId);
+      }
+      if (recDate.getTime() > entry.lastRecordedAt.getTime()) {
+        entry.lastRecordedAt = recDate;
+      }
+
+      totalConsumedQty += qty;
+    }
+
+    const groupedList: RmConsumptionGroupDto[] = Array.from(groupMap.values()).map((g) => ({
+      materialName: g.materialName,
+      materialType: g.materialType,
+      grade: g.grade,
+      unit: g.unit,
+      totalConsumedQty: QuantityCalculator.roundDecimal(g.totalConsumedQty),
+      consumptionCount: g.consumptionCount,
+      scCount: g.scSet.size,
+      lastRecordedAt: g.lastRecordedAt.toISOString(),
+    }));
+
+    // Sort by totalConsumedQty DESC
+    groupedList.sort((a, b) => b.totalConsumedQty - a.totalConsumedQty);
+
+    return {
+      summary: {
+        totalConsumptionsLogged: consumptions.length,
+        totalConsumedQty: QuantityCalculator.roundDecimal(totalConsumedQty),
+        uniqueMaterialsCount: groupedList.length,
+        uniqueScsCount: scSetAll.size,
+      },
+      consumptions: groupedList,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Phase 20.6 — Real-time stock alerts returning items below Minimum Stock Level (MSL),
+   * critical stock deficiencies, and complete out-of-stock items.
+   */
+  async getInventoryMslStatus(
+    filter: InventoryMslFilterDto,
+  ): Promise<InventoryMslStatusResponseDto> {
+    const products = await this.productRepo.find({
+      relations: {
+        family: {
+          category: true,
+        },
+        stockBalances: true,
+      },
+      order: { name: 'ASC' },
+    });
+
+    let normalStockCount = 0;
+    let belowMslCount = 0;
+    let criticalStockCount = 0;
+    let outOfStockCount = 0;
+    let totalDeficitQty = 0;
+
+    const allItems: InventoryMslItemDto[] = products.map((prod) => {
+      const currentStock = QuantityCalculator.roundDecimal(
+        (prod.stockBalances || []).reduce(
+          (sum, b) => sum + (Number(b.currentQuantity) || 0),
+          0,
+        ),
+      );
+      const minimumInventory = Number(prod.minimumInventory) || 0;
+      const maximumInventory =
+        prod.maximumInventory !== null && prod.maximumInventory !== undefined
+          ? Number(prod.maximumInventory)
+          : null;
+
+      const deficitQty = QuantityCalculator.roundDecimal(
+        Math.max(0, minimumInventory - currentStock),
+      );
+
+      let status = 'NORMAL';
+      if (currentStock <= 0) {
+        status = 'OUT_OF_STOCK';
+        outOfStockCount++;
+      } else if (minimumInventory > 0 && currentStock <= minimumInventory * 0.5) {
+        status = 'CRITICAL';
+        criticalStockCount++;
+      } else if (minimumInventory > 0 && currentStock < minimumInventory) {
+        status = 'BELOW_MSL';
+        belowMslCount++;
+      } else {
+        normalStockCount++;
+      }
+
+      totalDeficitQty += deficitQty;
+
+      return {
+        productId: prod.id,
+        productName: prod.name,
+        categoryName: prod.family?.category?.name ?? 'General',
+        familyName: prod.family?.name ?? 'Standard',
+        currentStock,
+        minimumInventory,
+        maximumInventory,
+        deficitQty,
+        status,
+      };
+    });
+
+    let filteredItems = allItems;
+    if (filter.status && filter.status !== MslStockFilterStatus.ALL) {
+      filteredItems = allItems.filter((i) => i.status === filter.status);
+    }
+
+    return {
+      summary: {
+        totalMonitoredProducts: products.length,
+        normalStockCount,
+        belowMslCount,
+        criticalStockCount,
+        outOfStockCount,
+        totalDeficitQty: QuantityCalculator.roundDecimal(totalDeficitQty),
+      },
+      items: filteredItems,
+      generatedAt: new Date().toISOString(),
+    };
+  }
 }
+
 
 

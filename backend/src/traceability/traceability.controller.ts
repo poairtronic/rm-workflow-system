@@ -17,6 +17,14 @@ import {
   VendorTraceabilityResponseDto,
   VendorPerformanceAnalyticsResponseDto,
 } from './dto/vendor-traceability.dto.js';
+import {
+  ProcessOutwardAnalyticsResponseDto,
+  ItemOutwardAnalyticsResponseDto,
+  RmConsumptionFilterDto,
+  RmConsumptionAnalyticsResponseDto,
+  InventoryMslFilterDto,
+  InventoryMslStatusResponseDto,
+} from './dto/enterprise-analytics.dto.js';
 
 @Controller('api/traceability')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -155,5 +163,79 @@ export class TraceabilityController {
   ): Promise<VendorTraceabilityResponseDto> {
     return this.traceabilityService.getVendorTraceability(vendorId);
   }
+
+  /**
+   * Phase 20.6 — Process-wise Outward Summary.
+   * Aggregated volume and count of Delivery Challans categorized by production process steps.
+   * Authorized roles: STORES, PRODUCTION, SENIOR_MANAGER, ADMIN, GENERAL_MANAGER
+   */
+  @Get('analytics/process-outward')
+  @Roles(
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.ADMIN,
+    UserRole.GENERAL_MANAGER,
+  )
+  async getProcessOutwardAnalytics(): Promise<ProcessOutwardAnalyticsResponseDto> {
+    return this.traceabilityService.getProcessOutwardAnalytics();
+  }
+
+  /**
+   * Phase 20.6 — Item-wise Outward Summary.
+   * Total quantities dispatched externally per raw material product/item.
+   * Authorized roles: STORES, PRODUCTION, SENIOR_MANAGER, ADMIN, GENERAL_MANAGER
+   */
+  @Get('analytics/item-outward')
+  @Roles(
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.ADMIN,
+    UserRole.GENERAL_MANAGER,
+  )
+  async getItemOutwardAnalytics(): Promise<ItemOutwardAnalyticsResponseDto> {
+    return this.traceabilityService.getItemOutwardAnalytics();
+  }
+
+  /**
+   * Phase 20.6 — RM Consumption Summary.
+   * Total raw materials consumed across all shop-floor operations grouped by material & category.
+   * Authorized roles: STORES, PRODUCTION, SENIOR_MANAGER, ADMIN, GENERAL_MANAGER
+   */
+  @Get('analytics/rm-consumption')
+  @Roles(
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.ADMIN,
+    UserRole.GENERAL_MANAGER,
+  )
+  async getRmConsumptionAnalytics(
+    @Query() query: RmConsumptionFilterDto,
+  ): Promise<RmConsumptionAnalyticsResponseDto> {
+    return this.traceabilityService.getRmConsumptionAnalytics(query);
+  }
+
+  /**
+   * Phase 20.6 — MSL & Stock Status Dashboard.
+   * Real-time stock alerts returning items below Minimum Stock Level (MSL),
+   * critical stock deficiencies, and complete out-of-stock items.
+   * Authorized roles: STORES, PRODUCTION, SENIOR_MANAGER, ADMIN, GENERAL_MANAGER
+   */
+  @Get('analytics/inventory-msl-status')
+  @Roles(
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.ADMIN,
+    UserRole.GENERAL_MANAGER,
+  )
+  async getInventoryMslStatus(
+    @Query() query: InventoryMslFilterDto,
+  ): Promise<InventoryMslStatusResponseDto> {
+    return this.traceabilityService.getInventoryMslStatus(query);
+  }
 }
+
 
