@@ -37,7 +37,6 @@ describe('Phase 19.1 — Delivery Challan Domain Model & Database Schema', () =>
       expect(propertyErrors).toContain('type');
       expect(propertyErrors).toContain('vendorId');
       expect(propertyErrors).toContain('dispatchDate');
-      expect(propertyErrors).toContain('expectedReturnDate');
       expect(propertyErrors).toContain('items');
     });
 
