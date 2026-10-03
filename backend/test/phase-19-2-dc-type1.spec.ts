@@ -221,6 +221,7 @@ describe('Phase 19.2 — DC Type 1: Production Process Outward (E2E)', () => {
     // Verify atomic inventory stock deduction
     const stockRepo = dataSource.getRepository(StockBalance);
     const stock = await stockRepo.findOne({ where: { productId: testProductId, binId: testBinId } });
-    expect(Number(stock.currentQuantity)).toBe(75); // 100 - 25
+    expect(stock).toBeDefined();
+    expect(Number(stock!.currentQuantity)).toBe(75); // 100 - 25
   });
 });
