@@ -14,7 +14,7 @@ export class DeliveryChallanController {
 
   @Post('type-1')
   @Roles(UserRole.STORES, UserRole.ADMIN)
-  async createType1(@Body() dto: CreateDeliveryChallanDto, @Request() req) {
+  async createType1(@Body() dto: CreateDeliveryChallanDto, @Request() req: any) {
     const userId = req.user.userId;
     return this.deliveryChallanService.createType1Challan(dto, userId);
   }

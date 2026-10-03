@@ -105,7 +105,6 @@ export class DeliveryChallanService {
 
         // Deduct quantity
         stockBalance.currentQuantity = currentQty - quantityToDispatch;
-        stockBalance.lastUpdatedById = userId;
         await stockBalanceRepo.save(stockBalance);
 
         // Write transaction
@@ -134,10 +133,14 @@ export class DeliveryChallanService {
 
       await queryRunner.commitTransaction();
       
-      return this.challanRepo.findOne({
+      const savedChallanDetails = await this.challanRepo.findOne({
         where: { id: savedChallan.id },
         relations: { items: true },
       });
+      if (!savedChallanDetails) {
+        throw new Error('Challan not found after creation');
+      }
+      return savedChallanDetails;
     } catch (err) {
       await queryRunner.rollbackTransaction();
       throw err;
