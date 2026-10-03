@@ -5,7 +5,7 @@ export function Sidebar() {
   const navItems = [
     { name: 'Overview', path: '/', icon: LayoutDashboard },
     { name: 'Issue Material', path: '/stores/issue-material', icon: PackageSearch },
-    { name: 'MSL Alerts', path: '/alerts', icon: BellRing },
+    { name: 'MSL Alerts', path: '/inventory/msl-alerts', icon: BellRing },
     { name: 'DC Module', path: '/dc-module', icon: Box },
   ];
 

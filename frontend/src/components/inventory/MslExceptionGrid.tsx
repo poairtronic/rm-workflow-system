@@ -1,4 +1,4 @@
-import { type MslException, MOCK_MSL_EXCEPTIONS } from '../../types/msl-alert';
+import type { MslException } from '../../types/msl-alert';
 
 const SeverityBadge = ({ severity }: { severity: MslException['severity'] }) => {
   if (severity === 'CRITICAL') {
@@ -15,7 +15,20 @@ const SeverityBadge = ({ severity }: { severity: MslException['severity'] }) => 
   );
 };
 
-export function MslExceptionGrid() {
+export interface MslExceptionGridProps {
+  data: MslException[];
+  onRaisePO?: (item: MslException) => void;
+}
+
+export function MslExceptionGrid({ data, onRaisePO }: MslExceptionGridProps) {
+  if (data.length === 0) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm h-32 flex items-center justify-center">
+        <p className="text-slate-500 text-sm">No stock breaches match the selected filters.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
       <div className="overflow-x-auto w-full">
@@ -27,10 +40,11 @@ export function MslExceptionGrid() {
               <th className="px-6 py-2 text-right">MSL Threshold</th>
               <th className="px-6 py-2 text-right">Deficit</th>
               <th className="px-6 py-2 text-center">Severity</th>
+              <th className="px-6 py-2 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {MOCK_MSL_EXCEPTIONS.map((item, idx) => (
+            {data.map((item, idx) => (
               <tr key={idx} className="h-14 hover:bg-slate-50 transition-colors">
                 <td className="px-6 py-2">
                   <div className="font-medium text-slate-900">{item.itemName}</div>
@@ -52,6 +66,14 @@ export function MslExceptionGrid() {
                 </td>
                 <td className="px-6 py-2 text-center">
                   <SeverityBadge severity={item.severity} />
+                </td>
+                <td className="px-6 py-2 text-right">
+                  <button
+                    onClick={() => onRaisePO && onRaisePO(item)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary shadow-sm transition-colors"
+                  >
+                    Raise PO
+                  </button>
                 </td>
               </tr>
             ))}

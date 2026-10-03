@@ -1,8 +1,34 @@
+import { useState, useMemo } from 'react';
 import { AlertOctagon, AlertTriangle, Clock, Activity } from 'lucide-react';
 import { KpiMetricCard } from '../components/dashboard/KpiMetricCard';
 import { MslExceptionGrid } from '../components/inventory/MslExceptionGrid';
+import { MslFilterPanel, type MslFilters } from '../components/inventory/MslFilterPanel';
+import { MOCK_MSL_EXCEPTIONS } from '../types/msl-alert';
 
 export function MslAlertsWorkspace() {
+  const [filters, setFilters] = useState<MslFilters>({
+    category: '',
+    zone: '',
+    severity: '',
+  });
+
+  const handleFilterChange = (key: keyof MslFilters, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleReset = () => {
+    setFilters({ category: '', zone: '', severity: '' });
+  };
+
+  const filteredExceptions = useMemo(() => {
+    return MOCK_MSL_EXCEPTIONS.filter(item => {
+      const matchCategory = filters.category === '' || item.category === filters.category;
+      const matchZone = filters.zone === '' || item.zone === filters.zone;
+      const matchSeverity = filters.severity === '' || item.severity === filters.severity;
+      return matchCategory && matchZone && matchSeverity;
+    });
+  }, [filters]);
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -51,7 +77,12 @@ export function MslAlertsWorkspace() {
       
       <div className="mt-2">
         <h2 className="text-lg font-bold text-slate-800 mb-4 tracking-tight">Live Exceptions</h2>
-        <MslExceptionGrid />
+        <MslFilterPanel
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          onReset={handleReset}
+        />
+        <MslExceptionGrid data={filteredExceptions} />
       </div>
     </div>
   );
