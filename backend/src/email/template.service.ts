@@ -234,6 +234,129 @@ export class TemplateService {
         };
       },
     },
+
+    // ─── Phase 19.8: Delivery Challan Templates ───────────────────────────────
+
+    DC_CREATED: {
+      key: 'DC_CREATED',
+      requiredVars: ['challanNumber'],
+      allowedVars: ['recipientName', 'challanNumber', 'vendorName', 'dispatchDate', 'expectedReturnDate'],
+      render: (vars, escape) => {
+        const cn = escape(vars.challanNumber || 'N/A');
+        const vendor = escape(vars.vendorName || 'N/A');
+        const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
+        const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
+        return {
+          subject: `[RMRIT] Delivery Challan Created: ${vars.challanNumber || 'N/A'}`,
+          text: `${name}A new Delivery Challan has been created.\nChallan Number: ${vars.challanNumber || 'N/A'}\nVendor: ${vars.vendorName || 'N/A'}\nDispatch Date: ${vars.dispatchDate || 'N/A'}`,
+          html: `<h3>Delivery Challan Created</h3>${htmlName}<p>A new Delivery Challan <strong>${cn}</strong> has been created for vendor <strong>${vendor}</strong>.</p><p><strong>Dispatch Date:</strong> ${escape(vars.dispatchDate || 'N/A')}<br/><strong>Expected Return:</strong> ${escape(vars.expectedReturnDate || 'N/A')}</p>`,
+        };
+      },
+    },
+
+    DC_DISPATCHED: {
+      key: 'DC_DISPATCHED',
+      requiredVars: ['challanNumber'],
+      allowedVars: ['recipientName', 'challanNumber', 'vendorName', 'dispatchDate', 'expectedReturnDate'],
+      render: (vars, escape) => {
+        const cn = escape(vars.challanNumber || 'N/A');
+        const vendor = escape(vars.vendorName || 'N/A');
+        const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
+        const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
+        return {
+          subject: `[RMRIT] Delivery Challan Dispatched: ${vars.challanNumber || 'N/A'}`,
+          text: `${name}Delivery Challan ${vars.challanNumber || 'N/A'} has been dispatched to vendor ${vars.vendorName || 'N/A'}.\nExpected Return: ${vars.expectedReturnDate || 'N/A'}`,
+          html: `<h3>Delivery Challan Dispatched</h3>${htmlName}<p>Challan <strong>${cn}</strong> has been dispatched to vendor <strong>${vendor}</strong>.</p><p><strong>Dispatch Date:</strong> ${escape(vars.dispatchDate || 'N/A')}<br/><strong>Expected Return:</strong> ${escape(vars.expectedReturnDate || 'N/A')}</p>`,
+        };
+      },
+    },
+
+    DC_APPROACHING_SLA: {
+      key: 'DC_APPROACHING_SLA',
+      requiredVars: ['challanNumber', 'expectedReturnDate'],
+      allowedVars: ['recipientName', 'challanNumber', 'vendorName', 'expectedReturnDate', 'hoursRemaining'],
+      render: (vars, escape) => {
+        const cn = escape(vars.challanNumber || 'N/A');
+        const vendor = escape(vars.vendorName || 'N/A');
+        const hours = vars.hoursRemaining !== undefined ? vars.hoursRemaining : 'N/A';
+        const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
+        const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
+        return {
+          subject: `[RMRIT] SLA Alert: Challan ${vars.challanNumber || 'N/A'} approaching return deadline`,
+          text: `${name}SLA Warning: Delivery Challan ${vars.challanNumber || 'N/A'} is approaching its expected return date.\nVendor: ${vars.vendorName || 'N/A'}\nExpected Return: ${vars.expectedReturnDate}\nHours Remaining: ${hours}`,
+          html: `<h3>⚠️ SLA Warning: Challan Approaching Deadline</h3>${htmlName}<p>Delivery Challan <strong>${cn}</strong> from vendor <strong>${vendor}</strong> is approaching its expected return date.</p><p><strong>Expected Return:</strong> ${escape(vars.expectedReturnDate)}<br/><strong>Hours Remaining:</strong> ${hours}</p><p>Please follow up with the vendor immediately.</p>`,
+        };
+      },
+    },
+
+    DC_OVERDUE: {
+      key: 'DC_OVERDUE',
+      requiredVars: ['challanNumber', 'expectedReturnDate'],
+      allowedVars: ['recipientName', 'challanNumber', 'vendorName', 'expectedReturnDate', 'daysOverdue'],
+      render: (vars, escape) => {
+        const cn = escape(vars.challanNumber || 'N/A');
+        const vendor = escape(vars.vendorName || 'N/A');
+        const days = vars.daysOverdue !== undefined ? vars.daysOverdue : 'N/A';
+        const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
+        const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
+        return {
+          subject: `[RMRIT] OVERDUE: Delivery Challan ${vars.challanNumber || 'N/A'} not returned`,
+          text: `${name}OVERDUE: Delivery Challan ${vars.challanNumber || 'N/A'} has not been returned.\nVendor: ${vars.vendorName || 'N/A'}\nExpected Return: ${vars.expectedReturnDate}\nDays Overdue: ${days}\n\nImmediate follow-up required.`,
+          html: `<h3>🚨 OVERDUE: Delivery Challan Not Returned</h3>${htmlName}<p>OVERDUE: Delivery Challan <strong>${cn}</strong> from vendor <strong>${vendor}</strong> has not been returned.</p><p><strong>Expected Return:</strong> ${escape(vars.expectedReturnDate)}<br/><strong>Days Overdue:</strong> ${days}</p><p><strong>Immediate follow-up is required.</strong></p>`,
+        };
+      },
+    },
+
+    DC_PARTIALLY_RETURNED: {
+      key: 'DC_PARTIALLY_RETURNED',
+      requiredVars: ['challanNumber'],
+      allowedVars: ['recipientName', 'challanNumber', 'vendorName', 'returnedQty', 'pendingQty'],
+      render: (vars, escape) => {
+        const cn = escape(vars.challanNumber || 'N/A');
+        const vendor = escape(vars.vendorName || 'N/A');
+        const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
+        const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
+        return {
+          subject: `[RMRIT] Partial Return Received: Challan ${vars.challanNumber || 'N/A'}`,
+          text: `${name}Partial return received for Delivery Challan ${vars.challanNumber || 'N/A'} from vendor ${vars.vendorName || 'N/A'}.\nQuantity Returned: ${vars.returnedQty || 'N/A'}\nQuantity Pending: ${vars.pendingQty || 'N/A'}`,
+          html: `<h3>Partial Return Received</h3>${htmlName}<p>Partial return received for Challan <strong>${cn}</strong> from vendor <strong>${vendor}</strong>.</p><ul><li><strong>Quantity Returned:</strong> ${vars.returnedQty || 'N/A'}</li><li><strong>Quantity Pending:</strong> ${vars.pendingQty || 'N/A'}</li></ul>`,
+        };
+      },
+    },
+
+    DC_RETURNED: {
+      key: 'DC_RETURNED',
+      requiredVars: ['challanNumber'],
+      allowedVars: ['recipientName', 'challanNumber', 'vendorName', 'actualReturnDate'],
+      render: (vars, escape) => {
+        const cn = escape(vars.challanNumber || 'N/A');
+        const vendor = escape(vars.vendorName || 'N/A');
+        const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
+        const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
+        return {
+          subject: `[RMRIT] Challan Fully Returned: ${vars.challanNumber || 'N/A'}`,
+          text: `${name}All items from Delivery Challan ${vars.challanNumber || 'N/A'} have been returned from vendor ${vars.vendorName || 'N/A'}.\nActual Return Date: ${vars.actualReturnDate || 'N/A'}`,
+          html: `<h3>Delivery Challan Fully Returned</h3>${htmlName}<p>All items from Challan <strong>${cn}</strong> have been returned by vendor <strong>${vendor}</strong>.</p><p><strong>Return Date:</strong> ${escape(vars.actualReturnDate || 'N/A')}</p>`,
+        };
+      },
+    },
+
+    DC_CLOSED: {
+      key: 'DC_CLOSED',
+      requiredVars: ['challanNumber'],
+      allowedVars: ['recipientName', 'challanNumber', 'vendorName'],
+      render: (vars, escape) => {
+        const cn = escape(vars.challanNumber || 'N/A');
+        const vendor = escape(vars.vendorName || 'N/A');
+        const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
+        const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
+        return {
+          subject: `[RMRIT] Delivery Challan Closed: ${vars.challanNumber || 'N/A'}`,
+          text: `${name}Delivery Challan ${vars.challanNumber || 'N/A'} with vendor ${vars.vendorName || 'N/A'} has been administratively closed.`,
+          html: `<h3>Delivery Challan Closed</h3>${htmlName}<p>Challan <strong>${cn}</strong> with vendor <strong>${vendor}</strong> has been administratively closed and archived.</p>`,
+        };
+      },
+    },
   };
 
   /**

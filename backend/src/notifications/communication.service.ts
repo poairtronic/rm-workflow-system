@@ -301,6 +301,130 @@ export class CommunicationService {
           },
         });
 
+      // Phase 19.8 — Delivery Challan Events
+      case 'DC_CREATED':
+        return this.orchestrateChannelDelivery({
+          eventType: 'DC_CREATED',
+          targetUsers,
+          targetEntity: 'DELIVERY_CHALLAN',
+          targetId: input.entityId,
+          title: `Delivery Challan Created: ${input.metadata?.challanNumber || input.entityId}`,
+          message: `A new Delivery Challan ${input.metadata?.challanNumber || input.entityId} has been created for vendor ${input.metadata?.vendorName || 'N/A'}.`,
+          templateKey: 'DC_CREATED',
+          subject: `[RMRIT] Delivery Challan Created: ${input.metadata?.challanNumber || input.entityId}`,
+          payload: {
+            challanNumber: input.metadata?.challanNumber,
+            vendorName: input.metadata?.vendorName,
+            dispatchDate: input.metadata?.dispatchDate,
+            expectedReturnDate: input.metadata?.expectedReturnDate,
+          },
+        });
+
+      case 'DC_DISPATCHED':
+        return this.orchestrateChannelDelivery({
+          eventType: 'DC_DISPATCHED',
+          targetUsers,
+          targetEntity: 'DELIVERY_CHALLAN',
+          targetId: input.entityId,
+          title: `Delivery Challan Dispatched: ${input.metadata?.challanNumber || input.entityId}`,
+          message: `Delivery Challan ${input.metadata?.challanNumber || input.entityId} dispatched to ${input.metadata?.vendorName || 'N/A'}.`,
+          templateKey: 'DC_DISPATCHED',
+          subject: `[RMRIT] Delivery Challan Dispatched: ${input.metadata?.challanNumber || input.entityId}`,
+          payload: {
+            challanNumber: input.metadata?.challanNumber,
+            vendorName: input.metadata?.vendorName,
+            dispatchDate: input.metadata?.dispatchDate,
+            expectedReturnDate: input.metadata?.expectedReturnDate,
+          },
+        });
+
+      case 'DC_APPROACHING_SLA':
+        return this.orchestrateChannelDelivery({
+          eventType: 'DC_APPROACHING_SLA',
+          targetUsers,
+          targetEntity: 'DELIVERY_CHALLAN',
+          targetId: input.entityId,
+          title: `SLA Alert: Challan ${input.metadata?.challanNumber || input.entityId} approaching deadline`,
+          message: `Delivery Challan ${input.metadata?.challanNumber || input.entityId} is approaching its return deadline. Hours remaining: ${input.metadata?.hoursRemaining ?? 'N/A'}.`,
+          templateKey: 'DC_APPROACHING_SLA',
+          subject: `[RMRIT] SLA Alert: Challan ${input.metadata?.challanNumber || input.entityId} approaching deadline`,
+          payload: {
+            challanNumber: input.metadata?.challanNumber,
+            vendorName: input.metadata?.vendorName,
+            expectedReturnDate: input.metadata?.expectedReturnDate,
+            hoursRemaining: input.metadata?.hoursRemaining,
+          },
+        });
+
+      case 'DC_OVERDUE':
+        return this.orchestrateChannelDelivery({
+          eventType: 'DC_OVERDUE',
+          targetUsers,
+          targetEntity: 'DELIVERY_CHALLAN',
+          targetId: input.entityId,
+          title: `OVERDUE: Challan ${input.metadata?.challanNumber || input.entityId} not returned`,
+          message: `Delivery Challan ${input.metadata?.challanNumber || input.entityId} is OVERDUE. Days overdue: ${input.metadata?.daysOverdue ?? 'N/A'}.`,
+          templateKey: 'DC_OVERDUE',
+          subject: `[RMRIT] OVERDUE: Delivery Challan ${input.metadata?.challanNumber || input.entityId} not returned`,
+          payload: {
+            challanNumber: input.metadata?.challanNumber,
+            vendorName: input.metadata?.vendorName,
+            expectedReturnDate: input.metadata?.expectedReturnDate,
+            daysOverdue: input.metadata?.daysOverdue,
+          },
+        });
+
+      case 'DC_PARTIALLY_RETURNED':
+        return this.orchestrateChannelDelivery({
+          eventType: 'DC_PARTIALLY_RETURNED',
+          targetUsers,
+          targetEntity: 'DELIVERY_CHALLAN',
+          targetId: input.entityId,
+          title: `Partial Return Received: Challan ${input.metadata?.challanNumber || input.entityId}`,
+          message: `Partial return received for Delivery Challan ${input.metadata?.challanNumber || input.entityId}.`,
+          templateKey: 'DC_PARTIALLY_RETURNED',
+          subject: `[RMRIT] Partial Return Received: Challan ${input.metadata?.challanNumber || input.entityId}`,
+          payload: {
+            challanNumber: input.metadata?.challanNumber,
+            vendorName: input.metadata?.vendorName,
+            returnedQty: input.metadata?.returnedQty,
+            pendingQty: input.metadata?.pendingQty,
+          },
+        });
+
+      case 'DC_RETURNED':
+        return this.orchestrateChannelDelivery({
+          eventType: 'DC_RETURNED',
+          targetUsers,
+          targetEntity: 'DELIVERY_CHALLAN',
+          targetId: input.entityId,
+          title: `Challan Fully Returned: ${input.metadata?.challanNumber || input.entityId}`,
+          message: `All items from Delivery Challan ${input.metadata?.challanNumber || input.entityId} have been returned.`,
+          templateKey: 'DC_RETURNED',
+          subject: `[RMRIT] Challan Fully Returned: ${input.metadata?.challanNumber || input.entityId}`,
+          payload: {
+            challanNumber: input.metadata?.challanNumber,
+            vendorName: input.metadata?.vendorName,
+            actualReturnDate: input.metadata?.actualReturnDate,
+          },
+        });
+
+      case 'DC_CLOSED':
+        return this.orchestrateChannelDelivery({
+          eventType: 'DC_CLOSED',
+          targetUsers,
+          targetEntity: 'DELIVERY_CHALLAN',
+          targetId: input.entityId,
+          title: `Delivery Challan Closed: ${input.metadata?.challanNumber || input.entityId}`,
+          message: `Delivery Challan ${input.metadata?.challanNumber || input.entityId} has been administratively closed.`,
+          templateKey: 'DC_CLOSED',
+          subject: `[RMRIT] Delivery Challan Closed: ${input.metadata?.challanNumber || input.entityId}`,
+          payload: {
+            challanNumber: input.metadata?.challanNumber,
+            vendorName: input.metadata?.vendorName,
+          },
+        });
+
       default:
         this.logger.warn(`Unsupported communication event type: ${input.eventType}`);
         return { inAppNotifications: [], emailJobs: [] };

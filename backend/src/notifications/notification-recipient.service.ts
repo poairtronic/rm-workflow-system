@@ -95,6 +95,30 @@ export class NotificationRecipientService {
         monitoringRoles = [UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER];
         break;
 
+      // Phase 19.8 — Delivery Challan events
+      case 'DC_CREATED':
+      case 'DC_DISPATCHED':
+        primaryRoles = [UserRole.STORES, UserRole.ADMIN];
+        monitoringRoles = [UserRole.SENIOR_MANAGER];
+        break;
+
+      case 'DC_APPROACHING_SLA':
+      case 'DC_OVERDUE':
+        primaryRoles = [UserRole.STORES, UserRole.ADMIN];
+        monitoringRoles = [UserRole.SENIOR_MANAGER];
+        break;
+
+      case 'DC_PARTIALLY_RETURNED':
+      case 'DC_RETURNED':
+        primaryRoles = [UserRole.STORES, UserRole.ADMIN];
+        monitoringRoles = [UserRole.SENIOR_MANAGER];
+        break;
+
+      case 'DC_CLOSED':
+        primaryRoles = [UserRole.ADMIN];
+        monitoringRoles = [UserRole.SENIOR_MANAGER];
+        break;
+
       default:
         this.logger.warn(`Unknown/unsupported event type "${eventType}". Returning empty recipient list.`);
         return [];

@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, QueryRunner, LessThan, In } from 'typeorm';
 import { DeliveryChallan, DeliveryChallanType, DeliveryChallanStatus } from './entities/delivery-challan.entity.js';
@@ -11,6 +11,8 @@ import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import { StockTransaction, TransactionType } from '../inventory/entities/stock-transaction.entity.js';
 import { Vendor } from '../vendor/entities/vendor.entity.js';
 import { v4 as uuidv4 } from 'uuid';
+import { CommunicationService } from '../notifications/communication.service.js';
+
 
 @Injectable()
 export class DeliveryChallanService {
@@ -22,6 +24,7 @@ export class DeliveryChallanService {
     @InjectRepository(DeliveryChallanItem)
     private readonly challanItemRepo: Repository<DeliveryChallanItem>,
     private readonly dataSource: DataSource,
+    @Optional() private readonly communicationService?: CommunicationService,
   ) {}
 
   async createType1Challan(dto: CreateDeliveryChallanDto, userId: string): Promise<DeliveryChallan> {
@@ -142,6 +145,8 @@ export class DeliveryChallanService {
       if (!savedChallanDetails) {
         throw new Error('Challan not found after creation');
       }
+      // Fire-and-forget DC_CREATED notification (non-critical — must not roll back transaction)
+      this.fireNotification('DC_CREATED', savedChallanDetails, userId);
       return savedChallanDetails;
     } catch (err) {
       await queryRunner.rollbackTransaction();
@@ -243,6 +248,8 @@ export class DeliveryChallanService {
       if (!savedChallanDetails) {
         throw new Error('Challan not found after creation');
       }
+      // Fire-and-forget DC_CREATED notification for Type 2
+      this.fireNotification('DC_CREATED', savedChallanDetails, userId);
       return savedChallanDetails;
     } catch (err) {
       await queryRunner.rollbackTransaction();
@@ -419,6 +426,12 @@ export class DeliveryChallanService {
       await queryRunner.manager.save(challan);
       await queryRunner.commitTransaction();
 
+      // Determine which event type to fire (PARTIALLY_RETURNED vs RETURNED)
+      const returnEventType = challan.status === DeliveryChallanStatus.RETURNED
+        ? 'DC_RETURNED'
+        : 'DC_PARTIALLY_RETURNED';
+      this.fireNotification(returnEventType, challan, userId);
+
       return challan;
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -447,6 +460,40 @@ export class DeliveryChallanService {
 
     challan.status = DeliveryChallanStatus.CLOSED;
     // We could track closedBy if there was a field, but currently we just set status to CLOSED.
-    return this.challanRepo.save(challan);
+    const saved = await this.challanRepo.save(challan);
+    // Fire-and-forget DC_CLOSED notification
+    this.fireNotification('DC_CLOSED', saved, userId);
+    return saved;
+  }
+
+  /**
+   * Fire-and-forget DC lifecycle event notification.
+   * Errors are swallowed to ensure they never roll back or fail the primary operation.
+   */
+  private fireNotification(
+    eventType: string,
+    challan: DeliveryChallan,
+    actorUserId?: string,
+  ): void {
+    if (!this.communicationService) return;
+    this.communicationService
+      .sendEvent({
+        eventType,
+        entityType: 'DELIVERY_CHALLAN',
+        entityId: challan.id,
+        createdById: actorUserId,
+        metadata: {
+          challanNumber: challan.challanNumber,
+          vendorId: challan.vendorId,
+          dispatchDate: challan.dispatchDate ? String(challan.dispatchDate) : undefined,
+          expectedReturnDate: challan.expectedReturnDate ? String(challan.expectedReturnDate) : undefined,
+          actualReturnDate: challan.actualReturnDate ? String(challan.actualReturnDate) : undefined,
+        },
+      })
+      .catch((err: any) => {
+        this.logger.error(
+          `Non-critical: DC notification fire failed for event "${eventType}" on challan ${challan.id}: ${err?.message || err}`,
+        );
+      });
   }
 }
