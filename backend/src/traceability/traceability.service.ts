@@ -1,10 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { SalesOrderComponent, ScStatus } from '../sc/entities/sc.entity.js';
+import { PurchaseOrder } from '../po/entities/po.entity.js';
+import { RmRequest } from '../rm/entities/rm-request.entity.js';
 import { MaterialIssue, MaterialIssueType } from '../material-issue/entities/material-issue.entity.js';
+import { MaterialReceipt } from '../production/entities/production-receipt.entity.js';
 import { MaterialConsumption } from '../production/entities/material-consumption.entity.js';
 import { MaterialReturn, ReturnStatus } from '../production/entities/material-return.entity.js';
+import { AdditionalMaterialRequest } from '../additional-request/entities/additional-request.entity.js';
+import { StockTransaction } from '../inventory/entities/stock-transaction.entity.js';
+import { DeliveryChallan } from '../delivery-challan/entities/delivery-challan.entity.js';
+import { ProductionProcess } from '../production-process/entities/production-process.entity.js';
+import { Vendor } from '../vendor/entities/vendor.entity.js';
 import { GeneralIssue, GeneralIssueStatus } from '../general-issue/entities/general-issue.entity.js';
 import { QuantityCalculator } from '../common/utils/quantity-calculator.js';
 import {
@@ -25,18 +33,49 @@ import {
   ReconciliationReason,
   PendingReturnDetailDto,
 } from './dto/rm-lifecycle.dto.js';
+import {
+  ConsolidatedScTraceabilityDto,
+  ConsolidatedScMetaDto,
+  ConsolidatedPoDto,
+  ConsolidatedRmRequestDto,
+  ConsolidatedIssueDto,
+  ConsolidatedReceiptDto,
+  ConsolidatedConsumptionDto,
+  ConsolidatedReturnDto,
+  ConsolidatedAdditionalRequestDto,
+  ConsolidatedInventoryTransactionDto,
+  ConsolidatedProcessStepDto,
+  ConsolidatedDeliveryChallanDto,
+  ConsolidatedVendorDto,
+} from './dto/consolidated-sc-traceability.dto.js';
 
 @Injectable()
 export class TraceabilityService {
   constructor(
     @InjectRepository(SalesOrderComponent)
     private readonly scRepo: Repository<SalesOrderComponent>,
+    @InjectRepository(PurchaseOrder)
+    private readonly poRepo: Repository<PurchaseOrder>,
+    @InjectRepository(RmRequest)
+    private readonly rmReqRepo: Repository<RmRequest>,
     @InjectRepository(MaterialIssue)
     private readonly materialIssueRepo: Repository<MaterialIssue>,
+    @InjectRepository(MaterialReceipt)
+    private readonly materialReceiptRepo: Repository<MaterialReceipt>,
     @InjectRepository(MaterialConsumption)
     private readonly consumptionRepo: Repository<MaterialConsumption>,
     @InjectRepository(MaterialReturn)
     private readonly returnRepo: Repository<MaterialReturn>,
+    @InjectRepository(AdditionalMaterialRequest)
+    private readonly additionalRequestRepo: Repository<AdditionalMaterialRequest>,
+    @InjectRepository(StockTransaction)
+    private readonly stockTransactionRepo: Repository<StockTransaction>,
+    @InjectRepository(DeliveryChallan)
+    private readonly deliveryChallanRepo: Repository<DeliveryChallan>,
+    @InjectRepository(ProductionProcess)
+    private readonly processRepo: Repository<ProductionProcess>,
+    @InjectRepository(Vendor)
+    private readonly vendorRepo: Repository<Vendor>,
     @InjectRepository(GeneralIssue)
     private readonly generalIssueRepo: Repository<GeneralIssue>,
   ) {}
@@ -58,14 +97,12 @@ export class TraceabilityService {
    * Helper to compute core material metrics for a given SC.
    */
   private computeScMetrics(sc: SalesOrderComponent, extraGeneralIssueQty: number = 0) {
-    // 1. Original RM Requested
     let originalRm = 0;
     (sc.rmItems || []).forEach((item) => {
       originalRm += Number(item.quantity) || 0;
     });
     originalRm = QuantityCalculator.roundDecimal(originalRm);
 
-    // 2. Initial & Additional Issues
     let initialIssued = 0;
     let additionalIssued = 0;
     (sc.materialIssues || []).forEach((issue) => {
@@ -82,14 +119,12 @@ export class TraceabilityService {
     initialIssued = QuantityCalculator.roundDecimal(initialIssued);
     const totalIssued = QuantityCalculator.roundDecimal(initialIssued + additionalIssued);
 
-    // 3. Consumed
     let totalConsumed = 0;
     (sc.materialConsumptions || []).forEach((c) => {
       totalConsumed += Number(c.consumedQuantity) || 0;
     });
     totalConsumed = QuantityCalculator.roundDecimal(totalConsumed);
 
-    // 4. Returned (ACKNOWLEDGED vs PENDING_STORE_ACK)
     let totalReturned = 0;
     let pendingReturn = 0;
     const pendingReturnsList: PendingReturnDetailDto[] = [];
@@ -117,18 +152,15 @@ export class TraceabilityService {
     totalReturned = QuantityCalculator.roundDecimal(totalReturned);
     pendingReturn = QuantityCalculator.roundDecimal(pendingReturn);
 
-    // 5. Outstanding Quantity = Total Issued - Total Consumed - Acknowledged Returns
     const outstandingQuantity = QuantityCalculator.roundDecimal(
       Math.max(0, totalIssued - totalConsumed - totalReturned),
     );
 
-    // 6. Variance = Total Issued - Total Consumed - Acknowledged Returns
     const variance = QuantityCalculator.roundDecimal(
       totalIssued - totalConsumed - totalReturned,
     );
     const isZeroLossVerified = Math.abs(variance) < 0.001;
 
-    // 7. Reconciliation reasons
     const reconciliationReasons: string[] = [];
     if (pendingReturn > 0) {
       reconciliationReasons.push(ReconciliationReason.PENDING_STORE_ACK_RETURN);
@@ -179,7 +211,6 @@ export class TraceabilityService {
       throw new NotFoundException(`Sales Order Component with ID "${scId}" not found`);
     }
 
-    // Also fetch any General Issues tied directly to this SC
     const generalIssues = await this.generalIssueRepo.find({
       where: { scId, status: GeneralIssueStatus.ISSUED },
       relations: { items: true },
@@ -193,11 +224,9 @@ export class TraceabilityService {
     });
     scGeneralIssueExtra = QuantityCalculator.roundDecimal(scGeneralIssueExtra);
 
-    // Compute item-level breakdown
     const itemsBreakdown: RmUsageItemBreakdown[] = (sc.rmItems || []).map((rmItem) => {
       const originalRequested = QuantityCalculator.roundDecimal(Number(rmItem.quantity) || 0);
 
-      // 1. Initial Issues
       let initialIssued = 0;
       (sc.materialIssues || []).forEach((issue) => {
         if (issue.issueType === MaterialIssueType.INITIAL_ISSUE) {
@@ -210,7 +239,6 @@ export class TraceabilityService {
       });
       initialIssued = QuantityCalculator.roundDecimal(initialIssued);
 
-      // 2. Additional Issues
       let additionalIssued = 0;
       (sc.materialIssues || []).forEach((issue) => {
         if (issue.issueType === MaterialIssueType.ADDITIONAL_ISSUE) {
@@ -225,7 +253,6 @@ export class TraceabilityService {
 
       const totalIssued = QuantityCalculator.roundDecimal(initialIssued + additionalIssued);
 
-      // 3. Consumed
       let totalConsumed = 0;
       (sc.materialConsumptions || []).forEach((c) => {
         if (c.rmItemId === rmItem.id) {
@@ -234,7 +261,6 @@ export class TraceabilityService {
       });
       totalConsumed = QuantityCalculator.roundDecimal(totalConsumed);
 
-      // 4. Returned (ACKNOWLEDGED)
       let totalReturned = 0;
       (sc.materialReturns || []).forEach((ret) => {
         if (ret.status === ReturnStatus.ACKNOWLEDGED) {
@@ -247,7 +273,6 @@ export class TraceabilityService {
       });
       totalReturned = QuantityCalculator.roundDecimal(totalReturned);
 
-      // 5. Pending Returns (PENDING_STORE_ACK)
       let pendingReturned = 0;
       (sc.materialReturns || []).forEach((ret) => {
         if (ret.status === ReturnStatus.PENDING_STORE_ACK) {
@@ -260,12 +285,10 @@ export class TraceabilityService {
       });
       pendingReturned = QuantityCalculator.roundDecimal(pendingReturned);
 
-      // Final RM Used: Original Requested + Additional Issued - Returned
       const finalRmUsed = QuantityCalculator.roundDecimal(
         Math.max(0, originalRequested + additionalIssued - totalReturned),
       );
 
-      // Zero-Loss Verification Variance: Total Issued - Total Consumed - Total Returned
       const variance = QuantityCalculator.roundDecimal(
         totalIssued - totalConsumed - totalReturned,
       );
@@ -290,7 +313,6 @@ export class TraceabilityService {
       };
     });
 
-    // Top-level Aggregated Summary
     const originalRm = QuantityCalculator.roundDecimal(
       itemsBreakdown.reduce((acc, i) => acc + i.originalRequested, 0),
     );
@@ -345,8 +367,6 @@ export class TraceabilityService {
 
   /**
    * Phase 20.2 — Aggregates and reports Raw Material Lifecycle Summary across SCs.
-   * Categorizes Open RM, Completed RM, Closed RM, along with Outstanding Quantities,
-   * Pending Returns, and Reconciliation indicators.
    */
   async getRmLifecycleSummary(
     filterDto: RmLifecycleFilterDto,
@@ -354,7 +374,6 @@ export class TraceabilityService {
     const page = filterDto.page && filterDto.page > 0 ? Number(filterDto.page) : 1;
     const limit = filterDto.limit && filterDto.limit > 0 ? Math.min(Number(filterDto.limit), 100) : 20;
 
-    // Fetch all SCs with full relations for accurate material balance calculation
     const scs = await this.scRepo.find({
       relations: {
         purchaseOrder: { customer: true },
@@ -366,7 +385,6 @@ export class TraceabilityService {
       order: { createdAt: 'DESC' },
     });
 
-    // Fetch general issues map
     const generalIssues = await this.generalIssueRepo.find({
       where: { status: GeneralIssueStatus.ISSUED },
       relations: { items: true },
@@ -383,14 +401,12 @@ export class TraceabilityService {
       }
     });
 
-    // Map each SC to RmLifecycleItemDto
     const allItems: RmLifecycleItemDto[] = [];
     const searchLower = filterDto.search ? filterDto.search.toLowerCase().trim() : undefined;
     const startTimestamp = filterDto.startDate ? new Date(filterDto.startDate).getTime() : undefined;
     const endTimestamp = filterDto.endDate ? new Date(filterDto.endDate).getTime() : undefined;
 
     for (const sc of scs) {
-      // Date filtering
       if (startTimestamp && new Date(sc.createdAt).getTime() < startTimestamp) {
         continue;
       }
@@ -398,7 +414,6 @@ export class TraceabilityService {
         continue;
       }
 
-      // Search filtering
       if (searchLower) {
         const scNum = (sc.scNumber || '').toLowerCase();
         const prod = (sc.productName || '').toLowerCase();
@@ -443,7 +458,6 @@ export class TraceabilityService {
       });
     }
 
-    // Global counts across matching items
     let openRmCount = 0;
     let completedRmCount = 0;
     let closedRmCount = 0;
@@ -488,7 +502,6 @@ export class TraceabilityService {
       totalOutstanding: QuantityCalculator.roundDecimal(totalOutstanding),
     };
 
-    // Filter by category if requested
     let filteredItems = allItems;
     if (filterDto.category) {
       filteredItems = allItems.filter((i) => i.lifecycleCategory === filterDto.category);
@@ -513,7 +526,6 @@ export class TraceabilityService {
 
   /**
    * Phase 20.2 — Retrieves the raw material reconciliation queue.
-   * Lists SCs that have pending store-ack returns, unresolved variances, or are awaiting final closure.
    */
   async getRmReconciliationQueue(
     filterDto: RmReconciliationQueueFilterDto,
@@ -532,7 +544,6 @@ export class TraceabilityService {
       order: { createdAt: 'DESC' },
     });
 
-    // Fetch general issues map
     const generalIssues = await this.generalIssueRepo.find({
       where: { status: GeneralIssueStatus.ISSUED },
       relations: { items: true },
@@ -553,7 +564,6 @@ export class TraceabilityService {
     const searchLower = filterDto.search ? filterDto.search.toLowerCase().trim() : undefined;
 
     for (const sc of scs) {
-      // Search filtering
       if (searchLower) {
         const scNum = (sc.scNumber || '').toLowerCase();
         const prod = (sc.productName || '').toLowerCase();
@@ -573,12 +583,10 @@ export class TraceabilityService {
       const extraGI = giMap.get(sc.id) || 0;
       const metrics = this.computeScMetrics(sc, extraGI);
 
-      // Must require reconciliation to be in the queue
       if (!metrics.isPendingReconciliation) {
         continue;
       }
 
-      // Filter by specific reason if provided
       if (filterDto.reason && filterDto.reason !== ReconciliationReason.ALL) {
         if (!metrics.reconciliationReasons.includes(filterDto.reason)) {
           continue;
@@ -608,7 +616,6 @@ export class TraceabilityService {
       });
     }
 
-    // Sort queue items: pending returns first, then by variance discrepancy
     queueItems.sort((a, b) => {
       if (b.pendingReturn !== a.pendingReturn) {
         return b.pendingReturn - a.pendingReturn;
@@ -626,6 +633,366 @@ export class TraceabilityService {
       limit,
       totalPages,
       items: paginatedItems,
+    };
+  }
+
+  /**
+   * Phase 20.3 — Build the comprehensive, single-call consolidated traceability API for a Sales Order Component (SC).
+   * Aggregates SC metadata, parent PO, RM requests, material issues, store receipts, consumptions, returns,
+   * additional material requests, immutable stock transactions, production processes, delivery challans,
+   * participating vendors, and authoritative Final RM usage calculation.
+   */
+  async getConsolidatedScTraceability(scId: string): Promise<ConsolidatedScTraceabilityDto> {
+    const sc = await this.scRepo.findOne({
+      where: { id: scId },
+      relations: {
+        purchaseOrder: { customer: true },
+        rmItems: true,
+        completedBy: true,
+      },
+    });
+
+    if (!sc) {
+      throw new NotFoundException(`Sales Order Component with ID "${scId}" not found`);
+    }
+
+    // 1. RM Requests
+    const rmRequests = await this.rmReqRepo.find({
+      where: { scId },
+      relations: { items: true, createdBy: true, reviewedBy: true },
+      order: { revisionNumber: 'ASC' },
+    });
+
+    // 2. Material Issues
+    const issues = await this.materialIssueRepo.find({
+      where: { scId },
+      relations: { items: true, issuedBy: true },
+      order: { issueDate: 'ASC' },
+    });
+    const issueIds = issues.map((i) => i.id);
+
+    // 3. Material Receipts (Inward store receipts for this SC's issues)
+    let receipts: MaterialReceipt[] = [];
+    if (issueIds.length > 0) {
+      receipts = await this.materialReceiptRepo.find({
+        where: { materialIssueId: In(issueIds) },
+        relations: { items: true, receivedBy: true },
+        order: { receivedAt: 'ASC' },
+      });
+    }
+
+    // 4. Consumptions
+    const consumptions = await this.consumptionRepo.find({
+      where: { scId },
+      relations: { recordedBy: true },
+      order: { recordedAt: 'ASC' },
+    });
+
+    // 5. Returns
+    const returns = await this.returnRepo.find({
+      where: { scId },
+      relations: { items: true, returnedBy: true, confirmedBy: true },
+      order: { returnedAt: 'ASC' },
+    });
+    const returnIds = returns.map((r) => r.id);
+
+    // 6. Additional Material Requests
+    const additionalRequests = await this.additionalRequestRepo.find({
+      where: { scId },
+      relations: { items: true, requestedBy: true, approvedBy: true },
+      order: { requestedAt: 'ASC' },
+    });
+
+    // 7. Delivery Challans
+    const deliveryChallans = await this.deliveryChallanRepo.find({
+      where: { scId },
+      relations: { vendor: true, process: true, items: { product: true } },
+      order: { dispatchDate: 'ASC' },
+    });
+    const dcIds = deliveryChallans.map((d) => d.id);
+
+    // 8. General Issues linked to SC
+    const generalIssues = await this.generalIssueRepo.find({
+      where: { scId },
+      relations: { items: true },
+    });
+    const giIds = generalIssues.map((g) => g.id);
+
+    // 9. Stock Transactions (Immutable ledger records tied to this SC and related operations)
+    const relatedIds = Array.from(
+      new Set([sc.id, ...issueIds, ...returnIds, ...dcIds, ...giIds].filter(Boolean)),
+    );
+    let stockTransactions: StockTransaction[] = [];
+    if (relatedIds.length > 0) {
+      stockTransactions = await this.stockTransactionRepo.find({
+        where: { referenceId: In(relatedIds) },
+        relations: { product: true, createdBy: true },
+        order: { createdAt: 'DESC' },
+      });
+    }
+
+    // 10. Production Processes
+    const allProcesses = await this.processRepo.find({
+      where: { isActive: true },
+      order: { sequenceNumber: 'ASC' },
+    });
+    const productionProcesses: ConsolidatedProcessStepDto[] = allProcesses.map((p) => {
+      const linkedDcs = deliveryChallans.filter((dc) => dc.processId === p.id);
+      const vendorsForProcess = Array.from(
+        new Set(linkedDcs.map((dc) => dc.vendor?.name).filter(Boolean)),
+      ) as string[];
+
+      let status = 'INTERNAL_OR_PENDING';
+      if (linkedDcs.length > 0) {
+        const allClosed = linkedDcs.every(
+          (dc) => dc.status === 'CLOSED' || dc.status === 'RETURNED',
+        );
+        const anyDispatched = linkedDcs.some(
+          (dc) => dc.status === 'DISPATCHED' || dc.status === 'PARTIALLY_RETURNED',
+        );
+        if (allClosed) {
+          status = 'COMPLETED';
+        } else if (anyDispatched) {
+          status = 'DISPATCHED';
+        } else {
+          status = 'OPEN';
+        }
+      }
+
+      return {
+        processId: p.id,
+        name: p.name,
+        code: p.code,
+        sequenceNumber: p.sequenceNumber,
+        allowsOutsideVendor: p.allowsOutsideVendor,
+        status,
+        deliveryChallanCount: linkedDcs.length,
+        vendorNames: vendorsForProcess,
+      };
+    });
+
+    // 11. Deduplicated Participating Vendors
+    const vendorMap = new Map<string, { vendor: Vendor; total: number; active: number }>();
+    deliveryChallans.forEach((dc) => {
+      if (dc.vendor) {
+        let entry = vendorMap.get(dc.vendor.id);
+        if (!entry) {
+          entry = { vendor: dc.vendor, total: 0, active: 0 };
+          vendorMap.set(dc.vendor.id, entry);
+        }
+        entry.total++;
+        if (dc.status !== 'CLOSED' && dc.status !== 'RETURNED') {
+          entry.active++;
+        }
+      }
+    });
+
+    const vendors: ConsolidatedVendorDto[] = Array.from(vendorMap.values()).map((v) => ({
+      id: v.vendor.id,
+      name: v.vendor.name,
+      code: v.vendor.code,
+      contactPerson: v.vendor.contactPerson || undefined,
+      email: v.vendor.email || undefined,
+      phone: v.vendor.phone || undefined,
+      totalChallans: v.total,
+      activeChallans: v.active,
+    }));
+
+    // 12. Authoritative Final RM Usage from Phase 20.1
+    const finalRmUsageResponse = await this.getFinalRmUsage(sc.id);
+
+    // Build the consolidated response payload
+    const scMeta: ConsolidatedScMetaDto = {
+      id: sc.id,
+      scNumber: sc.scNumber,
+      productName: sc.productName,
+      drawingNumber: sc.drawingNumber,
+      description: sc.description,
+      targetQuantity: Number(sc.targetQuantity) || 1,
+      status: sc.status,
+      createdAt: new Date(sc.createdAt).toISOString(),
+      updatedAt: new Date(sc.updatedAt).toISOString(),
+      completedAt: sc.completedAt ? new Date(sc.completedAt).toISOString() : undefined,
+      completedBy: sc.completedBy
+        ? {
+            id: sc.completedBy.id,
+            name: sc.completedBy.name,
+            email: sc.completedBy.email,
+          }
+        : undefined,
+      completionRemarks: sc.completionRemarks,
+    };
+
+    const poMeta: ConsolidatedPoDto = {
+      id: sc.purchaseOrder?.id || sc.poId,
+      poNumber: sc.purchaseOrder?.poNumber || 'UNKNOWN',
+      externalReference: sc.purchaseOrder?.externalReference,
+      referenceDate: sc.purchaseOrder?.referenceDate
+        ? new Date(sc.purchaseOrder.referenceDate).toISOString()
+        : undefined,
+      remarks: sc.purchaseOrder?.remarks,
+      customer: sc.purchaseOrder?.customer
+        ? {
+            id: sc.purchaseOrder.customer.id,
+            code: sc.purchaseOrder.customer.code,
+            name: sc.purchaseOrder.customer.name,
+            email: sc.purchaseOrder.customer.email,
+            phone: sc.purchaseOrder.customer.phone,
+          }
+        : undefined,
+    };
+
+    const rmRequestsDto: ConsolidatedRmRequestDto[] = rmRequests.map((req) => ({
+      id: req.id,
+      formType: req.formType,
+      status: req.status,
+      revisionNumber: req.revisionNumber,
+      submittedAt: req.submittedAt ? new Date(req.submittedAt).toISOString() : undefined,
+      reviewedAt: req.reviewedAt ? new Date(req.reviewedAt).toISOString() : undefined,
+      completedAt: req.completedAt ? new Date(req.completedAt).toISOString() : undefined,
+      createdBy: req.createdBy ? { id: req.createdBy.id, name: req.createdBy.name } : undefined,
+      reviewedBy: req.reviewedBy ? { id: req.reviewedBy.id, name: req.reviewedBy.name } : undefined,
+      items: (req.items || []).map((item) => ({
+        id: item.id,
+        material: item.material,
+        materialType: item.materialType,
+        grade: item.grade,
+        size: item.size,
+        quantity: Number(item.quantity) || 0,
+        weightUnit: item.weightUnit || 'KG',
+        remarks: item.remarks,
+      })),
+    }));
+
+    const issuesDto: ConsolidatedIssueDto[] = issues.map((iss) => ({
+      id: iss.id,
+      issueNumber: iss.issueNumber,
+      issueType: iss.issueType,
+      issueDate: new Date(iss.issueDate).toISOString(),
+      issuedBy: iss.issuedBy ? { id: iss.issuedBy.id, name: iss.issuedBy.name } : undefined,
+      remarks: iss.remarks,
+      items: (iss.items || []).map((item) => ({
+        id: item.id,
+        rmItemId: item.rmItemId,
+        quantityIssued: Number(item.quantityIssued) || 0,
+        remarks: item.remarks,
+      })),
+    }));
+
+    const receiptsDto: ConsolidatedReceiptDto[] = receipts.map((rec) => ({
+      id: rec.id,
+      materialIssueId: rec.materialIssueId,
+      status: rec.status,
+      receivedAt: new Date(rec.receivedAt).toISOString(),
+      receivedBy: rec.receivedBy ? { id: rec.receivedBy.id, name: rec.receivedBy.name } : undefined,
+      remarks: rec.remarks,
+      items: (rec.items || []).map((item) => ({
+        id: item.id,
+        rmItemId: item.rmItemId,
+        quantityReceived: Number(item.quantityReceived) || 0,
+        remarks: item.remarks,
+      })),
+    }));
+
+    const consumptionDto: ConsolidatedConsumptionDto[] = consumptions.map((c) => ({
+      id: c.id,
+      rmItemId: c.rmItemId,
+      consumedQuantity: Number(c.consumedQuantity) || 0,
+      unit: c.unit,
+      recordedAt: new Date(c.recordedAt).toISOString(),
+      recordedBy: c.recordedBy ? { id: c.recordedBy.id, name: c.recordedBy.name } : undefined,
+      remarks: c.remarks,
+    }));
+
+    const returnsDto: ConsolidatedReturnDto[] = returns.map((r) => ({
+      id: r.id,
+      status: r.status,
+      returnedAt: new Date(r.returnedAt).toISOString(),
+      returnedBy: r.returnedBy ? { id: r.returnedBy.id, name: r.returnedBy.name } : undefined,
+      confirmedAt: r.confirmedAt ? new Date(r.confirmedAt).toISOString() : undefined,
+      confirmedBy: r.confirmedBy ? { id: r.confirmedBy.id, name: r.confirmedBy.name } : undefined,
+      remarks: r.remarks,
+      items: (r.items || []).map((item) => ({
+        id: item.id,
+        rmItemId: item.rmItemId,
+        quantityReturned: Number(item.quantityReturned) || 0,
+        remarks: item.remarks,
+      })),
+    }));
+
+    const additionalMaterialDto: ConsolidatedAdditionalRequestDto[] = additionalRequests.map((a) => ({
+      id: a.id,
+      status: a.status,
+      reason: a.reason,
+      requestedAt: new Date(a.requestedAt).toISOString(),
+      requestedBy: a.requestedBy ? { id: a.requestedBy.id, name: a.requestedBy.name } : undefined,
+      approvedAt: a.approvedAt ? new Date(a.approvedAt).toISOString() : undefined,
+      approvedBy: a.approvedBy ? { id: a.approvedBy.id, name: a.approvedBy.name } : undefined,
+      remarks: a.remarks,
+      items: (a.items || []).map((item) => ({
+        id: item.id,
+        rmItemId: item.rmItemId,
+        requestedQuantity: Number(item.quantityRequested) || 0,
+        approvedQuantity: item.quantityApproved ? Number(item.quantityApproved) : undefined,
+        remarks: item.remarks,
+      })),
+    }));
+
+    const inventoryTransactionsDto: ConsolidatedInventoryTransactionDto[] = stockTransactions.map((tx) => ({
+      id: tx.id,
+      transactionType: tx.transactionType,
+      quantity: Number(tx.quantity) || 0,
+      referenceType: tx.referenceType,
+      referenceId: tx.referenceId,
+      createdAt: new Date(tx.createdAt).toISOString(),
+      createdBy: tx.createdBy ? { id: tx.createdBy.id, name: tx.createdBy.name } : undefined,
+      product: tx.product ? { id: tx.product.id, name: tx.product.name } : undefined,
+      remarks: tx.remarks,
+    }));
+
+    const deliveryChallansDto: ConsolidatedDeliveryChallanDto[] = deliveryChallans.map((dc) => ({
+      id: dc.id,
+      challanNumber: dc.challanNumber,
+      type: dc.type,
+      status: dc.status,
+      dispatchDate: new Date(dc.dispatchDate).toISOString(),
+      expectedReturnDate: dc.expectedReturnDate ? new Date(dc.expectedReturnDate).toISOString() : undefined,
+      actualReturnDate: dc.actualReturnDate ? new Date(dc.actualReturnDate).toISOString() : undefined,
+      vendor: dc.vendor ? { id: dc.vendor.id, name: dc.vendor.name, code: dc.vendor.code } : undefined,
+      process: dc.process ? { id: dc.process.id, name: dc.process.name, code: dc.process.code } : undefined,
+      items: (dc.items || []).map((item) => {
+        const quantityDispatched = Number(item.quantityDispatched) || 0;
+        const quantityReturned = Number(item.quantityReturned) || 0;
+        const balanceQuantity = QuantityCalculator.roundDecimal(Math.max(0, quantityDispatched - quantityReturned));
+        return {
+          id: item.id,
+          productId: item.productId,
+          productName: item.product?.name,
+          quantityDispatched,
+          quantityReturned,
+          balanceQuantity,
+        };
+      }),
+    }));
+
+    return {
+      sc: scMeta,
+      po: poMeta,
+      rmRequests: rmRequestsDto,
+      issues: issuesDto,
+      receipts: receiptsDto,
+      consumption: consumptionDto,
+      returns: returnsDto,
+      additionalMaterial: additionalMaterialDto,
+      inventoryTransactions: inventoryTransactionsDto,
+      productionProcesses,
+      deliveryChallans: deliveryChallansDto,
+      vendors,
+      finalRmUsage: {
+        summary: finalRmUsageResponse.summary,
+        items: finalRmUsageResponse.items,
+      },
+      generatedAt: new Date().toISOString(),
     };
   }
 }
