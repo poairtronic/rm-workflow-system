@@ -18,6 +18,13 @@ export class DeliveryChallanController {
     const userId = req.user.userId;
     return this.deliveryChallanService.createType1Challan(dto, userId);
   }
+  @Post('type-2')
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  async createType2(@Body() dto: CreateDeliveryChallanDto, @Request() req: any) {
+    const userId = req.user.userId;
+    return this.deliveryChallanService.createType2Challan(dto, userId);
+  }
+
 
   @Get()
   async findAll(

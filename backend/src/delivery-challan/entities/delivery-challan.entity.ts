@@ -68,8 +68,8 @@ export class DeliveryChallan {
   @Column({ name: 'dispatch_date', type: 'timestamptz' })
   dispatchDate: Date;
 
-  @Column({ name: 'expected_return_date', type: 'timestamptz' })
-  expectedReturnDate: Date;
+  @Column({ name: 'expected_return_date', type: 'timestamptz', nullable: true })
+  expectedReturnDate?: Date | null;
 
   @Column({ type: 'varchar', length: 30, default: DeliveryChallanStatus.OPEN })
   status: string;

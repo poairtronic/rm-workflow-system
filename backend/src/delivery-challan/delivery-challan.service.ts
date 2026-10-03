@@ -8,6 +8,7 @@ import { VendorProcessCapability } from '../vendor/entities/vendor-process-capab
 import { VendorSla } from '../vendor/entities/vendor-sla.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import { StockTransaction, TransactionType } from '../inventory/entities/stock-transaction.entity.js';
+import { Vendor } from '../vendor/entities/vendor.entity.js';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -117,6 +118,107 @@ export class DeliveryChallanService {
           referenceId: savedChallan.id,
           createdById: userId,
           remarks: `Dispatched via Delivery Challan ${challanNumber}`,
+        });
+        await stockTxRepo.save(stockTx);
+
+        // Create DC item
+        const dcItem = queryRunner.manager.create(DeliveryChallanItem, {
+          challanId: savedChallan.id,
+          productId: itemDto.productId,
+          binId: itemDto.binId,
+          quantityDispatched: quantityToDispatch,
+          quantityReturned: 0,
+        });
+        await queryRunner.manager.save(dcItem);
+      }
+
+      await queryRunner.commitTransaction();
+      
+      const savedChallanDetails = await this.challanRepo.findOne({
+        where: { id: savedChallan.id },
+        relations: { items: true },
+      });
+      if (!savedChallanDetails) {
+        throw new Error('Challan not found after creation');
+      }
+      return savedChallanDetails;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async createType2Challan(dto: CreateDeliveryChallanDto, userId: string): Promise<DeliveryChallan> {
+    if (dto.type !== DeliveryChallanType.GENERAL_INVENTORY_OUTWARD) {
+      throw new BadRequestException('Invalid challan type for Type 2 creation');
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const vendorRepo = queryRunner.manager.getRepository(Vendor);
+      const vendor = await vendorRepo.findOne({ where: { id: dto.vendorId, isActive: true } });
+      if (!vendor) {
+        throw new BadRequestException('Vendor not found or inactive');
+      }
+
+      const challanNumber = `DC-${Date.now()}`;
+      const challan = queryRunner.manager.create(DeliveryChallan, {
+        challanNumber,
+        type: dto.type,
+        vendorId: dto.vendorId,
+        scId: dto.scId,
+        processId: dto.processId,
+        dispatchDate: new Date(dto.dispatchDate),
+        expectedReturnDate: dto.expectedReturnDate ? new Date(dto.expectedReturnDate) : null,
+        notes: dto.notes,
+        createdById: userId,
+        status: DeliveryChallanStatus.OPEN,
+      });
+
+      const savedChallan = await queryRunner.manager.save(challan);
+
+      const stockBalanceRepo = queryRunner.manager.getRepository(StockBalance);
+      const stockTxRepo = queryRunner.manager.getRepository(StockTransaction);
+
+      for (const itemDto of dto.items) {
+        const quantityToDispatch = Number(itemDto.quantityDispatched);
+
+        const stockBalance = await stockBalanceRepo
+          .createQueryBuilder('sb')
+          .setLock('pessimistic_write')
+          .where('sb.product_id = :productId', { productId: itemDto.productId })
+          .andWhere('sb.bin_id = :binId', { binId: itemDto.binId })
+          .getOne();
+
+        if (!stockBalance) {
+          throw new BadRequestException(`No stock found for product ${itemDto.productId} in bin ${itemDto.binId}`);
+        }
+
+        const currentQty = Number(stockBalance.currentQuantity);
+
+        if (currentQty < quantityToDispatch) {
+          throw new BadRequestException(`Insufficient stock for product ${itemDto.productId} in bin ${itemDto.binId}`);
+        }
+
+        // Deduct quantity
+        stockBalance.currentQuantity = currentQty - quantityToDispatch;
+        await stockBalanceRepo.save(stockBalance);
+
+        // Write transaction
+        const stockTx = stockTxRepo.create({
+          productId: itemDto.productId,
+          sourceBinId: itemDto.binId,
+          transactionType: TransactionType.STOCK_OUT,
+          quantity: quantityToDispatch,
+          referenceType: 'DELIVERY_CHALLAN_TYPE_2',
+          referenceId: savedChallan.id,
+          createdById: userId,
+          remarks: `Dispatched via Delivery Challan Type 2 ${challanNumber}`,
         });
         await stockTxRepo.save(stockTx);
 
