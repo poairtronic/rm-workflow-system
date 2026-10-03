@@ -13,6 +13,7 @@ import { StockTransaction, TransactionType } from '../inventory/entities/stock-t
 import { DeliveryChallan, DeliveryChallanStatus } from '../delivery-challan/entities/delivery-challan.entity.js';
 import { ProductionProcess } from '../production-process/entities/production-process.entity.js';
 import { Vendor } from '../vendor/entities/vendor.entity.js';
+import { VendorSla } from '../vendor/entities/vendor-sla.entity.js';
 import { GeneralIssue, GeneralIssueStatus } from '../general-issue/entities/general-issue.entity.js';
 import { QuantityCalculator } from '../common/utils/quantity-calculator.js';
 import {
@@ -52,6 +53,18 @@ import {
   ConsolidatedPoTraceabilityDto,
   PoChildComponentNodeDto,
 } from './dto/consolidated-po-traceability.dto.js';
+import {
+  VendorTraceabilityResponseDto,
+  VendorTraceabilitySummaryDto,
+  VendorDcItemDto,
+  VendorChallanBreakdownDto,
+  VendorItemInCustodyDto,
+  VendorAssociatedProcessDto,
+  VendorPerformanceAnalyticsResponseDto,
+  VendorPerformanceAnalyticsSummaryDto,
+  VendorDcAgeingDistributionDto,
+  VendorPerformanceRankingItemDto,
+} from './dto/vendor-traceability.dto.js';
 
 @Injectable()
 export class TraceabilityService {
@@ -80,6 +93,8 @@ export class TraceabilityService {
     private readonly processRepo: Repository<ProductionProcess>,
     @InjectRepository(Vendor)
     private readonly vendorRepo: Repository<Vendor>,
+    @InjectRepository(VendorSla)
+    private readonly vendorSlaRepo: Repository<VendorSla>,
     @InjectRepository(GeneralIssue)
     private readonly generalIssueRepo: Repository<GeneralIssue>,
   ) {}
@@ -1370,5 +1385,587 @@ export class TraceabilityService {
       generatedAt: new Date().toISOString(),
     };
   }
+
+  /**
+   * Phase 20.5 — Aggregates and reports comprehensive vendor traceability.
+   * Tracks total DCs, open DCs, closed DCs, overdue DCs, items in custody,
+   * associated processes, turnaround times, and SLA compliance.
+   */
+  async getVendorTraceability(vendorId: string): Promise<VendorTraceabilityResponseDto> {
+    const vendor = await this.vendorRepo.findOne({ where: { id: vendorId } });
+    if (!vendor) {
+      throw new NotFoundException(`Vendor with ID "${vendorId}" was not found.`);
+    }
+
+    const dcs = await this.deliveryChallanRepo.find({
+      where: { vendorId },
+      relations: {
+        sc: { purchaseOrder: true },
+        process: true,
+        items: { product: true },
+      },
+      order: { dispatchDate: 'DESC' },
+    });
+
+    const slas = await this.vendorSlaRepo.find({
+      where: { vendorId, isActive: true },
+    });
+    const slaByProcessId = new Map<string, number>();
+    for (const sla of slas) {
+      slaByProcessId.set(sla.processId, sla.slaDays);
+    }
+
+    let openDcCount = 0;
+    let closedDcCount = 0;
+    let overdueDcCount = 0;
+    let totalDispatchedQty = 0;
+    let totalReturnedQty = 0;
+
+    let turnaroundDaysSum = 0;
+    let turnaroundCount = 0;
+
+    let evaluatedCount = 0;
+    let breachedCount = 0;
+
+    const challanBreakdown: VendorChallanBreakdownDto[] = [];
+    const itemCustodyMap = new Map<
+      string,
+      {
+        productId: string;
+        productName: string;
+        totalDispatched: number;
+        totalReturned: number;
+      }
+    >();
+
+    const processMap = new Map<
+      string,
+      {
+        processId: string;
+        processCode: string;
+        processName: string;
+        totalDcCount: number;
+        openDcCount: number;
+        totalDispatchedQty: number;
+        totalReturnedQty: number;
+      }
+    >();
+
+    for (const dc of dcs) {
+      const isClosed =
+        dc.status === DeliveryChallanStatus.CLOSED ||
+        dc.status === DeliveryChallanStatus.RETURNED;
+
+      if (isClosed) {
+        closedDcCount++;
+      } else {
+        openDcCount++;
+      }
+
+      const isOverdue =
+        !isClosed &&
+        !!dc.expectedReturnDate &&
+        new Date(dc.expectedReturnDate).getTime() < Date.now();
+
+      if (isOverdue) {
+        overdueDcCount++;
+      }
+
+      let actualTimeTakenDays: number | null = null;
+      if (dc.actualReturnDate && dc.dispatchDate) {
+        const diffMs =
+          new Date(dc.actualReturnDate).getTime() -
+          new Date(dc.dispatchDate).getTime();
+        actualTimeTakenDays = QuantityCalculator.roundDecimal(
+          Math.max(0, diffMs / (1000 * 60 * 60 * 24)),
+        );
+        turnaroundDaysSum += actualTimeTakenDays;
+        turnaroundCount++;
+      }
+
+      const slaDays = dc.processId ? (slaByProcessId.get(dc.processId) ?? null) : null;
+
+      let isSlaBreached = false;
+      if (isClosed) {
+        if (dc.expectedReturnDate && dc.actualReturnDate) {
+          isSlaBreached =
+            new Date(dc.actualReturnDate).getTime() >
+            new Date(dc.expectedReturnDate).getTime();
+        } else if (slaDays !== null && actualTimeTakenDays !== null) {
+          isSlaBreached = actualTimeTakenDays > slaDays;
+        }
+        evaluatedCount++;
+        if (isSlaBreached) breachedCount++;
+      } else {
+        if (isOverdue) {
+          isSlaBreached = true;
+          evaluatedCount++;
+          breachedCount++;
+        }
+      }
+
+      const dcItems: VendorDcItemDto[] = (dc.items || []).map((item) => {
+        const dispatched = Number(item.quantityDispatched) || 0;
+        const returned = Number(item.quantityReturned) || 0;
+        const balance = QuantityCalculator.roundDecimal(
+          Math.max(0, dispatched - returned),
+        );
+
+        totalDispatchedQty += dispatched;
+        totalReturnedQty += returned;
+
+        const prodId = item.productId || 'UNKNOWN';
+        const prodName = item.product?.name ?? 'Unknown Product';
+
+        let existingItem = itemCustodyMap.get(prodId);
+        if (!existingItem) {
+          existingItem = {
+            productId: prodId,
+            productName: prodName,
+            totalDispatched: 0,
+            totalReturned: 0,
+          };
+          itemCustodyMap.set(prodId, existingItem);
+        }
+        existingItem.totalDispatched += dispatched;
+        existingItem.totalReturned += returned;
+
+        return {
+          id: item.id,
+          productId: prodId,
+          productName: prodName,
+          quantityDispatched: dispatched,
+          quantityReturned: returned,
+          balanceInCustody: balance,
+        };
+      });
+
+      if (dc.processId && dc.process) {
+        let existingProc = processMap.get(dc.processId);
+        if (!existingProc) {
+          existingProc = {
+            processId: dc.processId,
+            processCode: dc.process.code,
+            processName: dc.process.name,
+            totalDcCount: 0,
+            openDcCount: 0,
+            totalDispatchedQty: 0,
+            totalReturnedQty: 0,
+          };
+          processMap.set(dc.processId, existingProc);
+        }
+        existingProc.totalDcCount++;
+        if (!isClosed) {
+          existingProc.openDcCount++;
+        }
+        for (const item of dcItems) {
+          existingProc.totalDispatchedQty += item.quantityDispatched;
+          existingProc.totalReturnedQty += item.quantityReturned;
+        }
+      }
+
+      challanBreakdown.push({
+        dcId: dc.id,
+        challanNumber: dc.challanNumber,
+        type: dc.type,
+        status: dc.status,
+        givenDate: new Date(dc.dispatchDate).toISOString(),
+        expectedReturnDate: dc.expectedReturnDate
+          ? new Date(dc.expectedReturnDate).toISOString()
+          : null,
+        actualReceiptDate: dc.actualReturnDate
+          ? new Date(dc.actualReturnDate).toISOString()
+          : null,
+        actualTimeTakenDays,
+        isOverdue,
+        slaDays,
+        isSlaBreached,
+        scNumber: dc.sc?.scNumber ?? null,
+        scId: dc.scId ?? null,
+        poNumber: dc.sc?.purchaseOrder?.poNumber ?? null,
+        poId: dc.sc?.purchaseOrder?.id ?? null,
+        processName: dc.process?.name ?? null,
+        processCode: dc.process?.code ?? null,
+        processId: dc.processId ?? null,
+        items: dcItems,
+      });
+    }
+
+    const netBalanceInCustody = QuantityCalculator.roundDecimal(
+      Math.max(0, totalDispatchedQty - totalReturnedQty),
+    );
+
+    const averageTurnaroundDays =
+      turnaroundCount > 0
+        ? QuantityCalculator.roundDecimal(turnaroundDaysSum / turnaroundCount)
+        : 0;
+
+    const slaComplianceRate =
+      evaluatedCount > 0
+        ? QuantityCalculator.roundDecimal(
+            Math.max(0, ((evaluatedCount - breachedCount) / evaluatedCount) * 100),
+          )
+        : 100;
+
+    const itemsInCustody: VendorItemInCustodyDto[] = Array.from(
+      itemCustodyMap.values(),
+    )
+      .map((item) => ({
+        productId: item.productId,
+        productName: item.productName,
+        totalDispatched: QuantityCalculator.roundDecimal(item.totalDispatched),
+        totalReturned: QuantityCalculator.roundDecimal(item.totalReturned),
+        balanceInCustody: QuantityCalculator.roundDecimal(
+          Math.max(0, item.totalDispatched - item.totalReturned),
+        ),
+      }))
+      .filter((item) => item.balanceInCustody > 0);
+
+    const associatedProcesses: VendorAssociatedProcessDto[] = Array.from(
+      processMap.values(),
+    ).map((proc) => ({
+      processId: proc.processId,
+      processCode: proc.processCode,
+      processName: proc.processName,
+      totalDcCount: proc.totalDcCount,
+      openDcCount: proc.openDcCount,
+      totalDispatchedQty: QuantityCalculator.roundDecimal(proc.totalDispatchedQty),
+      totalReturnedQty: QuantityCalculator.roundDecimal(proc.totalReturnedQty),
+      balanceInCustody: QuantityCalculator.roundDecimal(
+        Math.max(0, proc.totalDispatchedQty - proc.totalReturnedQty),
+      ),
+    }));
+
+    return {
+      vendor: {
+        id: vendor.id,
+        code: vendor.code,
+        name: vendor.name,
+        category: vendor.category,
+        contactPerson: vendor.contactPerson,
+        email: vendor.email,
+        phone: vendor.phone,
+        address: vendor.address,
+        isActive: vendor.isActive,
+      },
+      summary: {
+        totalDcCount: dcs.length,
+        openDcCount,
+        closedDcCount,
+        overdueDcCount,
+        totalDispatchedQty: QuantityCalculator.roundDecimal(totalDispatchedQty),
+        totalReturnedQty: QuantityCalculator.roundDecimal(totalReturnedQty),
+        netBalanceInCustody,
+        averageTurnaroundDays,
+        slaComplianceRate,
+      },
+      challanBreakdown,
+      itemsInCustody,
+      associatedProcesses,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Phase 20.5 — Aggregates global vendor performance analytics across all vendors.
+   * Computes overall SLA compliance, average turnaround duration, DC ageing distribution,
+   * and individual vendor performance rankings.
+   */
+  async getVendorPerformanceAnalytics(): Promise<VendorPerformanceAnalyticsResponseDto> {
+    const vendors = await this.vendorRepo.find({
+      order: { name: 'ASC' },
+    });
+
+    const allDcs = await this.deliveryChallanRepo.find({
+      relations: { vendor: true, process: true, items: true },
+    });
+
+    const allSlas = await this.vendorSlaRepo.find({
+      where: { isActive: true },
+    });
+    const slaMap = new Map<string, number>();
+    for (const sla of allSlas) {
+      slaMap.set(`${sla.vendorId}_${sla.processId}`, sla.slaDays);
+    }
+
+    let openDcs = 0;
+    let closedDcs = 0;
+    let overdueDcs = 0;
+    let totalCustodyQty = 0;
+    let totalTurnaroundDays = 0;
+    let closedWithDurationCount = 0;
+    let evaluatedDcs = 0;
+    let breachedDcs = 0;
+
+    const ageingDistribution: VendorDcAgeingDistributionDto = {
+      lessThan7Days: { count: 0, totalBalanceQty: 0 },
+      sevenTo14Days: { count: 0, totalBalanceQty: 0 },
+      fifteenTo30Days: { count: 0, totalBalanceQty: 0 },
+      moreThan30Days: { count: 0, totalBalanceQty: 0 },
+    };
+
+    // Group DCs by vendor
+    const dcsByVendorId = new Map<string, DeliveryChallan[]>();
+    for (const dc of allDcs) {
+      if (dc.vendorId) {
+        let list = dcsByVendorId.get(dc.vendorId);
+        if (!list) {
+          list = [];
+          dcsByVendorId.set(dc.vendorId, list);
+        }
+        list.push(dc);
+      }
+
+      const isClosed =
+        dc.status === DeliveryChallanStatus.CLOSED ||
+        dc.status === DeliveryChallanStatus.RETURNED;
+
+      const dcBalance = (dc.items || []).reduce((sum, item) => {
+        const disp = Number(item.quantityDispatched) || 0;
+        const ret = Number(item.quantityReturned) || 0;
+        return sum + Math.max(0, disp - ret);
+      }, 0);
+
+      const isOverdue =
+        !isClosed &&
+        !!dc.expectedReturnDate &&
+        new Date(dc.expectedReturnDate).getTime() < Date.now();
+
+      if (!isClosed) {
+        openDcs++;
+        totalCustodyQty += dcBalance;
+
+        if (isOverdue) {
+          overdueDcs++;
+          evaluatedDcs++;
+          breachedDcs++;
+        }
+
+        const ageDays = Math.max(
+          0,
+          Math.floor(
+            (Date.now() - new Date(dc.dispatchDate).getTime()) /
+              (1000 * 60 * 60 * 24),
+          ),
+        );
+
+        if (ageDays < 7) {
+          ageingDistribution.lessThan7Days.count++;
+          ageingDistribution.lessThan7Days.totalBalanceQty += dcBalance;
+        } else if (ageDays <= 14) {
+          ageingDistribution.sevenTo14Days.count++;
+          ageingDistribution.sevenTo14Days.totalBalanceQty += dcBalance;
+        } else if (ageDays <= 30) {
+          ageingDistribution.fifteenTo30Days.count++;
+          ageingDistribution.fifteenTo30Days.totalBalanceQty += dcBalance;
+        } else {
+          ageingDistribution.moreThan30Days.count++;
+          ageingDistribution.moreThan30Days.totalBalanceQty += dcBalance;
+        }
+      } else {
+        closedDcs++;
+
+        let actualTimeTaken: number | null = null;
+        if (dc.actualReturnDate && dc.dispatchDate) {
+          const diffMs =
+            new Date(dc.actualReturnDate).getTime() -
+            new Date(dc.dispatchDate).getTime();
+          actualTimeTaken = QuantityCalculator.roundDecimal(
+            Math.max(0, diffMs / (1000 * 60 * 60 * 24)),
+          );
+          totalTurnaroundDays += actualTimeTaken;
+          closedWithDurationCount++;
+        }
+
+        let isSlaBreached = false;
+        const slaDays =
+          dc.vendorId && dc.processId
+            ? slaMap.get(`${dc.vendorId}_${dc.processId}`)
+            : null;
+
+        if (dc.expectedReturnDate && dc.actualReturnDate) {
+          isSlaBreached =
+            new Date(dc.actualReturnDate).getTime() >
+            new Date(dc.expectedReturnDate).getTime();
+        } else if (
+          slaDays !== undefined &&
+          slaDays !== null &&
+          actualTimeTaken !== null
+        ) {
+          isSlaBreached = actualTimeTaken > slaDays;
+        }
+
+        evaluatedDcs++;
+        if (isSlaBreached) breachedDcs++;
+      }
+    }
+
+    // Build per-vendor rankings
+    const vendorRankings: VendorPerformanceRankingItemDto[] = [];
+    for (const vendor of vendors) {
+      const vDcs = dcsByVendorId.get(vendor.id) || [];
+      let vOpen = 0;
+      let vClosed = 0;
+      let vOverdue = 0;
+      let vCustody = 0;
+      let vTurnaroundSum = 0;
+      let vTurnaroundCount = 0;
+      let vEvaluated = 0;
+      let vBreached = 0;
+
+      for (const dc of vDcs) {
+        const isClosed =
+          dc.status === DeliveryChallanStatus.CLOSED ||
+          dc.status === DeliveryChallanStatus.RETURNED;
+
+        const dcBal = (dc.items || []).reduce((sum, item) => {
+          const disp = Number(item.quantityDispatched) || 0;
+          const ret = Number(item.quantityReturned) || 0;
+          return sum + Math.max(0, disp - ret);
+        }, 0);
+
+        const isOverdue =
+          !isClosed &&
+          !!dc.expectedReturnDate &&
+          new Date(dc.expectedReturnDate).getTime() < Date.now();
+
+        if (isClosed) {
+          vClosed++;
+          let timeTaken: number | null = null;
+          if (dc.actualReturnDate && dc.dispatchDate) {
+            const diffMs =
+              new Date(dc.actualReturnDate).getTime() -
+              new Date(dc.dispatchDate).getTime();
+            timeTaken = QuantityCalculator.roundDecimal(
+              Math.max(0, diffMs / (1000 * 60 * 60 * 24)),
+            );
+            vTurnaroundSum += timeTaken;
+            vTurnaroundCount++;
+          }
+
+          let isSlaBreached = false;
+          const slaDays = dc.processId
+            ? slaMap.get(`${vendor.id}_${dc.processId}`)
+            : null;
+
+          if (dc.expectedReturnDate && dc.actualReturnDate) {
+            isSlaBreached =
+              new Date(dc.actualReturnDate).getTime() >
+              new Date(dc.expectedReturnDate).getTime();
+          } else if (
+            slaDays !== undefined &&
+            slaDays !== null &&
+            timeTaken !== null
+          ) {
+            isSlaBreached = timeTaken > slaDays;
+          }
+
+          vEvaluated++;
+          if (isSlaBreached) vBreached++;
+        } else {
+          vOpen++;
+          vCustody += dcBal;
+          if (isOverdue) {
+            vOverdue++;
+            vEvaluated++;
+            vBreached++;
+          }
+        }
+      }
+
+      const vComplianceRate =
+        vEvaluated > 0
+          ? QuantityCalculator.roundDecimal(
+              Math.max(0, ((vEvaluated - vBreached) / vEvaluated) * 100),
+            )
+          : 100;
+
+      const vAvgTurnaround =
+        vTurnaroundCount > 0
+          ? QuantityCalculator.roundDecimal(vTurnaroundSum / vTurnaroundCount)
+          : 0;
+
+      vendorRankings.push({
+        vendorId: vendor.id,
+        vendorCode: vendor.code,
+        vendorName: vendor.name,
+        totalDcs: vDcs.length,
+        openDcs: vOpen,
+        closedDcs: vClosed,
+        overdueDcs: vOverdue,
+        slaComplianceRate: vComplianceRate,
+        avgTurnaroundDays: vAvgTurnaround,
+        activeItemsInCustody: QuantityCalculator.roundDecimal(vCustody),
+      });
+    }
+
+    // Sort rankings: highest SLA compliance first, then lowest overdue, then highest total DCs
+    vendorRankings.sort((a, b) => {
+      if (b.slaComplianceRate !== a.slaComplianceRate) {
+        return b.slaComplianceRate - a.slaComplianceRate;
+      }
+      if (a.overdueDcs !== b.overdueDcs) {
+        return a.overdueDcs - b.overdueDcs;
+      }
+      return b.totalDcs - a.totalDcs;
+    });
+
+    const overallSlaComplianceRate =
+      evaluatedDcs > 0
+        ? QuantityCalculator.roundDecimal(
+            Math.max(0, ((evaluatedDcs - breachedDcs) / evaluatedDcs) * 100),
+          )
+        : 100;
+
+    const avgTurnaroundDays =
+      closedWithDurationCount > 0
+        ? QuantityCalculator.roundDecimal(
+            totalTurnaroundDays / closedWithDurationCount,
+          )
+        : 0;
+
+    return {
+      summary: {
+        totalVendors: vendors.length,
+        activeVendors: vendors.filter((v) => v.isActive).length,
+        totalDcs: allDcs.length,
+        openDcs,
+        closedDcs,
+        overdueDcs,
+        overallSlaComplianceRate,
+        avgTurnaroundDays,
+        totalCustodyQty: QuantityCalculator.roundDecimal(totalCustodyQty),
+      },
+      ageingDistribution: {
+        lessThan7Days: {
+          count: ageingDistribution.lessThan7Days.count,
+          totalBalanceQty: QuantityCalculator.roundDecimal(
+            ageingDistribution.lessThan7Days.totalBalanceQty,
+          ),
+        },
+        sevenTo14Days: {
+          count: ageingDistribution.sevenTo14Days.count,
+          totalBalanceQty: QuantityCalculator.roundDecimal(
+            ageingDistribution.sevenTo14Days.totalBalanceQty,
+          ),
+        },
+        fifteenTo30Days: {
+          count: ageingDistribution.fifteenTo30Days.count,
+          totalBalanceQty: QuantityCalculator.roundDecimal(
+            ageingDistribution.fifteenTo30Days.totalBalanceQty,
+          ),
+        },
+        moreThan30Days: {
+          count: ageingDistribution.moreThan30Days.count,
+          totalBalanceQty: QuantityCalculator.roundDecimal(
+            ageingDistribution.moreThan30Days.totalBalanceQty,
+          ),
+        },
+      },
+      vendorRankings,
+      generatedAt: new Date().toISOString(),
+    };
+  }
 }
+
 

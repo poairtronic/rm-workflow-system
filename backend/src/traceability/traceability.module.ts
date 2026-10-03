@@ -14,6 +14,8 @@ import { StockTransaction } from '../inventory/entities/stock-transaction.entity
 import { DeliveryChallan } from '../delivery-challan/entities/delivery-challan.entity.js';
 import { ProductionProcess } from '../production-process/entities/production-process.entity.js';
 import { Vendor } from '../vendor/entities/vendor.entity.js';
+import { VendorSla } from '../vendor/entities/vendor-sla.entity.js';
+import { DeliveryChallanItem } from '../delivery-challan/entities/delivery-challan-item.entity.js';
 import { GeneralIssue } from '../general-issue/entities/general-issue.entity.js';
 
 @Module({
@@ -29,8 +31,10 @@ import { GeneralIssue } from '../general-issue/entities/general-issue.entity.js'
       AdditionalMaterialRequest,
       StockTransaction,
       DeliveryChallan,
+      DeliveryChallanItem,
       ProductionProcess,
       Vendor,
+      VendorSla,
       GeneralIssue,
     ]),
   ],

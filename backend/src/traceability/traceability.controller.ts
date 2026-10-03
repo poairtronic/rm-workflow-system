@@ -13,6 +13,10 @@ import {
 } from './dto/rm-lifecycle.dto.js';
 import { ConsolidatedScTraceabilityDto } from './dto/consolidated-sc-traceability.dto.js';
 import { ConsolidatedPoTraceabilityDto } from './dto/consolidated-po-traceability.dto.js';
+import {
+  VendorTraceabilityResponseDto,
+  VendorPerformanceAnalyticsResponseDto,
+} from './dto/vendor-traceability.dto.js';
 
 @Controller('api/traceability')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -113,4 +117,43 @@ export class TraceabilityController {
   ): Promise<FinalRmUsageResponseDto> {
     return this.traceabilityService.getFinalRmUsage(scId);
   }
+
+  /**
+   * Phase 20.5 — Aggregates global vendor performance analytics across all vendors.
+   * Computes overall SLA compliance, average turnaround duration, DC ageing distribution,
+   * and individual vendor performance rankings.
+   * Authorized roles: STORES, PRODUCTION, SENIOR_MANAGER, ADMIN, GENERAL_MANAGER
+   */
+  @Get('vendors/performance-analytics')
+  @Roles(
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.ADMIN,
+    UserRole.GENERAL_MANAGER,
+  )
+  async getVendorPerformanceAnalytics(): Promise<VendorPerformanceAnalyticsResponseDto> {
+    return this.traceabilityService.getVendorPerformanceAnalytics();
+  }
+
+  /**
+   * Phase 20.5 — Aggregates and reports comprehensive vendor traceability.
+   * Tracks total DCs, open DCs, closed DCs, overdue DCs, items in custody,
+   * associated processes, turnaround times, and SLA compliance.
+   * Authorized roles: STORES, PRODUCTION, SENIOR_MANAGER, ADMIN, GENERAL_MANAGER
+   */
+  @Get('vendors/:vendorId/traceability')
+  @Roles(
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.ADMIN,
+    UserRole.GENERAL_MANAGER,
+  )
+  async getVendorTraceability(
+    @Param('vendorId', ParseUUIDPipe) vendorId: string,
+  ): Promise<VendorTraceabilityResponseDto> {
+    return this.traceabilityService.getVendorTraceability(vendorId);
+  }
 }
+
