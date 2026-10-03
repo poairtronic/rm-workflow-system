@@ -8,6 +8,7 @@ interface KpiMetricCardProps {
   icon: ReactNode;
   statusLabel: string;
   colorScheme: KpiColorScheme;
+  isLoading?: boolean;
 }
 
 const colorMap = {
@@ -37,11 +38,26 @@ const colorMap = {
   }
 };
 
-export function KpiMetricCard({ title, value, icon, statusLabel, colorScheme }: KpiMetricCardProps) {
+export function KpiMetricCard({ title, value, icon, statusLabel, colorScheme, isLoading }: KpiMetricCardProps) {
   const scheme = colorMap[colorScheme];
 
+  if (isLoading) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-[0_1px_3px_0_rgba(0,0,0,0.05),0_1px_2px_-1px_rgba(0,0,0,0.05)] flex flex-col justify-between animate-pulse h-[140px]">
+        <div className="flex justify-between items-start">
+          <div className="h-4 bg-slate-200 rounded w-1/2"></div>
+          <div className="h-8 w-8 bg-slate-200 rounded-lg"></div>
+        </div>
+        <div className="mt-4">
+          <div className="h-6 bg-slate-200 rounded w-1/3 mb-2.5"></div>
+          <div className="h-4 bg-slate-200 rounded w-2/3"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-[0_1px_3px_0_rgba(0,0,0,0.05),0_1px_2px_-1px_rgba(0,0,0,0.05)] flex flex-col justify-between">
+    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-[0_1px_3px_0_rgba(0,0,0,0.05),0_1px_2px_-1px_rgba(0,0,0,0.05)] flex flex-col justify-between h-[140px]">
       <div className="flex justify-between items-start">
         <h3 className="text-[12px] uppercase tracking-wide text-slate-500 font-semibold">{title}</h3>
         <div className={`p-2 rounded-lg ${scheme.iconBg} ${scheme.iconColor}`}>

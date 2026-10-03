@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { X, ShoppingCart, AlertCircle } from 'lucide-react';
-import type { MslExceptionRow } from '../../types/inventory';
+import type { MslException } from '../../types/msl-alert';
 
 interface EmergencyRequisitionDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  item: MslExceptionRow | null;
-  onSubmit: (item: MslExceptionRow, quantity: number, vendor: string, urgency: string) => void;
+  item: MslException | null;
+  onSubmit: (item: MslException, quantity: number, vendor: string, urgency: string) => void;
 }
 
 export function EmergencyRequisitionDrawer({ isOpen, onClose, item, onSubmit }: EmergencyRequisitionDrawerProps) {
@@ -16,8 +16,7 @@ export function EmergencyRequisitionDrawer({ isOpen, onClose, item, onSubmit }: 
 
   useEffect(() => {
     if (item && isOpen) {
-      const deficit = item.mslTarget - item.currentStock;
-      setQuantity(deficit > 0 ? deficit.toString() : '');
+      setQuantity(item.deficit > 0 ? item.deficit.toString() : '');
       setVendor('');
       setUrgency('ASAP');
     }
@@ -25,7 +24,6 @@ export function EmergencyRequisitionDrawer({ isOpen, onClose, item, onSubmit }: 
 
   if (!isOpen || !item) return null;
 
-  const deficit = item.mslTarget - item.currentStock;
   const isCritical = item.severity === 'CRITICAL';
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -59,8 +57,8 @@ export function EmergencyRequisitionDrawer({ isOpen, onClose, item, onSubmit }: 
         <div className="p-5 border-b border-slate-100 bg-white">
           <div className="flex items-start justify-between mb-3">
             <div>
-              <p className="text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1">{item.materialCode}</p>
-              <h3 className="text-sm font-semibold text-slate-900">{item.description}</h3>
+              <p className="text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1">{item.sku}</p>
+              <h3 className="text-sm font-semibold text-slate-900">{item.itemName}</h3>
             </div>
             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider
               ${isCritical ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-amber-100 text-amber-700 border border-amber-200'}`}>
@@ -75,7 +73,7 @@ export function EmergencyRequisitionDrawer({ isOpen, onClose, item, onSubmit }: 
                 Current: {item.currentStock.toFixed(1)} {item.unit}
               </span>
               <span className={isCritical ? 'text-red-600' : 'text-amber-600'}>
-                Deficit: {deficit.toFixed(1)} {item.unit}
+                Deficit: {item.deficit.toFixed(1)} {item.unit}
               </span>
             </div>
           </div>
@@ -90,7 +88,7 @@ export function EmergencyRequisitionDrawer({ isOpen, onClose, item, onSubmit }: 
             <input
               type="number"
               required
-              min={deficit > 0 ? deficit : 0}
+              min={item.deficit > 0 ? item.deficit : 0}
               step="0.01"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}

@@ -128,3 +128,11 @@ class ApiClient {
 }
 
 export const api = new ApiClient();
+
+import type { SweepStatus, InventoryMslStatusResponseDto } from '../types/msl.dto';
+
+export const mslApi = {
+  getMslSweepStatus: () => api.get<SweepStatus>('/api/inventory/msl/sweep-status'),
+  getInventoryMslStatus: () => api.get<InventoryMslStatusResponseDto>('/api/traceability/analytics/inventory-msl-status'),
+  generateEmergencyPO: (payload: any) => api.post<{ success: boolean; message: string }>('/api/purchase-orders/emergency', payload),
+};
