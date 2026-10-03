@@ -405,4 +405,26 @@ export class DeliveryChallanService {
       await queryRunner.release();
     }
   }
+
+  async closeChallan(challanId: string, userId: string): Promise<DeliveryChallan> {
+    const challan = await this.challanRepo.findOne({
+      where: { id: challanId },
+    });
+
+    if (!challan) {
+      throw new NotFoundException('Delivery Challan not found');
+    }
+
+    if (challan.status === DeliveryChallanStatus.CLOSED) {
+      throw new BadRequestException('Challan is already closed');
+    }
+
+    if (challan.status === DeliveryChallanStatus.OPEN) {
+      throw new BadRequestException('Cannot close an OPEN challan. It must be dispatched first.');
+    }
+
+    challan.status = DeliveryChallanStatus.CLOSED;
+    // We could track closedBy if there was a field, but currently we just set status to CLOSED.
+    return this.challanRepo.save(challan);
+  }
 }

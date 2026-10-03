@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Param, Query, UseGuards, Request, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Param, Query, UseGuards, Request, ParseUUIDPipe } from '@nestjs/common';
 import { DeliveryChallanService } from './delivery-challan.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
@@ -63,5 +63,16 @@ export class DeliveryChallanController {
   ) {
     const userId = req.user.userId;
     return this.deliveryChallanService.processChallanReturn(id, dto, userId);
+  }
+
+  @Patch(':id/close')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  async closeChallan(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Request() req: any,
+  ) {
+    const userId = req.user.userId;
+    return this.deliveryChallanService.closeChallan(id, userId);
   }
 }
