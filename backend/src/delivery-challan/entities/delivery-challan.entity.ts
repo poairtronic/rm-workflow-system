@@ -84,6 +84,19 @@ export class DeliveryChallan {
   @JoinColumn({ name: 'created_by_id' })
   createdBy?: User | null;
 
+  @Column({ name: 'actual_return_date', type: 'timestamptz', nullable: true })
+  actualReturnDate?: Date | null;
+
+  @Column({ name: 'verified_by_id', type: 'uuid', nullable: true })
+  verifiedById?: string | null;
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'verified_by_id' })
+  verifiedBy?: User | null;
+
+  @Column({ name: 'verification_remarks', type: 'text', nullable: true })
+  verificationRemarks?: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

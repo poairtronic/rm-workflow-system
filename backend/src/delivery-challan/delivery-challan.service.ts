@@ -4,6 +4,7 @@ import { Repository, DataSource, QueryRunner } from 'typeorm';
 import { DeliveryChallan, DeliveryChallanType, DeliveryChallanStatus } from './entities/delivery-challan.entity.js';
 import { DeliveryChallanItem } from './entities/delivery-challan-item.entity.js';
 import { CreateDeliveryChallanDto } from './dto/create-delivery-challan.dto.js';
+import { ReturnDeliveryChallanDto } from './dto/return-delivery-challan.dto.js';
 import { VendorProcessCapability } from '../vendor/entities/vendor-process-capability.entity.js';
 import { VendorSla } from '../vendor/entities/vendor-sla.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
@@ -314,5 +315,94 @@ export class DeliveryChallanService {
       productId,
       totalOutstanding: result?.totalOutstanding ? Number(result.totalOutstanding) : 0,
     };
+  }
+
+  async processChallanReturn(challanId: string, dto: ReturnDeliveryChallanDto, userId: string): Promise<DeliveryChallan> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const challan = await queryRunner.manager.findOne(DeliveryChallan, {
+        where: { id: challanId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!challan) {
+        throw new NotFoundException('Delivery Challan not found');
+      }
+
+      const items = await queryRunner.manager.find(DeliveryChallanItem, {
+        where: { challanId: challan.id },
+      });
+      challan.items = items;
+
+      if (challan.status === DeliveryChallanStatus.RETURNED || challan.status === DeliveryChallanStatus.CLOSED) {
+        throw new BadRequestException('Challan is already fully returned or closed');
+      }
+
+      const stockRepo = queryRunner.manager.getRepository(StockBalance);
+      const txRepo = queryRunner.manager.getRepository(StockTransaction);
+      const itemRepo = queryRunner.manager.getRepository(DeliveryChallanItem);
+
+      for (const dtoItem of dto.items) {
+        const challanItem = challan.items.find(i => i.id === dtoItem.itemId);
+        if (!challanItem) {
+          throw new BadRequestException(`Item ${dtoItem.itemId} not found in challan`);
+        }
+
+        const outstanding = Number(challanItem.quantityDispatched) - Number(challanItem.quantityReturned);
+        if (dtoItem.quantityToReturn > outstanding) {
+          throw new BadRequestException(`Cannot return more than outstanding quantity for item ${dtoItem.itemId}. Outstanding: ${outstanding}`);
+        }
+
+        // 2. Atomic Inventory Stock Restoration & Ledger Logging
+        const balance = await stockRepo.findOne({
+          where: { productId: challanItem.productId, binId: challanItem.binId },
+          lock: { mode: 'pessimistic_write' },
+        });
+
+        if (!balance) {
+          throw new NotFoundException(`Stock balance for product ${challanItem.productId} in bin ${challanItem.binId} not found`);
+        }
+
+        balance.currentQuantity = Number(balance.currentQuantity) + dtoItem.quantityToReturn;
+        await stockRepo.save(balance);
+
+        const transaction = txRepo.create({
+          productId: challanItem.productId,
+          destinationBinId: challanItem.binId,
+          transactionType: TransactionType.RETURN,
+          quantity: dtoItem.quantityToReturn,
+          referenceId: challanId,
+          referenceType: 'DELIVERY_CHALLAN_RETURN',
+          createdById: userId,
+        });
+        await txRepo.save(transaction);
+
+        // Update returned quantity
+        challanItem.quantityReturned = Number(challanItem.quantityReturned) + dtoItem.quantityToReturn;
+        await itemRepo.save(challanItem);
+      }
+
+      // Refresh items to check status
+      const updatedItems = await itemRepo.find({ where: { challanId } });
+      const allFullyReturned = updatedItems.every(i => Number(i.quantityReturned) === Number(i.quantityDispatched));
+
+      challan.status = allFullyReturned ? DeliveryChallanStatus.RETURNED : DeliveryChallanStatus.PARTIALLY_RETURNED;
+      challan.actualReturnDate = new Date(dto.actualReceiptDate);
+      challan.verifiedById = userId;
+      challan.verificationRemarks = dto.verificationRemarks;
+
+      await queryRunner.manager.save(challan);
+      await queryRunner.commitTransaction();
+
+      return challan;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 }
