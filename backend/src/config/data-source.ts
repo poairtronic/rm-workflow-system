@@ -63,7 +63,10 @@ import { GeneralIssueItem } from '../general-issue/entities/general-issue-item.e
 import { MslAlert } from '../inventory/entities/msl-alert.entity.js';
 import { ProductionProcess } from '../production-process/entities/production-process.entity.js';
 import { Vendor } from '../vendor/entities/vendor.entity.js';
-
+import { VendorProcessCapability } from '../vendor/entities/vendor-process-capability.entity.js';
+import { VendorSla } from '../vendor/entities/vendor-sla.entity.js';
+import { DeliveryChallan } from '../delivery-challan/entities/delivery-challan.entity.js';
+import { DeliveryChallanItem } from '../delivery-challan/entities/delivery-challan-item.entity.js';
 export const ALL_ENTITIES = [
   Role,
   User,
@@ -105,6 +108,10 @@ export const ALL_ENTITIES = [
   MslAlert,
   ProductionProcess,
   Vendor,
+  VendorProcessCapability,
+  VendorSla,
+  DeliveryChallan,
+  DeliveryChallanItem,
 ];
 
 const dbUrl =
