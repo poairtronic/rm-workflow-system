@@ -30,6 +30,7 @@ import { GeneralIssueModule } from './general-issue/general-issue.module.js';
 import { ProductionProcessModule } from './production-process/production-process.module.js';
 import { VendorModule } from './vendor/vendor.module.js';
 import { DeliveryChallanModule } from './delivery-challan/delivery-challan.module.js';
+import { TraceabilityModule } from './traceability/traceability.module.js';
 
 @Module({
   imports: [
@@ -87,6 +88,7 @@ import { DeliveryChallanModule } from './delivery-challan/delivery-challan.modul
     ProductionProcessModule,
     VendorModule,
     DeliveryChallanModule,
+    TraceabilityModule,
   ],
 
   controllers: [AppController],
