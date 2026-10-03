@@ -9,8 +9,8 @@ import { MaterialReceipt } from '../production/entities/production-receipt.entit
 import { MaterialConsumption } from '../production/entities/material-consumption.entity.js';
 import { MaterialReturn, ReturnStatus } from '../production/entities/material-return.entity.js';
 import { AdditionalMaterialRequest } from '../additional-request/entities/additional-request.entity.js';
-import { StockTransaction } from '../inventory/entities/stock-transaction.entity.js';
-import { DeliveryChallan } from '../delivery-challan/entities/delivery-challan.entity.js';
+import { StockTransaction, TransactionType } from '../inventory/entities/stock-transaction.entity.js';
+import { DeliveryChallan, DeliveryChallanStatus } from '../delivery-challan/entities/delivery-challan.entity.js';
 import { ProductionProcess } from '../production-process/entities/production-process.entity.js';
 import { Vendor } from '../vendor/entities/vendor.entity.js';
 import { GeneralIssue, GeneralIssueStatus } from '../general-issue/entities/general-issue.entity.js';
@@ -48,6 +48,10 @@ import {
   ConsolidatedDeliveryChallanDto,
   ConsolidatedVendorDto,
 } from './dto/consolidated-sc-traceability.dto.js';
+import {
+  ConsolidatedPoTraceabilityDto,
+  PoChildComponentNodeDto,
+} from './dto/consolidated-po-traceability.dto.js';
 
 @Injectable()
 export class TraceabilityService {
@@ -995,4 +999,376 @@ export class TraceabilityService {
       generatedAt: new Date().toISOString(),
     };
   }
+
+  /**
+   * Phase 20.4 — Build the comprehensive, top-level PO Consolidated Traceability API.
+   * Aggregates all child SCs tied to a Purchase Order, computing macro-level summaries,
+   * child SC breakdowns, cumulative RM usage, inventory transaction activity, production routing,
+   * delivery challans, and engaged vendors across the entire order.
+   */
+  async getConsolidatedPoTraceability(poId: string): Promise<ConsolidatedPoTraceabilityDto> {
+    const po = await this.poRepo.findOne({
+      where: { id: poId },
+      relations: { customer: true },
+    });
+
+    if (!po) {
+      throw new NotFoundException(`Purchase Order with ID "${poId}" not found`);
+    }
+
+    const scs = await this.scRepo.find({
+      where: { poId },
+      relations: {
+        rmItems: true,
+        materialIssues: { items: true },
+        materialConsumptions: true,
+        materialReturns: { items: true, returnedBy: true },
+      },
+      order: { createdAt: 'ASC' },
+    });
+    const scIds = scs.map((s) => s.id);
+
+    // Fetch General Issues linked to child SCs or PO
+    const generalIssues = await this.generalIssueRepo.find({
+      where: [
+        ...(scIds.length > 0 ? [{ scId: In(scIds), status: GeneralIssueStatus.ISSUED }] : []),
+        { poId, status: GeneralIssueStatus.ISSUED },
+      ],
+      relations: { items: true },
+    });
+
+    const giMap = new Map<string, number>();
+    const giIds: string[] = [];
+    generalIssues.forEach((gi) => {
+      giIds.push(gi.id);
+      if (gi.scId) {
+        let total = giMap.get(gi.scId) || 0;
+        (gi.items || []).forEach((item) => {
+          total += Number(item.quantityIssued) || 0;
+        });
+        giMap.set(gi.scId, QuantityCalculator.roundDecimal(total));
+      }
+    });
+
+    // Delivery Challans linked to child SCs
+    let deliveryChallans: DeliveryChallan[] = [];
+    if (scIds.length > 0) {
+      deliveryChallans = await this.deliveryChallanRepo.find({
+        where: { scId: In(scIds) },
+        relations: { vendor: true, process: true, items: { product: true } },
+        order: { dispatchDate: 'ASC' },
+      });
+    }
+    const dcIds = deliveryChallans.map((d) => d.id);
+
+    // Stock Transactions tied to PO or its child components
+    const issueIds: string[] = [];
+    const returnIds: string[] = [];
+    scs.forEach((sc) => {
+      (sc.materialIssues || []).forEach((i) => issueIds.push(i.id));
+      (sc.materialReturns || []).forEach((r) => returnIds.push(r.id));
+    });
+
+    const relatedIds = Array.from(
+      new Set([po.id, ...scIds, ...issueIds, ...returnIds, ...dcIds, ...giIds].filter(Boolean)),
+    );
+
+    let stockTransactions: StockTransaction[] = [];
+    if (relatedIds.length > 0) {
+      stockTransactions = await this.stockTransactionRepo.find({
+        where: { referenceId: In(relatedIds) },
+        relations: { product: true, createdBy: true },
+        order: { createdAt: 'DESC' },
+      });
+    }
+
+    // Process Steps definition
+    const allProcesses = await this.processRepo.find({
+      where: { isActive: true },
+      order: { sequenceNumber: 'ASC' },
+    });
+    const activeProcesses: ConsolidatedProcessStepDto[] = allProcesses.map((p) => {
+      const linkedDcs = deliveryChallans.filter((dc) => dc.processId === p.id);
+      const vendorsForProcess = Array.from(
+        new Set(linkedDcs.map((dc) => dc.vendor?.name).filter(Boolean)),
+      ) as string[];
+
+      let status = 'INTERNAL_OR_PENDING';
+      if (linkedDcs.length > 0) {
+        const allClosed = linkedDcs.every(
+          (dc) => dc.status === DeliveryChallanStatus.CLOSED || dc.status === DeliveryChallanStatus.RETURNED,
+        );
+        const anyDispatched = linkedDcs.some(
+          (dc) => dc.status === DeliveryChallanStatus.DISPATCHED || dc.status === DeliveryChallanStatus.PARTIALLY_RETURNED,
+        );
+        if (allClosed) {
+          status = 'COMPLETED';
+        } else if (anyDispatched) {
+          status = 'DISPATCHED';
+        } else {
+          status = 'OPEN';
+        }
+      }
+
+      return {
+        processId: p.id,
+        name: p.name,
+        code: p.code,
+        sequenceNumber: p.sequenceNumber,
+        allowsOutsideVendor: p.allowsOutsideVendor,
+        status,
+        deliveryChallanCount: linkedDcs.length,
+        vendorNames: vendorsForProcess,
+      };
+    });
+
+    // Deduplicated Vendors across all child SC DCs
+    const vendorMap = new Map<string, { vendor: Vendor; total: number; active: number }>();
+    deliveryChallans.forEach((dc) => {
+      if (dc.vendor) {
+        let entry = vendorMap.get(dc.vendor.id);
+        if (!entry) {
+          entry = { vendor: dc.vendor, total: 0, active: 0 };
+          vendorMap.set(dc.vendor.id, entry);
+        }
+        entry.total++;
+        if (dc.status !== DeliveryChallanStatus.CLOSED && dc.status !== DeliveryChallanStatus.RETURNED) {
+          entry.active++;
+        }
+      }
+    });
+
+    const vendors: ConsolidatedVendorDto[] = Array.from(vendorMap.values()).map((v) => ({
+      id: v.vendor.id,
+      name: v.vendor.name,
+      code: v.vendor.code,
+      contactPerson: v.vendor.contactPerson || undefined,
+      email: v.vendor.email || undefined,
+      phone: v.vendor.phone || undefined,
+      totalChallans: v.total,
+      activeChallans: v.active,
+    }));
+
+    // Map Child Component Nodes and accumulate metrics
+    const statusBreakdown: Record<string, number> = {};
+    const childComponents: PoChildComponentNodeDto[] = [];
+
+    let totalOriginalRm = 0;
+    let totalInitialIssued = 0;
+    let totalAdditionalIssued = 0;
+    let totalIssued = 0;
+    let totalConsumed = 0;
+    let totalReturned = 0;
+    let totalPendingReturn = 0;
+    let totalFinalRmUsed = 0;
+    let totalVariance = 0;
+    let openScCount = 0;
+    let completedScCount = 0;
+    let closedScCount = 0;
+    let totalTargetQuantity = 0;
+    let completedTargetQuantity = 0;
+
+    for (const sc of scs) {
+      statusBreakdown[sc.status] = (statusBreakdown[sc.status] || 0) + 1;
+      const targetQty = Number(sc.targetQuantity) || 1;
+      totalTargetQuantity += targetQty;
+
+      const extraGI = giMap.get(sc.id) || 0;
+      const metrics = this.computeScMetrics(sc, extraGI);
+
+      if (metrics.lifecycleCategory === RmLifecycleCategory.OPEN) {
+        openScCount++;
+      } else if (metrics.lifecycleCategory === RmLifecycleCategory.COMPLETED) {
+        completedScCount++;
+        completedTargetQuantity += targetQty;
+      } else if (metrics.lifecycleCategory === RmLifecycleCategory.CLOSED) {
+        closedScCount++;
+        completedTargetQuantity += targetQty;
+      }
+
+      const scFinalRmUsed = QuantityCalculator.roundDecimal(
+        Math.max(0, metrics.originalRm + metrics.additionalIssued - metrics.totalReturned),
+      );
+
+      totalOriginalRm += metrics.originalRm;
+      totalInitialIssued += metrics.initialIssued;
+      totalAdditionalIssued += metrics.additionalIssued;
+      totalIssued += metrics.totalIssued;
+      totalConsumed += metrics.totalConsumed;
+      totalReturned += metrics.totalReturned;
+      totalPendingReturn += metrics.pendingReturn;
+      totalFinalRmUsed += scFinalRmUsed;
+      totalVariance += metrics.variance;
+
+      const childDcs = deliveryChallans.filter((d) => d.scId === sc.id);
+      const childVendors = Array.from(
+        new Set(childDcs.map((d) => d.vendor?.name).filter(Boolean)),
+      ) as string[];
+
+      childComponents.push({
+        scId: sc.id,
+        scNumber: sc.scNumber,
+        productName: sc.productName,
+        drawingNumber: sc.drawingNumber,
+        targetQuantity: targetQty,
+        status: sc.status,
+        lifecycleCategory: metrics.lifecycleCategory,
+        rmSummary: {
+          originalRm: metrics.originalRm,
+          initialIssued: metrics.initialIssued,
+          additionalRm: metrics.additionalIssued,
+          totalIssued: metrics.totalIssued,
+          totalConsumed: metrics.totalConsumed,
+          totalReturned: metrics.totalReturned,
+          pendingReturned: metrics.pendingReturn,
+          finalRmUsed: scFinalRmUsed,
+          variance: metrics.variance,
+          isZeroLossVerified: metrics.isZeroLossVerified,
+        },
+        deliveryChallanCount: childDcs.length,
+        vendorNames: childVendors,
+        isZeroLossVerified: metrics.isZeroLossVerified,
+        isPendingReconciliation: metrics.isPendingReconciliation,
+        createdAt: new Date(sc.createdAt).toISOString(),
+        completedAt: sc.completedAt ? new Date(sc.completedAt).toISOString() : undefined,
+      });
+    }
+
+    const totalScCount = scs.length;
+    totalTargetQuantity = QuantityCalculator.roundDecimal(totalTargetQuantity);
+    completedTargetQuantity = QuantityCalculator.roundDecimal(completedTargetQuantity);
+
+    const overallFulfillmentPercentage = totalTargetQuantity > 0
+      ? QuantityCalculator.roundDecimal((completedTargetQuantity / totalTargetQuantity) * 100)
+      : (totalScCount > 0 ? QuantityCalculator.roundDecimal(((completedScCount + closedScCount) / totalScCount) * 100) : 0);
+
+    const totalOutstanding = QuantityCalculator.roundDecimal(
+      Math.max(0, totalIssued - totalConsumed - totalReturned),
+    );
+
+    const isAllZeroLossVerified = childComponents.length > 0
+      ? childComponents.every((c) => c.isZeroLossVerified)
+      : true;
+
+    // Inventory transactions aggregation
+    let totalStockOut = 0;
+    let totalStockIn = 0;
+    stockTransactions.forEach((tx) => {
+      const q = Number(tx.quantity) || 0;
+      if (tx.transactionType === TransactionType.STOCK_OUT || tx.transactionType === TransactionType.STORES_ISSUE) {
+        totalStockOut += q;
+      } else if (tx.transactionType === TransactionType.STOCK_IN || tx.transactionType === TransactionType.RETURN) {
+        totalStockIn += q;
+      }
+    });
+
+    // Delivery Challans summary
+    let dispatchedChallans = 0;
+    let closedChallans = 0;
+    deliveryChallans.forEach((dc) => {
+      if (dc.status === DeliveryChallanStatus.DISPATCHED || dc.status === DeliveryChallanStatus.PARTIALLY_RETURNED) {
+        dispatchedChallans++;
+      } else if (dc.status === DeliveryChallanStatus.CLOSED || dc.status === DeliveryChallanStatus.RETURNED) {
+        closedChallans++;
+      }
+    });
+
+    return {
+      po: {
+        id: po.id,
+        poNumber: po.poNumber,
+        externalReference: po.externalReference,
+        referenceDate: po.referenceDate ? new Date(po.referenceDate).toISOString() : undefined,
+        remarks: po.remarks,
+        customer: po.customer
+          ? {
+              id: po.customer.id,
+              code: po.customer.code,
+              name: po.customer.name,
+              email: po.customer.email,
+              phone: po.customer.phone,
+            }
+          : undefined,
+        createdAt: new Date(po.createdAt).toISOString(),
+        updatedAt: new Date(po.updatedAt).toISOString(),
+      },
+      summary: {
+        totalScCount,
+        openScCount,
+        completedScCount,
+        closedScCount,
+        totalTargetQuantity,
+        completedTargetQuantity,
+        overallFulfillmentPercentage,
+      },
+      rmSummary: {
+        totalOriginalRm: QuantityCalculator.roundDecimal(totalOriginalRm),
+        totalInitialIssued: QuantityCalculator.roundDecimal(totalInitialIssued),
+        totalAdditionalIssued: QuantityCalculator.roundDecimal(totalAdditionalIssued),
+        totalIssued: QuantityCalculator.roundDecimal(totalIssued),
+        totalConsumed: QuantityCalculator.roundDecimal(totalConsumed),
+        totalReturned: QuantityCalculator.roundDecimal(totalReturned),
+        totalPendingReturn: QuantityCalculator.roundDecimal(totalPendingReturn),
+        totalOutstanding,
+        totalFinalRmUsed: QuantityCalculator.roundDecimal(totalFinalRmUsed),
+        totalVariance: QuantityCalculator.roundDecimal(totalVariance),
+        isAllZeroLossVerified,
+      },
+      inventorySummary: {
+        totalTransactions: stockTransactions.length,
+        totalStockOut: QuantityCalculator.roundDecimal(totalStockOut),
+        totalStockIn: QuantityCalculator.roundDecimal(totalStockIn),
+        transactions: stockTransactions.map((tx) => ({
+          id: tx.id,
+          transactionType: tx.transactionType,
+          quantity: Number(tx.quantity) || 0,
+          referenceType: tx.referenceType,
+          referenceId: tx.referenceId,
+          createdAt: new Date(tx.createdAt).toISOString(),
+          createdBy: tx.createdBy ? { id: tx.createdBy.id, name: tx.createdBy.name } : undefined,
+          product: tx.product ? { id: tx.product.id, name: tx.product.name } : undefined,
+          remarks: tx.remarks,
+        })),
+      },
+      productionStatus: {
+        totalTargetQuantity,
+        completedTargetQuantity,
+        statusBreakdown,
+        activeProcesses,
+      },
+      deliveryChallans: {
+        totalChallans: deliveryChallans.length,
+        dispatchedChallans,
+        closedChallans,
+        items: deliveryChallans.map((dc) => ({
+          id: dc.id,
+          challanNumber: dc.challanNumber,
+          type: dc.type,
+          status: dc.status,
+          dispatchDate: new Date(dc.dispatchDate).toISOString(),
+          expectedReturnDate: dc.expectedReturnDate ? new Date(dc.expectedReturnDate).toISOString() : undefined,
+          actualReturnDate: dc.actualReturnDate ? new Date(dc.actualReturnDate).toISOString() : undefined,
+          vendor: dc.vendor ? { id: dc.vendor.id, name: dc.vendor.name, code: dc.vendor.code } : undefined,
+          process: dc.process ? { id: dc.process.id, name: dc.process.name, code: dc.process.code } : undefined,
+          items: (dc.items || []).map((item) => {
+            const quantityDispatched = Number(item.quantityDispatched) || 0;
+            const quantityReturned = Number(item.quantityReturned) || 0;
+            const balanceQuantity = QuantityCalculator.roundDecimal(Math.max(0, quantityDispatched - quantityReturned));
+            return {
+              id: item.id,
+              productId: item.productId,
+              productName: item.product?.name,
+              quantityDispatched,
+              quantityReturned,
+              balanceQuantity,
+            };
+          }),
+        })),
+      },
+      vendors,
+      childComponents,
+      generatedAt: new Date().toISOString(),
+    };
+  }
 }
+

@@ -12,6 +12,7 @@ import {
   RmReconciliationQueueResponseDto,
 } from './dto/rm-lifecycle.dto.js';
 import { ConsolidatedScTraceabilityDto } from './dto/consolidated-sc-traceability.dto.js';
+import { ConsolidatedPoTraceabilityDto } from './dto/consolidated-po-traceability.dto.js';
 
 @Controller('api/traceability')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -54,6 +55,25 @@ export class TraceabilityController {
     @Query() query: RmReconciliationQueueFilterDto,
   ): Promise<RmReconciliationQueueResponseDto> {
     return this.traceabilityService.getRmReconciliationQueue(query);
+  }
+
+  /**
+   * Phase 20.4 — Build the comprehensive, top-level PO Consolidated Traceability API.
+   * Aggregates all child SCs under a PO with cumulative RM, inventory, production, DC, and vendor metrics.
+   * Authorized roles: STORES, PRODUCTION, SENIOR_MANAGER, ADMIN, GENERAL_MANAGER
+   */
+  @Get('po/:poId/consolidated')
+  @Roles(
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.ADMIN,
+    UserRole.GENERAL_MANAGER,
+  )
+  async getConsolidatedPoTraceability(
+    @Param('poId', ParseUUIDPipe) poId: string,
+  ): Promise<ConsolidatedPoTraceabilityDto> {
+    return this.traceabilityService.getConsolidatedPoTraceability(poId);
   }
 
   /**
