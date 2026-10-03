@@ -12,6 +12,7 @@ import { StockTransaction, TransactionType } from '../inventory/entities/stock-t
 import { Vendor } from '../vendor/entities/vendor.entity.js';
 import { v4 as uuidv4 } from 'uuid';
 import { CommunicationService } from '../notifications/communication.service.js';
+import { PrintableDeliveryChallanDto } from './dto/printable-delivery-challan.dto.js';
 
 
 @Injectable()
@@ -304,6 +305,168 @@ export class DeliveryChallanService {
       throw new NotFoundException(`Delivery Challan with ID ${id} not found`);
     }
     return challan;
+  }
+
+  /**
+   * Phase 19.9 — Returns the complete, printer-ready data contract for a Delivery Challan.
+   * Eagerly loads all relational data required for a physical or PDF printout:
+   *   Challan → Items → Product, Bin, Vendor, SC → PO, ProductionProcess, CreatedBy, VerifiedBy
+   */
+  async getPrintableChallanData(id: string): Promise<PrintableDeliveryChallanDto> {
+    const challan = await this.challanRepo.findOne({
+      where: { id },
+      relations: {
+        vendor: true,
+        sc: true,
+        process: true,
+        createdBy: true,
+        verifiedBy: true,
+        items: true,
+      },
+    });
+
+    if (!challan) {
+      throw new NotFoundException(`Delivery Challan with ID ${id} not found`);
+    }
+
+    // Enrich items with product and bin data
+    const enrichedItems = await Promise.all(
+      (challan.items || []).map(async (item) => {
+        const enriched = await this.challanItemRepo.findOne({
+          where: { id: item.id },
+          relations: { product: true, bin: true },
+        });
+        return enriched || item;
+      }),
+    );
+
+    // Resolve SC → PO reference (Type 1 challans linked to a Sales Order Component)
+    let poRef: PrintableDeliveryChallanDto['references']['po'] = null;
+    if (challan.sc && (challan.sc as any).poId) {
+      const sc = challan.sc as any;
+      if (sc.purchaseOrder) {
+        poRef = {
+          poId: sc.purchaseOrder.id,
+          poNumber: sc.purchaseOrder.poNumber,
+          externalReference: sc.purchaseOrder.externalReference ?? null,
+          referenceDate: sc.purchaseOrder.referenceDate ?? null,
+        };
+      } else if (sc.poId) {
+        // Lazy-load the PO if not pre-fetched
+        const loadedSc = await this.dataSource
+          .getRepository('SalesOrderComponent')
+          .findOne({ where: { id: sc.id }, relations: { purchaseOrder: true } }) as any;
+        if (loadedSc?.purchaseOrder) {
+          poRef = {
+            poId: loadedSc.purchaseOrder.id,
+            poNumber: loadedSc.purchaseOrder.poNumber,
+            externalReference: loadedSc.purchaseOrder.externalReference ?? null,
+            referenceDate: loadedSc.purchaseOrder.referenceDate ?? null,
+          };
+        }
+      }
+    }
+
+    // ─── Company Info (from environment / static config) ─────────────────────
+    const companyInfo: PrintableDeliveryChallanDto['company'] = {
+      name: process.env.COMPANY_NAME || 'RMRIT Manufacturing Pvt. Ltd.',
+      address: process.env.COMPANY_ADDRESS || 'Plot No. 12, Industrial Area, Sector 5, India',
+      gstin: process.env.COMPANY_GSTIN ?? null,
+      phone: process.env.COMPANY_PHONE ?? null,
+      email: process.env.COMPANY_EMAIL ?? null,
+      website: process.env.COMPANY_WEBSITE ?? null,
+    };
+
+    // ─── Vendor Info ──────────────────────────────────────────────────────────
+    const vendor = challan.vendor;
+    const vendorInfo: PrintableDeliveryChallanDto['vendor'] = {
+      id: vendor?.id ?? challan.vendorId,
+      code: vendor?.code ?? '',
+      name: vendor?.name ?? '',
+      address: vendor?.address ?? null,
+      contactPerson: vendor?.contactPerson ?? null,
+      phone: vendor?.phone ?? null,
+      email: vendor?.email ?? null,
+      category: vendor?.category ?? null,
+    };
+
+    // ─── References ───────────────────────────────────────────────────────────
+    const sc = challan.sc as any;
+    const productionProcess = challan.process as any;
+
+    const references: PrintableDeliveryChallanDto['references'] = {
+      sc: sc
+        ? {
+            scId: sc.id,
+            scNumber: sc.scNumber,
+            productName: sc.productName,
+            drawingNumber: sc.drawingNumber ?? null,
+            description: sc.description ?? null,
+          }
+        : null,
+      po: poRef,
+      process: productionProcess
+        ? {
+            processId: productionProcess.id,
+            processCode: productionProcess.code,
+            processName: productionProcess.name,
+            sequenceNumber: productionProcess.sequenceNumber,
+            category: productionProcess.category ?? null,
+          }
+        : null,
+    };
+
+    // ─── Line Items ───────────────────────────────────────────────────────────
+    const lineItems: PrintableDeliveryChallanDto['lineItems'] = enrichedItems.map((item: any) => {
+      const dispatched = Number(item.quantityDispatched ?? 0);
+      const returned = Number(item.quantityReturned ?? 0);
+      return {
+        id: item.id,
+        productId: item.productId,
+        productName: item.product?.name ?? item.productId,
+        binId: item.binId,
+        binCode: item.bin?.code ?? '',
+        binName: item.bin?.name ?? '',
+        quantityDispatched: dispatched,
+        quantityReturned: returned,
+        quantityOutstanding: Math.max(0, dispatched - returned),
+      };
+    });
+
+    // ─── Audit & Sign-off ─────────────────────────────────────────────────────
+    const audit: PrintableDeliveryChallanDto['audit'] = {
+      createdById: challan.createdById ?? null,
+      createdByName: (challan.createdBy as any)?.name ?? null,
+      createdAt: challan.createdAt,
+      verifiedById: challan.verifiedById ?? null,
+      verifiedByName: (challan.verifiedBy as any)?.name ?? null,
+      verificationRemarks: challan.verificationRemarks ?? null,
+      authorizedSignatory: '___________________________',
+      termsAndConditions:
+        'All materials dispatched under this challan remain the property of ' +
+        (companyInfo.name) +
+        ' until formally returned and verified. The vendor is responsible for safe custody of all goods. ' +
+        'Any damage, loss, or discrepancy must be reported within 24 hours of receipt.',
+    };
+
+    return {
+      company: companyInfo,
+      challan: {
+        id: challan.id,
+        challanNumber: challan.challanNumber,
+        type: challan.type,
+        status: challan.status,
+        dispatchDate: challan.dispatchDate ?? null,
+        expectedReturnDate: challan.expectedReturnDate ?? null,
+        actualReturnDate: challan.actualReturnDate ?? null,
+        notes: challan.notes ?? null,
+      },
+      vendor: vendorInfo,
+      references,
+      lineItems,
+      audit,
+      generatedAt: new Date().toISOString(),
+    };
   }
 
   async getVendorCustodySummary(vendorId: string) {

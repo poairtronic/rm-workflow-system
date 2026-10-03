@@ -55,6 +55,12 @@ export class DeliveryChallanController {
     return this.deliveryChallanService.findAll({ scId, processId, vendorId, type, isOverdue: isOverdueBool });
   }
 
+  @Get(':id/printable')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION)
+  async getPrintable(@Param('id', ParseUUIDPipe) id: string) {
+    return this.deliveryChallanService.getPrintableChallanData(id);
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.deliveryChallanService.findOne(id);
