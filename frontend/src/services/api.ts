@@ -115,7 +115,44 @@ export const mslApi = {
 import type { ProductionProcessDto, CreateProductionProcessDto, UpdateProductionProcessDto, VendorDto } from '../types/process-master.dto';
 
 export const authApi = {
-  login: (data: any) => api.post<{ token: string; user: any }>('/api/auth/login', data),
+  login: async (data: any) => {
+    // MOCK LOGIN FOR DEVELOPMENT
+    return new Promise<{ token: string; user: any }>((resolve) => {
+      setTimeout(() => {
+        const username = data.employeeId?.toLowerCase();
+        let role = 'ADMIN';
+        let name = 'Admin User';
+        
+        if (username.includes('store')) {
+          role = 'STORE_CONTROLLER';
+          name = 'Store Keeper';
+        } else if (username.includes('design')) {
+          role = 'DESIGN_ENGINEER';
+          name = 'Design Engineer';
+        } else if (username.includes('prod')) {
+          role = 'PRODUCTION_MGR';
+          name = 'Production Manager';
+        } else if (username.includes('admin') || data.password === 'admin123') {
+          role = 'ADMIN';
+          name = 'System Admin';
+        } else {
+          // Default to admin if nothing matches just for testing
+          role = 'ADMIN';
+          name = 'Test User';
+        }
+        
+        resolve({
+          token: 'mock-jwt-token-12345',
+          user: {
+            id: 'usr-' + Math.random().toString(36).substr(2, 9),
+            name,
+            role,
+            department: 'Mock Dept'
+          }
+        });
+      }, 500); // simulate network delay
+    });
+  },
 };
 
 export const productionProcessApi = {

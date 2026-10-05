@@ -18,6 +18,10 @@ import { VendorDashboardWorkspace } from './pages/VendorDashboardWorkspace';
 import { PrintableDocumentLayout } from './components/layout/PrintableDocumentLayout';
 import { DeliveryChallanPrintView } from './pages/DeliveryChallanPrintView';
 import { ReportGeneratorWorkspace } from './pages/ReportGeneratorWorkspace';
+import { ProjectSetupWorkspace } from './pages/ProjectSetupWorkspace';
+import { RmRequisitionWorkspace } from './pages/RmRequisitionWorkspace';
+import { ProductionJobsWorkspace } from './pages/ProductionJobsWorkspace';
+import { ProductionConsumptionWorkspace } from './pages/ProductionConsumptionWorkspace';
 
 const queryClient = new QueryClient();
 
@@ -33,6 +37,12 @@ function App() {
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
                 <Route path="/" element={<Navigate to="/stores/issue-material" replace />} />
+                
+                {/* DESIGN ENGINEER */}
+                <Route path="/design/project-setup" element={<ProjectSetupWorkspace />} />
+                <Route path="/design/requisitions" element={<RmRequisitionWorkspace />} />
+                
+                {/* STORES / DISPATCH */}
             <Route path="/stores/issue-material" element={<IssueMaterialWorkspace />} />
             <Route path="/inventory/msl-alerts" element={<MslAlertsWorkspace />} />
             <Route path="/governance/process-master" element={<ProcessMasterWorkspace />} />
@@ -43,6 +53,11 @@ function App() {
             <Route path="/dispatch/delivery-challan/type-1" element={<Type1DispatchWorkspace />} />
             <Route path="/dispatch/delivery-challan/type-2" element={<Type2DispatchWorkspace />} />
             <Route path="/dispatch/returns" element={<DockReceiptWorkspace />} />
+            
+            {/* PRODUCTION MGR */}
+            <Route path="/production/jobs" element={<ProductionJobsWorkspace />} />
+            <Route path="/production/consumption" element={<ProductionConsumptionWorkspace />} />
+            
             <Route path="/reports/generation" element={<ReportGeneratorWorkspace />} />
           </Route>
           
