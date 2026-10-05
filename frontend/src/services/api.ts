@@ -18,7 +18,7 @@ class ApiClient {
     return headers;
   }
 
-  async get<T>(endpoint: string): Promise<T> {
+  async get<T>(endpoint: string, responseType: 'json' | 'blob' = 'json'): Promise<T> {
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: 'GET',
       headers: this.getHeaders(),
@@ -34,6 +34,9 @@ class ApiClient {
         }
       } catch {}
       throw new Error(errorMsg);
+    }
+    if (responseType === 'blob') {
+      return response.blob() as any;
     }
     return response.json();
   }
@@ -164,5 +167,27 @@ export const deliveryChallanApi = {
   create: (data: CreateDeliveryChallanDto) => api.post<DeliveryChallanDto>('/api/delivery-challans', data),
   processReturn: (id: string, data: ProcessDcReturnDto) => api.patch<DeliveryChallanDto>(`/api/delivery-challans/${id}/return`, data),
   close: (id: string, data: CloseDcDto) => api.patch<DeliveryChallanDto>(`/api/delivery-challans/${id}/close`, data),
+  getPrintable: (id: string) => api.get<any>(`/api/delivery-challans/${id}/printable`),
+};
+
+import type { ConsolidatedTraceabilityDto } from '../types/traceability.dto';
+import type { PoConsolidatedTraceabilityDto } from '../types/po-traceability.dto';
+
+export const traceabilityApi = {
+  getConsolidated: (scId: string) => api.get<ConsolidatedTraceabilityDto>(`/api/traceability/sc/${scId}/consolidated`),
+  getPoConsolidated: (poId: string) => api.get<PoConsolidatedTraceabilityDto>(`/api/traceability/po/${poId}/consolidated`),
+};
+
+import type { GlobalVendorMetrics, VendorProfileDto, EscalateDcDto } from '../types/vendor-analytics.dto';
+
+export const vendorAnalyticsApi = {
+  getPerformanceAnalytics: () => api.get<GlobalVendorMetrics>('/api/traceability/vendors/performance-analytics'),
+  getVendorProfile: (vendorId: string) => api.get<VendorProfileDto>(`/api/traceability/vendors/${vendorId}/custody`),
+  escalateDc: (dcNumber: string, data: EscalateDcDto) => api.post(`/api/vendor-slas/escalate/${dcNumber}`, data),
+};
+
+export const reportApi = {
+  exportReport: (type: string, startDate: string, endDate: string) => 
+    api.get<Blob>(`/api/reports/generation?type=${type}&startDate=${startDate}&endDate=${endDate}`, 'blob'),
 };
 

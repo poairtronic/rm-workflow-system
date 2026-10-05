@@ -1,4 +1,4 @@
-import { LayoutDashboard, PackageSearch, BellRing, Box, Shield, Settings, PackageCheck } from 'lucide-react';
+import { LayoutDashboard, PackageSearch, BellRing, Box, Shield, Settings, PackageCheck, ShieldCheck, Network, BarChart3, FileText } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 export function Sidebar() {
@@ -11,6 +11,10 @@ export function Sidebar() {
     { name: 'DC Returns', path: '/dispatch/returns', icon: PackageCheck },
     { name: 'Process Master', path: '/governance/process-master', icon: Settings },
     { name: 'Vendor SLAs', path: '/governance/vendor-slas', icon: Shield },
+    { name: 'SC Traceability', path: '/governance/traceability', icon: ShieldCheck },
+    { name: 'PO Traceability', path: '/governance/po-traceability', icon: Network },
+    { name: 'Vendor Analytics', path: '/governance/vendor-analytics', icon: BarChart3 },
+    { name: 'Enterprise Reports', path: '/reports/generation', icon: FileText },
   ];
 
   return (

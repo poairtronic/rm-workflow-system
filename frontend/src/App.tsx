@@ -9,6 +9,12 @@ import { VendorSlaWorkspace } from './pages/VendorSlaWorkspace';
 import { Type1DispatchWorkspace } from './pages/Type1DispatchWorkspace';
 import { Type2DispatchWorkspace } from './pages/Type2DispatchWorkspace';
 import { DockReceiptWorkspace } from './pages/DockReceiptWorkspace';
+import { TraceabilityWorkspace } from './pages/TraceabilityWorkspace';
+import { PoTraceabilityWorkspace } from './pages/PoTraceabilityWorkspace';
+import { VendorDashboardWorkspace } from './pages/VendorDashboardWorkspace';
+import { PrintableDocumentLayout } from './components/layout/PrintableDocumentLayout';
+import { DeliveryChallanPrintView } from './pages/DeliveryChallanPrintView';
+import { ReportGeneratorWorkspace } from './pages/ReportGeneratorWorkspace';
 
 const queryClient = new QueryClient();
 
@@ -24,9 +30,17 @@ function App() {
             <Route path="/inventory/msl-alerts" element={<MslAlertsWorkspace />} />
             <Route path="/governance/process-master" element={<ProcessMasterWorkspace />} />
             <Route path="/governance/vendor-slas" element={<VendorSlaWorkspace />} />
+            <Route path="/governance/traceability" element={<TraceabilityWorkspace />} />
+            <Route path="/governance/po-traceability" element={<PoTraceabilityWorkspace />} />
+            <Route path="/governance/vendor-analytics" element={<VendorDashboardWorkspace />} />
             <Route path="/dispatch/delivery-challan/type-1" element={<Type1DispatchWorkspace />} />
             <Route path="/dispatch/delivery-challan/type-2" element={<Type2DispatchWorkspace />} />
             <Route path="/dispatch/returns" element={<DockReceiptWorkspace />} />
+            <Route path="/reports/generation" element={<ReportGeneratorWorkspace />} />
+          </Route>
+          
+          <Route element={<PrintableDocumentLayout />}>
+            <Route path="/dispatch/delivery-challan/:id/print" element={<DeliveryChallanPrintView />} />
           </Route>
         </Routes>
       </BrowserRouter>
