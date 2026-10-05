@@ -18,22 +18,30 @@ class ApiClient {
     return headers;
   }
 
+  private async handleError(response: Response, endpoint: string, method: string): Promise<never> {
+    if (response.status === 401) {
+      window.dispatchEvent(new Event('auth:unauthorized'));
+    }
+    
+    let errorMsg = `${method} ${endpoint} failed: ${response.status} ${response.statusText}`;
+    try {
+      const errorJson = await response.json();
+      if (errorJson?.message) {
+        errorMsg = Array.isArray(errorJson.message)
+          ? errorJson.message.join(', ')
+          : errorJson.message;
+      }
+    } catch {}
+    throw new Error(errorMsg);
+  }
+
   async get<T>(endpoint: string, responseType: 'json' | 'blob' = 'json'): Promise<T> {
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: 'GET',
       headers: this.getHeaders(),
     });
     if (!response.ok) {
-      let errorMsg = `GET ${endpoint} failed: ${response.status} ${response.statusText}`;
-      try {
-        const errorJson = await response.json();
-        if (errorJson?.message) {
-          errorMsg = Array.isArray(errorJson.message)
-            ? errorJson.message.join(', ')
-            : errorJson.message;
-        }
-      } catch {}
-      throw new Error(errorMsg);
+      await this.handleError(response, endpoint, 'GET');
     }
     if (responseType === 'blob') {
       return response.blob() as any;
@@ -48,16 +56,7 @@ class ApiClient {
       body: body ? JSON.stringify(body) : undefined,
     });
     if (!response.ok) {
-      let errorMsg = `POST ${endpoint} failed: ${response.status} ${response.statusText}`;
-      try {
-        const errorJson = await response.json();
-        if (errorJson?.message) {
-          errorMsg = Array.isArray(errorJson.message)
-            ? errorJson.message.join(', ')
-            : errorJson.message;
-        }
-      } catch {}
-      throw new Error(errorMsg);
+      await this.handleError(response, endpoint, 'POST');
     }
     return response.json();
   }
@@ -69,16 +68,7 @@ class ApiClient {
       body: body ? JSON.stringify(body) : undefined,
     });
     if (!response.ok) {
-      let errorMsg = `PATCH ${endpoint} failed: ${response.status} ${response.statusText}`;
-      try {
-        const errorJson = await response.json();
-        if (errorJson?.message) {
-          errorMsg = Array.isArray(errorJson.message)
-            ? errorJson.message.join(', ')
-            : errorJson.message;
-        }
-      } catch {}
-      throw new Error(errorMsg);
+      await this.handleError(response, endpoint, 'PATCH');
     }
     return response.json();
   }
@@ -89,16 +79,7 @@ class ApiClient {
       headers: this.getHeaders(),
     });
     if (!response.ok) {
-      let errorMsg = `DELETE ${endpoint} failed: ${response.status} ${response.statusText}`;
-      try {
-        const errorJson = await response.json();
-        if (errorJson?.message) {
-          errorMsg = Array.isArray(errorJson.message)
-            ? errorJson.message.join(', ')
-            : errorJson.message;
-        }
-      } catch {}
-      throw new Error(errorMsg);
+      await this.handleError(response, endpoint, 'DELETE');
     }
     return response.json();
   }
@@ -115,16 +96,7 @@ class ApiClient {
       body: formData,
     });
     if (!response.ok) {
-      let errorMsg = `UPLOAD ${endpoint} failed: ${response.status} ${response.statusText}`;
-      try {
-        const errorJson = await response.json();
-        if (errorJson?.message) {
-          errorMsg = Array.isArray(errorJson.message)
-            ? errorJson.message.join(', ')
-            : errorJson.message;
-        }
-      } catch {}
-      throw new Error(errorMsg);
+      await this.handleError(response, endpoint, 'UPLOAD');
     }
     return response.json();
   }
@@ -141,6 +113,10 @@ export const mslApi = {
 };
 
 import type { ProductionProcessDto, CreateProductionProcessDto, UpdateProductionProcessDto, VendorDto } from '../types/process-master.dto';
+
+export const authApi = {
+  login: (data: any) => api.post<{ token: string; user: any }>('/api/auth/login', data),
+};
 
 export const productionProcessApi = {
   getAll: () => api.get<ProductionProcessDto[]>('/api/production-processes'),

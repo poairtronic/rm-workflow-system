@@ -2,6 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppLayout } from './components/layout/AppLayout';
+import { AuthProvider } from './contexts/AuthContext';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { LoginView } from './pages/LoginView';
 import { IssueMaterialWorkspace } from './pages/IssueMaterialWorkspace';
 import { MslAlertsWorkspace } from './pages/MslAlertsWorkspace';
 import { ProcessMasterWorkspace } from './pages/ProcessMasterWorkspace';
@@ -22,10 +25,14 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Toaster position="top-right" />
-        <Routes>
-          <Route element={<AppLayout />}>
-            <Route path="/" element={<Navigate to="/stores/issue-material" replace />} />
+        <AuthProvider>
+          <Toaster position="top-right" />
+          <Routes>
+            <Route path="/login" element={<LoginView />} />
+            
+            <Route element={<ProtectedRoute />}>
+              <Route element={<AppLayout />}>
+                <Route path="/" element={<Navigate to="/stores/issue-material" replace />} />
             <Route path="/stores/issue-material" element={<IssueMaterialWorkspace />} />
             <Route path="/inventory/msl-alerts" element={<MslAlertsWorkspace />} />
             <Route path="/governance/process-master" element={<ProcessMasterWorkspace />} />
@@ -41,8 +48,10 @@ function App() {
           
           <Route element={<PrintableDocumentLayout />}>
             <Route path="/dispatch/delivery-challan/:id/print" element={<DeliveryChallanPrintView />} />
+            </Route>
           </Route>
         </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );
