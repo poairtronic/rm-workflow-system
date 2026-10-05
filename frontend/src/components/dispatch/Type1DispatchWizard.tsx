@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { CheckCircle2, ChevronRight, Loader2, Lock } from 'lucide-react';
-import { deliveryChallanApi } from '../../services/api';
+import { deliveryChallanApi, api, unwrapList } from '../../services/api';
 import type { CreateDeliveryChallanDto } from '../../types/delivery-challan.dto';
 import { DispatchPayloadGrid } from './DispatchPayloadGrid';
 import { DispatchReviewView } from './DispatchReviewView';
@@ -21,30 +21,38 @@ export function Type1DispatchWizard() {
 
   const methods = useForm<CreateDeliveryChallanDto>({
     defaultValues: {
-      type: 'PRODUCTION_OUTWARD',
-      scCode: '',
+      type: 'PRODUCTION_PROCESS_OUTWARD',
+      scId: '',
       processId: '',
       vendorId: '',
       expectedReturnDate: '',
-      items: [{ materialCode: '', sourceBinId: '', batchNumber: '', quantity: 0, uom: 'KG' }]
+      items: [{ productId: '', binId: '', batchNumber: '', quantity: 0, uom: 'KG' }]
     },
     mode: 'onChange'
   });
 
   const { register, watch, setValue, trigger, handleSubmit, formState: { isValid } } = methods;
 
-  const scCode = watch('scCode');
+  const scId = watch('scId');
+  
   const processId = watch('processId');
+  const vendorId = watch('vendorId');
 
-  // Auto-calculate expected return date for step 2 simulation
+  const { data: scList } = useQuery({ queryKey: ['sc'], queryFn: async () => unwrapList(await api.get<any[]>('/api/sc')) });
+  const { data: processList } = useQuery({ queryKey: ['processes'], queryFn: async () => unwrapList(await api.get<any[]>('/api/production-processes')) });
+  const { data: slaList } = useQuery({ queryKey: ['vendor-slas'], queryFn: async () => unwrapList(await api.get<any[]>('/api/vendors/slas')) });
+
+  // Auto-calculate expected return date from real SLA slaDays
   useEffect(() => {
-    if (currentStep === 2) {
-      // Hardcoded 5-day SLA for demonstration
-      const returnDate = new Date();
-      returnDate.setDate(returnDate.getDate() + 5);
-      setValue('expectedReturnDate', returnDate.toISOString().split('T')[0]);
+    if (vendorId && processId && slaList && slaList.length > 0) {
+      const sla = slaList.find((s: any) => s.vendorId === vendorId && s.processId === processId);
+      if (sla?.slaDays) {
+        const date = new Date();
+        date.setDate(date.getDate() + Number(sla.slaDays));
+        setValue('expectedReturnDate', date.toISOString().split('T')[0]);
+      }
     }
-  }, [currentStep, setValue]);
+  }, [vendorId, processId, slaList, setValue]);
 
   const createDcMutation = useMutation({
     mutationFn: (data: CreateDeliveryChallanDto) => deliveryChallanApi.create(data),
@@ -139,25 +147,22 @@ export function Type1DispatchWizard() {
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Sales Component (SC Code)</label>
                     <select
-                      {...register('scCode', { required: 'SC Code is required' })}
+                      {...register('scId', { required: 'SC Code is required' })}
                       className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                     >
                       <option value="">Select SC Code...</option>
-                      <option value="SC-2026-004">SC-2026-004 (Aerospace Assembly)</option>
-                      <option value="SC-2026-009">SC-2026-009 (Automotive Drive)</option>
+                      {scList?.map(sc => <option key={sc.id} value={sc.id}>{sc.scNumber} ({sc.purchaseOrder?.poNumber || 'No PO'})</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Target Production Process</label>
                     <select
                       {...register('processId', { required: 'Process is required' })}
-                      disabled={!scCode}
+                      disabled={!scId}
                       className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-slate-50 disabled:text-slate-400"
                     >
                       <option value="">Select Process...</option>
-                      <option value="PRC-CNC-01">CNC Turning</option>
-                      <option value="PRC-HT-01">Heat Treatment</option>
-                      <option value="PRC-ANO-01">Anodizing</option>
+                      {processList?.map(p => <option key={p.id} value={p.id}>{p.code} - {p.name}</option>)}
                     </select>
                   </div>
                 </div>
@@ -178,8 +183,7 @@ export function Type1DispatchWizard() {
                       className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                     >
                       <option value="">Select Vendor...</option>
-                      <option value="VND-APX-001">Apex Processors Ltd.</option>
-                      <option value="VND-ST-002">SteelTech Industries</option>
+                      {slaList?.filter(s => s.processId === processId).map(s => <option key={s.vendorId} value={s.vendorId}>{s.vendorName}</option>)}
                     </select>
                     <p className="mt-1 text-[11px] text-slate-500">Filtered by active SLA for {processId}</p>
                   </div>

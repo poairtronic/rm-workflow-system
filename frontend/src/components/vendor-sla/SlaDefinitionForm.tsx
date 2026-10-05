@@ -36,16 +36,11 @@ export function SlaDefinitionForm() {
           <input
             type="number"
             step="0.1"
-            {...register('leadTimeMultiplier', { 
-              required: 'Multiplier is required',
-              min: { value: 1, message: 'Must be >= 1' }
-            })}
-            className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent tabular-nums"
+            disabled
+            title="Not saved yet"
+            className="w-full h-10 px-3.5 rounded-lg bg-slate-50 border border-slate-200 text-sm text-slate-400 cursor-not-allowed tabular-nums"
             placeholder="e.g. 1.5"
           />
-          {errors.leadTimeMultiplier && (
-            <p className="mt-1 text-xs text-red-500">{errors.leadTimeMultiplier.message}</p>
-          )}
         </div>
 
         <div>
@@ -54,16 +49,11 @@ export function SlaDefinitionForm() {
           </label>
           <input
             type="number"
-            {...register('toleranceBufferDays', { 
-              required: 'Buffer is required',
-              min: { value: 0, message: 'Must be positive' }
-            })}
-            className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent tabular-nums"
+            disabled
+            title="Not saved yet"
+            className="w-full h-10 px-3.5 rounded-lg bg-slate-50 border border-slate-200 text-sm text-slate-400 cursor-not-allowed tabular-nums"
             placeholder="e.g. 2"
           />
-          {errors.toleranceBufferDays && (
-            <p className="mt-1 text-xs text-red-500">{errors.toleranceBufferDays.message}</p>
-          )}
         </div>
       </div>
     </div>

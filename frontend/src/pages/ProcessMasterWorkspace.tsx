@@ -17,7 +17,7 @@ export function ProcessMasterWorkspace() {
   // Mocking RBAC rights for demonstration purposes
   const hasAdminRights = true; 
 
-  const { data: processes = [], isLoading: isLoadingProcesses } = useQuery({
+  const { data: processes = [], isLoading: isLoadingProcesses, isError, error, refetch } = useQuery({
     queryKey: ['productionProcesses'],
     queryFn: () => productionProcessApi.getAll(),
   });
@@ -85,11 +85,29 @@ export function ProcessMasterWorkspace() {
       </div>
 
       <div className="mt-2">
-        <ProcessDirectoryGrid 
-          data={processes}
-          isLoading={isLoadingProcesses}
-          onEdit={openEdit}
-        />
+        {isError ? (
+          <div className="p-8 text-center bg-red-50 rounded-xl border border-red-100">
+            <p className="text-red-600 font-medium mb-4">{error instanceof Error ? error.message : 'Failed to load processes'}</p>
+            <button onClick={() => refetch()} className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium">
+              Retry
+            </button>
+          </div>
+        ) : !isLoadingProcesses && processes.length === 0 ? (
+          <div className="p-12 text-center bg-slate-50 rounded-xl border border-slate-200 border-dashed">
+            <Settings className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <h3 className="text-lg font-medium text-slate-900 mb-1">No processes defined</h3>
+            <p className="text-slate-500 mb-4">Get started by defining your first manufacturing routing step.</p>
+            <button onClick={() => setIsWizardOpen(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm">
+              Define Process
+            </button>
+          </div>
+        ) : (
+          <ProcessDirectoryGrid 
+            data={processes}
+            isLoading={isLoadingProcesses}
+            onEdit={openEdit}
+          />
+        )}
       </div>
 
       {/* Modals & Slide-overs */}

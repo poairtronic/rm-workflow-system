@@ -46,9 +46,9 @@ export function GovernanceConfirmationModal({
               <Lock className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Lock & Submit Raw Material Requisition?</h2>
+              <h2 className="text-lg font-bold text-slate-900">Confirm Material Action?</h2>
               <p className="text-sm font-medium text-slate-500 mt-1">
-                {scId} &middot; {ginIndent}
+                {scId}
               </p>
             </div>
           </div>
@@ -70,18 +70,17 @@ export function GovernanceConfirmationModal({
           </div>
 
           <div className="flex flex-col gap-3">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Downstream System Impacts:</h3>
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">System Actions:</h3>
             <ul className="space-y-3">
               {[
-                { text: 'Generates physical Goods Issue Indent', bold: 'GIN-REQ-2026-0881' },
-                { text: 'Freezes metallurgical grade to', bold: 'EN31 (82.3 kg)' },
-                { text: 'Dispatches allocation alert to Stores Controller', bold: '(M. Rao)' },
-                { text: 'Subsequent changes will strictly mandate a signed', bold: 'Engineering Change Order (ECO).' },
+                { text: 'Records the material issue in the traceability ledger' },
+                { text: 'Deducts the specified quantities from available stock' },
+                { text: 'Associates the issue with the selected component' },
               ].map((item, idx) => (
                 <li key={idx} className="flex items-start gap-2.5 text-sm text-slate-700">
                   <CheckCircle2 className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
                   <span>
-                    {item.text} <span className="font-semibold text-slate-900">{item.bold}</span>
+                    {item.text}
                   </span>
                 </li>
               ))}

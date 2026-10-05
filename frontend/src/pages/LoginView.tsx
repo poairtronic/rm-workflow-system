@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Shield, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -7,7 +8,14 @@ export function LoginView() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login } = useAuth();
+  const { login, isAuthenticated, currentUser } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  if (isAuthenticated && currentUser) {
+    const from = location.state?.from || '/';
+    return <Navigate to={from} replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,7 +24,8 @@ export function LoginView() {
     
     try {
       await login({ employeeId, password });
-      // Navigation is handled inside the login method in AuthContext
+      const from = location.state?.from || '/';
+      navigate(from, { replace: true });
     } catch (err: any) {
       setError(err.message || 'Invalid credentials. Please try again.');
     } finally {

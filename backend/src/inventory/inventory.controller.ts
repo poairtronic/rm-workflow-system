@@ -76,6 +76,19 @@ export class InventoryController {
     return this.inventoryService.getWorkflowReconciliation();
   }
 
+  
+  @Get('balances')
+  @Roles(
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.DESIGNER,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+  )
+  getBalancesByProduct(@Query('productId', ParseUUIDPipe) productId: string) {
+    return this.inventoryService.getBalancesByProduct(productId);
+  }
+
   @Get(':id')
   @Roles(
     UserRole.STORES,

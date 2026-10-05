@@ -1,39 +1,36 @@
-import { useFieldArray, useFormContext } from 'react-hook-form';
+import { useFieldArray, useFormContext, useWatch } from 'react-hook-form';
 import { AlertCircle, FileDigit } from 'lucide-react';
-import type { DeliveryChallanDto } from '../../types/delivery-challan.dto';
-import type { ProcessDcReturnDto } from '../../types/dc-return.dto';
+import { useQuery } from '@tanstack/react-query';
+import { api, unwrapList } from '../../services/api';
 
-interface ReconciliationGridProps {
-  dc: DeliveryChallanDto;
-}
+export function ReconciliationGrid({ dc }: { dc: any }) {
+  const { register, control, setValue } = useFormContext<any>();
+  const { fields } = useFieldArray({ control, name: 'items' });
 
-export function ReconciliationGrid({ dc }: ReconciliationGridProps) {
-  const { register, control, watch, setValue } = useFormContext<ProcessDcReturnDto>();
-  const { fields } = useFieldArray({
-    control,
-    name: 'items'
-  });
-
-  const formItems = watch('items') || [];
+  const { data: products } = useQuery({ queryKey: ['products'], queryFn: async () => unwrapList(await api.get<any[]>('/api/products')) });
+  
+  // Watch all items to compute real-time variances
+  const formItems = useWatch({ control, name: 'items' }) || [];
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 mb-6">
       <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
         <div>
-          <h2 className="text-[15px] font-semibold text-slate-900 uppercase tracking-wide flex items-center gap-2">
+          <h2 className="text-[15px] font-semibold text-slate-900 flex items-center gap-2">
             <FileDigit className="w-5 h-5 text-primary" />
             Reconciliation Grid
           </h2>
-          <p className="text-xs text-slate-500 mt-1">Record received quantities and calculate variances against DC #{dc.dcNumber}</p>
         </div>
       </div>
 
       <div className="overflow-x-auto w-full">
         <table className="w-full text-sm text-left whitespace-nowrap">
-          <thead className="bg-[#F8FAFC] border-y border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+          <thead className="bg-[#F8FAFC] border-y border-slate-200 text-[11px] font-semibold uppercase text-slate-500">
             <tr>
-              <th className="px-4 py-3 w-1/4">Material & Batch</th>
+              <th className="px-4 py-3">Material</th>
               <th className="px-4 py-3 text-right">Dispatched</th>
+              <th className="px-4 py-3 text-right">Already Returned</th>
+              <th className="px-4 py-3 text-right">Remaining</th>
               <th className="px-4 py-3 text-right">Received Qty</th>
               <th className="px-4 py-3 text-right">Variance</th>
               <th className="px-4 py-3">Split (Usable / Scrap)</th>
@@ -41,50 +38,61 @@ export function ReconciliationGrid({ dc }: ReconciliationGridProps) {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {fields.map((field, index) => {
-              // Find original item for read-only data
-              const originalItem = dc.items.find(item => item.id === (field as any).itemId) || dc.items[index];
-              const dispatchedQty = Number(originalItem?.quantity || 0);
+              const originalItem = dc.items.find((item: any) => item.id === (field as any).itemId) || dc.items[index];
+              const product = products?.find(p => p.id === originalItem?.productId);
+              
+              const dispatchedQty = Number(originalItem?.quantityDispatched || 0);
+              const returnedQty = Number(originalItem?.quantityReturned || 0);
+              const remaining = dispatchedQty - returnedQty;
               
               const receivedQty = Number(formItems[index]?.receivedQuantity || 0);
-              const variance = receivedQty - dispatchedQty;
+              const variance = remaining - receivedQty;
               const isShortfall = variance < 0;
 
-              // Split logic
-              const isSplit = formItems[index]?._isSplit; // We can use a local flag in the form state
+              const isSplit = formItems[index]?._isSplit;
               const usableQty = Number(formItems[index]?.usableQuantity || 0);
               const scrapQty = Number(formItems[index]?.scrapQuantity || 0);
               const splitMismatch = isSplit && (usableQty + scrapQty !== receivedQty);
 
               return (
-                <tr key={field.id} className="h-14 hover:bg-[#F8FAFC] transition-colors">
+                <tr key={field.id} className="h-14 hover:bg-[#F8FAFC]">
                   <td className="px-4 py-3">
-                    <p className="font-medium text-slate-900">{originalItem?.materialCode}</p>
-                    <p className="text-xs text-slate-500">{originalItem?.batchNumber || 'N/A'}</p>
+                    <p className="font-medium text-slate-900">{product?.code}</p>
+                    <p className="text-xs text-slate-500">{product?.name}</p>
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-slate-600 font-medium">
-                    {dispatchedQty} {originalItem?.uom}
+                    {dispatchedQty}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-slate-600 font-medium">
+                    {returnedQty}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-primary font-medium">
+                    {remaining}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <input
-                      type="number"
-                      step="0.1"
-                      {...register(`items.${index}.receivedQuantity` as const, { 
-                        required: 'Required',
-                        min: 0,
-                        onChange: (e) => {
-                          const val = Number(e.target.value);
-                          if (!isSplit) {
-                            setValue(`items.${index}.usableQuantity`, val);
-                            setValue(`items.${index}.scrapQuantity`, 0);
+                    <div className="flex flex-col items-end">
+                      <input
+                        type="number" step="0.001"
+                        {...register(`items.${index}.receivedQuantity` as const, { 
+                          required: 'Required',
+                          min: 0.001,
+                          max: { value: remaining, message: 'Exceeds remaining' },
+                          onChange: (e) => {
+                            const val = Number(e.target.value);
+                            if (!isSplit) {
+                              setValue(`items.${index}.usableQuantity`, val);
+                              setValue(`items.${index}.scrapQuantity`, 0);
+                            }
                           }
-                        }
-                      })}
-                      className="w-24 h-10 px-3 rounded-lg border border-slate-200 text-sm text-right tabular-nums text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
+                        })}
+                        className={`w-24 h-10 px-3 rounded-lg border text-sm text-right tabular-nums focus:outline-none focus:ring-2 ${receivedQty > remaining || receivedQty < 0.001 ? 'border-red-300 focus:ring-red-500' : 'border-slate-200 focus:ring-primary'}`}
+                      />
+                      {(receivedQty > remaining || receivedQty < 0.001) && <span className="text-[10px] text-red-500 mt-1">Invalid</span>}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">
                     <span className={`font-semibold ${isShortfall ? 'text-red-600' : 'text-slate-700'}`}>
-                      {variance > 0 ? '+' : ''}{variance.toFixed(2)}
+                      {variance > 0 ? '+' : ''}{variance.toFixed(3)}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -100,25 +108,17 @@ export function ReconciliationGrid({ dc }: ReconciliationGridProps) {
                       
                       {isSplit && (
                         <div className="flex items-center gap-2">
-                          <div className="relative">
-                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] uppercase text-slate-400 font-medium">Use</span>
-                            <input
-                              type="number"
-                              step="0.1"
-                              {...register(`items.${index}.usableQuantity` as const)}
-                              className="w-20 h-8 pl-8 pr-2 rounded bg-slate-50 border border-slate-200 text-xs text-right tabular-nums text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary"
-                            />
-                          </div>
+                          <input
+                            type="number" step="0.001"
+                            {...register(`items.${index}.usableQuantity` as const)}
+                            className="w-20 h-8 pl-2 pr-2 rounded border border-slate-200 text-xs text-right tabular-nums"
+                          />
                           <span className="text-slate-400">+</span>
-                          <div className="relative">
-                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] uppercase text-slate-400 font-medium">Scr</span>
-                            <input
-                              type="number"
-                              step="0.1"
-                              {...register(`items.${index}.scrapQuantity` as const)}
-                              className="w-20 h-8 pl-8 pr-2 rounded bg-slate-50 border border-slate-200 text-xs text-right tabular-nums text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary"
-                            />
-                          </div>
+                          <input
+                            type="number" step="0.001"
+                            {...register(`items.${index}.scrapQuantity` as const)}
+                            className="w-20 h-8 pl-2 pr-2 rounded border border-slate-200 text-xs text-right tabular-nums"
+                          />
                           {splitMismatch && (
                             <AlertCircle className="w-4 h-4 text-red-500" title="Split sum must equal Received Qty" />
                           )}

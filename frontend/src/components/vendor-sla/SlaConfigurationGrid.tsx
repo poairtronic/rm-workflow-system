@@ -4,11 +4,9 @@ import type { VendorSlaDto } from '../../types/vendor-sla.dto';
 interface SlaConfigurationGridProps {
   data: VendorSlaDto[];
   isLoading: boolean;
-  onOverride: (sla: VendorSlaDto) => void;
-  onViewCompliance: (vendorId: string) => void;
 }
 
-export function SlaConfigurationGrid({ data, isLoading, onOverride, onViewCompliance }: SlaConfigurationGridProps) {
+export function SlaConfigurationGrid({ data, isLoading }: SlaConfigurationGridProps) {
   if (isLoading) {
     return (
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
@@ -97,15 +95,17 @@ export function SlaConfigurationGrid({ data, isLoading, onOverride, onViewCompli
                 <td className="px-6 py-2 text-right">
                   <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
-                      onClick={() => onViewCompliance(item.vendorId)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200 transition-colors"
+                      disabled
+                      title="Not available yet"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 text-slate-400 text-xs font-medium rounded-md cursor-not-allowed transition-colors"
                     >
                       <BarChart2 className="w-3.5 h-3.5" />
                       Compliance
                     </button>
                     <button
-                      onClick={() => onOverride(item)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-amber-700 text-xs font-medium rounded-md hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-200 transition-colors"
+                      disabled
+                      title="Not available yet"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 text-slate-400 text-xs font-medium rounded-md cursor-not-allowed transition-colors"
                     >
                       <Settings2 className="w-3.5 h-3.5" />
                       Override

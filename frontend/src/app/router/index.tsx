@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import LoginPage from '../../pages/LoginPage';
+import { LoginView } from '../../pages/LoginView';
 import DashboardPage from '../../pages/DashboardPage';
 import { InventoryPage } from '../../pages/InventoryPage';
 import { MasterDataPage } from '../../pages/MasterDataPage';
@@ -36,7 +36,7 @@ export function AppRouter() {
   }
 
   if (!isAuthenticated) {
-    return <LoginPage />;
+    return <LoginView />;
   }
 
   return (

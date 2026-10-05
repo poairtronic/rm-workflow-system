@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { X, ShoppingCart, AlertCircle, Loader2 } from 'lucide-react';
+import { X, ShoppingCart, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { mslApi } from '../../services/api';
 import type { MslException } from '../../types/msl-alert';
@@ -164,14 +164,15 @@ export function EmergencyRequisitionDrawer({ isOpen, onClose, item }: EmergencyR
 
         {/* Footer */}
         <div className="p-5 border-t border-slate-200 bg-slate-50 flex flex-col gap-3">
+          <div className="text-center p-2 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-xs font-semibold text-amber-700">Emergency PO generation coming soon.</p>
+          </div>
           <button
             type="button"
-            onClick={handleSubmit}
-            disabled={!vendor || !quantity || mutation.isPending}
-            className="w-full h-10 flex justify-center items-center gap-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            disabled={true}
+            className="w-full h-10 flex justify-center items-center gap-2 bg-slate-200 text-slate-400 text-sm font-semibold rounded-lg cursor-not-allowed shadow-none"
           >
-            {mutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-            {mutation.isPending ? 'Authorizing...' : 'Authorize & Generate PO'}
+            Authorize & Generate PO
           </button>
           <button
             type="button"

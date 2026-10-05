@@ -3,22 +3,25 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { ClipboardList } from 'lucide-react';
-import { deliveryChallanApi } from '../../services/api';
+import { deliveryChallanApi, api, unwrapList } from '../../services/api';
+import { useQuery } from '@tanstack/react-query';
 import type { CreateDeliveryChallanDto } from '../../types/delivery-challan.dto';
-import { MultiItemSelectorGrid } from './MultiItemSelectorGrid';
+import { DispatchPayloadGrid } from './DispatchPayloadGrid';
 import { Type2ReviewModal } from './Type2ReviewModal';
 
 export function Type2DispatchView() {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const { data: vendorList } = useQuery({ queryKey: ['vendors'], queryFn: async () => unwrapList(await api.get<any[]>('/api/vendors?isActive=true')) });
+  
   const methods = useForm<CreateDeliveryChallanDto>({
     defaultValues: {
-      type: 'GENERAL_OUTWARD',
+      type: 'GENERAL_INVENTORY_OUTWARD',
       scCode: 'N/A',
       processId: 'N/A',
-      destinationEntity: '',
-      purpose: '',
+      vendorId: '',
+      notes: '',
       items: []
     },
     mode: 'onChange'
@@ -66,36 +69,34 @@ export function Type2DispatchView() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Destination Entity</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Vendor Destination</label>
                 <select
-                  {...register('destinationEntity', { required: 'Destination is required' })}
+                  {...register('vendorId', { required: 'Destination is required' })}
                   className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 >
-                  <option value="">Select Destination...</option>
-                  <option value="INT-RND">R&D Department (Internal)</option>
-                  <option value="INT-MAINT">Maintenance Dept (Internal)</option>
-                  <option value="EXT-VND-03">Vendor 03 (External Calibration)</option>
+                  <option value="">Select Vendor...</option>
+                  {vendorList?.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
                 </select>
-                {errors.destinationEntity && (
-                  <p className="mt-1 text-xs text-red-500">{errors.destinationEntity.message}</p>
+                {errors.vendorId && (
+                  <p className="mt-1 text-xs text-red-500">{errors.vendorId.message}</p>
                 )}
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Purpose / Justification</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
               <textarea
-                {...register('purpose', { required: 'Purpose is required' })}
+                {...register('notes', { required: 'Purpose is required' })}
                 placeholder="E.g., R&D Testing, Machine Maintenance..."
                 className="w-full min-h-[80px] p-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
               />
-              {errors.purpose && (
-                <p className="mt-1 text-xs text-red-500">{errors.purpose.message}</p>
+              {errors.notes && (
+                <p className="mt-1 text-xs text-red-500">{errors.notes.message}</p>
               )}
             </div>
           </div>
 
           {/* Payload Selector Grid */}
-          <MultiItemSelectorGrid />
+          <DispatchPayloadGrid />
         </form>
         
 

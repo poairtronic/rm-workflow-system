@@ -20,9 +20,7 @@ export const AuthService = {
     return api.get<AuthRolesResponse>('/api/auth/roles');
   },
 
-  async getDevToken(role?: string): Promise<LoginResponse> {
-    return api.post<LoginResponse>('/api/auth/dev-token', { role });
-  },
+
 
   async getProfile(): Promise<{ status: string; user: AuthUser }> {
     return api.get<{ status: string; user: AuthUser }>('/api/auth/me');

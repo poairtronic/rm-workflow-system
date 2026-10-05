@@ -9,7 +9,6 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   login: (email: string, pass: string) => Promise<void>;
-  devLogin: (role?: string) => Promise<void>;
   logout: () => void;
   clearError: () => void;
 }
@@ -74,24 +73,6 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const devLogin = async (role?: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await AuthService.getDevToken(role);
-      setToken(res.accessToken);
-      setUser(res.user);
-      localStorage.setItem(TOKEN_KEY, res.accessToken);
-      localStorage.setItem(USER_KEY, JSON.stringify(res.user));
-    } catch (err: any) {
-      const msg = err.message || 'Dev login failed.';
-      setError(msg);
-      throw new Error(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const clearError = () => setError(null);
 
 
@@ -104,7 +85,6 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         loading,
         error,
         login,
-        devLogin,
         logout,
         clearError,
       }}

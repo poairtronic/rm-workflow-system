@@ -11,7 +11,10 @@ export function VendorDashboardWorkspace() {
 
   const { 
     data: globalMetrics, 
-    isLoading: isLoadingGlobal 
+    isLoading: isLoadingGlobal,
+    isError: isGlobalError,
+    error: globalError,
+    refetch: refetchGlobal
   } = useQuery({
     queryKey: ['vendor-analytics-global'],
     queryFn: () => vendorAnalyticsApi.getPerformanceAnalytics(),
@@ -76,6 +79,21 @@ export function VendorDashboardWorkspace() {
         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
           <Loader2 className="w-10 h-10 animate-spin mb-4 text-primary" />
           <p className="text-sm font-medium">Aggregating analytics data...</p>
+        </div>
+      )}
+
+      {/* Global Error State */}
+      {isGlobalError && !vendorId && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-12 text-center">
+          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-red-900 mb-2">Failed to load analytics</h3>
+          <p className="text-red-700 mb-6">{globalError instanceof Error ? globalError.message : 'An error occurred'}</p>
+          <button 
+            onClick={() => refetchGlobal()}
+            className="px-6 h-10 bg-white border border-red-200 text-red-700 text-sm font-medium rounded-lg hover:bg-red-50 shadow-sm transition-colors"
+          >
+            Retry
+          </button>
         </div>
       )}
 

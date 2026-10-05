@@ -5,28 +5,28 @@ export interface VendorSlaDto {
   processName: string;
   processId: string;
   standardTatDays: number;
-  leadTimeMultiplier: number;
-  toleranceBufferDays: number;
+  leadTimeMultiplier?: number;
+  toleranceBufferDays?: number;
   isActive: boolean;
-  alert24h: boolean;
-  alert48h: boolean;
-  alert72h: boolean;
-  emailAlertsEnabled: boolean;
-  smsAlertsEnabled: boolean;
-  complianceScore: number; // e.g., 94.5
+  alert24h?: boolean;
+  alert48h?: boolean;
+  alert72h?: boolean;
+  emailAlertsEnabled?: boolean;
+  smsAlertsEnabled?: boolean;
+  complianceScore?: number; // e.g., 94.5
 }
 
 export interface CreateVendorSlaDto {
   vendorId: string;
   processId: string;
   standardTatDays: number;
-  leadTimeMultiplier: number;
-  toleranceBufferDays: number;
-  alert24h: boolean;
-  alert48h: boolean;
-  alert72h: boolean;
-  emailAlertsEnabled: boolean;
-  smsAlertsEnabled: boolean;
+  leadTimeMultiplier?: number;
+  toleranceBufferDays?: number;
+  alert24h?: boolean;
+  alert48h?: boolean;
+  alert72h?: boolean;
+  emailAlertsEnabled?: boolean;
+  smsAlertsEnabled?: boolean;
 }
 
 export interface SlaOverrideDto {

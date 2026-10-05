@@ -113,7 +113,7 @@ export function ChallanClosureModal({ dc, isOpen, onClose, onSuccess }: ChallanC
           </button>
           <button
             type="button"
-            onClick={() => closeDcMutation.mutate()}
+            onClick={() => { if (closeDcMutation.isPending) return; closeDcMutation.mutate(); }}
             disabled={!isConfirmed || closeDcMutation.isPending}
             className="inline-flex items-center justify-center gap-2 px-6 h-10 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-700 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >

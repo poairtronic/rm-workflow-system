@@ -123,6 +123,41 @@ export class VendorSlaService {
   }
 
   /**
+   * Retrieves all SLA agreements across all vendors.
+   * Single query with joins to avoid N+1 issues.
+   */
+  async getAllSlas(): Promise<VendorSla[]> {
+    return this.slaRepo.find({
+      select: {
+        id: true,
+        vendorId: true,
+        processId: true,
+        slaDays: true,
+        effectiveDate: true,
+        isActive: true,
+        notes: true,
+        vendor: {
+          id: true,
+          code: true,
+          name: true,
+          isActive: true,
+        },
+        process: {
+          id: true,
+          code: true,
+          name: true,
+          sequenceNumber: true,
+        },
+      },
+      relations: { vendor: true, process: true },
+      order: {
+        vendor: { name: 'ASC' },
+        process: { sequenceNumber: 'ASC' }
+      },
+    });
+  }
+
+  /**
    * Retrieves all SLA configurations registered for a specific vendor.
    */
   async getVendorSlas(vendorId: string): Promise<VendorSla[]> {

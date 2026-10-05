@@ -1,18 +1,16 @@
 import { useState } from 'react';
-import { FileText, Download, Loader2, Calendar } from 'lucide-react';
+import { FileText, Download, Calendar } from 'lucide-react';
 import { reportApi } from '../services/api';
 
 export function ReportGeneratorWorkspace() {
   const [reportType, setReportType] = useState('process_summary');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleExport = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setIsExporting(true);
     
     try {
       const response = await reportApi.exportReport(reportType, startDate, endDate);
@@ -27,8 +25,6 @@ export function ReportGeneratorWorkspace() {
       link.remove();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to generate report. Please try again.');
-    } finally {
-      setIsExporting(false);
     }
   };
 
@@ -106,13 +102,16 @@ export function ReportGeneratorWorkspace() {
               </div>
             )}
             
-            <div className="pt-4 border-t border-slate-100 flex justify-end">
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-sm font-medium text-amber-600 bg-amber-50 px-3 py-1 rounded-md border border-amber-200">
+                Reporting module coming soon
+              </span>
               <button 
-                type="submit"
-                disabled={isExporting || !startDate || !endDate}
-                className="inline-flex items-center gap-2 px-6 h-10 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+                type="button"
+                disabled={true}
+                className="inline-flex items-center gap-2 px-6 h-10 bg-slate-200 text-slate-400 text-sm font-semibold rounded-lg cursor-not-allowed shadow-none"
               >
-                {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                <Download className="w-4 h-4" />
                 Generate & Export
               </button>
             </div>

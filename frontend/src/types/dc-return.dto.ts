@@ -4,6 +4,7 @@ export interface ProcessDcReturnItemDto {
   usableQuantity: number;
   scrapQuantity: number;
   conditionNotes?: string;
+  _isSplit?: boolean;
 }
 
 export interface ProcessDcReturnDto {

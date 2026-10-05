@@ -11,15 +11,20 @@ import { AlertSettingsPanel } from '../components/vendor-sla/AlertSettingsPanel'
 import { SlaComplianceChart } from '../components/vendor-sla/SlaComplianceChart';
 import { SlaOverrideModal } from '../components/vendor-sla/SlaOverrideModal';
 
+import { useAuth } from '../contexts/AuthContext';
+
 // Mocking RBAC access for this UI context
 const CURRENT_USER_HAS_OVERRIDE_ACCESS = true;
 
 export function VendorSlaWorkspace() {
   const queryClient = useQueryClient();
+  const { currentUser } = useAuth();
+  
+  const canSave = currentUser?.role === 'ADMIN' || currentUser?.role === 'STORES';
   
   // Modals & Active State
   const [overrideModalSla, setOverrideModalSla] = useState<VendorSlaDto | null>(null);
-  const [selectedVendorForCompliance, setSelectedVendorForCompliance] = useState<string | null>(null);
+  const [selectedVendorForCompliance] = useState<string | null>(null);
 
   // Data Fetching
   const { data: slas = [], isLoading } = useQuery({
@@ -127,8 +132,6 @@ export function VendorSlaWorkspace() {
           <SlaConfigurationGrid 
             data={slas} 
             isLoading={isLoading} 
-            onOverride={(sla) => setOverrideModalSla(sla)}
-            onViewCompliance={(vendorId) => setSelectedVendorForCompliance(vendorId)}
           />
 
           <FormProvider {...methods}>
@@ -139,8 +142,9 @@ export function VendorSlaWorkspace() {
               <div className="flex justify-end pt-2">
                 <button
                   type="submit"
-                  disabled={createSlaMutation.isPending}
-                  className="inline-flex items-center gap-2 px-6 h-11 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50"
+                  disabled={createSlaMutation.isPending || !canSave}
+                  title={!canSave ? "You don't have permission to create SLAs" : undefined}
+                  className="inline-flex items-center gap-2 px-6 h-11 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus className="w-4 h-4" />
                   {createSlaMutation.isPending ? 'Saving...' : 'Create SLA Definition'}

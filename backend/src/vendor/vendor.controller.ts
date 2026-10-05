@@ -103,6 +103,15 @@ export class VendorController {
   }
 
   /**
+   * Retrieve all SLA agreements across all vendors.
+   * Placed before /:id to prevent route hijacking.
+   */
+  @Get('slas')
+  getAllSlas(): Promise<VendorSla[]> {
+    return this.slaService.getAllSlas();
+  }
+
+  /**
    * Retrieve a single vendor by UUID.
    * Read access permitted for all authenticated users.
    */

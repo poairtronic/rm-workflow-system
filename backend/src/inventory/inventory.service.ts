@@ -62,6 +62,27 @@ export class InventoryService {
     }
   }
 
+  
+  async getBalancesByProduct(productId: string) {
+    const balances = await this.stockBalanceRepository
+      .createQueryBuilder('sb')
+      .leftJoinAndSelect('sb.bin', 'bin')
+      .leftJoinAndSelect('bin.rack', 'rack')
+      .leftJoinAndSelect('rack.location', 'location')
+      .leftJoinAndSelect('location.warehouse', 'warehouse')
+      .where('sb.product_id = :productId', { productId })
+      .andWhere('sb.current_quantity > 0')
+      .getMany();
+
+    return balances.map(b => ({
+      binId: b.binId,
+      binCode: b.bin?.code,
+      warehouseName: b.bin?.rack?.location?.warehouse?.name || 'Unknown',
+      productId: b.productId,
+      currentQuantity: Number(b.currentQuantity)
+    }));
+  }
+
   async findAll(
     filterDto?: GetInventoryFilterDto,
   ): Promise<PaginatedResponseDto<InventoryItem>> {

@@ -1,4 +1,5 @@
 import { APP_CONFIG } from '../app/config';
+import { toast } from 'react-hot-toast';
 
 class ApiClient {
   private baseUrl: string;
@@ -19,19 +20,26 @@ class ApiClient {
   }
 
   private async handleError(response: Response, endpoint: string, method: string): Promise<never> {
-    if (response.status === 401) {
+    if (response.status === 401 && !endpoint.includes('/api/auth/login')) {
       window.dispatchEvent(new Event('auth:unauthorized'));
     }
     
     let errorMsg = `${method} ${endpoint} failed: ${response.status} ${response.statusText}`;
     try {
       const errorJson = await response.json();
-      if (errorJson?.message) {
-        errorMsg = Array.isArray(errorJson.message)
-          ? errorJson.message.join(', ')
-          : errorJson.message;
+      const extractedMessage = errorJson?.error?.message || errorJson?.message || errorJson?.error;
+      if (extractedMessage) {
+        errorMsg = Array.isArray(extractedMessage)
+          ? extractedMessage.join(', ')
+          : extractedMessage;
       }
     } catch {}
+    
+    // Global toast for errors, skip 401 as it's handled by AuthContext
+    if (response.status !== 401) {
+      toast.error(errorMsg);
+    }
+    
     throw new Error(errorMsg);
   }
 
@@ -104,6 +112,13 @@ class ApiClient {
 
 export const api = new ApiClient();
 
+export function unwrapList(response: any): any[] {
+  if (Array.isArray(response)) return response;
+  if (response && Array.isArray(response.data)) return response.data;
+  if (response && Array.isArray(response.items)) return response.items;
+  return [];
+}
+
 import type { SweepStatus, InventoryMslStatusResponseDto } from '../types/msl.dto';
 
 export const mslApi = {
@@ -116,69 +131,150 @@ import type { ProductionProcessDto, CreateProductionProcessDto, UpdateProduction
 
 export const authApi = {
   login: async (data: any) => {
-    // MOCK LOGIN FOR DEVELOPMENT
-    return new Promise<{ token: string; user: any }>((resolve) => {
-      setTimeout(() => {
-        const username = data.employeeId?.toLowerCase();
-        let role = 'ADMIN';
-        let name = 'Admin User';
-        
-        if (username.includes('store')) {
-          role = 'STORE_CONTROLLER';
-          name = 'Store Keeper';
-        } else if (username.includes('design')) {
-          role = 'DESIGN_ENGINEER';
-          name = 'Design Engineer';
-        } else if (username.includes('prod')) {
-          role = 'PRODUCTION_MGR';
-          name = 'Production Manager';
-        } else if (username.includes('admin') || data.password === 'admin123') {
-          role = 'ADMIN';
-          name = 'System Admin';
-        } else {
-          // Default to admin if nothing matches just for testing
-          role = 'ADMIN';
-          name = 'Test User';
-        }
-        
-        resolve({
-          token: 'mock-jwt-token-12345',
-          user: {
-            id: 'usr-' + Math.random().toString(36).substr(2, 9),
-            name,
-            role,
-            department: 'Mock Dept'
-          }
-        });
-      }, 500); // simulate network delay
+    const res = await api.post<{ accessToken: string; user: any }>('/api/auth/login', {
+      email: data.employeeId,
+      password: data.password,
     });
+    return { token: res.accessToken, user: res.user };
   },
+  getMe: () => api.get<{ status: string; user: any }>('/api/auth/me'),
 };
 
 export const productionProcessApi = {
-  getAll: () => api.get<ProductionProcessDto[]>('/api/production-processes'),
+  getAll: async () => {
+    const [data, slas] = await Promise.all([
+      api.get<any[]>('/api/production-processes'),
+      api.get<any[]>('/api/vendors/slas').catch(() => []) // fallback
+    ]);
+    
+    // Group vendors by processId
+    const vendorMap = new Map<string, Set<string>>();
+    for (const sla of slas) {
+      if (!vendorMap.has(sla.processId)) vendorMap.set(sla.processId, new Set());
+      vendorMap.get(sla.processId)!.add(sla.vendorId);
+    }
+
+    return data.map(p => ({
+      id: p.id,
+      sequenceId: p.sequenceNumber?.toString() || '',
+      nomenclature: p.name || '',
+      internalCode: p.code || '',
+      description: p.description || '',
+      baseUom: 'NOS', // missing in backend
+      isActive: p.isActive ?? true,
+      expectedCycleTimeMs: 0,
+      costCenter: '',
+      qcCheckpoints: [],
+      linkedVendorIds: Array.from(vendorMap.get(p.id) || []), // REAL data from SLAs!
+    })) as ProductionProcessDto[];
+  },
   getById: (id: string) => api.get<ProductionProcessDto>(`/api/production-processes/${id}`),
-  create: (data: CreateProductionProcessDto) => api.post<ProductionProcessDto>('/api/production-processes', data),
-  update: (id: string, data: UpdateProductionProcessDto) => api.patch<ProductionProcessDto>(`/api/production-processes/${id}`, data),
-  getVendors: () => api.get<VendorDto[]>('/api/vendors/approved'), // Assume there's a vendor endpoint
+  create: (data: CreateProductionProcessDto) => {
+    const backendData = {
+      code: data.internalCode,
+      name: data.nomenclature,
+      sequenceNumber: parseInt(data.sequenceId, 10),
+      description: data.description,
+      isActive: true,
+    };
+    return api.post<ProductionProcessDto>('/api/production-processes', backendData);
+  },
+  update: (id: string, data: UpdateProductionProcessDto) => {
+    const backendData = {
+      ...(data.internalCode && { code: data.internalCode }),
+      ...(data.nomenclature && { name: data.nomenclature }),
+      ...(data.sequenceId && { sequenceNumber: parseInt(data.sequenceId, 10) }),
+      ...(data.description !== undefined && { description: data.description }),
+      ...(data.isActive !== undefined && { isActive: data.isActive }),
+    };
+    return api.patch<ProductionProcessDto>(`/api/production-processes/${id}`, backendData);
+  },
+  getVendors: async () => {
+    const vendors = await api.get<any[]>('/api/vendors?isActive=true');
+    return vendors.map(v => ({
+      id: v.id,
+      vendorName: v.name,
+      code: v.code,
+      isApproved: v.isActive
+    })) as VendorDto[];
+  },
 };
 
 import type { VendorSlaDto, CreateVendorSlaDto, SlaOverrideDto, ComplianceDataPoint } from '../types/vendor-sla.dto';
 
 export const vendorSlaApi = {
-  getAll: () => api.get<VendorSlaDto[]>('/api/vendor-slas'),
-  create: (data: CreateVendorSlaDto) => api.post<VendorSlaDto>('/api/vendor-slas', data),
+  getAll: async () => {
+    const slas = await api.get<any[]>('/api/vendors/slas');
+    return slas.map(sla => ({
+      id: sla.id,
+      vendorName: sla.vendor?.name || '',
+      vendorId: sla.vendorId,
+      processName: sla.process?.name || '',
+      processId: sla.processId,
+      standardTatDays: sla.slaDays, // Map from backend slaDays
+      isActive: sla.isActive,
+    })) as VendorSlaDto[];
+  },
+  create: async (data: CreateVendorSlaDto) => {
+    // Backend expects CreateVendorSlaDto with processId, slaDays, effectiveDate, etc.
+    const backendPayload = {
+      processId: data.processId,
+      slaDays: data.standardTatDays, // Map to backend
+      effectiveDate: new Date().toISOString(),
+      isActive: true,
+    };
+    const sla = await api.post<any>(`/api/vendors/${data.vendorId}/slas`, backendPayload);
+    return {
+      id: sla.id,
+      vendorName: sla.vendor?.name || '',
+      vendorId: sla.vendorId,
+      processName: sla.process?.name || '',
+      processId: sla.processId,
+      standardTatDays: sla.slaDays,
+      isActive: sla.isActive,
+    } as VendorSlaDto;
+  },
   overrideSla: (slaId: string, data: SlaOverrideDto) => api.post<{ success: boolean }>(`/api/vendor-slas/${slaId}/override`, data),
   getCompliance: (vendorId: string) => api.get<ComplianceDataPoint[]>(`/api/vendor-slas/compliance/${vendorId}`)
 };
 
-import type { CreateDeliveryChallanDto, DeliveryChallanDto } from '../types/delivery-challan.dto';
+import type { DeliveryChallanDto } from '../types/delivery-challan.dto';
 import type { ProcessDcReturnDto, CloseDcDto } from '../types/dc-return.dto';
 
 export const deliveryChallanApi = {
-  getAll: () => api.get<DeliveryChallanDto[]>('/api/delivery-challans'),
-  create: (data: CreateDeliveryChallanDto) => api.post<DeliveryChallanDto>('/api/delivery-challans', data),
-  processReturn: (id: string, data: ProcessDcReturnDto) => api.patch<DeliveryChallanDto>(`/api/delivery-challans/${id}/return`, data),
+  getAll: async () => {
+    const res = await api.get<any[]>('/api/delivery-challans');
+    return res.map(dc => ({ ...dc, dcNumber: dc.challanNumber })) as DeliveryChallanDto[];
+  },
+  create: (data: any) => {
+    const isType1 = data.type === 'PRODUCTION_PROCESS_OUTWARD';
+    const endpoint = isType1 ? '/api/delivery-challans/type-1' : '/api/delivery-challans/type-2';
+    
+    const backendPayload = {
+      type: data.type,
+      vendorId: data.vendorId,
+      ...(isType1 && { scId: data.scId, processId: data.processId, expectedReturnDate: data.expectedReturnDate }),
+      dispatchDate: new Date().toISOString(),
+      notes: data.notes || '',
+      items: data.items.map((i: any) => ({
+        productId: i.productId,
+        binId: i.binId,
+        quantityDispatched: i.quantity
+      }))
+    };
+    
+    return api.post<DeliveryChallanDto>(endpoint, backendPayload);
+  },
+  processReturn: (id: string, data: ProcessDcReturnDto) => {
+    const backendPayload = {
+      actualReceiptDate: new Date().toISOString(),
+      items: data.items.map(i => ({
+        itemId: i.itemId,
+        quantityToReturn: i.receivedQuantity
+      }))
+    };
+    return api.post<DeliveryChallanDto>(`/api/delivery-challans/${id}/return`, backendPayload);
+  },
   close: (id: string, data: CloseDcDto) => api.patch<DeliveryChallanDto>(`/api/delivery-challans/${id}/close`, data),
   getPrintable: (id: string) => api.get<any>(`/api/delivery-challans/${id}/printable`),
 };
@@ -195,7 +291,7 @@ import type { GlobalVendorMetrics, VendorProfileDto, EscalateDcDto } from '../ty
 
 export const vendorAnalyticsApi = {
   getPerformanceAnalytics: () => api.get<GlobalVendorMetrics>('/api/traceability/vendors/performance-analytics'),
-  getVendorProfile: (vendorId: string) => api.get<VendorProfileDto>(`/api/traceability/vendors/${vendorId}/custody`),
+  getVendorProfile: (vendorId: string) => api.get<VendorProfileDto>(`/api/traceability/vendors/${vendorId}/traceability`),
   escalateDc: (dcNumber: string, data: EscalateDcDto) => api.post(`/api/vendor-slas/escalate/${dcNumber}`, data),
 };
 
