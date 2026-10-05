@@ -48,7 +48,7 @@ export function GovernanceConfirmationModal({
             <div>
               <h2 className="text-lg font-bold text-slate-900">Confirm Material Action?</h2>
               <p className="text-sm font-medium text-slate-500 mt-1">
-                {scId}
+                {scId} {ginIndent ? `• ${ginIndent}` : ''}
               </p>
             </div>
           </div>

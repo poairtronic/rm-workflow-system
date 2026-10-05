@@ -55,7 +55,7 @@ import { TraceabilityModule } from './traceability/traceability.module.js';
           url: dbUrl,
           entities: ALL_ENTITIES,
           autoLoadEntities: true,
-          synchronize: false,
+          synchronize: !(configService.get("NODE_ENV") === "production") && (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")),
           ssl: isSsl ? { rejectUnauthorized: false } : false,
           retryAttempts: 2,
           retryDelay: 3000,

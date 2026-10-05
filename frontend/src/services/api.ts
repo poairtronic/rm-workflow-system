@@ -243,8 +243,12 @@ import type { ProcessDcReturnDto, CloseDcDto } from '../types/dc-return.dto';
 
 export const deliveryChallanApi = {
   getAll: async () => {
-    const res = await api.get<any[]>('/api/delivery-challans');
-    return res.map(dc => ({ ...dc, dcNumber: dc.challanNumber })) as DeliveryChallanDto[];
+    const res = unwrapList(await api.get<any[]>('/api/delivery-challans'));
+    return res.map((dc: any) => ({
+      ...dc,
+      dcNumber: dc.challanNumber || dc.dcNumber,
+      vendorName: dc.vendor?.name || dc.vendorName,
+    })) as DeliveryChallanDto[];
   },
   create: (data: any) => {
     const isType1 = data.type === 'PRODUCTION_PROCESS_OUTWARD';

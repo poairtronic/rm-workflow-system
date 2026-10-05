@@ -57,8 +57,8 @@ export function ReconciliationGrid({ dc }: { dc: any }) {
               return (
                 <tr key={field.id} className="h-14 hover:bg-[#F8FAFC]">
                   <td className="px-4 py-3">
-                    <p className="font-medium text-slate-900">{product?.code}</p>
-                    <p className="text-xs text-slate-500">{product?.name}</p>
+                    <p className="font-medium text-slate-900">{product?.code || originalItem?.product?.code || originalItem?.productId}</p>
+                    <p className="text-xs text-slate-500">{product?.name || originalItem?.product?.name || ''}</p>
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-slate-600 font-medium">
                     {dispatchedQty}
@@ -97,11 +97,12 @@ export function ReconciliationGrid({ dc }: { dc: any }) {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-col gap-2">
-                      <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                      <label className="flex items-center gap-2 text-xs text-slate-600 cursor-not-allowed" title="Not saved yet. DEFERRED: scrap needs a backend field and a rule on where scrap stock goes.">
                         <input
                           type="checkbox"
+                          disabled
                           {...register(`items.${index}._isSplit` as const)}
-                          className="rounded border-slate-300 text-primary focus:ring-primary"
+                          className="rounded border-slate-300 text-primary focus:ring-primary disabled:opacity-50"
                         />
                         Enable Scrap / Remanent Split
                       </label>

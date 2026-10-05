@@ -81,7 +81,7 @@ export class DeliveryChallanService {
         expectedReturnDate,
         notes: dto.notes,
         createdById: userId,
-        status: DeliveryChallanStatus.OPEN,
+        status: DeliveryChallanStatus.DISPATCHED,
       });
 
       const savedChallan = await queryRunner.manager.save(challan);
@@ -184,7 +184,7 @@ export class DeliveryChallanService {
         expectedReturnDate: dto.expectedReturnDate ? new Date(dto.expectedReturnDate) : null,
         notes: dto.notes,
         createdById: userId,
-        status: DeliveryChallanStatus.OPEN,
+        status: DeliveryChallanStatus.DISPATCHED,
       });
 
       const savedChallan = await queryRunner.manager.save(challan);
@@ -277,7 +277,7 @@ export class DeliveryChallanService {
 
     return this.challanRepo.find({
       where,
-      relations: { items: true },
+      relations: { items: { product: true, bin: true }, vendor: true },
       order: { createdAt: 'DESC' },
     });
   }
@@ -299,7 +299,7 @@ export class DeliveryChallanService {
   async findOne(id: string) {
     const challan = await this.challanRepo.findOne({
       where: { id },
-      relations: { items: true },
+      relations: { items: { product: true, bin: true }, vendor: true },
     });
     if (!challan) {
       throw new NotFoundException(`Delivery Challan with ID ${id} not found`);

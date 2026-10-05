@@ -15,7 +15,7 @@ export function DispatchPayloadRow({ index, remove, canRemove }: { index: number
   
   const { data: balances = [] } = useQuery({
     queryKey: ['balances', productId],
-    queryFn: () => api.get<any[]>(`/api/inventory/balances?productId=${productId}`),
+    queryFn: async () => unwrapList(await api.get<any[]>(`/api/inventory/balances?productId=${productId}`)),
     enabled: !!productId
   });
 

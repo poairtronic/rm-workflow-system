@@ -49,7 +49,7 @@ export function ActiveCustodyBoard({ challans, onSelect }: ActiveCustodyBoardPro
           <thead className="bg-white border-b border-slate-200 text-[11px] font-semibold uppercase text-slate-500">
             <tr>
               <th className="px-6 py-3">DC Number</th>
-              <th className="px-6 py-3">Destination</th>
+              <th className="px-6 py-3">Vendor / Destination</th>
               <th className="px-6 py-3">Issue Date</th>
               <th className="px-6 py-3">Target Return</th>
               <th className="px-6 py-3">SLA Status</th>
@@ -63,7 +63,7 @@ export function ActiveCustodyBoard({ challans, onSelect }: ActiveCustodyBoardPro
               return (
                 <tr key={dc.id} className="hover:bg-slate-50 transition-colors h-14">
                   <td className="px-6 py-2 font-medium text-slate-900">{dc.dcNumber}</td>
-                  <td className="px-6 py-2 text-slate-600">{dc.vendorName || dc.destinationEntity || dc.vendorId || 'N/A'}</td>
+                  <td className="px-6 py-2 text-slate-600">{(dc as any).vendor?.name || dc.vendorName || dc.destinationEntity || dc.vendorId || 'N/A'}</td>
                   <td className="px-6 py-2 tabular-nums text-slate-600">
                     {dc.issueDate ? new Date(dc.issueDate).toLocaleDateString() : 'N/A'}
                   </td>

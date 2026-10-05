@@ -71,7 +71,7 @@ export class DeliveryChallan {
   @Column({ name: 'expected_return_date', type: 'timestamptz', nullable: true })
   expectedReturnDate?: Date | null;
 
-  @Column({ type: 'varchar', length: 30, default: DeliveryChallanStatus.OPEN })
+  @Column({ type: 'varchar', length: 30, default: DeliveryChallanStatus.DISPATCHED })
   status: string;
 
   @Column({ type: 'text', nullable: true })

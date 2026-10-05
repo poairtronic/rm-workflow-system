@@ -125,6 +125,6 @@ export const AppDataSource = new DataSource({
   url: dbUrl,
   entities: ALL_ENTITIES,
   migrations: ['src/database/migrations/*.ts'],
-  synchronize: false,
+  synchronize: !(process.env.NODE_ENV === "production") && (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")),
   ssl: isSsl ? { rejectUnauthorized: false } : false,
 });

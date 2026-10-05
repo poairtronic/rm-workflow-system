@@ -28,7 +28,7 @@ function StatusBadge({ status }: { status: string }) {
 
 export function DockReceiptWorkspace() {
   const queryClient = useQueryClient();
-  const [selectedDc, setSelectedDc] = useState<any | null>(null);
+  const [selectedDc, setSelectedDc] = useState<DeliveryChallanDto | null>(null);
   const [isClosureModalOpen, setIsClosureModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 

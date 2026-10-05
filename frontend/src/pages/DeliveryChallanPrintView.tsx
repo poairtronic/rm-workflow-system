@@ -74,7 +74,7 @@ export function DeliveryChallanPrintView() {
       <div className="print:p-6">
         <ChallanPrintHeader 
           dcNumber={dc.dcNumber}
-          issueDate={dc.issueDate}
+          issueDate={dc.issueDate || dc.dispatchDate || new Date().toISOString()}
           vendorName={dc.vendorName || 'N/A'}
           destinationAddress={dc.destinationEntity || 'Vendor Address Details'}
           dcType={dc.type}
