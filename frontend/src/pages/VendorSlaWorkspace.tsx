@@ -27,7 +27,7 @@ export function VendorSlaWorkspace() {
     queryFn: async () => {
       try {
         const response = await vendorSlaApi.getAll();
-        return response.data;
+        return response;
       } catch (err) {
         // Fallback for demo purposes if backend isn't ready
         return [

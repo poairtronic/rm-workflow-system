@@ -50,7 +50,7 @@ export function Type1DispatchWizard() {
     mutationFn: (data: CreateDeliveryChallanDto) => deliveryChallanApi.create(data),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['delivery-challans'] });
-      toast.success(`Delivery Challan ${res.data.dcNumber || 'created'} locked successfully!`);
+      toast.success(`Delivery Challan ${res.dcNumber || 'created'} locked successfully!`);
       // Reset or redirect would happen here
       setTimeout(() => window.location.reload(), 1500);
     },

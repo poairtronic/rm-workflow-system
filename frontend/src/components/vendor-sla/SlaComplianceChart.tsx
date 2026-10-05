@@ -11,7 +11,7 @@ export function SlaComplianceChart({ vendorId }: SlaComplianceChartProps) {
     queryKey: ['vendor-compliance', vendorId],
     queryFn: () => {
       if (!vendorId) return Promise.resolve([]);
-      return vendorSlaApi.getCompliance(vendorId).then(res => res.data);
+      return vendorSlaApi.getCompliance(vendorId);
     },
     enabled: !!vendorId,
   });
