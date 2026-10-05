@@ -157,8 +157,12 @@ export const vendorSlaApi = {
 };
 
 import type { CreateDeliveryChallanDto, DeliveryChallanDto } from '../types/delivery-challan.dto';
+import type { ProcessDcReturnDto, CloseDcDto } from '../types/dc-return.dto';
 
 export const deliveryChallanApi = {
+  getAll: () => api.get<DeliveryChallanDto[]>('/api/delivery-challans'),
   create: (data: CreateDeliveryChallanDto) => api.post<DeliveryChallanDto>('/api/delivery-challans', data),
+  processReturn: (id: string, data: ProcessDcReturnDto) => api.patch<DeliveryChallanDto>(`/api/delivery-challans/${id}/return`, data),
+  close: (id: string, data: CloseDcDto) => api.patch<DeliveryChallanDto>(`/api/delivery-challans/${id}/close`, data),
 };
 

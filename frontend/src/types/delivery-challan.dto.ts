@@ -1,4 +1,4 @@
-export type DcType = 'PRODUCTION_OUTWARD' | 'RETURN_INWARD' | 'SCRAP_DISPATCH' | 'VENDOR_TRANSFER';
+export type DcType = 'PRODUCTION_OUTWARD' | 'RETURN_INWARD' | 'SCRAP_DISPATCH' | 'VENDOR_TRANSFER' | 'GENERAL_OUTWARD';
 
 export interface CreateDeliveryChallanItemDto {
   materialCode: string;
@@ -12,8 +12,10 @@ export interface CreateDeliveryChallanDto {
   type: DcType;
   scCode: string;
   processId: string;
-  vendorId: string;
-  expectedReturnDate: string; // ISO format
+  vendorId?: string;
+  expectedReturnDate?: string; // ISO format
+  destinationEntity?: string;
+  purpose?: string;
   items: CreateDeliveryChallanItemDto[];
 }
 
@@ -24,8 +26,10 @@ export interface DeliveryChallanDto {
   type: DcType;
   scCode: string;
   processId: string;
-  vendorId: string;
-  vendorName: string;
+  vendorId?: string;
+  vendorName?: string;
+  destinationEntity?: string;
+  purpose?: string;
   processName: string;
   issueDate: string;
   expectedReturnDate: string;
