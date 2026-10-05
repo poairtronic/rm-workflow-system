@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { AlertOctagon, AlertTriangle, Clock, Activity } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { KpiMetricCard } from '../components/dashboard/KpiMetricCard';
@@ -15,66 +16,49 @@ export function MslAlertsWorkspace() {
     severity: '',
   });
 
-  const [exceptions, setExceptions] = useState<MslException[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedException, setSelectedException] = useState<MslException | null>(null);
 
-  // Stats for KPIs
-  const [stats, setStats] = useState({
-    critical: 0,
-    lowStock: 0,
-    pendingIndents: 0,
-    healthIndex: 0,
+  const { data: response, isLoading, isError, error } = useQuery({
+    queryKey: ['inventoryMslStatus'],
+    queryFn: () => mslApi.getInventoryMslStatus(),
+    refetchInterval: 30000, // 30 seconds polling
   });
 
-  const fetchData = useCallback(async (showSilent = false) => {
-    try {
-      if (!showSilent) setIsLoading(true);
-      
-      const response = await mslApi.getInventoryMslStatus();
-      
-      // Map DTO to frontend MslException
-      const mappedExceptions: MslException[] = response.items.map(item => ({
-        sku: item.productId,
-        itemName: item.productName,
-        category: item.categoryName,
-        zone: item.categoryName, // Fallback as zone is not in DTO
-        currentStock: item.currentStock,
-        mslThreshold: item.minimumInventory,
-        deficit: item.deficitQty,
-        unit: 'KG', // Fallback for unit
-        severity: (item.status === 'CRITICAL' || item.status === 'OUT_OF_STOCK') ? 'CRITICAL' : 'LOW_STOCK',
-      }));
-      
-      setExceptions(mappedExceptions);
-      
-      // Compute KPIs
-      setStats({
-        critical: response.summary.criticalStockCount + response.summary.outOfStockCount,
-        lowStock: response.summary.belowMslCount,
-        pendingIndents: Math.floor(Math.random() * 20) + 10, // Mock pending indents as it's not in the sweep dto
-        healthIndex: response.summary.totalMonitoredProducts > 0 
-          ? Number(((response.summary.normalStockCount / response.summary.totalMonitoredProducts) * 100).toFixed(1))
-          : 100,
-      });
-
-    } catch (error) {
+  useEffect(() => {
+    if (isError) {
       console.error('Error fetching MSL alerts:', error);
       toast.error('Live sync disconnected. Retrying...');
-    } finally {
-      if (!showSilent) setIsLoading(false);
     }
-  }, []);
+  }, [isError, error]);
 
-  // Initial fetch and polling
-  useEffect(() => {
-    fetchData();
-    const intervalId = setInterval(() => {
-      fetchData(true); // Silent fetch
-    }, 30000);
-    return () => clearInterval(intervalId);
-  }, [fetchData]);
+  const exceptions: MslException[] = useMemo(() => {
+    if (!response) return [];
+    return response.items.map(item => ({
+      id: item.productId || Math.random().toString(),
+      skuCode: item.productId,
+      itemName: item.productName,
+      category: item.categoryName,
+      zone: item.categoryName, // Fallback as zone is not in DTO
+      currentStock: item.currentStock,
+      mslThreshold: item.minimumInventory,
+      deficit: item.deficitQty,
+      unit: 'KG', // Fallback for unit
+      severity: (item.status === 'CRITICAL' || item.status === 'OUT_OF_STOCK') ? 'CRITICAL' : 'LOW_STOCK',
+    }));
+  }, [response]);
+
+  const stats = useMemo(() => {
+    if (!response) return { critical: 0, lowStock: 0, pendingIndents: 0, healthIndex: 0 };
+    return {
+      critical: response.summary.criticalStockCount + response.summary.outOfStockCount,
+      lowStock: response.summary.belowMslCount,
+      pendingIndents: Math.floor(Math.random() * 20) + 10, // Mock pending indents as it's not in the sweep dto
+      healthIndex: response.summary.totalMonitoredProducts > 0 
+        ? Number(((response.summary.normalStockCount / response.summary.totalMonitoredProducts) * 100).toFixed(1))
+        : 100,
+    };
+  }, [response]);
 
   const handleFilterChange = (key: keyof MslFilters, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -96,32 +80,6 @@ export function MslAlertsWorkspace() {
   const handleRaisePO = (item: MslException) => {
     setSelectedException(item);
     setIsDrawerOpen(true);
-  };
-
-  const handleEmergencySubmit = async (item: MslException, quantity: number, vendor: string, urgency: string) => {
-    try {
-      const payload = {
-        items: [
-          {
-            sku: item.sku,
-            quantity,
-            urgency,
-            vendor,
-          }
-        ],
-        type: 'EMERGENCY_REQUISITION'
-      };
-      
-      await mslApi.generateEmergencyPO(payload);
-      toast.success('Emergency PO generated successfully.');
-      setIsDrawerOpen(false);
-      
-      // Force immediate re-fetch
-      fetchData(true);
-    } catch (error) {
-      console.error('Error generating PO:', error);
-      toast.error('Failed to generate emergency PO.');
-    }
   };
 
   return (
@@ -192,7 +150,6 @@ export function MslAlertsWorkspace() {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         item={selectedException}
-        onSubmit={handleEmergencySubmit}
       />
     </div>
   );

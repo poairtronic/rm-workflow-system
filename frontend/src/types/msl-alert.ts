@@ -1,5 +1,6 @@
 export interface MslException {
-  sku: string;
+  id: string;
+  skuCode: string;
   itemName: string;
   category: string;
   zone: string;
@@ -12,7 +13,8 @@ export interface MslException {
 
 export const MOCK_MSL_EXCEPTIONS: MslException[] = [
   {
-    sku: 'RMR-RAW-015',
+    id: 'exc-1',
+    skuCode: 'RMR-RAW-015',
     itemName: 'Elastane Spandex Thread',
     category: 'Raw Material / Yarns',
     zone: 'Zone A (Main)',
@@ -23,7 +25,8 @@ export const MOCK_MSL_EXCEPTIONS: MslException[] = [
     severity: 'CRITICAL'
   },
   {
-    sku: 'RMR-RAW-022',
+    id: 'exc-2',
+    skuCode: 'RMR-RAW-022',
     itemName: 'Polyurethane Resin Base',
     category: 'Dyes & Chemicals',
     zone: 'Zone C (Chemicals)',
@@ -34,7 +37,8 @@ export const MOCK_MSL_EXCEPTIONS: MslException[] = [
     severity: 'CRITICAL'
   },
   {
-    sku: 'RMR-PAC-045',
+    id: 'exc-3',
+    skuCode: 'RMR-PAC-045',
     itemName: 'Corrugated Carton Type B',
     category: 'Trims & Fasteners',
     zone: 'Zone B (Heavy)',
@@ -45,7 +49,8 @@ export const MOCK_MSL_EXCEPTIONS: MslException[] = [
     severity: 'LOW_STOCK'
   },
   {
-    sku: 'RMR-SFG-102',
+    id: 'exc-4',
+    skuCode: 'RMR-SFG-102',
     itemName: 'Aero Seal Ring p20',
     category: 'Trims & Fasteners',
     zone: 'Zone A (Main)',
@@ -56,7 +61,8 @@ export const MOCK_MSL_EXCEPTIONS: MslException[] = [
     severity: 'LOW_STOCK'
   },
   {
-    sku: 'RMR-CON-008',
+    id: 'exc-5',
+    skuCode: 'RMR-CON-008',
     itemName: 'Machine Lubricant Oil',
     category: 'Dyes & Chemicals',
     zone: 'Zone C (Chemicals)',
