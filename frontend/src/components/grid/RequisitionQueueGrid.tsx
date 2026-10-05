@@ -22,7 +22,7 @@ function StatusBadge({ status }: { status: RequisitionStatus }) {
 
 export function RequisitionQueueGrid() {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 mb-6 overflow-hidden flex flex-col">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>

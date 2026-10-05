@@ -27,10 +27,10 @@ export function TechnicalParameterForm({ formData, onChange, availableBalance = 
   const isOverBalance = grossVal > availableBalance;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 mb-6">
       <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
         <FileText className="w-5 h-5 text-slate-500" />
-        <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">MTC & Technical Parameters</h2>
+        <h2 className="text-[15px] font-semibold text-slate-900 mb-4 uppercase tracking-wide">MTC & Technical Parameters</h2>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

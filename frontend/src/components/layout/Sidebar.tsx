@@ -10,7 +10,7 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="w-[260px] h-screen fixed left-0 top-0 bg-white border-r border-slate-200 flex flex-col">
+    <aside className="fixed top-0 bottom-0 left-0 w-[260px] bg-white border-r border-slate-200 z-30 flex flex-col">
       <div className="h-16 flex items-center px-6 border-b border-slate-200">
         <span className="font-semibold text-lg tracking-tight text-primary">RMRIT System</span>
       </div>

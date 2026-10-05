@@ -136,3 +136,14 @@ export const mslApi = {
   getInventoryMslStatus: () => api.get<InventoryMslStatusResponseDto>('/api/traceability/analytics/inventory-msl-status'),
   generateEmergencyPO: (payload: any) => api.post<{ success: boolean; message: string }>('/api/purchase-orders/emergency', payload),
 };
+
+import type { ProductionProcessDto, CreateProductionProcessDto, UpdateProductionProcessDto, VendorDto } from '../types/process-master.dto';
+
+export const productionProcessApi = {
+  getAll: () => api.get<ProductionProcessDto[]>('/api/production-processes'),
+  getById: (id: string) => api.get<ProductionProcessDto>(`/api/production-processes/${id}`),
+  create: (data: CreateProductionProcessDto) => api.post<ProductionProcessDto>('/api/production-processes', data),
+  update: (id: string, data: UpdateProductionProcessDto) => api.patch<ProductionProcessDto>(`/api/production-processes/${id}`, data),
+  getVendors: () => api.get<VendorDto[]>('/api/vendors/approved'), // Assume there's a vendor endpoint
+};
+

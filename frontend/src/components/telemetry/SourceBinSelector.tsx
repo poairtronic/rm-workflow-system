@@ -9,10 +9,10 @@ interface Props {
 export function SourceBinSelector({ selectedBinId, onSelectBinId }: Props) {
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 mb-6">
       <div className="flex items-center gap-2 mb-4">
         <MapPin className="w-5 h-5 text-slate-500" />
-        <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Source Location Topology</h2>
+        <h2 className="text-[15px] font-semibold text-slate-900 mb-4 uppercase tracking-wide">Source Location Topology</h2>
       </div>
       
       <div className="flex flex-col sm:flex-row gap-3">

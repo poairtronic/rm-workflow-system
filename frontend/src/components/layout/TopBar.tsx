@@ -2,7 +2,7 @@ import { Search, User, Terminal } from 'lucide-react';
 
 export function TopBar() {
   return (
-    <header className="h-16 fixed top-0 right-0 left-[260px] bg-white/80 backdrop-blur border-b border-slate-200 z-20 flex items-center justify-between px-6">
+    <header className="fixed top-0 right-0 left-[260px] h-16 bg-white/80 backdrop-blur border-b border-slate-200 z-20 flex items-center px-6 justify-between">
       <div className="flex items-center gap-4 flex-1">
         <div className="relative group max-w-md w-full">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />

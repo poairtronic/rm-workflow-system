@@ -1,10 +1,16 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-base: #f7f9fb;
+  --color-primary: #004ac6;
+  --color-primary-secondary: #2563eb;
+  --color-border: #e2e8f0;
+  --font-sans: 'Inter', sans-serif;
+}
 
 @layer base {
   html, body {
     font-variant-numeric: tabular-nums;
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-sans);
   }
 }

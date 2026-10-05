@@ -6,11 +6,11 @@ export function StockTelemetryPanel({ selectedBinId }: { selectedBinId: string }
   const activeBin = mockBins.find(b => b.binId === selectedBinId) || mockBins[0];
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col h-full">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 mb-6 flex flex-col h-full">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Database className="w-5 h-5 text-slate-500" />
-          <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Real-time Telemetry</h2>
+          <h2 className="text-[15px] font-semibold text-slate-900 mb-4 uppercase tracking-wide">Real-time Telemetry</h2>
         </div>
         
         {activeBin.isLocked ? (
@@ -26,24 +26,24 @@ export function StockTelemetryPanel({ selectedBinId }: { selectedBinId: string }
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-6 flex-1 items-center">
+      <div className="grid grid-cols-3 gap-6">
         <div className="flex flex-col gap-1 border-r border-slate-200">
-          <span className="text-[12px] uppercase text-slate-500 font-medium tracking-wider">Stock On Hand</span>
-          <div className="text-2xl font-bold tabular-nums text-slate-900">
+          <span className="text-xs uppercase font-medium text-slate-500 tracking-wider mb-1">Stock On Hand</span>
+          <div className="text-2xl font-bold text-slate-900 tabular-nums">
             {activeBin.stockOnHand.toFixed(1)} <span className="text-sm font-medium text-slate-500 ml-0.5">KG</span>
           </div>
         </div>
         
         <div className="flex flex-col gap-1 border-r border-slate-200 pl-2">
-          <span className="text-[12px] uppercase text-slate-500 font-medium tracking-wider">Allocated</span>
-          <div className="text-2xl font-bold tabular-nums text-slate-900">
+          <span className="text-xs uppercase font-medium text-slate-500 tracking-wider mb-1">Allocated</span>
+          <div className="text-2xl font-bold text-slate-900 tabular-nums">
             {activeBin.allocated.toFixed(1)} <span className="text-sm font-medium text-slate-500 ml-0.5">KG</span>
           </div>
         </div>
 
         <div className="flex flex-col gap-1 pl-2">
-          <span className="text-[12px] uppercase text-slate-500 font-medium tracking-wider">Free Balance</span>
-          <div className="text-2xl font-bold tabular-nums text-slate-900">
+          <span className="text-xs uppercase font-medium text-slate-500 tracking-wider mb-1">Free Balance</span>
+          <div className="text-2xl font-bold text-slate-900 tabular-nums">
             {activeBin.freeBalance.toFixed(1)} <span className="text-sm font-medium text-slate-500 ml-0.5">KG</span>
           </div>
         </div>

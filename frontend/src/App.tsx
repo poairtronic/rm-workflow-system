@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppLayout } from './components/layout/AppLayout';
 import { IssueMaterialWorkspace } from './pages/IssueMaterialWorkspace';
 import { MslAlertsWorkspace } from './pages/MslAlertsWorkspace';
+import { ProcessMasterWorkspace } from './pages/ProcessMasterWorkspace';
 
 const queryClient = new QueryClient();
 
@@ -17,6 +18,7 @@ function App() {
             <Route path="/" element={<Navigate to="/stores/issue-material" replace />} />
             <Route path="/stores/issue-material" element={<IssueMaterialWorkspace />} />
             <Route path="/inventory/msl-alerts" element={<MslAlertsWorkspace />} />
+            <Route path="/governance/process-master" element={<ProcessMasterWorkspace />} />
           </Route>
         </Routes>
       </BrowserRouter>
