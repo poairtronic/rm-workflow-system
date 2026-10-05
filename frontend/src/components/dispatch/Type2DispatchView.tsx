@@ -97,7 +97,7 @@ export function Type2DispatchView() {
           {/* Payload Selector Grid */}
           <MultiItemSelectorGrid />
         </form>
-      </FormProvider>
+        
 
       {/* Sticky Action Footer */}
       <div className="fixed bottom-0 left-[260px] right-0 p-4 bg-white border-t border-slate-200 z-20 flex justify-end shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)]">
@@ -120,6 +120,7 @@ export function Type2DispatchView() {
         onSubmit={onConfirm}
         isSubmitting={createDcMutation.isPending}
       />
+      </FormProvider>
     </div>
   );
 }
