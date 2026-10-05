@@ -1,0 +1,71 @@
+import { useFormContext } from 'react-hook-form';
+import type { CreateVendorSlaDto } from '../../types/vendor-sla.dto';
+
+export function SlaDefinitionForm() {
+  const { register, formState: { errors } } = useFormContext<CreateVendorSlaDto>();
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+      <h2 className="text-[15px] font-semibold text-slate-900 mb-6 uppercase tracking-wide border-b border-slate-100 pb-4">
+        SLA Definition Parameters
+      </h2>
+
+      <div className="grid grid-cols-3 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Standard TAT (Days)
+          </label>
+          <input
+            type="number"
+            {...register('standardTatDays', { 
+              required: 'Standard TAT is required',
+              min: { value: 0, message: 'Must be positive' }
+            })}
+            className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent tabular-nums"
+            placeholder="e.g. 5"
+          />
+          {errors.standardTatDays && (
+            <p className="mt-1 text-xs text-red-500">{errors.standardTatDays.message}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Lead Time Multiplier
+          </label>
+          <input
+            type="number"
+            step="0.1"
+            {...register('leadTimeMultiplier', { 
+              required: 'Multiplier is required',
+              min: { value: 1, message: 'Must be >= 1' }
+            })}
+            className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent tabular-nums"
+            placeholder="e.g. 1.5"
+          />
+          {errors.leadTimeMultiplier && (
+            <p className="mt-1 text-xs text-red-500">{errors.leadTimeMultiplier.message}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Tolerance Buffer (Days)
+          </label>
+          <input
+            type="number"
+            {...register('toleranceBufferDays', { 
+              required: 'Buffer is required',
+              min: { value: 0, message: 'Must be positive' }
+            })}
+            className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent tabular-nums"
+            placeholder="e.g. 2"
+          />
+          {errors.toleranceBufferDays && (
+            <p className="mt-1 text-xs text-red-500">{errors.toleranceBufferDays.message}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -147,3 +147,18 @@ export const productionProcessApi = {
   getVendors: () => api.get<VendorDto[]>('/api/vendors/approved'), // Assume there's a vendor endpoint
 };
 
+import type { VendorSlaDto, CreateVendorSlaDto, SlaOverrideDto, ComplianceDataPoint } from '../types/vendor-sla.dto';
+
+export const vendorSlaApi = {
+  getAll: () => api.get<VendorSlaDto[]>('/api/vendor-slas'),
+  create: (data: CreateVendorSlaDto) => api.post<VendorSlaDto>('/api/vendor-slas', data),
+  overrideSla: (slaId: string, data: SlaOverrideDto) => api.post<{ success: boolean }>(`/api/vendor-slas/${slaId}/override`, data),
+  getCompliance: (vendorId: string) => api.get<ComplianceDataPoint[]>(`/api/vendor-slas/compliance/${vendorId}`)
+};
+
+import type { CreateDeliveryChallanDto, DeliveryChallanDto } from '../types/delivery-challan.dto';
+
+export const deliveryChallanApi = {
+  create: (data: CreateDeliveryChallanDto) => api.post<DeliveryChallanDto>('/api/delivery-challans', data),
+};
+

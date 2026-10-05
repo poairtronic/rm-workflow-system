@@ -1,4 +1,4 @@
-import { LayoutDashboard, PackageSearch, BellRing, Box } from 'lucide-react';
+import { LayoutDashboard, PackageSearch, BellRing, Box, Shield, Settings } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 export function Sidebar() {
@@ -6,7 +6,9 @@ export function Sidebar() {
     { name: 'Overview', path: '/', icon: LayoutDashboard },
     { name: 'Issue Material', path: '/stores/issue-material', icon: PackageSearch },
     { name: 'MSL Alerts', path: '/inventory/msl-alerts', icon: BellRing },
-    { name: 'DC Module', path: '/dc-module', icon: Box },
+    { name: 'DC Module', path: '/dispatch/delivery-challan/type-1', icon: Box },
+    { name: 'Process Master', path: '/governance/process-master', icon: Settings },
+    { name: 'Vendor SLAs', path: '/governance/vendor-slas', icon: Shield },
   ];
 
   return (
