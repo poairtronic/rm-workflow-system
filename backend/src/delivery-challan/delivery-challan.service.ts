@@ -471,6 +471,33 @@ export class DeliveryChallanService {
       };
     });
 
+
+    // ─── Groups ───────────────────────────────────────────────────────────────
+    const groupsMap = new Map<string, any>();
+    for (const item of lineItems) {
+      const groupKey = `${item.scNumber || 'N/A'}|${item.poNumber || 'N/A'}|${item.processName || 'N/A'}`;
+      if (!groupsMap.has(groupKey)) {
+        groupsMap.set(groupKey, {
+          scNumber: item.scNumber || null,
+          poNumber: item.poNumber || null,
+          processName: item.processName || null,
+          items: [],
+          groupTotal: 0
+        });
+      }
+      const group = groupsMap.get(groupKey);
+      group.items.push({
+        productCode: item.productName, // or productId if product code is not present
+        productName: item.productName,
+        binCode: item.binCode,
+        batchNumber: item.batchNumber,
+        description: (item as any).description,
+        quantityDispatched: item.quantityDispatched
+      });
+      group.groupTotal += item.quantityDispatched;
+    }
+    const groups = Array.from(groupsMap.values());
+
     // ─── Audit & Sign-off ─────────────────────────────────────────────────────
     const audit: PrintableDeliveryChallanDto['audit'] = {
       createdById: challan.createdById ?? null,
@@ -502,6 +529,7 @@ export class DeliveryChallanService {
       vendor: vendorInfo,
       references,
       lineItems,
+      groups,
       audit,
       generatedAt: new Date().toISOString(),
     };

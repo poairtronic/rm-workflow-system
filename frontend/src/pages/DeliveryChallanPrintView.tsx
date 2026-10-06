@@ -82,6 +82,7 @@ export function DeliveryChallanPrintView() {
 
         <PrintablePayloadGrid 
           items={printableData.lineItems || printableData.items || []} 
+          groups={printableData.groups}
           pos={printableData.references?.pos || []} 
         />
 

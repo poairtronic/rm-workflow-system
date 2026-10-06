@@ -109,12 +109,30 @@ export interface PrintableAuditInfo {
 
 // ─── Root Printable DTO ───────────────────────────────────────────────────────
 
+export interface PrintableGroupItem {
+  productCode: string;
+  productName: string;
+  binCode: string;
+  batchNumber?: string;
+  description?: string;
+  quantityDispatched: number;
+}
+
+export interface PrintableGroup {
+  scNumber: string | null;
+  poNumber: string | null;
+  processName: string | null;
+  items: PrintableGroupItem[];
+  groupTotal: number;
+}
+
 export class PrintableDeliveryChallanDto {
   company: PrintableCompanyInfo;
   challan: PrintableChallanMeta;
   vendor: PrintableVendorInfo;
   references: PrintableReferences;
   lineItems: PrintableLineItem[];
+  groups?: PrintableGroup[];
   audit: PrintableAuditInfo;
   /** ISO 8601 timestamp of when this payload was generated */
   generatedAt: string;

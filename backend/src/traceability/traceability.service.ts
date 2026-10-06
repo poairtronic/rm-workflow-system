@@ -1001,7 +1001,7 @@ export class TraceabilityService {
       actualReturnDate: dc.actualReturnDate ? new Date(dc.actualReturnDate).toISOString() : undefined,
       vendor: dc.vendor ? { id: dc.vendor.id, name: dc.vendor.name, code: dc.vendor.code } : undefined,
       process: dc.process ? { id: dc.process.id, name: dc.process.name, code: dc.process.code } : undefined,
-      items: (dc.items || []).map((item) => {
+      items: (dc.items || []).filter(item => item.scId === scId || dc.scId === scId || !item.scId).map((item) => {
         const quantityDispatched = Number(item.quantityDispatched) || 0;
         const quantityReturned = Number(item.quantityReturned) || 0;
         const balanceQuantity = QuantityCalculator.roundDecimal(Math.max(0, quantityDispatched - quantityReturned));
@@ -1380,7 +1380,11 @@ export class TraceabilityService {
         totalChallans: deliveryChallans.length,
         dispatchedChallans,
         closedChallans,
-        items: deliveryChallans.map((dc) => ({
+        items: deliveryChallans.flatMap((dc) => {
+          const scIdsInDc = new Set(dc.items?.map(i => i.scId).filter(Boolean));
+          if (dc.scId) scIdsInDc.add(dc.scId);
+          if (scIdsInDc.size === 0) scIdsInDc.add(null);
+          return Array.from(scIdsInDc).filter(id => !id || scIds.includes(id)).map(scIdForDc => ({
           id: dc.id,
           challanNumber: dc.challanNumber,
           type: dc.type,
@@ -1390,7 +1394,7 @@ export class TraceabilityService {
           actualReturnDate: dc.actualReturnDate ? new Date(dc.actualReturnDate).toISOString() : undefined,
           vendor: dc.vendor ? { id: dc.vendor.id, name: dc.vendor.name, code: dc.vendor.code } : undefined,
           process: dc.process ? { id: dc.process.id, name: dc.process.name, code: dc.process.code } : undefined,
-          items: (dc.items || []).map((item) => {
+          items: (dc.items || []).filter(item => item.scId === scIdForDc || dc.scId === scIdForDc || (!item.scId && !dc.scId)).map((item) => {
             const quantityDispatched = Number(item.quantityDispatched) || 0;
             const quantityReturned = Number(item.quantityReturned) || 0;
             const balanceQuantity = QuantityCalculator.roundDecimal(Math.max(0, quantityDispatched - quantityReturned));
@@ -1403,7 +1407,7 @@ export class TraceabilityService {
               balanceQuantity,
             };
           }),
-        })),
+        }))).flat(),
       },
       vendors,
       childComponents,
@@ -1508,8 +1512,8 @@ export class TraceabilityService {
         turnaroundCount++;
       }
 
-      const effectiveProcessId = dc.processId || (dc.items?.[0]?.processId ?? null);
-      const effectiveScId = dc.scId || (dc.items?.[0]?.scId ?? null);
+      const effectiveProcessId = dc.processId || (dc.items && dc.items.length > 0 ? dc.items[0].processId : null);
+      const effectiveScId = dc.scId || (dc.items && dc.items.length > 0 ? dc.items[0].scId : null);
 
       const slaDays = effectiveProcessId ? (slaByProcessId.get(effectiveProcessId) ?? null) : null;
 
