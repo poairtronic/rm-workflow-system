@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(response.token);
       
     } catch (err: any) {
-      if (!err?.response || err?.code === 'ERR_NETWORK') {
+      if (err instanceof TypeError && err.message === 'Failed to fetch') {
         toast.error('Cannot reach the server. Is the backend running?', { duration: 5000 });
       }
       throw err;

@@ -5,7 +5,7 @@ interface ActiveCustodyGridProps {
   items: VendorCustodyItem[];
 }
 
-export function ActiveCustodyGrid({ items }: ActiveCustodyGridProps) {
+export function ActiveCustodyGrid({ items = [] }: ActiveCustodyGridProps) {
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-6">
       <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">

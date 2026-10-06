@@ -34,7 +34,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export function AgeingDistributionCharts({ data }: AgeingDistributionChartsProps) {
+export function AgeingDistributionCharts({ data = [] }: AgeingDistributionChartsProps) {
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 mb-6">
       <h3 className="text-[15px] font-semibold text-slate-900 uppercase tracking-wide mb-6 pb-4 border-b border-slate-100">

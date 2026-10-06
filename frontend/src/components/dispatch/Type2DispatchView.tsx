@@ -55,7 +55,16 @@ export function Type2DispatchView() {
   };
 
   const onConfirm = () => {
-    handleSubmit((data) => createDcMutation.mutate(data))();
+    handleSubmit((data) => {
+      const payload = {
+        ...data,
+        items: data.items.map(item => ({
+          ...item,
+          quantityDispatched: Number(item.quantity)
+        }))
+      };
+      createDcMutation.mutate(payload);
+    })();
   };
 
   return (

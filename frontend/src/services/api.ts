@@ -263,7 +263,7 @@ export const deliveryChallanApi = {
       items: data.items.map((i: any) => ({
         productId: i.productId,
         binId: i.binId,
-        quantityDispatched: i.quantity
+        quantityDispatched: Number(i.quantity)
       }))
     };
     

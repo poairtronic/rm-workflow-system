@@ -163,7 +163,7 @@ export function SearchSelect({
             <input
               type="text"
               ref={inputRef}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-1.5 px-3 border"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-1.5 px-3 border text-gray-900"
               placeholder="Type to filter..."
               value={searchTerm}
               onChange={(e) => {

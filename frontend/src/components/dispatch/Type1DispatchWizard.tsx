@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
+import { useForm, FormProvider, Controller } from 'react-hook-form';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { CheckCircle2, ChevronRight, Loader2, Lock } from 'lucide-react';
@@ -7,6 +7,7 @@ import { deliveryChallanApi, api, unwrapList } from '../../services/api';
 import type { CreateDeliveryChallanDto } from '../../types/delivery-challan.dto';
 import { DispatchPayloadGrid } from './DispatchPayloadGrid';
 import { DispatchReviewView } from './DispatchReviewView';
+import { SearchSelect } from '../ui/SearchSelect';
 
 const STEPS = [
   { id: 1, name: 'Context' },
@@ -91,7 +92,14 @@ export function Type1DispatchWizard() {
   };
 
   const onSubmit = (data: CreateDeliveryChallanDto) => {
-    createDcMutation.mutate(data);
+    const payload = {
+      ...data,
+      items: data.items.map(item => ({
+        ...item,
+        quantityDispatched: Number(item.quantity)
+      }))
+    };
+    createDcMutation.mutate(payload);
   };
 
   return (
@@ -146,24 +154,43 @@ export function Type1DispatchWizard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Sales Component (SC Code)</label>
-                    <select
-                      {...register('scId', { required: 'SC Code is required' })}
-                      className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    >
-                      <option value="">Select SC Code...</option>
-                      {scList?.map(sc => <option key={sc.id} value={sc.id}>{sc.scNumber} ({sc.purchaseOrder?.poNumber || 'No PO'})</option>)}
-                    </select>
+                    <Controller
+                      name="scId"
+                      control={methods.control}
+                      rules={{ required: 'SC Code is required' }}
+                      render={({ field }) => (
+                        <SearchSelect
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select SC Code..."
+                          options={scList?.map((sc: any) => ({
+                            id: sc.id,
+                            primary: sc.scNumber,
+                            secondary: sc.purchaseOrder?.poNumber || 'No PO'
+                          })) || []}
+                        />
+                      )}
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Target Production Process</label>
-                    <select
-                      {...register('processId', { required: 'Process is required' })}
-                      disabled={!scId}
-                      className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-slate-50 disabled:text-slate-400"
-                    >
-                      <option value="">Select Process...</option>
-                      {processList?.map(p => <option key={p.id} value={p.id}>{p.code} - {p.name}</option>)}
-                    </select>
+                    <Controller
+                      name="processId"
+                      control={methods.control}
+                      rules={{ required: 'Process is required' }}
+                      render={({ field }) => (
+                        <SearchSelect
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select Process..."
+                          disabled={!scId}
+                          options={processList?.map((p: any) => ({
+                            id: p.id,
+                            primary: `${p.code} - ${p.name}`
+                          })) || []}
+                        />
+                      )}
+                    />
                   </div>
                 </div>
               </div>
@@ -178,13 +205,23 @@ export function Type1DispatchWizard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Authorized External Vendor</label>
-                    <select
-                      {...register('vendorId', { required: 'Vendor is required' })}
-                      className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    >
-                      <option value="">Select Vendor...</option>
-                      {slaList?.filter(s => s.processId === processId).map(s => <option key={s.vendorId} value={s.vendorId}>{s.vendorName}</option>)}
-                    </select>
+                    <Controller
+                      name="vendorId"
+                      control={methods.control}
+                      rules={{ required: 'Vendor is required' }}
+                      render={({ field }) => (
+                        <SearchSelect
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select Vendor..."
+                          disabled={!processId}
+                          options={slaList?.filter((s: any) => s.processId === processId).map((s: any) => ({
+                            id: s.vendorId,
+                            primary: s.vendorName
+                          })) || []}
+                        />
+                      )}
+                    />
                     <p className="mt-1 text-[11px] text-slate-500">Filtered by active SLA for {processId}</p>
                   </div>
                   <div>

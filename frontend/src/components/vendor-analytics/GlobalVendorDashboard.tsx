@@ -51,7 +51,7 @@ export function GlobalVendorDashboard({ metrics }: GlobalVendorDashboardProps) {
             <div>
               <p className="text-sm font-medium text-slate-500">Value in Custody</p>
               <p className="text-2xl font-bold text-slate-900 tabular-nums">
-                ${metrics.totalValueInCustody.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ${typeof metrics.totalValueInCustody === 'number' ? metrics.totalValueInCustody.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
               </p>
             </div>
           </div>
