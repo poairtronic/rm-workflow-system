@@ -33,8 +33,9 @@ async function main() {
       const r = await pgClient.query("INSERT INTO roles (name, description) VALUES ('ADMIN', 'Admin') RETURNING id");
       adminRoleId = r.rows[0].id;
     }
+    const seedPassword = process.env.SEED_DEFAULT_PASSWORD || 'Password@123';
     const bcrypt = await import('bcryptjs');
-    const pwdHash = await bcrypt.default.hash('Password@123', 10);
+    const pwdHash = await bcrypt.default.hash(seedPassword, 10);
     await pgClient.query(`
       INSERT INTO users (name, email, password_hash, role_id, is_active)
       VALUES ('System Admin', 'admin@airtronic.com', $1, $2, true)
@@ -48,7 +49,7 @@ async function main() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: 'admin@airtronic.com',
-        password: 'Password@123',
+        password: seedPassword,
       }),
     });
 

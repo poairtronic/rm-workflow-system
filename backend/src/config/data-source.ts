@@ -115,6 +115,7 @@ export const ALL_ENTITIES = [
 ];
 
 const dbUrl =
+  process.env.DATABASE_URL_DIRECT ||
   process.env.DATABASE_URL ||
   'postgresql://postgres:postgres@localhost:5432/rm_workflow_db';
 const isSsl =

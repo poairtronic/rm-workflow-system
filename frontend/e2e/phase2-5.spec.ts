@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 const BASE = 'http://localhost:5173';
 const STORES_EMAIL = 'stores@airtronic.com';
-const STORES_PASS = 'Password@123';
+const STORES_PASS = process.env.SEED_DEFAULT_PASSWORD || 'Password@123';
 
 test.describe('Phase 2.5 & 2.6 - DC Flow', () => {
   let storageState: any;

@@ -50,117 +50,338 @@ const SEED_USERS = [
   },
 ];
 
+const SAMPLE_PRODUCTS = [
+  { code: 'SAMPLE-EN31-RD', name: 'Sample EN31 Round Bar Ø110mm (KG)', msl: 50, max: 200, bin: 'A-01', openQty: 120 },
+  { code: 'SAMPLE-MS-PLT', name: 'Sample MS Plate 10mm IS2062 (KG)', msl: 100, max: 500, bin: 'A-01', openQty: 105 }, // Near MSL
+  { code: 'SAMPLE-HSS-BLK', name: 'Sample HSS Block M2 100x100x50 (NOS)', msl: 15, max: 60, bin: 'A-02', openQty: 40 },
+  { code: 'SAMPLE-AL6061-RD', name: 'Sample Al 6061 Bar Ø50mm (KG)', msl: 30, max: 150, bin: 'A-02', openQty: 32 }, // Near MSL
+  { code: 'SAMPLE-SS304-SHT', name: 'Sample SS304 Sheet 2mm (SQM)', msl: 20, max: 100, bin: 'A-02', openQty: 60 },
+  { code: 'SAMPLE-BRASS-RD', name: 'Sample Brass Rod Ø25mm (KG)', msl: 25, max: 120, bin: 'A-03', openQty: 80 },
+  { code: 'SAMPLE-M8-BLT', name: 'Sample M8 High Tensile Bolts (NOS)', msl: 500, max: 3000, bin: 'A-03', openQty: 1500 },
+  { code: 'SAMPLE-GI-WIRE', name: 'Sample GI Binding Wire 16 SWG (KG)', msl: 40, max: 250, bin: 'A-03', openQty: 150 },
+];
+
+const SAMPLE_VENDORS = [
+  {
+    code: 'VND-SMP-HT',
+    name: 'Sample Precision Heat Treaters Pvt Ltd',
+    category: 'HEAT_TREATMENT',
+    contactPerson: 'K. R. Verma',
+    email: 'info@sample-heattreat.com',
+    phone: '+91-80-28390001',
+    address: 'Plot 12, Peenya Industrial Area Phase 1, Bangalore',
+  },
+  {
+    code: 'VND-SMP-CNC',
+    name: 'Sample Aero Machining & CNC Works',
+    category: 'MACHINING',
+    contactPerson: 'Sunil Patil',
+    email: 'contracts@sample-aerocnc.com',
+    phone: '+91-80-28390002',
+    address: 'Plot 45, Peenya Industrial Area Phase 2, Bangalore',
+  },
+  {
+    code: 'VND-SMP-PLT',
+    name: 'Sample Advanced Surface Electroplaters',
+    category: 'SURFACE_TREATMENT',
+    contactPerson: 'David Joseph',
+    email: 'operations@sample-electroplate.com',
+    phone: '+91-80-28390003',
+    address: 'Plot 88, Bommasandra Industrial Area, Bangalore',
+  },
+];
+
+const SAMPLE_PROCESSES = [
+  {
+    code: 'PRC-SMP-HT',
+    name: 'Sample Heat Treatment',
+    sequenceNumber: 10,
+    category: 'OUTSIDE_PROCESSING',
+    description: 'Stress relieving, hardening, and tempering',
+  },
+  {
+    code: 'PRC-SMP-CNC',
+    name: 'Sample CNC Turning & Milling',
+    sequenceNumber: 20,
+    category: 'MACHINING',
+    description: 'Precision turning, 4-axis CNC milling, and boring',
+  },
+  {
+    code: 'PRC-SMP-PLT',
+    name: 'Sample Electroplating & Passivation',
+    sequenceNumber: 30,
+    category: 'SURFACE_FINISHING',
+    description: 'Electroless nickel plating and chemical passivation',
+  },
+];
+
 async function seed() {
+  const seedPassword = process.env.SEED_DEFAULT_PASSWORD;
+  if (!seedPassword) {
+    console.error('[Seed Error] SEED_DEFAULT_PASSWORD environment variable is required to run the seed script.');
+    process.exit(1);
+  }
+
+  const connectionString = process.env.DATABASE_URL_DIRECT || process.env.DATABASE_URL;
   const client = new pg.Client({
-    connectionString: process.env.DATABASE_URL,
+    connectionString,
     ssl: { rejectUnauthorized: false },
   });
 
   await client.connect();
   console.log('[Seed] Connected to PostgreSQL database.');
 
-  // 1. Seed Roles
-  const roleMap = {};
-  for (const r of SEED_ROLES) {
-    let res = await client.query('SELECT id FROM roles WHERE name = $1', [r.name]);
-    if (res.rows.length === 0) {
-      res = await client.query(
-        'INSERT INTO roles (id, name, description, created_at, updated_at) VALUES (gen_random_uuid(), $1, $2, NOW(), NOW()) RETURNING id',
-        [r.name, r.description]
-      );
+  try {
+    // 1. Roles
+    const roleMap = {};
+    for (const r of SEED_ROLES) {
+      let res = await client.query('SELECT id FROM roles WHERE name = $1', [r.name]);
+      if (res.rows.length === 0) {
+        res = await client.query(
+          'INSERT INTO roles (id, name, description, created_at, updated_at) VALUES (gen_random_uuid(), $1, $2, NOW(), NOW()) RETURNING id',
+          [r.name, r.description],
+        );
+      }
+      roleMap[r.name] = res.rows[0].id;
     }
-    roleMap[r.name] = res.rows[0].id;
-  }
+    console.log('[Seed] ✓ Roles synchronized.');
 
-  // 2. Seed Users
-  const defaultPasswordHash = await bcrypt.hash('Password@123', 10);
-  const userMap = {};
+    // 2. Users (Idempotent: NEVER reset password of existing user)
+    const defaultPasswordHash = await bcrypt.hash(seedPassword, 10);
+    const userMap = {};
 
-  for (const u of SEED_USERS) {
-    const roleId = roleMap[u.roleName];
-    let res = await client.query('SELECT id FROM users WHERE email = $1', [u.email]);
-    if (res.rows.length === 0) {
-      res = await client.query(
-        'INSERT INTO users (id, name, email, password_hash, role_id, department, is_active, created_at, updated_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, true, NOW(), NOW()) RETURNING id',
-        [u.name, u.email, defaultPasswordHash, roleId, u.department]
-      );
-    } else {
+    for (const u of SEED_USERS) {
+      const roleId = roleMap[u.roleName];
+      let res = await client.query('SELECT id FROM users WHERE email = $1', [u.email]);
+      if (res.rows.length === 0) {
+        res = await client.query(
+          'INSERT INTO users (id, name, email, password_hash, role_id, department, is_active, created_at, updated_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, true, NOW(), NOW()) RETURNING id',
+          [u.name, u.email, defaultPasswordHash, roleId, u.department],
+        );
+      } else {
+        // Update metadata only; preserve existing password
+        await client.query(
+          'UPDATE users SET role_id = $1, department = $2, is_active = true, updated_at = NOW() WHERE email = $3',
+          [roleId, u.department, u.email],
+        );
+      }
+      userMap[u.email] = res.rows[0].id;
+    }
+    console.log('[Seed] ✓ 6 Official Users synchronized (existing passwords preserved).');
+
+    const adminUserId = userMap['admin@airtronic.com'];
+
+    // 3. Customer BDL-IND
+    let custRes = await client.query('SELECT id FROM customers WHERE code = $1', ['BDL-IND']);
+    if (custRes.rows.length === 0) {
       await client.query(
-        'UPDATE users SET password_hash = $1, role_id = $2, is_active = true, updated_at = NOW() WHERE email = $3',
-        [defaultPasswordHash, roleId, u.email]
+        `INSERT INTO customers (id, code, name, contact_person, email, phone, is_active, created_at, updated_at)
+         VALUES (gen_random_uuid(), 'BDL-IND', 'Bharat Dynamics Limited', 'K. S. Rao', 'ksrao@bdl.gov.in', '+91-40-23456789', true, NOW(), NOW())`,
       );
     }
-    userMap[u.email] = res.rows[0].id;
+    console.log('[Seed] ✓ Customer BDL-IND synchronized.');
+
+    // 4. Warehouse, Location, Rack, Bins
+    let whRes = await client.query('SELECT id FROM warehouses WHERE code = $1', ['WH-MAIN']);
+    let whId;
+    if (whRes.rows.length === 0) {
+      const r = await client.query(
+        `INSERT INTO warehouses (id, code, name, is_active, created_at, updated_at)
+         VALUES (gen_random_uuid(), 'WH-MAIN', 'Main Stores Warehouse', true, NOW(), NOW()) RETURNING id`,
+      );
+      whId = r.rows[0].id;
+    } else {
+      whId = whRes.rows[0].id;
+    }
+
+    let locRes = await client.query('SELECT id FROM warehouse_locations WHERE warehouse_id = $1 AND code = $2', [whId, 'LOC-MAIN']);
+    let locId;
+    if (locRes.rows.length === 0) {
+      const r = await client.query(
+        `INSERT INTO warehouse_locations (id, warehouse_id, code, name, is_active, created_at, updated_at)
+         VALUES (gen_random_uuid(), $1, 'LOC-MAIN', 'Main Raw Material Floor', true, NOW(), NOW()) RETURNING id`,
+        [whId],
+      );
+      locId = r.rows[0].id;
+    } else {
+      locId = locRes.rows[0].id;
+    }
+
+    let rackRes = await client.query('SELECT id FROM racks WHERE location_id = $1 AND code = $2', [locId, 'RACK-A']);
+    let rackId;
+    if (rackRes.rows.length === 0) {
+      const r = await client.query(
+        `INSERT INTO racks (id, location_id, code, name, is_active, created_at, updated_at)
+         VALUES (gen_random_uuid(), $1, 'RACK-A', 'Rack A', true, NOW(), NOW()) RETURNING id`,
+        [locId],
+      );
+      rackId = r.rows[0].id;
+    } else {
+      rackId = rackRes.rows[0].id;
+    }
+
+    const binMap = {};
+    for (const bCode of ['A-01', 'A-02', 'A-03']) {
+      let bRes = await client.query('SELECT id FROM bins WHERE rack_id = $1 AND code = $2', [rackId, bCode]);
+      if (bRes.rows.length === 0) {
+        bRes = await client.query(
+          `INSERT INTO bins (id, rack_id, code, name, is_active, created_at, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, true, NOW(), NOW()) RETURNING id`,
+          [rackId, bCode, `Bin ${bCode}`],
+        );
+      }
+      binMap[bCode] = bRes.rows[0].id;
+    }
+    console.log('[Seed] ✓ Storage hierarchy WH-MAIN -> Rack A -> Bins A-01..A-03 synchronized.');
+
+    // 5. Product Category & Family
+    let catRes = await client.query('SELECT id FROM product_categories WHERE name = $1', ['Raw Material']);
+    let catId;
+    if (catRes.rows.length === 0) {
+      const r = await client.query(
+        `INSERT INTO product_categories (id, name, is_active, created_at, updated_at)
+         VALUES (gen_random_uuid(), 'Raw Material', true, NOW(), NOW()) RETURNING id`,
+      );
+      catId = r.rows[0].id;
+    } else {
+      catId = catRes.rows[0].id;
+    }
+
+    let famRes = await client.query('SELECT id FROM product_families WHERE category_id = $1 AND name = $2', [catId, 'Metal']);
+    let famId;
+    if (famRes.rows.length === 0) {
+      const r = await client.query(
+        `INSERT INTO product_families (id, category_id, name, is_active, created_at, updated_at)
+         VALUES (gen_random_uuid(), $1, 'Metal', true, NOW(), NOW()) RETURNING id`,
+        [catId],
+      );
+      famId = r.rows[0].id;
+    } else {
+      famId = famRes.rows[0].id;
+    }
+
+    // 6. 8 Sample Raw Material Products & Opening Stock
+    for (const p of SAMPLE_PRODUCTS) {
+      let prodRes = await client.query('SELECT id FROM products WHERE name = $1', [p.name]);
+      let prodId;
+      if (prodRes.rows.length === 0) {
+        const r = await client.query(
+          `INSERT INTO products (id, family_id, name, minimum_inventory, maximum_inventory, is_active, created_at, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, $4, true, NOW(), NOW()) RETURNING id`,
+          [famId, p.name, p.msl, p.max],
+        );
+        prodId = r.rows[0].id;
+      } else {
+        prodId = prodRes.rows[0].id;
+        await client.query(
+          `UPDATE products SET minimum_inventory = $1, maximum_inventory = $2, is_active = true, updated_at = NOW() WHERE id = $3`,
+          [p.msl, p.max, prodId],
+        );
+      }
+
+      const targetBinId = binMap[p.bin];
+      let balRes = await client.query(
+        'SELECT id, current_quantity FROM stock_balances WHERE product_id = $1 AND bin_id = $2',
+        [prodId, targetBinId],
+      );
+
+      if (balRes.rows.length === 0) {
+        // Create opening transaction
+        const txRes = await client.query(
+          `INSERT INTO stock_transactions (
+             id, product_id, destination_bin_id, quantity, transaction_type, "referenceType", remarks, created_by_id, created_at
+           ) VALUES (
+             gen_random_uuid(), $1, $2, $3, 'STOCK_IN', 'INITIAL_SETUP', 'Initial sample stock setup', $4, NOW()
+           ) RETURNING id`,
+          [prodId, targetBinId, p.openQty, adminUserId],
+        );
+        const txId = txRes.rows[0].id;
+
+        // Create balance
+        await client.query(
+          `INSERT INTO stock_balances (
+             id, product_id, bin_id, current_quantity, opening_balance, last_transaction_id, created_at, updated_at
+           ) VALUES (
+             gen_random_uuid(), $1, $2, $3, $3, $4, NOW(), NOW()
+           )`,
+          [prodId, targetBinId, p.openQty, txId],
+        );
+      }
+    }
+    console.log('[Seed] ✓ 8 Sample Products & Opening Balances/Transactions synchronized.');
+
+    // 7. 3 Sample Vendors
+    const vendorMap = {};
+    for (const v of SAMPLE_VENDORS) {
+      let vRes = await client.query('SELECT id FROM vendors WHERE code = $1', [v.code]);
+      if (vRes.rows.length === 0) {
+        vRes = await client.query(
+          `INSERT INTO vendors (id, code, name, category, contact_person, email, phone, address, is_active, created_at, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, true, NOW(), NOW()) RETURNING id`,
+          [v.code, v.name, v.category, v.contactPerson, v.email, v.phone, v.address],
+        );
+      }
+      vendorMap[v.code] = vRes.rows[0].id;
+    }
+
+    // 8. 3 Sample Processes
+    const processMap = {};
+    for (const pr of SAMPLE_PROCESSES) {
+      let prRes = await client.query('SELECT id FROM production_processes WHERE code = $1', [pr.code]);
+      if (prRes.rows.length === 0) {
+        prRes = await client.query(
+          `INSERT INTO production_processes (id, code, name, sequence_number, category, description, is_active, created_at, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, true, NOW(), NOW()) RETURNING id`,
+          [pr.code, pr.name, pr.sequenceNumber, pr.category, pr.description],
+        );
+      }
+      processMap[pr.code] = prRes.rows[0].id;
+    }
+
+    // 9. Vendor Process Capabilities and SLAs
+    const pairings = [
+      { vendorCode: 'VND-SMP-HT', processCode: 'PRC-SMP-HT', slaDays: 5, leadDays: 4 },
+      { vendorCode: 'VND-SMP-CNC', processCode: 'PRC-SMP-CNC', slaDays: 5, leadDays: 5 },
+      { vendorCode: 'VND-SMP-PLT', processCode: 'PRC-SMP-PLT', slaDays: 7, leadDays: 6 },
+    ];
+
+    for (const p of pairings) {
+      const vId = vendorMap[p.vendorCode];
+      const prId = processMap[p.processCode];
+
+      let capRes = await client.query(
+        'SELECT id FROM vendor_process_capabilities WHERE vendor_id = $1 AND process_id = $2',
+        [vId, prId],
+      );
+      if (capRes.rows.length === 0) {
+        await client.query(
+          `INSERT INTO vendor_process_capabilities (id, vendor_id, process_id, is_approved, lead_time_days, created_at, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, true, $3, NOW(), NOW())`,
+          [vId, prId, p.leadDays],
+        );
+      }
+
+      let slaRes = await client.query(
+        'SELECT id FROM vendor_slas WHERE vendor_id = $1 AND process_id = $2',
+        [vId, prId],
+      );
+      if (slaRes.rows.length === 0) {
+        await client.query(
+          `INSERT INTO vendor_slas (id, vendor_id, process_id, sla_days, effective_date, is_active, created_at, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, NOW(), true, NOW(), NOW())`,
+          [vId, prId, p.slaDays],
+        );
+      }
+    }
+    console.log('[Seed] ✓ Sample Vendors, Processes, Capabilities, and SLAs synchronized.');
+
+    console.log('[Seed] ✓ All seed data successfully synchronized!');
+  } finally {
+    await client.end();
   }
-
-  // 3. Seed Sample Customer
-  let custRes = await client.query('SELECT id FROM customers WHERE code = $1', ['BDL-IND']);
-  let customerId;
-  if (custRes.rows.length === 0) {
-    const newCust = await client.query(
-      `INSERT INTO customers (id, code, name, contact_person, email, phone, is_active, created_at, updated_at)
-       VALUES (gen_random_uuid(), 'BDL-IND', 'Bharat Dynamics Limited', 'K. S. Rao', 'ksrao@bdl.gov.in', '+91-40-23456789', true, NOW(), NOW())
-       RETURNING id`
-    );
-    customerId = newCust.rows[0].id;
-    console.log('[Seed] Created customer BDL-IND');
-  } else {
-    customerId = custRes.rows[0].id;
-  }
-
-  // 4. Seed Sample PO
-  let poRes = await client.query('SELECT id FROM purchase_orders WHERE po_number = $1', ['PO-TEST-001']);
-  let poId;
-  if (poRes.rows.length === 0) {
-    const newPo = await client.query(
-      `INSERT INTO purchase_orders (id, po_number, customer_id, reference_date, remarks, created_at, updated_at)
-       VALUES (gen_random_uuid(), 'PO-TEST-001', $1, '2026-08-15', 'Sample PO for development validation', NOW(), NOW())
-       RETURNING id`,
-      [customerId]
-    );
-    poId = newPo.rows[0].id;
-    console.log('[Seed] Created PO-TEST-001');
-  } else {
-    poId = poRes.rows[0].id;
-  }
-
-  // 5. Seed Sample SC
-  let scRes = await client.query('SELECT id FROM sales_order_components WHERE sc_number = $1', ['SC-TEST-001']);
-  let scId;
-  if (scRes.rows.length === 0) {
-    const newSc = await client.query(
-      `INSERT INTO sales_order_components (id, sc_number, po_id, product_name, drawing_number, target_quantity, status, created_at, updated_at)
-       VALUES (gen_random_uuid(), 'SC-TEST-001', $1, 'Main Drive Spindle Shaft', 'DWG-SP-101-REV-C', 10, 'IN_PRODUCTION', NOW(), NOW())
-       RETURNING id`,
-      [poId]
-    );
-    scId = newSc.rows[0].id;
-    console.log('[Seed] Created SC-TEST-001');
-  } else {
-    scId = scRes.rows[0].id;
-  }
-
-  // 6. Seed RM Request
-  let rmRes = await client.query('SELECT id FROM rm_requests WHERE sc_id = $1', [scId]);
-  if (rmRes.rows.length === 0) {
-    const newRm = await client.query(
-      `INSERT INTO rm_requests (id, sc_id, created_by_id, form_type, status, submitted_at, created_at, updated_at)
-       VALUES (gen_random_uuid(), $1, $2, 'SC', 'SUBMITTED', NOW(), NOW(), NOW())
-       RETURNING id`,
-      [scId, userMap['designer@airtronic.com']]
-    );
-    const rmReqId = newRm.rows[0].id;
-
-    await client.query(
-      `INSERT INTO rm_items (id, rm_form_id, sc_id, material, material_type, grade, size, quantity, diameter, length, weight, weight_unit, remarks, created_at, updated_at)
-       VALUES (gen_random_uuid(), $1, $2, 'EN31', 'ROUND_BAR', 'IS:5517', 'Ø110 x 35 mm', 10, 110, 35, 26.5, 'KG', 'Case hardening alloy steel', NOW(), NOW())`,
-      [rmReqId, scId]
-    );
-    console.log('[Seed] Created RM Request and Items for SC-TEST-001');
-  }
-
-  console.log('[Seed] ✓ All seed data successfully synchronized!');
-  await client.end();
 }
 
-seed().catch(console.error);
+seed().catch((err) => {
+  console.error('[Seed Exception]:', err.message);
+  process.exit(1);
+});

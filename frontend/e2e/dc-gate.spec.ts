@@ -16,7 +16,7 @@ import { test, expect } from '@playwright/test';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
 const STORES_EMAIL = 'stores@airtronic.com';
-const STORES_PASS = 'Password@123';
+const STORES_PASS = process.env.SEED_DEFAULT_PASSWORD || 'Password@123';
 
 test.describe('Delivery Challan E2E Gate (msedge)', () => {
   test.use({
