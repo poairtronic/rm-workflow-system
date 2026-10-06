@@ -36,7 +36,7 @@ export function GlobalVendorDashboard({ metrics }: GlobalVendorDashboardProps) {
             <div>
               <p className="text-sm font-medium text-slate-500">SLA Adherence</p>
               <p className={`text-2xl font-bold tabular-nums ${isGoodAdherence ? 'text-emerald-600' : 'text-amber-600'}`}>
-                {metrics.globalSlaAdherencePercentage.toFixed(1)}%
+                {typeof metrics.globalSlaAdherencePercentage === 'number' ? metrics.globalSlaAdherencePercentage.toFixed(1) : '—'}%
               </p>
             </div>
           </div>

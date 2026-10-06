@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AlertOctagon, AlertTriangle, Clock, Activity } from 'lucide-react';
+import { AlertOctagon, AlertTriangle, Activity } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { KpiMetricCard } from '../components/dashboard/KpiMetricCard';
 import { MslExceptionGrid } from '../components/inventory/MslExceptionGrid';
@@ -49,13 +49,13 @@ export function MslAlertsWorkspace() {
   }, [response]);
 
   const stats = useMemo(() => {
-    if (!response) return { critical: 0, lowStock: 0, pendingIndents: 0, healthIndex: 0 };
+    if (!response) return { critical: 0, lowStock: 0, itemsBelowMsl: 0, healthIndex: 0 };
     return {
       critical: response.summary.criticalStockCount + response.summary.outOfStockCount,
       lowStock: response.summary.belowMslCount,
-      pendingIndents: Math.floor(Math.random() * 20) + 10, // Mock pending indents as it's not in the sweep dto
+      itemsBelowMsl: response.summary.belowMslCount,
       healthIndex: response.summary.totalMonitoredProducts > 0 
-        ? Number(((response.summary.normalStockCount / response.summary.totalMonitoredProducts) * 100).toFixed(1))
+        ? Number((((response.summary.totalMonitoredProducts - response.summary.belowMslCount - response.summary.criticalStockCount - response.summary.outOfStockCount) / response.summary.totalMonitoredProducts) * 100).toFixed(1))
         : 100,
     };
   }, [response]);
@@ -113,11 +113,11 @@ export function MslAlertsWorkspace() {
         <div className="col-span-12 md:col-span-6 lg:col-span-3">
           <KpiMetricCard
             isLoading={isLoading}
-            title="Pending Indents"
-            value={stats.pendingIndents.toString().padStart(2, '0')}
-            icon={<Clock className="w-5 h-5" />}
-            statusLabel="In Purchase Workflow"
-            colorScheme="info"
+            title="Items Below MSL"
+            value={stats.itemsBelowMsl.toString().padStart(2, '0')}
+            icon={<AlertTriangle className="w-5 h-5" />}
+            statusLabel="Requires Replenishment"
+            colorScheme="warning"
           />
         </div>
         <div className="col-span-12 md:col-span-6 lg:col-span-3">

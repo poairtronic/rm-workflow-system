@@ -43,7 +43,7 @@ export function VendorDetailProfile({ profile, onBack }: VendorDetailProfileProp
             <Award className="w-4 h-4" /> 12-Month SLA Score
           </p>
           <p className={`text-4xl font-black tabular-nums tracking-tighter ${isGoodScore ? 'text-emerald-600' : 'text-amber-600'}`}>
-            {profile.historicalSlaScore.toFixed(1)}<span className="text-xl">%</span>
+            {typeof profile.historicalSlaScore === 'number' ? profile.historicalSlaScore.toFixed(1) : '—'}<span className="text-xl">%</span>
           </p>
         </div>
       </div>

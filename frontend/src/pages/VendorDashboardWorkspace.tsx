@@ -4,6 +4,7 @@ import { BarChart3, Loader2, AlertCircle } from 'lucide-react';
 import { vendorAnalyticsApi } from '../services/api';
 import { GlobalVendorDashboard } from '../components/vendor-analytics/GlobalVendorDashboard';
 import { VendorDetailProfile } from '../components/vendor-analytics/VendorDetailProfile';
+import { EmptyState } from '../components/ui/EmptyState';
 
 export function VendorDashboardWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -49,29 +50,6 @@ export function VendorDashboardWorkspace() {
             Enterprise oversight of external manufacturing partners and active material custody.
           </p>
         </div>
-        
-        {/* Mock Search for Drill Down (for demonstration) */}
-        {!vendorId && (
-          <form 
-            onSubmit={(e) => {
-              e.preventDefault();
-              const fd = new FormData(e.currentTarget);
-              const id = fd.get('vendorId') as string;
-              if (id) setSearchParams({ vendorId: id });
-            }}
-            className="flex gap-2"
-          >
-            <input 
-              name="vendorId" 
-              type="text" 
-              placeholder="Drill down by Vendor ID (e.g., VND-004)" 
-              className="w-64 h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-            />
-            <button type="submit" className="px-4 h-10 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 shadow-sm transition-colors">
-              Lookup
-            </button>
-          </form>
-        )}
       </div>
 
       {/* Loaders */}
@@ -113,8 +91,12 @@ export function VendorDashboardWorkspace() {
       )}
 
       {/* Global View */}
-      {!vendorId && !isLoadingGlobal && globalMetrics && (
-        <GlobalVendorDashboard metrics={globalMetrics} />
+      {!vendorId && !isLoadingGlobal && (
+        globalMetrics ? (
+          <GlobalVendorDashboard metrics={globalMetrics} />
+        ) : (
+          <EmptyState title="No vendor metrics" description="There are no vendor metrics available." />
+        )
       )}
 
       {/* Single Vendor Drill Down */}

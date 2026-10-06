@@ -10,6 +10,7 @@ import { SlaDefinitionForm } from '../components/vendor-sla/SlaDefinitionForm';
 import { AlertSettingsPanel } from '../components/vendor-sla/AlertSettingsPanel';
 import { SlaComplianceChart } from '../components/vendor-sla/SlaComplianceChart';
 import { SlaOverrideModal } from '../components/vendor-sla/SlaOverrideModal';
+import { ErrorState } from '../components/ui/ErrorState';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -30,31 +31,8 @@ export function VendorSlaWorkspace() {
   const { data: slas = [], isLoading } = useQuery({
     queryKey: ['vendor-slas'],
     queryFn: async () => {
-      try {
-        const response = await vendorSlaApi.getAll();
-        return response;
-      } catch (err) {
-        // Fallback for demo purposes if backend isn't ready
-        return [
-          {
-            id: 'SLA-101',
-            vendorName: 'Apex Processors',
-            vendorId: 'VND-APX-001',
-            processName: 'Heat Treatment',
-            processId: 'PRC-HT-01',
-            standardTatDays: 5,
-            leadTimeMultiplier: 1.2,
-            toleranceBufferDays: 1,
-            isActive: true,
-            alert24h: true,
-            alert48h: false,
-            alert72h: false,
-            emailAlertsEnabled: true,
-            smsAlertsEnabled: false,
-            complianceScore: 94.5
-          }
-        ];
-      }
+      const response = await vendorSlaApi.getAll();
+      return response;
     }
   });
 
@@ -129,10 +107,14 @@ export function VendorSlaWorkspace() {
       <div className="grid grid-cols-12 gap-8">
         {/* Left Column - Configuration & Forms */}
         <div className="col-span-12 xl:col-span-8 space-y-8">
-          <SlaConfigurationGrid 
-            data={slas} 
-            isLoading={isLoading} 
-          />
+          {slas.length === 0 && !isLoading ? (
+            <ErrorState message="Failed to load SLAs or no SLAs exist." onRetry={() => queryClient.invalidateQueries({ queryKey: ['vendor-slas'] })} />
+          ) : (
+            <SlaConfigurationGrid 
+              data={slas} 
+              isLoading={isLoading} 
+            />
+          )}
 
           <FormProvider {...methods}>
             <form id="create-sla-form" onSubmit={methods.handleSubmit(onSubmitNewSla)} className="space-y-6">

@@ -16,10 +16,14 @@ function RoleBasedHome() {
   const { currentUser } = useAuth();
   if (!currentUser) return <Navigate to="/login" replace />;
   switch (currentUser.role) {
-    case 'DESIGNER': return <Navigate to="/design/requisitions" replace />;
-    case 'STORES': return <Navigate to="/stores/issue-material" replace />;
-    case 'PRODUCTION': return <Navigate to="/production/jobs" replace />;
-    default: return <Navigate to="/governance/po-traceability" replace />;
+    case 'DESIGNER': return <Navigate to="/design/rm-creation" replace />;
+    case 'STORES': return <Navigate to="/stores/rm-issue" replace />;
+    case 'PRODUCTION': return <Navigate to="/production/rm" replace />;
+    case 'SENIOR_MANAGER':
+    case 'GENERAL_MANAGER':
+    case 'ADMIN':
+      return <Navigate to="/overview" replace />;
+    default: return <Navigate to="/unauthorized" replace />;
   }
 }
 
@@ -37,7 +41,7 @@ function App() {
               <Route element={<AppLayout />}>
                 <Route path="/" element={<RoleBasedHome />} />
                 
-                {ROUTE_CONFIG.filter(route => route.isSidebar).map(route => (
+                {ROUTE_CONFIG.filter(route => !route.isPrintable).map(route => (
                   <Route 
                     key={route.path}
                     path={route.path} 
