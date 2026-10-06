@@ -21,8 +21,8 @@ export function DispatchPayloadRow({ blockIndex, index, remove, canRemove }: { b
   });
 
   const scProductIds = selectedSc?.rmRequest?.items?.map((i: any) => i.mappedProductId || i.productId).filter(Boolean);
-  const availableProducts = scProductIds && scProductIds.length > 0 
-    ? products?.filter((p: any) => scProductIds.includes(p.id)) 
+  const availableProducts = scId 
+    ? (products?.filter((p: any) => scProductIds?.includes(p.id)) || [])
     : products;
   
   const productId = useWatch({ control, name: `scBlocks.${blockIndex}.items.${index}.productId` });

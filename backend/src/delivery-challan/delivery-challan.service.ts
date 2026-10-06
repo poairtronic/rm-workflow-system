@@ -32,8 +32,8 @@ export class DeliveryChallanService {
     if (dto.type !== DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD) {
       throw new BadRequestException('Invalid challan type for Type 1 creation');
     }
-    if (!dto.scId || !dto.processId) {
-      throw new BadRequestException('scId and processId are required for Type 1 challan');
+    if (dto.items.some(item => !item.scId || !item.processId)) {
+      throw new BadRequestException('scId and processId are required for all items in Type 1 challan');
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -41,22 +41,26 @@ export class DeliveryChallanService {
     await queryRunner.startTransaction();
 
     try {
-      // 1. Validate Vendor Process Capability
+      // Extract unique process IDs from items
+      const uniqueProcessIds = Array.from(new Set(dto.items.map(item => item.processId)));
+
+      // 1. Validate Vendor Process Capability for all distinct processes
       const capabilityRepo = queryRunner.manager.getRepository(VendorProcessCapability);
-      const capability = await capabilityRepo.findOne({
-        where: { vendorId: dto.vendorId, processId: dto.processId, isApproved: true },
+      const capabilities = await capabilityRepo.find({
+        where: { vendorId: dto.vendorId, processId: In(uniqueProcessIds), isApproved: true },
       });
 
-      if (!capability) {
-        throw new BadRequestException('Vendor is not approved for the specified production process');
+      if (capabilities.length !== uniqueProcessIds.length) {
+        throw new BadRequestException('Vendor is not approved for all specified production processes');
       }
 
-      // 2. Compute Expected Return Date via Vendor SLA
+      // 2. Compute Expected Return Date via Vendor SLA if not provided
       let expectedReturnDate = dto.expectedReturnDate ? new Date(dto.expectedReturnDate) : null;
       if (!expectedReturnDate) {
+        // Fallback: Use SLA from the first item's process
         const slaRepo = queryRunner.manager.getRepository(VendorSla);
         const sla = await slaRepo.findOne({
-          where: { vendorId: dto.vendorId, processId: dto.processId, isActive: true },
+          where: { vendorId: dto.vendorId, processId: uniqueProcessIds[0], isActive: true },
         });
 
         if (sla && sla.slaDays) {
@@ -75,8 +79,8 @@ export class DeliveryChallanService {
         challanNumber,
         type: dto.type,
         vendorId: dto.vendorId,
-        scId: dto.scId,
-        processId: dto.processId,
+        scId: dto.items[0].scId, // Still storing the first one for backward-compatibility lookup if needed
+        processId: dto.items[0].processId,
         dispatchDate: new Date(dto.dispatchDate),
         expectedReturnDate,
         notes: dto.notes,
@@ -131,6 +135,8 @@ export class DeliveryChallanService {
           challanId: savedChallan.id,
           productId: itemDto.productId,
           binId: itemDto.binId,
+          scId: itemDto.scId,
+          processId: itemDto.processId,
           quantityDispatched: quantityToDispatch,
           quantityReturned: 0,
         });
