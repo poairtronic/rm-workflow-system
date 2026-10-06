@@ -17,6 +17,8 @@ import { Bin } from '../../inventory/entities/bin.entity.js';
 @Index('IDX_dci_challan_id', ['challanId'])
 @Index('IDX_dci_product_id', ['productId'])
 @Index('IDX_dci_bin_id', ['binId'])
+@Index('IDX_dci_sc_id', ['scId'])
+@Index('IDX_dci_process_id', ['processId'])
 export class DeliveryChallanItem {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -25,18 +27,21 @@ export class DeliveryChallanItem {
   scId?: string;
 
   @ManyToOne('SalesOrderComponent', { nullable: true })
-  @JoinColumn({ name: 'sc_id' })
+  @JoinColumn({ name: 'sc_id', foreignKeyConstraintName: 'FK_dci_sc_id' })
   sc?: any;
 
   @Column({ name: 'process_id', type: 'uuid', nullable: true })
   processId?: string;
 
   @ManyToOne('ProductionProcess', { nullable: true })
-  @JoinColumn({ name: 'process_id' })
+  @JoinColumn({ name: 'process_id', foreignKeyConstraintName: 'FK_dci_process_id' })
   process?: any;
 
   @Column({ type: 'text', nullable: true })
   description?: string;
+
+  @Column({ name: 'batch_number', type: 'varchar', length: 100, nullable: true })
+  batchNumber?: string;
 
   @Column({ name: 'challan_id', type: 'uuid' })
   challanId: string;

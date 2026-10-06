@@ -20,9 +20,9 @@ export function DispatchPayloadRow({ blockIndex, index, remove, canRemove }: { b
     enabled: !!scId
   });
 
-  const scProductIds = selectedSc?.rmRequest?.items?.map((i: any) => i.mappedProductId || i.productId).filter(Boolean);
-  const availableProducts = scId 
-    ? (products?.filter((p: any) => scProductIds?.includes(p.id)) || [])
+  const scProductIds = selectedSc?.rmRequest?.items?.map((i: any) => i.mappedProductId || i.mapped_product_id || i.productId || i.product_id || i.mappedProduct?.id || i.product?.id).filter(Boolean) || [];
+  const availableProducts = (scId && scProductIds.length > 0)
+    ? (products?.filter((p: any) => scProductIds.includes(p.id)) || [])
     : products;
   
   const productId = useWatch({ control, name: `scBlocks.${blockIndex}.items.${index}.productId` });

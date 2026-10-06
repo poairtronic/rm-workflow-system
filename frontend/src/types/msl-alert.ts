@@ -8,7 +8,7 @@ export interface MslException {
   mslThreshold: number;
   deficit: number;
   unit: string;
-  severity: 'CRITICAL' | 'LOW_STOCK';
+  severity: 'OUT_OF_STOCK' | 'CRITICAL' | 'LOW_STOCK';
 }
 
 export const MOCK_MSL_EXCEPTIONS: MslException[] = [

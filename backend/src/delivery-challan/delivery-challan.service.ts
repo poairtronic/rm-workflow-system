@@ -75,12 +75,18 @@ export class DeliveryChallanService {
       const challanNumber = `DC-${Date.now()}`;
 
       // 3. Create Delivery Challan
+      const uniqueScIds = new Set(dto.items.map(item => item.scId).filter(Boolean));
+      const headerScId = uniqueScIds.size === 1 ? Array.from(uniqueScIds)[0] : null;
+      
+      const uniqueProcessIdsSet = new Set(dto.items.map(item => item.processId).filter(Boolean));
+      const headerProcessId = uniqueProcessIdsSet.size === 1 ? Array.from(uniqueProcessIdsSet)[0] : null;
+
       const challan = queryRunner.manager.create(DeliveryChallan, {
         challanNumber,
         type: dto.type,
         vendorId: dto.vendorId,
-        scId: dto.items[0].scId, // Still storing the first one for backward-compatibility lookup if needed
-        processId: dto.items[0].processId,
+        scId: headerScId,
+        processId: headerProcessId,
         dispatchDate: new Date(dto.dispatchDate),
         expectedReturnDate,
         notes: dto.notes,
@@ -137,6 +143,8 @@ export class DeliveryChallanService {
           binId: itemDto.binId,
           scId: itemDto.scId,
           processId: itemDto.processId,
+          batchNumber: itemDto.batchNumber,
+          description: itemDto.description,
           quantityDispatched: quantityToDispatch,
           quantityReturned: 0,
         });
@@ -242,6 +250,7 @@ export class DeliveryChallanService {
           binId: itemDto.binId,
           scId: itemDto.scId || dto.scId,
           processId: itemDto.processId || dto.processId,
+          batchNumber: itemDto.batchNumber,
           description: itemDto.description,
           quantityDispatched: quantityToDispatch,
           quantityReturned: 0,
@@ -270,18 +279,33 @@ export class DeliveryChallanService {
   }
 
   async findAll(filters?: { scId?: string; processId?: string; vendorId?: string; type?: DeliveryChallanType; isOverdue?: boolean }) {
-    const where: any = {};
-    if (filters?.scId) where.scId = filters.scId;
-    if (filters?.processId) where.processId = filters.processId;
-    if (filters?.vendorId) where.vendorId = filters.vendorId;
-    if (filters?.type) where.type = filters.type;
+    const baseWhere: any = {};
+    if (filters?.vendorId) baseWhere.vendorId = filters.vendorId;
+    if (filters?.type) baseWhere.type = filters.type;
     if (filters?.isOverdue) {
-      where.status = In([
+      baseWhere.status = In([
         DeliveryChallanStatus.OPEN,
         DeliveryChallanStatus.DISPATCHED,
         DeliveryChallanStatus.PARTIALLY_RETURNED,
       ]);
-      where.expectedReturnDate = LessThan(new Date());
+      baseWhere.expectedReturnDate = LessThan(new Date());
+    }
+
+    let where: any = baseWhere;
+
+    if (filters?.scId || filters?.processId) {
+      const condition1 = { ...baseWhere };
+      const condition2 = { ...baseWhere, items: {} as any };
+      
+      if (filters?.scId) {
+        condition1.scId = filters.scId;
+        condition2.items.scId = filters.scId;
+      }
+      if (filters?.processId) {
+        condition1.processId = filters.processId;
+        condition2.items.processId = filters.processId;
+      }
+      where = [condition1, condition2];
     }
 
     return this.challanRepo.find({
@@ -330,7 +354,14 @@ export class DeliveryChallanService {
         process: true,
         createdBy: true,
         verifiedBy: true,
-        items: true,
+        items: {
+          product: true,
+          bin: true,
+          sc: {
+            purchaseOrder: true,
+          },
+          process: true,
+        },
       },
     });
 
@@ -338,43 +369,37 @@ export class DeliveryChallanService {
       throw new NotFoundException(`Delivery Challan with ID ${id} not found`);
     }
 
-    // Enrich items with product and bin data
-    const enrichedItems = await Promise.all(
-      (challan.items || []).map(async (item) => {
-        const enriched = await this.challanItemRepo.findOne({
-          where: { id: item.id },
-          relations: { product: true, bin: true },
-        });
-        return enriched || item;
-      }),
-    );
+    const enrichedItems = challan.items || [];
 
-    // Resolve SC → PO reference (Type 1 challans linked to a Sales Order Component)
-    let poRef: PrintableDeliveryChallanDto['references']['po'] = null;
-    if (challan.sc && (challan.sc as any).poId) {
-      const sc = challan.sc as any;
-      if (sc.purchaseOrder) {
-        poRef = {
-          poId: sc.purchaseOrder.id,
-          poNumber: sc.purchaseOrder.poNumber,
-          externalReference: sc.purchaseOrder.externalReference ?? null,
-          referenceDate: sc.purchaseOrder.referenceDate ?? null,
-        };
-      } else if (sc.poId) {
-        // Lazy-load the PO if not pre-fetched
-        const loadedSc = await this.dataSource
-          .getRepository('SalesOrderComponent')
-          .findOne({ where: { id: sc.id }, relations: { purchaseOrder: true } }) as any;
-        if (loadedSc?.purchaseOrder) {
-          poRef = {
-            poId: loadedSc.purchaseOrder.id,
-            poNumber: loadedSc.purchaseOrder.poNumber,
-            externalReference: loadedSc.purchaseOrder.externalReference ?? null,
-            referenceDate: loadedSc.purchaseOrder.referenceDate ?? null,
-          };
-        }
-      }
+    // Resolve SC → PO references (Type 1 challans)
+    const posSet = new Map<string, any>();
+    
+    // Check header SC
+    if (challan.sc && (challan.sc as any).purchaseOrder) {
+      const po = (challan.sc as any).purchaseOrder;
+      posSet.set(po.id, {
+        poId: po.id,
+        poNumber: po.poNumber,
+        externalReference: po.externalReference ?? null,
+        referenceDate: po.referenceDate ?? null,
+      });
     }
+
+    // Check items SC
+    enrichedItems.forEach(item => {
+      const sc = (item as any).sc;
+      if (sc && sc.purchaseOrder) {
+        const po = sc.purchaseOrder;
+        posSet.set(po.id, {
+          poId: po.id,
+          poNumber: po.poNumber,
+          externalReference: po.externalReference ?? null,
+          referenceDate: po.referenceDate ?? null,
+        });
+      }
+    });
+
+    const posArray = Array.from(posSet.values());
 
     // ─── Company Info (from environment / static config) ─────────────────────
     const companyInfo: PrintableDeliveryChallanDto['company'] = {
@@ -413,7 +438,7 @@ export class DeliveryChallanService {
             description: sc.description ?? null,
           }
         : null,
-      po: poRef,
+      pos: posArray,
       process: productionProcess
         ? {
             processId: productionProcess.id,
@@ -439,6 +464,10 @@ export class DeliveryChallanService {
         quantityDispatched: dispatched,
         quantityReturned: returned,
         quantityOutstanding: Math.max(0, dispatched - returned),
+        scNumber: item.sc?.scNumber ?? sc?.scNumber,
+        poNumber: item.sc?.purchaseOrder?.poNumber ?? (sc as any)?.purchaseOrder?.poNumber,
+        processName: item.process?.name ?? productionProcess?.name,
+        batchNumber: item.batchNumber,
       };
     });
 

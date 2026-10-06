@@ -70,7 +70,7 @@ export interface PrintableProcessReference {
 
 export interface PrintableReferences {
   sc: PrintableScReference | null;
-  po: PrintablePoReference | null;
+  pos: PrintablePoReference[];
   process: PrintableProcessReference | null;
 }
 
@@ -86,6 +86,10 @@ export interface PrintableLineItem {
   quantityDispatched: number;
   quantityReturned: number;
   quantityOutstanding: number;
+  scNumber?: string;
+  poNumber?: string;
+  processName?: string;
+  batchNumber?: string;
 }
 
 // ─── Audit & Sign-off ─────────────────────────────────────────────────────────

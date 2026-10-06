@@ -48,7 +48,7 @@ export function DeliveryChallanPrintView() {
     );
   }
 
-  const dc = data as DeliveryChallanDto;
+  const printableData = data as any;
 
   return (
     <div className="relative min-h-screen bg-white text-black p-8 max-w-[210mm] mx-auto print:p-0 print:max-w-none">
@@ -73,14 +73,17 @@ export function DeliveryChallanPrintView() {
 
       <div className="print:p-6">
         <ChallanPrintHeader 
-          dcNumber={dc.dcNumber}
-          issueDate={dc.issueDate || dc.dispatchDate || new Date().toISOString()}
-          vendorName={dc.vendorName || 'N/A'}
-          destinationAddress={dc.destinationEntity || 'Vendor Address Details'}
-          dcType={dc.type}
+          dcNumber={printableData.challan?.challanNumber || printableData.dcNumber}
+          issueDate={printableData.challan?.dispatchDate || printableData.issueDate || new Date().toISOString()}
+          vendorName={printableData.vendor?.name || printableData.vendorName || 'N/A'}
+          destinationAddress={printableData.vendor?.address || printableData.destinationEntity || 'Vendor Address Details'}
+          dcType={printableData.challan?.type || printableData.type}
         />
 
-        <PrintablePayloadGrid items={dc.items as any[]} />
+        <PrintablePayloadGrid 
+          items={printableData.lineItems || printableData.items || []} 
+          pos={printableData.references?.pos || []} 
+        />
 
         <PrintableFooter />
       </div>

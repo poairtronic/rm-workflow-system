@@ -257,13 +257,15 @@ export const deliveryChallanApi = {
     const backendPayload = {
       type: data.type,
       vendorId: data.vendorId,
-      ...(isType1 && { scId: data.scId, processId: data.processId, expectedReturnDate: data.expectedReturnDate }),
+      ...(isType1 && data.scId && { scId: data.scId, processId: data.processId }),
+      ...(isType1 && { expectedReturnDate: data.expectedReturnDate }),
       dispatchDate: new Date().toISOString(),
       notes: data.notes || '',
       items: data.items.map((i: any) => ({
         productId: i.productId,
         binId: i.binId,
-        quantityDispatched: Number(i.quantity)
+        quantityDispatched: Number(i.quantity) || Number(i.quantityDispatched),
+        ...(isType1 && { scId: i.scId, processId: i.processId, description: i.description, batchNumber: i.batchNumber })
       }))
     };
     

@@ -4,6 +4,14 @@ import type { MslException } from '../../types/msl-alert';
 import { DeficitProgressBar } from './DeficitProgressBar';
 
 const SeverityBadge = ({ severity }: { severity: MslException['severity'] }) => {
+  if (severity === 'OUT_OF_STOCK') {
+    return (
+      <span className="inline-flex items-center rounded-full bg-slate-100/10 px-2.5 py-0.5 text-xs font-medium text-slate-700 gap-1.5 whitespace-nowrap bg-[#F1F5F9]">
+        <span className="h-[6px] w-[6px] rounded-full bg-slate-600"></span>
+        OUT OF STOCK
+      </span>
+    );
+  }
   if (severity === 'CRITICAL') {
     return (
       <span className="inline-flex items-center rounded-full bg-red-100/10 px-2.5 py-0.5 text-xs font-medium text-red-700 gap-1.5 whitespace-nowrap bg-[#FEE2E2]">

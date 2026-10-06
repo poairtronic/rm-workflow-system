@@ -60,6 +60,11 @@ export class ScController {
     return this.scService.findAll({ poId, scNumber, status, search });
   }
 
+  @Get('test/:id')
+  async testFindOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.scService.findOne(id);
+  }
+
   @Get(':id')
   @Roles(
     UserRole.ADMIN,

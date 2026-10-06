@@ -743,7 +743,10 @@ export class TraceabilityService {
 
     // 7. Delivery Challans
     const deliveryChallans = await this.deliveryChallanRepo.find({
-      where: { scId },
+      where: [
+        { scId },
+        { items: { scId } }
+      ],
       relations: { vendor: true, process: true, items: { product: true } },
       order: { dispatchDate: 'ASC' },
     });
@@ -1088,7 +1091,10 @@ export class TraceabilityService {
     let deliveryChallans: DeliveryChallan[] = [];
     if (scIds.length > 0) {
       deliveryChallans = await this.deliveryChallanRepo.find({
-        where: { scId: In(scIds) },
+        where: [
+          { scId: In(scIds) },
+          { items: { scId: In(scIds) } }
+        ],
         relations: { vendor: true, process: true, items: { product: true } },
         order: { dispatchDate: 'ASC' },
       });
@@ -1122,7 +1128,7 @@ export class TraceabilityService {
       order: { sequenceNumber: 'ASC' },
     });
     const activeProcesses: ConsolidatedProcessStepDto[] = allProcesses.map((p) => {
-      const linkedDcs = deliveryChallans.filter((dc) => dc.processId === p.id);
+      const linkedDcs = deliveryChallans.filter((dc) => dc.processId === p.id || dc.items?.some((i) => i.processId === p.id));
       const vendorsForProcess = Array.from(
         new Set(linkedDcs.map((dc) => dc.vendor?.name).filter(Boolean)),
       ) as string[];
@@ -1234,7 +1240,7 @@ export class TraceabilityService {
       totalFinalRmUsed += scFinalRmUsed;
       totalVariance += metrics.variance;
 
-      const childDcs = deliveryChallans.filter((d) => d.scId === sc.id);
+      const childDcs = deliveryChallans.filter((d) => d.scId === sc.id || d.items?.some((i) => i.scId === sc.id));
       const childVendors = Array.from(
         new Set(childDcs.map((d) => d.vendor?.name).filter(Boolean)),
       ) as string[];
@@ -1502,7 +1508,10 @@ export class TraceabilityService {
         turnaroundCount++;
       }
 
-      const slaDays = dc.processId ? (slaByProcessId.get(dc.processId) ?? null) : null;
+      const effectiveProcessId = dc.processId || (dc.items?.[0]?.processId ?? null);
+      const effectiveScId = dc.scId || (dc.items?.[0]?.scId ?? null);
+
+      const slaDays = effectiveProcessId ? (slaByProcessId.get(effectiveProcessId) ?? null) : null;
 
       let isSlaBreached = false;
       if (isClosed) {
@@ -1559,19 +1568,20 @@ export class TraceabilityService {
         };
       });
 
-      if (dc.processId && dc.process) {
-        let existingProc = processMap.get(dc.processId);
+      if (effectiveProcessId) {
+        let existingProc = processMap.get(effectiveProcessId);
         if (!existingProc) {
+          const procObj = dc.process || (dc.items?.[0]?.process ?? null);
           existingProc = {
-            processId: dc.processId,
-            processCode: dc.process.code,
-            processName: dc.process.name,
+            processId: effectiveProcessId,
+            processCode: procObj?.code ?? 'UNKNOWN',
+            processName: procObj?.name ?? 'Unknown Process',
             totalDcCount: 0,
             openDcCount: 0,
             totalDispatchedQty: 0,
             totalReturnedQty: 0,
           };
-          processMap.set(dc.processId, existingProc);
+          processMap.set(effectiveProcessId, existingProc);
         }
         existingProc.totalDcCount++;
         if (!isClosed) {
@@ -1599,13 +1609,13 @@ export class TraceabilityService {
         isOverdue,
         slaDays,
         isSlaBreached,
-        scNumber: dc.sc?.scNumber ?? null,
-        scId: dc.scId ?? null,
-        poNumber: dc.sc?.purchaseOrder?.poNumber ?? null,
-        poId: dc.sc?.purchaseOrder?.id ?? null,
-        processName: dc.process?.name ?? null,
-        processCode: dc.process?.code ?? null,
-        processId: dc.processId ?? null,
+        scNumber: dc.sc?.scNumber ?? (dc.items?.[0]?.sc?.scNumber ?? null),
+        scId: effectiveScId,
+        poNumber: dc.sc?.purchaseOrder?.poNumber ?? (dc.items?.[0]?.sc?.purchaseOrder?.poNumber ?? null),
+        poId: dc.sc?.purchaseOrder?.id ?? (dc.items?.[0]?.sc?.purchaseOrder?.id ?? null),
+        processName: dc.process?.name ?? (dc.items?.[0]?.process?.name ?? null),
+        processCode: dc.process?.code ?? (dc.items?.[0]?.process?.code ?? null),
+        processId: effectiveProcessId,
         items: dcItems,
       });
     }

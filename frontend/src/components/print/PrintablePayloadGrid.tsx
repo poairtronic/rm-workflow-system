@@ -1,52 +1,71 @@
 export interface DeliveryChallanPayloadItem {
-  materialCode: string;
-  nomenclature?: string;
-  batchNumber: string;
-  quantity: number;
-  uom: string;
-  grossWeightKg?: number;
+  id: string;
+  productId: string;
+  productName: string;
+  binId: string;
+  binCode: string;
+  binName: string;
+  quantityDispatched: number;
+  quantityReturned: number;
+  quantityOutstanding: number;
+  scNumber?: string;
+  poNumber?: string;
+  processName?: string;
+  batchNumber?: string;
+  grossWeightKg?: number; // fallback
+  quantity?: number; // fallback
+  materialCode?: string; // fallback
+  nomenclature?: string; // fallback
+  uom?: string; // fallback
 }
 
 interface PrintablePayloadGridProps {
   items: DeliveryChallanPayloadItem[];
+  pos?: any[];
 }
 
-export function PrintablePayloadGrid({ items }: PrintablePayloadGridProps) {
-  const totalQuantity = items.reduce((acc, item) => acc + item.quantity, 0);
+export function PrintablePayloadGrid({ items, pos }: PrintablePayloadGridProps) {
+  const totalQuantity = items.reduce((acc, item) => acc + (item.quantityDispatched ?? item.quantity ?? 0), 0);
   const totalGrossWeight = items.reduce((acc, item) => acc + (item.grossWeightKg || 0), 0);
 
   return (
     <div className="mb-6">
+      {pos && pos.length > 0 && (
+        <div className="mb-4 text-xs">
+          <strong>Associated Purchase Orders: </strong>
+          {pos.map(po => po.poNumber).join(', ')}
+        </div>
+      )}
       <table className="w-full border-collapse border border-black text-xs">
         <thead className="bg-slate-100 print:bg-transparent">
           <tr>
             <th className="border border-black px-2 py-1.5 text-center w-12 text-[10px] uppercase font-bold text-black">S.No</th>
-            <th className="border border-black px-2 py-1.5 text-left text-[10px] uppercase font-bold text-black">Item Description & Specifications</th>
-            <th className="border border-black px-2 py-1.5 text-center w-24 text-[10px] uppercase font-bold text-black">HSN Code</th>
+            <th className="border border-black px-2 py-1.5 text-left text-[10px] uppercase font-bold text-black">Item Description & SC/PO</th>
+            <th className="border border-black px-2 py-1.5 text-center text-[10px] uppercase font-bold text-black">Process</th>
             <th className="border border-black px-2 py-1.5 text-center w-24 text-[10px] uppercase font-bold text-black">Source Batch</th>
             <th className="border border-black px-2 py-1.5 text-right w-24 text-[10px] uppercase font-bold text-black">Gross Wt (kg)</th>
-            <th className="border border-black px-2 py-1.5 text-right w-24 text-[10px] uppercase font-bold text-black">Quantity</th>
+            <th className="border border-black px-2 py-1.5 text-right w-24 text-[10px] uppercase font-bold text-black">Qty</th>
           </tr>
         </thead>
         <tbody>
           {items.map((item, idx) => (
-            <tr key={`${item.materialCode}-${idx}`} className="break-inside-avoid">
+            <tr key={item.id || `${item.materialCode}-${idx}`} className="break-inside-avoid">
               <td className="border border-black px-2 py-1.5 text-center font-medium">{idx + 1}</td>
               <td className="border border-black px-2 py-1.5">
-                <p className="font-bold text-black">{item.nomenclature || item.materialCode}</p>
-                <p className="text-[10px] text-slate-700">PID: {item.materialCode}</p>
+                <p className="font-bold text-black">{item.productName || item.nomenclature || item.materialCode}</p>
+                <p className="text-[10px] text-slate-700">SC: {item.scNumber || 'N/A'} | PO: {item.poNumber || 'N/A'}</p>
               </td>
-              <td className="border border-black px-2 py-1.5 text-center tabular-nums">
-                7228.30.29 {/* Mock HSN Code for demonstration */}
+              <td className="border border-black px-2 py-1.5 text-center text-[10px]">
+                {item.processName || 'N/A'}
               </td>
               <td className="border border-black px-2 py-1.5 text-center text-[10px] font-mono">
-                {item.batchNumber}
+                {item.batchNumber || '-'}
               </td>
               <td className="border border-black px-2 py-1.5 text-right tabular-nums">
                 {item.grossWeightKg?.toFixed(2) || '0.00'}
               </td>
               <td className="border border-black px-2 py-1.5 text-right tabular-nums font-bold">
-                {item.quantity} {item.uom}
+                {item.quantityDispatched ?? item.quantity} {item.uom || 'Nos'}
               </td>
             </tr>
           ))}

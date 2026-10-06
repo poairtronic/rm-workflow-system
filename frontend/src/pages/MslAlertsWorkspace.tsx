@@ -37,9 +37,9 @@ export function MslAlertsWorkspace() {
     return response.items.map(item => {
       const stock = Number(item.currentStock) || 0;
       const msl = Number(item.minimumInventory) || 0;
-      let computedSeverity: 'CRITICAL' | 'LOW_STOCK' | 'NORMAL' = 'NORMAL';
+      let computedSeverity: 'OUT_OF_STOCK' | 'CRITICAL' | 'LOW_STOCK' | 'NORMAL' = 'NORMAL';
       if (msl > 0) {
-        if (stock <= 0) computedSeverity = 'CRITICAL'; // Using CRITICAL visually for OUT_OF_STOCK
+        if (stock <= 0) computedSeverity = 'OUT_OF_STOCK';
         else if (stock < (msl / 2)) computedSeverity = 'CRITICAL';
         else if (stock < msl) computedSeverity = 'LOW_STOCK';
       }
@@ -68,20 +68,29 @@ export function MslAlertsWorkspace() {
     
     // Fallback to response.summary if we don't have all products, but we only have breached items here.
     // Actually, response.summary has the enterprise totals.
-    // Monitored items = items with MSL > 0
-    const monitored = response.summary.totalMonitoredProducts || 0;
+    let monitored = 0;
+    response.items.forEach(item => {
+      const msl = Number(item.minimumInventory) || 0;
+      if (msl > 0) {
+        monitored++;
+      }
+    });
+    
+    let outOfStock = 0;
     
     // Re-evaluate the breached items based on UI rules
     exceptions.forEach(ex => {
+      if (ex.severity === 'OUT_OF_STOCK') outOfStock++;
       if (ex.severity === 'CRITICAL') critical++;
       if (ex.severity === 'LOW_STOCK') lowStock++;
     });
     
-    itemsBelowMsl = critical + lowStock;
+    itemsBelowMsl = outOfStock + critical + lowStock;
     const itemsAtOrAbove = Math.max(0, monitored - itemsBelowMsl);
     const healthIndex = monitored > 0 ? Number(((itemsAtOrAbove / monitored) * 100).toFixed(1)) : 100;
 
     return {
+      outOfStock,
       critical,
       lowStock,
       itemsBelowMsl,
@@ -122,10 +131,20 @@ export function MslAlertsWorkspace() {
         <div className="col-span-12 md:col-span-6 lg:col-span-3">
           <KpiMetricCard
             isLoading={isLoading}
+            title="Out of Stock"
+            value={stats.outOfStock.toString().padStart(2, '0')}
+            icon={<AlertOctagon className="w-5 h-5" />}
+            statusLabel="Zero Stock / Stockout Risk"
+            colorScheme="critical"
+          />
+        </div>
+        <div className="col-span-12 md:col-span-6 lg:col-span-3">
+          <KpiMetricCard
+            isLoading={isLoading}
             title="Critical Breaches"
             value={stats.critical.toString().padStart(2, '0')}
             icon={<AlertOctagon className="w-5 h-5" />}
-            statusLabel="Zero Stock / Stockout Risk"
+            statusLabel="<50% MSL"
             colorScheme="critical"
           />
         </div>
@@ -135,17 +154,7 @@ export function MslAlertsWorkspace() {
             title="Low Stock Alerts"
             value={stats.lowStock.toString().padStart(2, '0')}
             icon={<AlertTriangle className="w-5 h-5" />}
-            statusLabel="Below Safety Buffer"
-            colorScheme="warning"
-          />
-        </div>
-        <div className="col-span-12 md:col-span-6 lg:col-span-3">
-          <KpiMetricCard
-            isLoading={isLoading}
-            title="Items Below MSL"
-            value={stats.itemsBelowMsl.toString().padStart(2, '0')}
-            icon={<AlertTriangle className="w-5 h-5" />}
-            statusLabel="Requires Replenishment"
+            statusLabel="Below MSL Target"
             colorScheme="warning"
           />
         </div>
