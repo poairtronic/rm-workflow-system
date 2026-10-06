@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { ClipboardList } from 'lucide-react';
 import { deliveryChallanApi, api, unwrapList } from '../../services/api';
 import { useQuery } from '@tanstack/react-query';
-import type { CreateDeliveryChallanDto } from '../../types/delivery-challan.dto';
+
 import { DispatchPayloadGrid } from './DispatchPayloadGrid';
 import { Type2ReviewModal } from './Type2ReviewModal';
 
@@ -15,27 +15,25 @@ export function Type2DispatchView() {
 
   const { data: vendorList } = useQuery({ queryKey: ['vendors'], queryFn: async () => unwrapList(await api.get<any[]>('/api/vendors?isActive=true')) });
   
-  const methods = useForm<CreateDeliveryChallanDto>({
+  const methods = useForm<any>({
     defaultValues: {
       type: 'GENERAL_INVENTORY_OUTWARD',
-      scCode: 'N/A',
-      processId: 'N/A',
       vendorId: '',
       notes: '',
-      items: []
+      scBlocks: [{ scId: null, processId: null, items: [] }]
     },
     mode: 'onChange'
   });
 
   const { register, handleSubmit, watch, formState: { isValid, errors } } = methods;
-  const items = watch('items') || [];
+  const items = watch('scBlocks')?.[0]?.items || [];
   
   // Custom validation to ensure no item has errors (like exceeding max stock)
   // `isValid` from react-hook-form handles most of this automatically based on our field rules.
   const isFormValid = isValid && items.length > 0;
 
   const createDcMutation = useMutation({
-    mutationFn: (data: CreateDeliveryChallanDto) => deliveryChallanApi.create(data),
+    mutationFn: (data: any) => deliveryChallanApi.create(data),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['delivery-challans'] });
       toast.success(`Delivery Challan ${res.dcNumber || 'created'} generated successfully!`, {
@@ -58,7 +56,7 @@ export function Type2DispatchView() {
     handleSubmit((data) => {
       const payload = {
         ...data,
-        items: data.items.map(item => ({
+        items: data.scBlocks[0].items.map((item: any) => ({
           ...item,
           quantityDispatched: Number(item.quantity)
         }))
@@ -87,7 +85,7 @@ export function Type2DispatchView() {
                   {vendorList?.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
                 </select>
                 {errors.vendorId && (
-                  <p className="mt-1 text-xs text-red-500">{errors.vendorId.message}</p>
+                  <p className="mt-1 text-xs text-red-500">{errors.vendorId.message as string}</p>
                 )}
               </div>
             </div>
@@ -99,13 +97,13 @@ export function Type2DispatchView() {
                 className="w-full min-h-[80px] p-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
               />
               {errors.notes && (
-                <p className="mt-1 text-xs text-red-500">{errors.notes.message}</p>
+                <p className="mt-1 text-xs text-red-500">{errors.notes.message as string}</p>
               )}
             </div>
           </div>
 
           {/* Payload Selector Grid */}
-          <DispatchPayloadGrid />
+          <DispatchPayloadGrid blockIndex={0} />
         </form>
         
 

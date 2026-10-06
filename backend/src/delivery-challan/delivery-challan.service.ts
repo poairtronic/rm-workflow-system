@@ -234,6 +234,9 @@ export class DeliveryChallanService {
           challanId: savedChallan.id,
           productId: itemDto.productId,
           binId: itemDto.binId,
+          scId: itemDto.scId || dto.scId,
+          processId: itemDto.processId || dto.processId,
+          description: itemDto.description,
           quantityDispatched: quantityToDispatch,
           quantityReturned: 0,
         });

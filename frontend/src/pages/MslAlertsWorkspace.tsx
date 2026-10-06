@@ -34,31 +34,60 @@ export function MslAlertsWorkspace() {
 
   const exceptions: MslException[] = useMemo(() => {
     if (!response) return [];
-    return response.items.map(item => ({
-      id: item.productId || Math.random().toString(),
-      skuCode: item.productId,
-      itemName: item.productName,
-      category: item.categoryName,
-      zone: item.categoryName, // Fallback as zone is not in DTO
-      currentStock: item.currentStock,
-      mslThreshold: item.minimumInventory,
-      deficit: item.deficitQty,
-      unit: 'KG', // Fallback for unit
-      severity: (item.status === 'CRITICAL' || item.status === 'OUT_OF_STOCK') ? 'CRITICAL' : 'LOW_STOCK',
-    }));
+    return response.items.map(item => {
+      const stock = Number(item.currentStock) || 0;
+      const msl = Number(item.minimumInventory) || 0;
+      let computedSeverity: 'CRITICAL' | 'LOW_STOCK' | 'NORMAL' = 'NORMAL';
+      if (msl > 0) {
+        if (stock <= 0) computedSeverity = 'CRITICAL'; // Using CRITICAL visually for OUT_OF_STOCK
+        else if (stock < (msl / 2)) computedSeverity = 'CRITICAL';
+        else if (stock < msl) computedSeverity = 'LOW_STOCK';
+      }
+      return {
+        id: item.productId || Math.random().toString(),
+        skuCode: item.productId,
+        itemName: item.productName,
+        category: item.categoryName,
+        zone: item.categoryName, // Fallback as zone is not in DTO
+        currentStock: stock,
+        mslThreshold: msl,
+        deficit: Math.max(0, msl - stock),
+        unit: 'KG', // Fallback for unit
+        severity: computedSeverity,
+      };
+    }).filter(item => item.severity !== 'NORMAL') as MslException[];
   }, [response]);
 
   const stats = useMemo(() => {
-    if (!response) return { critical: 0, lowStock: 0, itemsBelowMsl: 0, healthIndex: 0 };
+    if (!response) return { critical: 0, lowStock: 0, itemsBelowMsl: 0, healthIndex: 100 };
+    
+    // We calculate stats natively in UI because backend rules don't define <50% as CRITICAL
+    let critical = 0;
+    let lowStock = 0;
+    let itemsBelowMsl = 0;
+    
+    // Fallback to response.summary if we don't have all products, but we only have breached items here.
+    // Actually, response.summary has the enterprise totals.
+    // Monitored items = items with MSL > 0
+    const monitored = response.summary.totalMonitoredProducts || 0;
+    
+    // Re-evaluate the breached items based on UI rules
+    exceptions.forEach(ex => {
+      if (ex.severity === 'CRITICAL') critical++;
+      if (ex.severity === 'LOW_STOCK') lowStock++;
+    });
+    
+    itemsBelowMsl = critical + lowStock;
+    const itemsAtOrAbove = Math.max(0, monitored - itemsBelowMsl);
+    const healthIndex = monitored > 0 ? Number(((itemsAtOrAbove / monitored) * 100).toFixed(1)) : 100;
+
     return {
-      critical: response.summary.criticalStockCount + response.summary.outOfStockCount,
-      lowStock: response.summary.belowMslCount,
-      itemsBelowMsl: response.summary.belowMslCount,
-      healthIndex: response.summary.totalMonitoredProducts > 0 
-        ? Number((((response.summary.totalMonitoredProducts - response.summary.belowMslCount - response.summary.criticalStockCount - response.summary.outOfStockCount) / response.summary.totalMonitoredProducts) * 100).toFixed(1))
-        : 100,
+      critical,
+      lowStock,
+      itemsBelowMsl,
+      healthIndex,
     };
-  }, [response]);
+  }, [response, exceptions]);
 
   const handleFilterChange = (key: keyof MslFilters, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));

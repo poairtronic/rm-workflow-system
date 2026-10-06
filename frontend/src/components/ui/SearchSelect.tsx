@@ -64,7 +64,7 @@ export function SearchSelect({
   const filteredOptions = onSearch 
     ? options 
     : options.filter(opt => 
-        opt.primary.toLowerCase().includes(debouncedSearch.toLowerCase()) || 
+        (opt.primary || "").toLowerCase().includes(debouncedSearch.toLowerCase()) || 
         (opt.secondary && opt.secondary.toLowerCase().includes(debouncedSearch.toLowerCase()))
       );
 

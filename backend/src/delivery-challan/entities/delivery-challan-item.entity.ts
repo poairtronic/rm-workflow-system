@@ -21,6 +21,23 @@ export class DeliveryChallanItem {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ name: 'sc_id', type: 'uuid', nullable: true })
+  scId?: string;
+
+  @ManyToOne('SalesOrderComponent', { nullable: true })
+  @JoinColumn({ name: 'sc_id' })
+  sc?: any;
+
+  @Column({ name: 'process_id', type: 'uuid', nullable: true })
+  processId?: string;
+
+  @ManyToOne('ProductionProcess', { nullable: true })
+  @JoinColumn({ name: 'process_id' })
+  process?: any;
+
+  @Column({ type: 'text', nullable: true })
+  description?: string;
+
   @Column({ name: 'challan_id', type: 'uuid' })
   challanId: string;
 

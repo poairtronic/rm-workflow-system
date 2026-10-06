@@ -41,6 +41,12 @@ function App() {
               <Route element={<AppLayout />}>
                 <Route path="/" element={<RoleBasedHome />} />
                 
+                {/* Legacy Redirects */}
+                <Route path="/design/project-setup" element={<Navigate to="/design/rm-creation" replace />} />
+                <Route path="/design/requisitions" element={<Navigate to="/design/rm-creation" replace />} />
+                <Route path="/stores/issue-material" element={<Navigate to="/stores/rm-issue" replace />} />
+                <Route path="/production/jobs" element={<Navigate to="/production/rm" replace />} />
+                
                 {ROUTE_CONFIG.filter(route => !route.isPrintable).map(route => (
                   <Route 
                     key={route.path}

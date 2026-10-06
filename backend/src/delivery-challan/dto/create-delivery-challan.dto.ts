@@ -19,11 +19,11 @@ export class CreateDeliveryChallanDto {
   @IsUUID()
   vendorId: string;
 
-  @ValidateIf((o) => o.type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD)
+  @IsOptional()
   @IsUUID()
   scId?: string;
 
-  @ValidateIf((o) => o.type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD)
+  @IsOptional()
   @IsUUID()
   processId?: string;
 

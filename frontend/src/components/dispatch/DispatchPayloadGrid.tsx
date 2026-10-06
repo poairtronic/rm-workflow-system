@@ -1,49 +1,48 @@
 import { useFieldArray, useFormContext } from 'react-hook-form';
 import { Plus } from 'lucide-react';
-import type { CreateDeliveryChallanDto } from '../../types/delivery-challan.dto';
 import { DispatchPayloadRow } from './DispatchPayloadRow';
 
-export function DispatchPayloadGrid() {
-  const { control, formState: { errors } } = useFormContext<CreateDeliveryChallanDto>();
+export function DispatchPayloadGrid({ blockIndex }: { blockIndex: number }) {
+  const { control, formState: { errors } } = useFormContext<any>();
   
   const { fields, append, remove } = useFieldArray({
     control,
-    name: 'items'
+    name: `scBlocks.${blockIndex}.items`
   });
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-      <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
+    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mt-6">
+      <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200">
         <div>
-          <h2 className="text-[15px] font-semibold text-slate-900 uppercase tracking-wide">Material Payload</h2>
-          <p className="text-xs text-slate-500 mt-1">Specify items, batches, and quantities to dispatch</p>
+          <h3 className="text-sm font-semibold text-slate-800">Items Payload</h3>
         </div>
         <button
           type="button"
-          onClick={() => append({ productId: '', binId: '', batchNumber: '', quantity: 0, uom: 'KG' })}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary text-xs font-medium rounded-md hover:bg-primary/20 transition-colors"
+          onClick={() => append({ productId: '', binId: '', batchNumber: '', quantity: 0, uom: 'KG', description: '' })}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-50 transition-colors"
         >
           <Plus className="w-4 h-4" />
-          Add Row
+          Add Item
         </button>
       </div>
 
       <div className="overflow-x-auto w-full">
         <table className="w-full text-sm text-left whitespace-nowrap">
-          <thead className="h-10 bg-slate-50 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+          <thead className="h-8 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             <tr>
-              <th className="px-4 py-2 w-1/4">Material Code / Name</th>
-              <th className="px-4 py-2 w-1/4">Source Bin</th>
-              <th className="px-4 py-2 w-1/5">Batch / Heat No.</th>
-              <th className="px-4 py-2 text-right w-32">Quantity</th>
-              <th className="px-4 py-2 w-20">UOM</th>
-              <th className="px-4 py-2 text-center w-16">Actions</th>
+              <th className="px-3 py-2 w-1/4">Material</th>
+              <th className="px-3 py-2 w-1/5">Source Bin</th>
+              <th className="px-3 py-2 w-1/6">Batch / Heat No.</th>
+              <th className="px-3 py-2 w-1/4">Description (Opt)</th>
+              <th className="px-3 py-2 text-right w-24">Quantity</th>
+              <th className="px-3 py-2 text-center w-12">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 bg-white">
             {fields.map((item, index) => (
               <DispatchPayloadRow 
                 key={item.id} 
+                blockIndex={blockIndex}
                 index={index} 
                 remove={remove} 
                 canRemove={fields.length > 1} 
@@ -51,7 +50,7 @@ export function DispatchPayloadGrid() {
             ))}
           </tbody>
         </table>
-        {errors.items && (
+        {(errors as any).scBlocks?.[blockIndex]?.items && (
           <p className="mt-2 text-sm text-red-500 font-medium">Please ensure all row fields are correctly filled.</p>
         )}
       </div>
