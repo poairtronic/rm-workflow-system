@@ -132,7 +132,7 @@ export function MslAlertsWorkspace() {
           <KpiMetricCard
             isLoading={isLoading}
             title="Out of Stock"
-            value={stats.outOfStock.toString().padStart(2, '0')}
+            value={(stats.outOfStock ?? 0).toString().padStart(2, '0')}
             icon={<AlertOctagon className="w-5 h-5" />}
             statusLabel="Zero Stock / Stockout Risk"
             colorScheme="critical"

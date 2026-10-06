@@ -4,7 +4,7 @@ export interface DeficitProgressBarProps {
   currentStock: number;
   mslThreshold: number;
   unit: string;
-  severity: 'CRITICAL' | 'LOW_STOCK';
+  severity: 'OUT_OF_STOCK' | 'CRITICAL' | 'LOW_STOCK';
 }
 
 export function DeficitProgressBar({

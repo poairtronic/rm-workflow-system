@@ -5,7 +5,6 @@ import { deliveryChallanApi } from '../services/api';
 import { ChallanPrintHeader } from '../components/print/ChallanPrintHeader';
 import { PrintablePayloadGrid } from '../components/print/PrintablePayloadGrid';
 import { PrintableFooter } from '../components/print/PrintableFooter';
-import type { DeliveryChallanDto } from '../types/delivery-challan.dto';
 
 export function DeliveryChallanPrintView() {
   const { id } = useParams<{ id: string }>();

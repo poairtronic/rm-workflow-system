@@ -1381,33 +1381,34 @@ export class TraceabilityService {
         dispatchedChallans,
         closedChallans,
         items: deliveryChallans.flatMap((dc) => {
-          const scIdsInDc = new Set(dc.items?.map(i => i.scId).filter(Boolean));
+          const scIdsInDc = new Set<string | undefined>(dc.items?.map(i => i.scId).filter((id): id is string => Boolean(id)));
           if (dc.scId) scIdsInDc.add(dc.scId);
-          if (scIdsInDc.size === 0) scIdsInDc.add(null);
+          if (scIdsInDc.size === 0) scIdsInDc.add(undefined);
           return Array.from(scIdsInDc).filter(id => !id || scIds.includes(id)).map(scIdForDc => ({
-          id: dc.id,
-          challanNumber: dc.challanNumber,
-          type: dc.type,
-          status: dc.status,
-          dispatchDate: new Date(dc.dispatchDate).toISOString(),
-          expectedReturnDate: dc.expectedReturnDate ? new Date(dc.expectedReturnDate).toISOString() : undefined,
-          actualReturnDate: dc.actualReturnDate ? new Date(dc.actualReturnDate).toISOString() : undefined,
-          vendor: dc.vendor ? { id: dc.vendor.id, name: dc.vendor.name, code: dc.vendor.code } : undefined,
-          process: dc.process ? { id: dc.process.id, name: dc.process.name, code: dc.process.code } : undefined,
-          items: (dc.items || []).filter(item => item.scId === scIdForDc || dc.scId === scIdForDc || (!item.scId && !dc.scId)).map((item) => {
-            const quantityDispatched = Number(item.quantityDispatched) || 0;
-            const quantityReturned = Number(item.quantityReturned) || 0;
-            const balanceQuantity = QuantityCalculator.roundDecimal(Math.max(0, quantityDispatched - quantityReturned));
-            return {
-              id: item.id,
-              productId: item.productId,
-              productName: item.product?.name,
-              quantityDispatched,
-              quantityReturned,
-              balanceQuantity,
-            };
-          }),
-        }))).flat(),
+            id: dc.id,
+            challanNumber: dc.challanNumber,
+            type: dc.type,
+            status: dc.status,
+            dispatchDate: new Date(dc.dispatchDate).toISOString(),
+            expectedReturnDate: dc.expectedReturnDate ? new Date(dc.expectedReturnDate).toISOString() : undefined,
+            actualReturnDate: dc.actualReturnDate ? new Date(dc.actualReturnDate).toISOString() : undefined,
+            vendor: dc.vendor ? { id: dc.vendor.id, name: dc.vendor.name, code: dc.vendor.code } : undefined,
+            process: dc.process ? { id: dc.process.id, name: dc.process.name, code: dc.process.code } : undefined,
+            items: (dc.items || []).filter(item => item.scId === scIdForDc || dc.scId === scIdForDc || (!item.scId && !dc.scId)).map((item) => {
+              const quantityDispatched = Number(item.quantityDispatched) || 0;
+              const quantityReturned = Number(item.quantityReturned) || 0;
+              const balanceQuantity = QuantityCalculator.roundDecimal(Math.max(0, quantityDispatched - quantityReturned));
+              return {
+                id: item.id,
+                productId: item.productId,
+                productName: item.product?.name,
+                quantityDispatched,
+                quantityReturned,
+                balanceQuantity,
+              };
+            }),
+          }));
+        }),
       },
       vendors,
       childComponents,
