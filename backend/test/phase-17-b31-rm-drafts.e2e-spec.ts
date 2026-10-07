@@ -153,8 +153,8 @@ describe('Phase 17 B3.1: RM Drafts (e2e)', () => {
     expect(res.status).toBe(200);
     expect(res.body.scs).toHaveLength(2);
     const scs = res.body.scs;
-    expect(scs.find(s => s.scNumber === `${poNumber}-1`).items[0].quantity).toBe('15.000');
-    expect(scs.find(s => s.scNumber === `${poNumber}-3`)).toBeDefined();
+    expect(scs.find((s: any) => s.scNumber === `${poNumber}-1`).items[0].quantity).toBe('15.000');
+    expect(scs.find((s: any) => s.scNumber === `${poNumber}-3`)).toBeDefined();
     console.log('4. PUT as DESIGNER 1 done');
 
     console.log('5. SUBMIT');
