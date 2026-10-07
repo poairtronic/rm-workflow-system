@@ -18,7 +18,7 @@ import { UserRole } from '../../auth/enums/role.enum.js';
 import { CreateCategoryDto, UpdateCategoryDto } from '../dto/category.dto.js';
 import { MasterFilterDto } from '../dto/master-filter.dto.js';
 
-@Controller('api/categories')
+@Controller(['api/categories', 'api/product-categories', 'categories'])
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class CategoriesController {
   constructor(private readonly masterDataService: MasterDataService) {}

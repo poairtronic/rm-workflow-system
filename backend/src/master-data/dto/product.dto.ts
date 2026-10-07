@@ -11,15 +11,45 @@ import {
 import { Transform } from 'class-transformer';
 
 export class CreateProductDto {
-  @IsUUID('4')
+  @IsString()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
   @IsNotEmpty()
-  familyId!: string;
+  @MaxLength(100)
+  code!: string;
 
   @IsString()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsNotEmpty()
   @MaxLength(255)
   name!: string;
+
+  @IsOptional()
+  @IsUUID('4')
+  familyId?: string;
+
+  @IsOptional()
+  @IsUUID('4')
+  categoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  categoryName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  familyName?: string;
+
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @MaxLength(50)
+  uom?: string;
 
   @IsOptional()
   @IsNumber()
@@ -38,8 +68,13 @@ export class CreateProductDto {
 
 export class UpdateProductDto {
   @IsOptional()
-  @IsUUID('4')
-  familyId?: string;
+  @IsString()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsNotEmpty()
+  @MaxLength(100)
+  code?: string;
 
   @IsOptional()
   @IsString()
@@ -47,6 +82,32 @@ export class UpdateProductDto {
   @IsNotEmpty()
   @MaxLength(255)
   name?: string;
+
+  @IsOptional()
+  @IsUUID('4')
+  familyId?: string;
+
+  @IsOptional()
+  @IsUUID('4')
+  categoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  categoryName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  familyName?: string;
+
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @MaxLength(50)
+  uom?: string;
 
   @IsOptional()
   @IsNumber()

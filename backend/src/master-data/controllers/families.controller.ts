@@ -18,7 +18,7 @@ import { UserRole } from '../../auth/enums/role.enum.js';
 import { CreateFamilyDto, UpdateFamilyDto } from '../dto/family.dto.js';
 import { MasterFilterDto } from '../dto/master-filter.dto.js';
 
-@Controller('api/families')
+@Controller(['api/families', 'api/product-families', 'families'])
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class FamiliesController {
   constructor(private readonly masterDataService: MasterDataService) {}

@@ -69,6 +69,18 @@ class ApiClient {
     return response.json();
   }
 
+  async put<T>(endpoint: string, body?: any): Promise<T> {
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!response.ok) {
+      await this.handleError(response, endpoint, 'PUT');
+    }
+    return response.json();
+  }
+
   async patch<T>(endpoint: string, body?: any): Promise<T> {
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: 'PATCH',
@@ -305,4 +317,7 @@ export const reportApi = {
   exportReport: (type: string, startDate: string, endDate: string) => 
     api.get<Blob>(`/api/reports/generation?type=${type}&startDate=${startDate}&endDate=${endDate}`, 'blob'),
 };
+
+export { vendorMasterApi } from './vendorMaster.service';
+export { userMasterApi } from './userMaster.service';
 

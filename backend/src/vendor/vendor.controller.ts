@@ -49,7 +49,7 @@ export class VendorController {
    * Write access restricted to ADMIN and STORES roles.
    */
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.STORES)
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
   create(@Body() createDto: CreateVendorDto): Promise<Vendor> {
     return this.vendorService.create(createDto);
   }
@@ -82,7 +82,7 @@ export class VendorController {
    * Placed before /:id to prevent route hijacking.
    */
   @Patch('slas/:slaId')
-  @Roles(UserRole.ADMIN, UserRole.STORES)
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
   updateSla(
     @Param('slaId', ParseUUIDPipe) slaId: string,
     @Body() dto: UpdateVendorSlaDto,
@@ -95,7 +95,7 @@ export class VendorController {
    * Placed before /:id to prevent route hijacking.
    */
   @Delete('slas/:slaId')
-  @Roles(UserRole.ADMIN, UserRole.STORES)
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
   removeSla(
     @Param('slaId', ParseUUIDPipe) slaId: string,
   ): Promise<{ success: boolean; message: string }> {
@@ -125,7 +125,7 @@ export class VendorController {
    * Write access restricted to ADMIN and STORES roles.
    */
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.STORES)
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateDto: UpdateVendorDto,
@@ -138,7 +138,7 @@ export class VendorController {
    * Restricted to ADMIN and STORES roles.
    */
   @Patch(':id/toggle-active')
-  @Roles(UserRole.ADMIN, UserRole.STORES)
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
   toggleActive(@Param('id', ParseUUIDPipe) id: string): Promise<Vendor> {
     return this.vendorService.toggleActive(id);
   }
@@ -148,7 +148,7 @@ export class VendorController {
    * Restricted to ADMIN and STORES roles.
    */
   @Delete(':id')
-  @Roles(UserRole.ADMIN, UserRole.STORES)
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
   remove(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<{ success: boolean; message: string }> {
@@ -164,7 +164,7 @@ export class VendorController {
    * Restricted to ADMIN and STORES roles.
    */
   @Post(':id/capabilities')
-  @Roles(UserRole.ADMIN, UserRole.STORES)
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
   assignCapability(
     @Param('id', ParseUUIDPipe) vendorId: string,
     @Body() dto: AssignVendorCapabilityDto,
@@ -200,7 +200,7 @@ export class VendorController {
    * Restricted to ADMIN and STORES roles.
    */
   @Patch(':id/capabilities/:processId')
-  @Roles(UserRole.ADMIN, UserRole.STORES)
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
   updateCapability(
     @Param('id', ParseUUIDPipe) vendorId: string,
     @Param('processId', ParseUUIDPipe) processId: string,
@@ -214,7 +214,7 @@ export class VendorController {
    * Restricted to ADMIN and STORES roles.
    */
   @Delete(':id/capabilities/:processId')
-  @Roles(UserRole.ADMIN, UserRole.STORES)
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
   removeCapability(
     @Param('id', ParseUUIDPipe) vendorId: string,
     @Param('processId', ParseUUIDPipe) processId: string,
@@ -231,7 +231,7 @@ export class VendorController {
    * Restricted to ADMIN and STORES roles.
    */
   @Post(':id/slas')
-  @Roles(UserRole.ADMIN, UserRole.STORES)
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
   createSla(
     @Param('id', ParseUUIDPipe) vendorId: string,
     @Body() dto: CreateVendorSlaDto,

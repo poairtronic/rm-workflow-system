@@ -11,6 +11,7 @@ import { User } from './entities/user.entity.js';
 import { Role } from '../roles/entities/role.entity.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
+import { UserRole } from '../auth/enums/role.enum.js';
 
 @Injectable()
 export class UsersService {
@@ -38,19 +39,24 @@ export class UsersService {
       throw new BadRequestException(`Role ${createUserDto.role} not found`);
     }
 
-    const passwordHash = await bcrypt.hash(createUserDto.password, 10);
+    const rawPassword =
+      createUserDto.password ||
+      process.env.SEED_DEFAULT_PASSWORD ||
+      'airtronic123A@';
+    const passwordHash = await bcrypt.hash(rawPassword, 10);
 
     const user = this.userRepository.create({
-      name: createUserDto.name,
+      name: createUserDto.name.trim(),
       email: createUserDto.email.toLowerCase().trim(),
       passwordHash,
       roleId: role.id,
-      department: createUserDto.department,
-      isActive: true,
+      department: createUserDto.department?.trim() || undefined,
+      isActive:
+        createUserDto.isActive !== undefined ? createUserDto.isActive : true,
     });
 
     const savedUser = await this.userRepository.save(user);
-    // Remove passwordHash from response
+    // Never expose passwordHash
     const { passwordHash: _, ...result } = savedUser;
     return { ...result, role };
   }
@@ -67,6 +73,9 @@ export class UsersService {
         roleId: true,
         createdAt: true,
         updatedAt: true,
+      },
+      order: {
+        createdAt: 'DESC',
       },
     });
   }
@@ -138,10 +147,74 @@ export class UsersService {
     return result;
   }
 
-  async deactivate(id: string) {
+  async toggleActive(
+    id: string,
+    explicitActive?: boolean,
+    currentUserId?: string,
+  ) {
+    const user = await this.userRepository.findOne({
+      where: { id },
+      relations: { role: true },
+    });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    const nextActive =
+      explicitActive !== undefined ? explicitActive : !user.isActive;
+
+    if (
+      !nextActive &&
+      currentUserId &&
+      (currentUserId === user.id || currentUserId === id)
+    ) {
+      throw new BadRequestException(
+        'Administrators cannot deactivate their own account',
+      );
+    }
+
+    user.isActive = nextActive;
+    await this.userRepository.save(user);
+    const { passwordHash: _, ...result } = user;
+    return result;
+  }
+
+  async updateRole(id: string, roleName: UserRole) {
+    const user = await this.userRepository.findOne({
+      where: { id },
+      relations: { role: true },
+    });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    const role = await this.roleRepository.findOne({
+      where: { name: roleName },
+    });
+    if (!role) {
+      throw new BadRequestException(`Role ${roleName} not found`);
+    }
+
+    user.roleId = role.id;
+    await this.userRepository.save(user);
+    const { passwordHash: _, ...result } = user;
+    return { ...result, role };
+  }
+
+  async deactivate(id: string, currentUserId?: string) {
+    if (currentUserId && currentUserId === id) {
+      throw new BadRequestException(
+        'Administrators cannot deactivate their own account',
+      );
+    }
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    if (currentUserId && currentUserId === user.id) {
+      throw new BadRequestException(
+        'Administrators cannot deactivate their own account',
+      );
     }
     user.isActive = false;
     await this.userRepository.save(user);

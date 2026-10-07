@@ -24,6 +24,7 @@ How to use this file: every task must read this file first and never contradict 
 ## ASSUMED (need my confirmation before the related phase)
 - Type 2 outward reduces the SC's production balance, not stores stock.
 - Sample master data is prefixed SAMPLE / VND-SMP / PRC-SMP.
+- New user creation defaults password to SEED_DEFAULT_PASSWORD as a temporary measure until a proper invite/reset flow is built later.
 
 ## OPEN QUESTIONS
 
@@ -31,3 +32,6 @@ How to use this file: every task must read this file first and never contradict 
 - 2026-10-06 | Created DECISIONS.md | To track project decisions and architectural guidelines | docs/DECISIONS.md
 - 2026-10-07 | Updated DECISIONS.md | Confirmed Design B for RM drafts (One RM per SC, grouped by PO) and added FIELD MAPPING | docs/DECISIONS.md
 - 2026-10-07 | Updated DECISIONS.md | Confirmed Phase 17 B3.3 rules: Reason required on stock in/out and adjustment, Stores approval on extra-material, and registered 6 new notification events | docs/DECISIONS.md
+- 2026-10-07 | F1.1 Products Master | Added Products Master Workspace (/masters/products) with MSL management, category/family relations, and UOM configuration | docs/DECISIONS.md
+- 2026-10-07 | F1.2 Warehouses & Bins Master | Added Warehouses and Bins Master Workspace (/masters/bins) with full storage hierarchy navigation and bin creation | docs/DECISIONS.md
+- 2026-10-07 | F1.3 Vendors & Users Master | Added Vendors Master (/masters/vendors) with ADMIN/GM write & active toggle, Users Master (/masters/users) with self-lock guard, active status toggling, role management, and default SEED_DEFAULT_PASSWORD assumption | docs/DECISIONS.md

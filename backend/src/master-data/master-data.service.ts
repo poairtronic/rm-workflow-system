@@ -293,13 +293,91 @@ export class MasterDataService {
   // ==========================================
   // 3. PRODUCTS
   // ==========================================
+  private async resolveOrCreateFamily(dto: {
+    familyId?: string;
+    categoryId?: string;
+    categoryName?: string;
+    familyName?: string;
+  }): Promise<string> {
+    if (dto.familyId) {
+      const family = await this.familyRepo.findOneBy({ id: dto.familyId });
+      if (!family) {
+        throw new NotFoundException(
+          `Parent Family with ID "${dto.familyId}" not found.`,
+        );
+      }
+      return family.id;
+    }
+
+    if (dto.familyName && dto.familyName.trim()) {
+      const trimmedFamilyName = dto.familyName.trim();
+      let targetCategoryId = dto.categoryId;
+
+      if (!targetCategoryId && dto.categoryName && dto.categoryName.trim()) {
+        const trimmedCatName = dto.categoryName.trim();
+        let cat = await this.categoryRepo
+          .createQueryBuilder('c')
+          .where('LOWER(c.name) = LOWER(:name)', { name: trimmedCatName })
+          .getOne();
+        if (!cat) {
+          cat = await this.categoryRepo.save(
+            this.categoryRepo.create({ name: trimmedCatName, isActive: true }),
+          );
+        }
+        targetCategoryId = cat.id;
+      } else if (!targetCategoryId) {
+        // Fallback: search or create a General category
+        let defaultCat = await this.categoryRepo
+          .createQueryBuilder('c')
+          .where('LOWER(c.name) = LOWER(:name)', { name: 'General' })
+          .getOne();
+        if (!defaultCat) {
+          defaultCat = await this.categoryRepo.save(
+            this.categoryRepo.create({ name: 'General', isActive: true }),
+          );
+        }
+        targetCategoryId = defaultCat.id;
+      }
+
+      let fam = await this.familyRepo
+        .createQueryBuilder('f')
+        .where('f.categoryId = :categoryId', { categoryId: targetCategoryId })
+        .andWhere('LOWER(f.name) = LOWER(:name)', { name: trimmedFamilyName })
+        .getOne();
+      if (!fam) {
+        fam = await this.familyRepo.save(
+          this.familyRepo.create({
+            categoryId: targetCategoryId,
+            name: trimmedFamilyName,
+            isActive: true,
+          }),
+        );
+      }
+      return fam.id;
+    }
+
+    throw new BadRequestException(
+      'A valid familyId or familyName must be provided.',
+    );
+  }
+
   async createProduct(dto: CreateProductDto) {
-    const family = await this.familyRepo.findOneBy({ id: dto.familyId });
-    if (!family) {
-      throw new NotFoundException(
-        `Parent Family with ID "${dto.familyId}" not found.`,
+    const normalizedCode = (dto.code || '').trim().toUpperCase();
+    if (!normalizedCode) {
+      throw new BadRequestException('Product code is required.');
+    }
+
+    const existingCode = await this.productRepo
+      .createQueryBuilder('p')
+      .where('UPPER(p.code) = :code', { code: normalizedCode })
+      .getOne();
+    if (existingCode) {
+      throw new ConflictException(
+        `Product with code "${normalizedCode}" already exists.`,
       );
     }
+
+    const resolvedFamilyId = await this.resolveOrCreateFamily(dto);
 
     const min = dto.minimumInventory ?? 0;
     const max = dto.maximumInventory;
@@ -321,9 +399,13 @@ export class MasterDataService {
       );
     }
 
+    const normalizedUom = (dto.uom || 'KG').trim().toUpperCase();
+
     const product = this.productRepo.create({
-      familyId: dto.familyId,
+      code: normalizedCode,
+      familyId: resolvedFamilyId,
       name: trimmedName,
+      uom: normalizedUom,
       minimumInventory: min,
       maximumInventory: max,
       isActive: dto.isActive ?? true,
@@ -344,7 +426,9 @@ export class MasterDataService {
       qb.andWhere('p.familyId = :parentId', { parentId });
     }
     if (search) {
-      qb.andWhere('p.name ILIKE :search', { search: `%${search}%` });
+      qb.andWhere('(p.name ILIKE :search OR p.code ILIKE :search)', {
+        search: `%${search}%`,
+      });
     }
     if (isActive !== undefined) {
       qb.andWhere('p.isActive = :isActive', { isActive });
@@ -378,14 +462,30 @@ export class MasterDataService {
   async updateProduct(id: string, dto: UpdateProductDto) {
     const product = await this.findProductById(id);
 
-    if (dto.familyId !== undefined) {
-      const family = await this.familyRepo.findOneBy({ id: dto.familyId });
-      if (!family) {
-        throw new NotFoundException(
-          `Parent Family with ID "${dto.familyId}" not found.`,
+    if (dto.code !== undefined) {
+      const normalizedCode = dto.code.trim().toUpperCase();
+      if (!normalizedCode) {
+        throw new BadRequestException('Product code cannot be empty.');
+      }
+      const existingCode = await this.productRepo
+        .createQueryBuilder('p')
+        .where('UPPER(p.code) = :code', { code: normalizedCode })
+        .andWhere('p.id != :id', { id })
+        .getOne();
+      if (existingCode) {
+        throw new ConflictException(
+          `Product with code "${normalizedCode}" already exists.`,
         );
       }
-      product.familyId = dto.familyId;
+      product.code = normalizedCode;
+    }
+
+    if (dto.uom !== undefined) {
+      product.uom = dto.uom.trim().toUpperCase();
+    }
+
+    if (dto.familyId !== undefined || dto.familyName !== undefined) {
+      product.familyId = await this.resolveOrCreateFamily(dto);
     }
 
     if (dto.name !== undefined) {

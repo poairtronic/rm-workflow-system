@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsNotEmpty,
@@ -18,9 +19,9 @@ export class CreateUserDto {
   email!: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MinLength(6)
-  password!: string;
+  password?: string;
 
   @IsEnum(UserRole)
   @IsNotEmpty()
@@ -29,4 +30,8 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   department?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }

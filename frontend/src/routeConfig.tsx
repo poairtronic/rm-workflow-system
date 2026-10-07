@@ -18,6 +18,9 @@ import { UiKitShowcase } from './pages/UiKitShowcase';
 import { OverviewPage } from './pages/OverviewPage';
 import { ComingSoon } from './components/ui/ComingSoon';
 import { WarehousesAndBinsWorkspace } from './pages/WarehousesAndBinsWorkspace';
+import { UserMasterWorkspace } from './pages/UserMasterWorkspace';
+import { VendorMasterWorkspace } from './pages/VendorMasterWorkspace';
+import { ProductsMasterWorkspace } from './pages/ProductsMasterWorkspace';
 import type { ElementType } from 'react';
 
 export interface RouteConfig {
@@ -59,11 +62,11 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   { name: 'Vendor SLAs', path: '/governance/vendor-slas', icon: Shield, roles: ['SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: VendorSlaWorkspace, isSidebar: true, group: 'GOVERNANCE' },
   { name: 'Vendor Analytics', path: '/governance/vendor-analytics', icon: BarChart3, roles: ['SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: VendorDashboardWorkspace, isSidebar: true, group: 'GOVERNANCE' },
   
-  // MASTERS (Admin Only)
-  { name: 'Users', path: '/masters/users', icon: Users, roles: ['ADMIN'], component: () => <ComingSoon title="Users Master" />, isSidebar: true, group: 'MASTERS' },
-  { name: 'Products', path: '/masters/products', icon: Database, roles: ['ADMIN'], component: () => <ComingSoon title="Products Master" />, isSidebar: true, group: 'MASTERS' },
+  // MASTERS
+  { name: 'Users', path: '/masters/users', icon: Users, roles: ['ADMIN'], component: UserMasterWorkspace, isSidebar: true, group: 'MASTERS' },
+  { name: 'Products', path: '/masters/products', icon: Database, roles: ['ADMIN'], component: ProductsMasterWorkspace, isSidebar: true, group: 'MASTERS' },
   { name: 'Warehouses and Bins', path: '/masters/bins', icon: Box, roles: ['ADMIN'], component: WarehousesAndBinsWorkspace, isSidebar: true, group: 'MASTERS' },
-  { name: 'Vendors', path: '/masters/vendors', icon: Database, roles: ['ADMIN'], component: () => <ComingSoon title="Vendors Master" />, isSidebar: true, group: 'MASTERS' },
+  { name: 'Vendors', path: '/masters/vendors', icon: Database, roles: ['ADMIN', 'GENERAL_MANAGER'], component: VendorMasterWorkspace, isSidebar: true, group: 'MASTERS' },
   { name: 'Process Master', path: '/governance/process-master', icon: Settings, roles: ['ADMIN'], component: ProcessMasterWorkspace, isSidebar: true, group: 'MASTERS' },
 
   // OVERVIEW (Management & Admin)

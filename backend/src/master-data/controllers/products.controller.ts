@@ -17,7 +17,7 @@ import { UserRole } from '../../auth/enums/role.enum.js';
 import { CreateProductDto, UpdateProductDto } from '../dto/product.dto.js';
 import { MasterFilterDto } from '../dto/master-filter.dto.js';
 
-@Controller('api/products')
+@Controller(['api/products', 'products'])
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ProductsController {
   constructor(private readonly masterDataService: MasterDataService) {}
@@ -49,13 +49,13 @@ export class ProductsController {
   }
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.STORES)
+  @Roles(UserRole.ADMIN)
   createProduct(@Body() dto: CreateProductDto) {
     return this.masterDataService.createProduct(dto);
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.STORES)
+  @Roles(UserRole.ADMIN)
   updateProduct(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateProductDto,

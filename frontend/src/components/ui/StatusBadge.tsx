@@ -63,6 +63,18 @@ const slaStateMap: Record<string, BadgeVariant> = {
   OVERDUE: 'error',
 };
 
+// User & Entity Statuses
+const userStatusMap: Record<string, BadgeVariant> = {
+  ACTIVE: 'success',
+  INACTIVE: 'neutral',
+  ADMIN: 'error',
+  DESIGNER: 'info',
+  STORES: 'warning',
+  PRODUCTION: 'info',
+  SENIOR_MANAGER: 'info',
+  GENERAL_MANAGER: 'success',
+};
+
 const allStatusMaps = {
   ...scStatusMap,
   ...rmRequestStatusMap,
@@ -70,16 +82,18 @@ const allStatusMaps = {
   ...arStatusMap,
   ...stockSeverityMap,
   ...slaStateMap,
+  ...userStatusMap,
 };
 
 interface StatusBadgeProps {
   status: string;
+  variant?: BadgeVariant;
   className?: string;
 }
 
-export function StatusBadge({ status, className }: StatusBadgeProps) {
+export function StatusBadge({ status, variant: explicitVariant, className }: StatusBadgeProps) {
   const normalizedStatus = (status || '').toUpperCase();
-  const variant = allStatusMaps[normalizedStatus] || 'neutral';
+  const variant = explicitVariant || allStatusMaps[normalizedStatus] || 'neutral';
   
   // Format text: replace underscores with spaces, Title Case
   const formattedText = normalizedStatus
