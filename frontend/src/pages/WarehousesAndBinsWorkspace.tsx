@@ -17,7 +17,7 @@ export function WarehousesAndBinsWorkspace() {
   const loadWarehouses = async () => {
     try {
       setIsLoading(true);
-      const res = await masterDataService.getWarehouses({ pageSize: 1000 });
+      const res = await masterDataService.getWarehouses({ pageSize: 100 });
       setWarehouses(res.data);
       setError(undefined);
     } catch (err: any) {
@@ -86,7 +86,7 @@ function WarehouseNode({ warehouse }: { warehouse: Warehouse }) {
   const loadLocations = async () => {
     try {
       setIsLoading(true);
-      const res = await masterDataService.getLocations({ parentId: warehouse.id, pageSize: 1000 });
+      const res = await masterDataService.getLocations({ parentId: warehouse.id, pageSize: 100 });
       setLocations(res.data);
       setError(undefined);
     } catch (err: any) {
@@ -143,7 +143,7 @@ function LocationNode({ location }: { location: Location }) {
 
   const loadRacks = async () => {
     setIsLoading(true);
-    const res = await masterDataService.getRacks({ parentId: location.id, pageSize: 1000 });
+    const res = await masterDataService.getRacks({ parentId: location.id, pageSize: 100 });
     setRacks(res.data);
     setIsLoading(false);
   };
@@ -193,7 +193,7 @@ function RackNode({ rack }: { rack: Rack }) {
 
   const loadBins = async () => {
     setIsLoading(true);
-    const res = await masterDataService.getBins({ parentId: rack.id, pageSize: 1000 });
+    const res = await masterDataService.getBins({ parentId: rack.id, pageSize: 100 });
     setBins(res.data);
     setIsLoading(false);
   };
@@ -395,7 +395,7 @@ function AddBinSlideOver({ isOpen, onClose, onSuccess }: { isOpen: boolean, onCl
 
   useEffect(() => {
     if (isOpen) {
-      masterDataService.getWarehouses({ pageSize: 1000 }).then(res => {
+      masterDataService.getWarehouses({ pageSize: 100 }).then(res => {
         setWarehouses(res.data.map(w => ({ id: w.id, primary: w.name, secondary: w.code })));
       });
       setSelectedWarehouse(undefined);
@@ -411,7 +411,7 @@ function AddBinSlideOver({ isOpen, onClose, onSuccess }: { isOpen: boolean, onCl
 
   useEffect(() => {
     if (selectedWarehouse) {
-      masterDataService.getLocations({ parentId: selectedWarehouse, pageSize: 1000 }).then(res => {
+      masterDataService.getLocations({ parentId: selectedWarehouse, pageSize: 100 }).then(res => {
         setLocations(res.data.map(l => ({ id: l.id, primary: l.name, secondary: l.code })));
       });
       setSelectedLocation(undefined);
@@ -423,7 +423,7 @@ function AddBinSlideOver({ isOpen, onClose, onSuccess }: { isOpen: boolean, onCl
 
   useEffect(() => {
     if (selectedLocation) {
-      masterDataService.getRacks({ parentId: selectedLocation, pageSize: 1000 }).then(res => {
+      masterDataService.getRacks({ parentId: selectedLocation, pageSize: 100 }).then(res => {
         setRacks(res.data.map(r => ({ id: r.id, primary: r.name, secondary: r.code })));
       });
       setSelectedRack(undefined);

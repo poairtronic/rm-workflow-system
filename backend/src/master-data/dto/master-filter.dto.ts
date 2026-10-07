@@ -33,6 +33,6 @@ export class MasterFilterDto {
   @Type(() => Number)
   @IsNumber()
   @Min(1)
-  @Max(100)
+  @Max(1000)
   pageSize?: number = 20;
 }

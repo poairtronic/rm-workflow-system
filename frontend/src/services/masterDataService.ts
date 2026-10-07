@@ -97,7 +97,11 @@ function buildQuery(params?: MasterFilterParams): string {
   if (params.isActive !== undefined) q.append('isActive', String(params.isActive));
   if (params.parentId) q.append('parentId', params.parentId);
   if (params.page) q.append('page', String(params.page));
-  if (params.pageSize) q.append('pageSize', String(params.pageSize));
+  if (params.pageSize) {
+    // Clamp pageSize to 100 to prevent 400 Bad Request if large number requested
+    const safePageSize = Math.min(Math.max(1, params.pageSize), 100);
+    q.append('pageSize', String(safePageSize));
+  }
   const queryString = q.toString();
   return queryString ? `?${queryString}` : '';
 }

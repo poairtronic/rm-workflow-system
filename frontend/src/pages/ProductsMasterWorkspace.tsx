@@ -59,9 +59,9 @@ export function ProductsMasterWorkspace() {
       setIsLoading(true);
       setError(null);
       const [prodRes, catRes, famRes] = await Promise.all([
-        masterDataService.getProducts({ pageSize: 1000 }),
-        masterDataService.getCategories({ pageSize: 500 }),
-        masterDataService.getFamilies({ pageSize: 500 }),
+        masterDataService.getProducts({ pageSize: 100 }),
+        masterDataService.getCategories({ pageSize: 100 }),
+        masterDataService.getFamilies({ pageSize: 100 }),
       ]);
       setProducts(prodRes.data || []);
       setCategories(catRes.data || []);
