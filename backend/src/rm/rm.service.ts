@@ -616,6 +616,9 @@ export class RmService {
       }
 
       const submittedScs: string[] = [];
+      const draftsToSave: RmRequest[] = [];
+      const scsToSave: SalesOrderComponent[] = [];
+      const snapsToSave: RmItemSnapshot[] = [];
 
       for (const draft of drafts) {
         if (!draft.items || draft.items.length === 0) {
@@ -626,8 +629,8 @@ export class RmService {
         draft.submittedAt = new Date();
         draft.salesOrderComponent!.status = ScStatus.SUBMITTED;
         
-        await queryRunner.manager.save(SalesOrderComponent, draft.salesOrderComponent!);
-        await queryRunner.manager.save(RmRequest, draft);
+        scsToSave.push(draft.salesOrderComponent!);
+        draftsToSave.push(draft);
 
         for (const item of draft.items) {
           const snap = queryRunner.manager.create(RmItemSnapshot, {
@@ -648,10 +651,16 @@ export class RmService {
             weight: item.weight,
             weightUnit: item.weightUnit,
           });
-          await queryRunner.manager.save(snap);
+          snapsToSave.push(snap);
         }
 
         submittedScs.push(draft.salesOrderComponent!.scNumber);
+      }
+
+      await queryRunner.manager.save(SalesOrderComponent, scsToSave);
+      await queryRunner.manager.save(RmRequest, draftsToSave);
+      if (snapsToSave.length > 0) {
+        await queryRunner.manager.save(RmItemSnapshot, snapsToSave);
       }
 
       await queryRunner.commitTransaction();
@@ -675,13 +684,14 @@ export class RmService {
     }
 
     if (this.workflowNotificationService && result) {
-      try {
-        await this.workflowNotificationService.notifyRmSubmitted({
-          id: result.draftId,
-          rmNumber: `SCs: ${result.submittedScs.join(', ')}`,
-          createdById: result.createdById,
-        });
-      } catch (err) {}
+      // Do not wait for notifications (fire and forget)
+      this.workflowNotificationService.notifyRmSubmitted({
+        id: result.draftId,
+        rmNumber: `SCs: ${result.submittedScs.join(', ')}`,
+        createdById: result.createdById,
+      }).catch(err => {
+        console.error('[ERROR] Failed to send notifications', err);
+      });
     }
 
     return { submittedScs: result.submittedScs };

@@ -183,5 +183,5 @@ describe('Phase 17 B3.1: RM Drafts (e2e)', () => {
       });
     expect(afterSubmitRes.status).toBe(409); // ConflictException: already has non-DRAFT
     console.log('6. PUT AFTER SUBMIT done');
-  }, 60000);
+  }, 30000);
 });

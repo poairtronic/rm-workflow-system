@@ -456,61 +456,82 @@ export class CommunicationService {
       }
     }
     const uniqueTargetUsers = Array.from(userMap.values());
+    if (uniqueTargetUsers.length === 0) return { inAppNotifications, emailJobs };
 
-    for (const user of uniqueTargetUsers) {
-      // 1. In-App Notification (Channel 1 - Always created, authoritative)
+    // 1. In-App Notification (Channel 1 - Always created, authoritative)
+    const notificationValues = uniqueTargetUsers.map(user => {
+      const idempotencyKey = this.emailIdempotencyService.generateKey({
+        eventType: params.eventType,
+        entityId: params.targetId,
+        recipientUserId: user.id,
+      });
+      return this.notificationRepository.create({
+        userId: user.id,
+        title: params.title,
+        message: params.message,
+        type: params.eventType,
+        targetEntity: params.targetEntity,
+        targetId: params.targetId,
+        idempotencyKey,
+        isRead: false,
+      });
+    });
+
+    if (notificationValues.length > 0) {
       try {
-        const notification = await this.createInAppNotification({
-          userId: user.id,
-          title: params.title,
-          message: params.message,
-          type: params.eventType,
-          targetEntity: params.targetEntity,
-          targetId: params.targetId,
-        });
-        if (notification) {
-          inAppNotifications.push(notification);
-        }
-      } catch (inAppErr: any) {
-        this.logger.error(`In-App notification creation failed for recipient ${user.id}: ${inAppErr?.message || inAppErr}`);
+        await this.notificationRepository.createQueryBuilder()
+          .insert()
+          .values(notificationValues)
+          .orIgnore()
+          .execute();
+        inAppNotifications.push(...notificationValues);
+      } catch (err: any) {
+        this.logger.error(`Failed bulk insert of in-app notifications: ${err?.message}`);
       }
+    }
 
-      // 2. Email Job (Channel 2 - Optional based on preference)
-      try {
-        const isAllowed = await this.notificationsService.isWorkflowEmailAllowed(user.id);
-        if (isAllowed) {
-          // Use TemplateService to render template content safely
-          const rendered = this.templateService.render(params.templateKey, {
-            recipientName: user.name,
-            ...params.payload,
-          });
+    // 2. Email Job (Channel 2 - Optional based on preference)
+    const globalEmailEnabled = await this.notificationsService.getGlobalWorkflowEmailEnabled();
+    if (globalEmailEnabled) {
+      for (const user of uniqueTargetUsers) {
+        try {
+          const isUserAllowed = await this.notificationsService.getUserWorkflowEmailEnabled(user.id);
+          if (isUserAllowed) {
+            // Use TemplateService to render template content safely
+            const rendered = this.templateService.render(params.templateKey, {
+              recipientName: user.name,
+              ...params.payload,
+            });
 
-          const idempotencyKey = this.emailIdempotencyService.generateKey({
-            eventType: params.eventType,
-            entityId: params.targetId,
-            recipientUserId: user.id,
-          });
-          const job = await this.emailQueueService.enqueueJob({
-            recipientEmail: user.email,
-            recipientUserId: user.id,
-            recipientName: user.name,
-            eventType: params.eventType,
-            templateKey: rendered.templateKey,
-            subject: rendered.subject,
-            bodyText: rendered.text,
-            bodyHtml: rendered.html,
-            payload: params.payload,
-            idempotencyKey,
-          });
-          if (job) {
-            emailJobs.push(job);
+            const idempotencyKey = this.emailIdempotencyService.generateKey({
+              eventType: params.eventType,
+              entityId: params.targetId,
+              recipientUserId: user.id,
+            });
+            const job = await this.emailQueueService.enqueueJob({
+              recipientEmail: user.email,
+              recipientUserId: user.id,
+              recipientName: user.name,
+              eventType: params.eventType,
+              templateKey: rendered.templateKey,
+              subject: rendered.subject,
+              bodyText: rendered.text,
+              bodyHtml: rendered.html,
+              payload: params.payload,
+              idempotencyKey,
+            });
+            if (job) {
+              emailJobs.push(job);
+            }
+          } else {
+            this.logger.log(`Workflow email suppressed for recipient ${user.id} (${user.email}) due to preferences.`);
           }
-        } else {
-          this.logger.log(`Workflow email suppressed for recipient ${user.id} (${user.email}) due to preferences.`);
+        } catch (emailErr: any) {
+          this.logger.error(`Email job enqueuing failed for recipient ${user.id}: ${emailErr?.message || emailErr}`);
         }
-      } catch (emailErr: any) {
-        this.logger.error(`Email job enqueuing failed for recipient ${user.id}: ${emailErr?.message || emailErr}`);
       }
+    } else {
+      this.logger.log(`Global workflow email is disabled. Skipping email jobs.`);
     }
 
     return { inAppNotifications, emailJobs };
