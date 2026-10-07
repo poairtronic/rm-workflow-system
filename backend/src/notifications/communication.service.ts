@@ -38,6 +38,8 @@ export interface CommunicationEventInput {
   designerUserId?: string;
   requestedById?: string;
   createdById?: string;
+  actorUserId?: string;
+  specificTargetUserId?: string;
   metadata?: Record<string, any>;
 }
 
@@ -181,9 +183,9 @@ export class CommunicationService {
     this.logger.log(`Orchestrating event "${input.eventType}" for entity "${input.entityType}" (ID: ${input.entityId})`);
 
     const actorUserId =
-      input.createdById || input.requestedById || input.metadata?.actorUserId;
+      input.actorUserId || input.createdById || input.requestedById || input.metadata?.actorUserId;
     const specificTargetUserId =
-      input.recipientUserId || input.designerUserId;
+      input.specificTargetUserId || input.recipientUserId || input.designerUserId;
 
     let targetUsers: User[] = [];
     try {

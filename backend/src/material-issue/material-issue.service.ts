@@ -69,6 +69,18 @@ export class MaterialIssueService {
         `Material issue must contain at least one item.`,
       );
     }
+
+    if (!dto.additionalRequestId) {
+      if (
+        sc.status !== ScStatus.STORES_PENDING &&
+        sc.status !== ScStatus.PARTIALLY_ISSUED
+      ) {
+        throw new ConflictException(
+          `Initial Material Issue cannot be processed for SC "${sc.scNumber}". Current status is already "${sc.status}". For additional material, submit an Additional Material Request.`,
+        );
+      }
+    }
+
       let issueType = MaterialIssueType.INITIAL_ISSUE;
       let additionalReq: AdditionalMaterialRequest | null = null;
       if (dto.additionalRequestId) {
@@ -150,6 +162,29 @@ export class MaterialIssueService {
           throw new BadRequestException(`Bin "${bin.code}" is inactive.`);
         }
 
+        const requestedQty = QuantityCalculator.roundDecimal(
+          itemDto.quantityIssued,
+        );
+
+        if (issueType === MaterialIssueType.INITIAL_ISSUE) {
+          const sumRes = await queryRunner.manager.query(
+            `SELECT COALESCE(SUM(mii.quantity_issued), 0) as total 
+             FROM material_issue_items mii 
+             JOIN material_issues mi ON mi.id = mii.material_issue_id 
+             WHERE mii.rm_item_id = $1 AND mi.issue_type = 'INITIAL_ISSUE'`,
+            [rmItem.id],
+          );
+          const alreadyIssued = Number(sumRes[0].total) || 0;
+          const remainingAllowed = QuantityCalculator.roundDecimal(
+            Number(rmItem.quantity) - alreadyIssued,
+          );
+          if (requestedQty > remainingAllowed) {
+            throw new BadRequestException(
+              `Cannot over-issue RM Item "${rmItem.id}". Total required: ${rmItem.quantity}, already issued: ${alreadyIssued}, remaining allowed: ${remainingAllowed}, attempted: ${requestedQty}`,
+            );
+          }
+        }
+
         // Check bin stock balance targeting specifically the mapped product
         let balance = await queryRunner.manager.findOne(StockBalance, {
           where: { binId: itemDto.binId, productId: rmItem.mappedProductId },
@@ -158,9 +193,6 @@ export class MaterialIssueService {
         const availQty = balance
           ? QuantityCalculator.roundDecimal(Number(balance.currentQuantity))
           : 0;
-        const requestedQty = QuantityCalculator.roundDecimal(
-          itemDto.quantityIssued,
-        );
 
         QuantityCalculator.assertWithinLimit(
           requestedQty,
