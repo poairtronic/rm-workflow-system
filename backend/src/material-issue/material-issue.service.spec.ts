@@ -60,6 +60,7 @@ describe('MaterialIssueService', () => {
           return Promise.resolve(null);
         }),
         query: vi.fn().mockResolvedValue([[], 1]),
+        find: vi.fn().mockResolvedValue([{ id: 'rm-item-1', scId: 'sc-1', quantity: 25 }]),
         create: vi.fn((entity, data) => ({ id: 'tx-1', ...data })),
       },
     };

@@ -365,7 +365,7 @@ describe('Phase 17.6 — MSL Scheduled & Trigger Logic Specification', () => {
         mockTrigger,
       );
 
-      await inventoryService.stockIn('item-1', { quantity: 50, remarks: 'Inbound' }, 'user-1');
+      await inventoryService.stockIn('item-1', { quantity: 50, remarks: 'Inbound', referenceType: 'MANUAL', reason: 'Restock' }, 'user-1');
 
       expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
       expect(triggerProductEvaluationSpy).toHaveBeenCalledWith('prod-target');
@@ -412,7 +412,7 @@ describe('Phase 17.6 — MSL Scheduled & Trigger Logic Specification', () => {
         mockTrigger,
       );
 
-      await inventoryService.stockOut('item-1', { quantity: 20, remarks: 'Outbound' }, 'user-1');
+      await inventoryService.stockOut('item-1', { quantity: 20, remarks: 'Outbound', referenceType: 'MANUAL', reason: 'Consumption' }, 'user-1');
 
       expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
       expect(triggerProductEvaluationSpy).toHaveBeenCalledWith('prod-out');

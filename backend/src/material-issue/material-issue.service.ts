@@ -259,15 +259,25 @@ export class MaterialIssueService {
           .catch(() => {});
       }
 
-      // Post-commit notification for MATERIAL_ISSUED
+      // Post-commit notification
       try {
-        await this.workflowNotificationService.notifyMaterialIssued({
-          id: savedIssue.id,
-          scId: dto.scId,
-          rmNumber: sc.scNumber,
-        });
+        if (issueType === MaterialIssueType.ADDITIONAL_ISSUE && additionalReq) {
+          await this.workflowNotificationService.notifyExtraMaterialIssued({
+            id: savedIssue.id,
+            scId: dto.scId,
+            rmNumber: sc.scNumber,
+            additionalRequestId: additionalReq.id,
+            recipientUserId: additionalReq.requestedById,
+          });
+        } else {
+          await this.workflowNotificationService.notifyMaterialIssued({
+            id: savedIssue.id,
+            scId: dto.scId,
+            rmNumber: sc.scNumber,
+          });
+        }
       } catch (notifyErr: any) {
-        console.error('Workflow notification for MATERIAL_ISSUED failed post-commit:', notifyErr);
+        console.error('Workflow notification for Material Issue failed post-commit:', notifyErr);
       }
 
       return this.findOne(savedIssue.id);

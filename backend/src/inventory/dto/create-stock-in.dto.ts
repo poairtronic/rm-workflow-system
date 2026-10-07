@@ -21,6 +21,10 @@ export class CreateStockInDto {
   referenceId?: string;
 
   @IsString()
+  @IsNotEmpty()
+  reason!: string;
+
+  @IsString()
   @IsOptional()
   remarks?: string;
 }

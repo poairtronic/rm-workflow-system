@@ -614,7 +614,8 @@ export class InventoryService {
         quantity: dto.quantity,
         referenceType: dto.referenceType,
         referenceId: dto.referenceId,
-        remarks: dto.remarks,
+        reason: dto.reason,
+        remarks: dto.remarks || dto.reason,
         createdById: userId,
       });
       const savedTx = await queryRunner.manager.save(transaction);
@@ -710,7 +711,8 @@ export class InventoryService {
         quantity: dto.quantity,
         referenceType: dto.referenceType,
         referenceId: dto.referenceId,
-        remarks: dto.remarks,
+        reason: dto.reason,
+        remarks: dto.remarks || dto.reason,
         createdById: userId,
       });
       const savedTx = await queryRunner.manager.save(transaction);

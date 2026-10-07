@@ -36,6 +36,7 @@ import {
 } from './dto/production.dto.js';
 import { QuantityCalculator } from '../common/utils/quantity-calculator.js';
 import { StateMachineValidator } from '../common/utils/state-machine-validator.js';
+import { WorkflowNotificationService } from '../notifications/workflow-notification.service.js';
 
 @Injectable()
 export class ProductionService {
@@ -61,6 +62,8 @@ export class ProductionService {
     private readonly dataSource: DataSource,
     @Optional()
     private readonly mslTriggerService?: MslTriggerService,
+    @Optional()
+    private readonly workflowNotificationService?: WorkflowNotificationService,
   ) {}
 
   async receiveMaterial(dto: CreateProductionReceiptDto, actorId: string) {
@@ -180,6 +183,19 @@ export class ProductionService {
       }
 
       await queryRunner.commitTransaction();
+
+      // Post-commit notification for MATERIAL_RECEIVED
+      if (this.workflowNotificationService) {
+        try {
+          await this.workflowNotificationService.notifyMaterialReceived({
+            id: savedReceipt.id,
+            scId: sc.id,
+            rmNumber: sc.scNumber,
+          });
+        } catch (notifyErr: any) {
+          console.error('Workflow notification for MATERIAL_RECEIVED failed post-commit:', notifyErr);
+        }
+      }
 
       // CRITICAL: Production receipt DOES NOT alter inventory stock
       return this.receiptRepo.findOne({
@@ -451,6 +467,20 @@ export class ProductionService {
 
       await queryRunner.commitTransaction();
 
+      // Post-commit notification for MATERIAL_RETURNED
+      if (this.workflowNotificationService) {
+        try {
+          await this.workflowNotificationService.notifyMaterialReturned({
+            id: savedReturn.id,
+            scId: sc.id,
+            rmNumber: sc.scNumber,
+            returnedById: actorId,
+          });
+        } catch (notifyErr: any) {
+          console.error('Workflow notification for MATERIAL_RETURNED failed post-commit:', notifyErr);
+        }
+      }
+
       // CRITICAL: Stock is NOT restored here; Stores verification is required
       return this.returnRepo.findOne({
         where: { id: savedReturn.id },
@@ -556,6 +586,21 @@ export class ProductionService {
 
       await queryRunner.manager.save(MaterialReturn, returnRec);
       await queryRunner.commitTransaction();
+
+      // Post-commit notification for RETURN_VERIFIED
+      if (this.workflowNotificationService) {
+        try {
+          const sc = await this.scRepo.findOneBy({ id: returnRec.scId });
+          await this.workflowNotificationService.notifyReturnVerified({
+            id: returnRec.id,
+            scId: returnRec.scId,
+            rmNumber: sc?.scNumber || returnRec.scId,
+            recipientUserId: returnRec.returnedById,
+          });
+        } catch (notifyErr: any) {
+          console.error('Workflow notification for RETURN_VERIFIED failed post-commit:', notifyErr);
+        }
+      }
 
       // Post-commit event-driven MSL evaluation (safe & isolated)
       if (this.mslTriggerService && sortedItems.length > 0) {

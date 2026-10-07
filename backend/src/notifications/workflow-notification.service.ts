@@ -28,6 +28,49 @@ export interface ScCompletedEventPayload {
   designerUserId?: string;
 }
 
+export interface MaterialReceivedEventPayload {
+  id: string;
+  scId: string;
+  rmNumber: string;
+  recipientUserId?: string;
+}
+
+export interface MaterialReturnedEventPayload {
+  id: string;
+  scId: string;
+  rmNumber: string;
+  returnedById?: string;
+}
+
+export interface ReturnVerifiedEventPayload {
+  id: string;
+  scId: string;
+  rmNumber: string;
+  recipientUserId?: string;
+}
+
+export interface ExtraMaterialApprovedEventPayload {
+  id: string;
+  scId: string;
+  rmNumber: string;
+  recipientUserId?: string;
+}
+
+export interface ExtraMaterialRejectedEventPayload {
+  id: string;
+  scId: string;
+  rmNumber: string;
+  recipientUserId?: string;
+}
+
+export interface ExtraMaterialIssuedEventPayload {
+  id: string;
+  scId: string;
+  rmNumber: string;
+  additionalRequestId?: string;
+  recipientUserId?: string;
+}
+
 @Injectable()
 export class WorkflowNotificationService {
   private readonly logger = new Logger(WorkflowNotificationService.name);
@@ -84,6 +127,60 @@ export class WorkflowNotificationService {
   async notifyScCompleted(event: ScCompletedEventPayload): Promise<EmailJob[]> {
     this.logger.log(`Processing SC_COMPLETED event for SC "${event.scNumber}" (ID: ${event.id})`);
     const result = await this.communicationService.notifyScCompleted(event);
+    return result.emailJobs;
+  }
+
+  /**
+   * Event Handler 5: MATERIAL_RECEIVED
+   */
+  async notifyMaterialReceived(event: MaterialReceivedEventPayload): Promise<EmailJob[]> {
+    this.logger.log(`Processing MATERIAL_RECEIVED event for SC "${event.rmNumber}" (Receipt ID: ${event.id})`);
+    const result = await this.communicationService.notifyMaterialReceived(event);
+    return result.emailJobs;
+  }
+
+  /**
+   * Event Handler 6: MATERIAL_RETURNED
+   */
+  async notifyMaterialReturned(event: MaterialReturnedEventPayload): Promise<EmailJob[]> {
+    this.logger.log(`Processing MATERIAL_RETURNED event for SC "${event.rmNumber}" (Return ID: ${event.id})`);
+    const result = await this.communicationService.notifyMaterialReturned(event);
+    return result.emailJobs;
+  }
+
+  /**
+   * Event Handler 7: RETURN_VERIFIED
+   */
+  async notifyReturnVerified(event: ReturnVerifiedEventPayload): Promise<EmailJob[]> {
+    this.logger.log(`Processing RETURN_VERIFIED event for SC "${event.rmNumber}" (Return ID: ${event.id})`);
+    const result = await this.communicationService.notifyReturnVerified(event);
+    return result.emailJobs;
+  }
+
+  /**
+   * Event Handler 8: EXTRA_MATERIAL_APPROVED
+   */
+  async notifyExtraMaterialApproved(event: ExtraMaterialApprovedEventPayload): Promise<EmailJob[]> {
+    this.logger.log(`Processing EXTRA_MATERIAL_APPROVED event for SC "${event.rmNumber}" (Request ID: ${event.id})`);
+    const result = await this.communicationService.notifyExtraMaterialApproved(event);
+    return result.emailJobs;
+  }
+
+  /**
+   * Event Handler 9: EXTRA_MATERIAL_REJECTED
+   */
+  async notifyExtraMaterialRejected(event: ExtraMaterialRejectedEventPayload): Promise<EmailJob[]> {
+    this.logger.log(`Processing EXTRA_MATERIAL_REJECTED event for SC "${event.rmNumber}" (Request ID: ${event.id})`);
+    const result = await this.communicationService.notifyExtraMaterialRejected(event);
+    return result.emailJobs;
+  }
+
+  /**
+   * Event Handler 10: EXTRA_MATERIAL_ISSUED
+   */
+  async notifyExtraMaterialIssued(event: ExtraMaterialIssuedEventPayload): Promise<EmailJob[]> {
+    this.logger.log(`Processing EXTRA_MATERIAL_ISSUED event for SC "${event.rmNumber}" (Issue ID: ${event.id})`);
+    const result = await this.communicationService.notifyExtraMaterialIssued(event);
     return result.emailJobs;
   }
 }

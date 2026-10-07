@@ -14,6 +14,12 @@ import {
   MaterialIssuedEventPayload,
   AdditionalRequestEventPayload,
   ScCompletedEventPayload,
+  MaterialReceivedEventPayload,
+  MaterialReturnedEventPayload,
+  ReturnVerifiedEventPayload,
+  ExtraMaterialApprovedEventPayload,
+  ExtraMaterialRejectedEventPayload,
+  ExtraMaterialIssuedEventPayload,
 } from './workflow-notification.service.js';
 
 export interface CommunicationEventResult {
@@ -243,6 +249,85 @@ export class CommunicationService {
           templateKey: 'SC_COMPLETED',
           subject: `[RMRIT Notification] SC Completed: ${input.scNumber || input.entityId}`,
           payload: { scNumber: input.scNumber || input.entityId, scId: input.entityId },
+        });
+
+      // Phase 17 B3.3 — Material Receipt, Return & Extra Material Events
+      case 'MATERIAL_RECEIVED':
+        return this.orchestrateChannelDelivery({
+          eventType: 'MATERIAL_RECEIVED',
+          targetUsers,
+          targetEntity: 'MATERIAL_RECEIPT',
+          targetId: input.entityId,
+          title: `Material Received for SC: ${input.rmNumber || input.entityId}`,
+          message: `Material receipt has been confirmed for SC ${input.rmNumber || input.entityId}.`,
+          templateKey: 'MATERIAL_RECEIVED',
+          subject: `[RMRIT Notification] Material Received: ${input.rmNumber || input.entityId}`,
+          payload: { scNumber: input.rmNumber || input.entityId, scId: input.scId, receiptId: input.entityId },
+        });
+
+      case 'MATERIAL_RETURNED':
+        return this.orchestrateChannelDelivery({
+          eventType: 'MATERIAL_RETURNED',
+          targetUsers,
+          targetEntity: 'MATERIAL_RETURN',
+          targetId: input.entityId,
+          title: `Material Return Submitted: ${input.rmNumber || input.entityId}`,
+          message: `Material return has been submitted for SC ${input.rmNumber || input.entityId} and awaits Stores acknowledgment.`,
+          templateKey: 'MATERIAL_RETURNED',
+          subject: `[RMRIT Notification] Material Return Submitted: ${input.rmNumber || input.entityId}`,
+          payload: { scNumber: input.rmNumber || input.entityId, scId: input.scId, returnId: input.entityId },
+        });
+
+      case 'RETURN_VERIFIED':
+        return this.orchestrateChannelDelivery({
+          eventType: 'RETURN_VERIFIED',
+          targetUsers,
+          targetEntity: 'MATERIAL_RETURN',
+          targetId: input.entityId,
+          title: `Material Return Acknowledged: ${input.rmNumber || input.entityId}`,
+          message: `Material return for SC ${input.rmNumber || input.entityId} has been verified and acknowledged by Stores.`,
+          templateKey: 'RETURN_VERIFIED',
+          subject: `[RMRIT Notification] Material Return Acknowledged: ${input.rmNumber || input.entityId}`,
+          payload: { scNumber: input.rmNumber || input.entityId, scId: input.scId, returnId: input.entityId },
+        });
+
+      case 'EXTRA_MATERIAL_APPROVED':
+        return this.orchestrateChannelDelivery({
+          eventType: 'EXTRA_MATERIAL_APPROVED',
+          targetUsers,
+          targetEntity: 'ADDITIONAL_REQUEST',
+          targetId: input.entityId,
+          title: `Additional Material Approved: ${input.rmNumber || input.entityId}`,
+          message: `Additional material request for SC ${input.rmNumber || input.entityId} has been APPROVED by Stores.`,
+          templateKey: 'EXTRA_MATERIAL_APPROVED',
+          subject: `[RMRIT Notification] Additional Material Approved: ${input.rmNumber || input.entityId}`,
+          payload: { scNumber: input.rmNumber || input.entityId, scId: input.scId, requestId: input.entityId },
+        });
+
+      case 'EXTRA_MATERIAL_REJECTED':
+        return this.orchestrateChannelDelivery({
+          eventType: 'EXTRA_MATERIAL_REJECTED',
+          targetUsers,
+          targetEntity: 'ADDITIONAL_REQUEST',
+          targetId: input.entityId,
+          title: `Additional Material Rejected: ${input.rmNumber || input.entityId}`,
+          message: `Additional material request for SC ${input.rmNumber || input.entityId} has been REJECTED by Stores.`,
+          templateKey: 'EXTRA_MATERIAL_REJECTED',
+          subject: `[RMRIT Notification] Additional Material Rejected: ${input.rmNumber || input.entityId}`,
+          payload: { scNumber: input.rmNumber || input.entityId, scId: input.scId, requestId: input.entityId },
+        });
+
+      case 'EXTRA_MATERIAL_ISSUED':
+        return this.orchestrateChannelDelivery({
+          eventType: 'EXTRA_MATERIAL_ISSUED',
+          targetUsers,
+          targetEntity: 'MATERIAL_ISSUE',
+          targetId: input.entityId,
+          title: `Additional Material Issued: ${input.rmNumber || input.entityId}`,
+          message: `Additional material has been issued by Stores for SC ${input.rmNumber || input.entityId}.`,
+          templateKey: 'EXTRA_MATERIAL_ISSUED',
+          subject: `[RMRIT Notification] Additional Material Issued: ${input.rmNumber || input.entityId}`,
+          payload: { scNumber: input.rmNumber || input.entityId, scId: input.scId, issueId: input.entityId },
         });
 
       case 'MSL_LOW_STOCK':
@@ -493,43 +578,45 @@ export class CommunicationService {
     // 2. Email Job (Channel 2 - Optional based on preference)
     const globalEmailEnabled = await this.notificationsService.getGlobalWorkflowEmailEnabled();
     if (globalEmailEnabled) {
-      for (const user of uniqueTargetUsers) {
-        try {
-          const isUserAllowed = await this.notificationsService.getUserWorkflowEmailEnabled(user.id);
-          if (isUserAllowed) {
-            // Use TemplateService to render template content safely
-            const rendered = this.templateService.render(params.templateKey, {
-              recipientName: user.name,
-              ...params.payload,
-            });
+      await Promise.all(
+        uniqueTargetUsers.map(async (user) => {
+          try {
+            const isUserAllowed = await this.notificationsService.getUserWorkflowEmailEnabled(user.id);
+            if (isUserAllowed) {
+              // Use TemplateService to render template content safely
+              const rendered = this.templateService.render(params.templateKey, {
+                recipientName: user.name,
+                ...params.payload,
+              });
 
-            const idempotencyKey = this.emailIdempotencyService.generateKey({
-              eventType: params.eventType,
-              entityId: params.targetId,
-              recipientUserId: user.id,
-            });
-            const job = await this.emailQueueService.enqueueJob({
-              recipientEmail: user.email,
-              recipientUserId: user.id,
-              recipientName: user.name,
-              eventType: params.eventType,
-              templateKey: rendered.templateKey,
-              subject: rendered.subject,
-              bodyText: rendered.text,
-              bodyHtml: rendered.html,
-              payload: params.payload,
-              idempotencyKey,
-            });
-            if (job) {
-              emailJobs.push(job);
+              const idempotencyKey = this.emailIdempotencyService.generateKey({
+                eventType: params.eventType,
+                entityId: params.targetId,
+                recipientUserId: user.id,
+              });
+              const job = await this.emailQueueService.enqueueJob({
+                recipientEmail: user.email,
+                recipientUserId: user.id,
+                recipientName: user.name,
+                eventType: params.eventType,
+                templateKey: rendered.templateKey,
+                subject: rendered.subject,
+                bodyText: rendered.text,
+                bodyHtml: rendered.html,
+                payload: params.payload,
+                idempotencyKey,
+              });
+              if (job) {
+                emailJobs.push(job);
+              }
+            } else {
+              this.logger.log(`Workflow email suppressed for recipient ${user.id} (${user.email}) due to preferences.`);
             }
-          } else {
-            this.logger.log(`Workflow email suppressed for recipient ${user.id} (${user.email}) due to preferences.`);
+          } catch (emailErr: any) {
+            this.logger.error(`Email job enqueuing failed for recipient ${user.id}: ${emailErr?.message || emailErr}`);
           }
-        } catch (emailErr: any) {
-          this.logger.error(`Email job enqueuing failed for recipient ${user.id}: ${emailErr?.message || emailErr}`);
-        }
-      }
+        }),
+      );
     } else {
       this.logger.log(`Global workflow email is disabled. Skipping email jobs.`);
     }
@@ -576,6 +663,73 @@ export class CommunicationService {
       entityId: event.id,
       scNumber: event.scNumber,
       designerUserId: event.designerUserId,
+    });
+  }
+
+  async notifyMaterialReceived(event: MaterialReceivedEventPayload): Promise<CommunicationEventResult> {
+    return this.sendEvent({
+      eventType: 'MATERIAL_RECEIVED',
+      entityType: 'MATERIAL_RECEIPT',
+      entityId: event.id,
+      scId: event.scId,
+      rmNumber: event.rmNumber,
+      specificTargetUserId: event.recipientUserId,
+    });
+  }
+
+  async notifyMaterialReturned(event: MaterialReturnedEventPayload): Promise<CommunicationEventResult> {
+    return this.sendEvent({
+      eventType: 'MATERIAL_RETURNED',
+      entityType: 'MATERIAL_RETURN',
+      entityId: event.id,
+      scId: event.scId,
+      rmNumber: event.rmNumber,
+      actorUserId: event.returnedById,
+    });
+  }
+
+  async notifyReturnVerified(event: ReturnVerifiedEventPayload): Promise<CommunicationEventResult> {
+    return this.sendEvent({
+      eventType: 'RETURN_VERIFIED',
+      entityType: 'MATERIAL_RETURN',
+      entityId: event.id,
+      scId: event.scId,
+      rmNumber: event.rmNumber,
+      specificTargetUserId: event.recipientUserId,
+    });
+  }
+
+  async notifyExtraMaterialApproved(event: ExtraMaterialApprovedEventPayload): Promise<CommunicationEventResult> {
+    return this.sendEvent({
+      eventType: 'EXTRA_MATERIAL_APPROVED',
+      entityType: 'ADDITIONAL_REQUEST',
+      entityId: event.id,
+      scId: event.scId,
+      rmNumber: event.rmNumber,
+      specificTargetUserId: event.recipientUserId,
+    });
+  }
+
+  async notifyExtraMaterialRejected(event: ExtraMaterialRejectedEventPayload): Promise<CommunicationEventResult> {
+    return this.sendEvent({
+      eventType: 'EXTRA_MATERIAL_REJECTED',
+      entityType: 'ADDITIONAL_REQUEST',
+      entityId: event.id,
+      scId: event.scId,
+      rmNumber: event.rmNumber,
+      specificTargetUserId: event.recipientUserId,
+    });
+  }
+
+  async notifyExtraMaterialIssued(event: ExtraMaterialIssuedEventPayload): Promise<CommunicationEventResult> {
+    return this.sendEvent({
+      eventType: 'EXTRA_MATERIAL_ISSUED',
+      entityType: 'MATERIAL_ISSUE',
+      entityId: event.id,
+      scId: event.scId,
+      rmNumber: event.rmNumber,
+      specificTargetUserId: event.recipientUserId,
+      metadata: { additionalRequestId: event.additionalRequestId },
     });
   }
 }

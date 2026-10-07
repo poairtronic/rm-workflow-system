@@ -10,6 +10,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { WorkflowNotificationService } from '../notifications/workflow-notification.service.js';
 
 describe('ScService', () => {
   let service: ScService;
@@ -81,6 +82,13 @@ describe('ScService', () => {
         {
           provide: AdditionalRequestService,
           useValue: addlReqServiceMock,
+        },
+        {
+          provide: WorkflowNotificationService,
+          useValue: {
+            notifyScStatusChanged: vi.fn(),
+            notifyScClosed: vi.fn(),
+          },
         },
       ],
     }).compile();

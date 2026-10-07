@@ -50,10 +50,22 @@ describe('Inventory DTO Validation', () => {
       ).rejects.toThrow('Bad Request Exception');
     });
 
-    it('should accept valid decimal quantities', async () => {
+    it('should reject missing reason', async () => {
+      const dto = {
+        quantity: 10,
+        referenceType: 'MANUAL',
+      };
+
+      await expect(
+        target.transform(dto, { type: 'body', metatype: CreateStockInDto }),
+      ).rejects.toThrow('Bad Request Exception');
+    });
+
+    it('should accept valid decimal quantities with reason', async () => {
       const dto = {
         quantity: 10.125,
         referenceType: 'MANUAL',
+        reason: 'Restocking inventory',
       };
 
       const result = await target.transform(dto, {
@@ -61,6 +73,7 @@ describe('Inventory DTO Validation', () => {
         metatype: CreateStockInDto,
       });
       expect(result.quantity).toBe(10.125);
+      expect(result.reason).toBe('Restocking inventory');
     });
   });
 

@@ -98,6 +98,9 @@ export class StockTransaction {
   referenceId?: string;
 
   @Column({ type: 'text', nullable: true })
+  reason?: string;
+
+  @Column({ type: 'text', nullable: true })
   remarks?: string;
 
   @Column({ name: 'created_by_id' })

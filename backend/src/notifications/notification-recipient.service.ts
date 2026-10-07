@@ -87,6 +87,43 @@ export class NotificationRecipientService {
         monitoringRoles = [UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER];
         break;
 
+      // Phase 17 B3.3 — Material Receipt, Return & Extra Material events
+      case 'MATERIAL_RECEIVED':
+        // Production received material -> Stores & Managers notified
+        primaryRoles = [UserRole.STORES];
+        monitoringRoles = [UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER];
+        break;
+
+      case 'MATERIAL_RETURNED':
+        // Production submitted return -> Stores & Managers notified
+        primaryRoles = [UserRole.STORES];
+        monitoringRoles = [UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER];
+        break;
+
+      case 'RETURN_VERIFIED':
+        // Stores verified return -> Production & Managers notified
+        primaryRoles = [UserRole.PRODUCTION];
+        monitoringRoles = [UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER];
+        break;
+
+      case 'EXTRA_MATERIAL_APPROVED':
+        // Stores approved extra material -> Production & Managers notified
+        primaryRoles = [UserRole.PRODUCTION];
+        monitoringRoles = [UserRole.SENIOR_MANAGER];
+        break;
+
+      case 'EXTRA_MATERIAL_REJECTED':
+        // Stores rejected extra material -> Production & Managers notified
+        primaryRoles = [UserRole.PRODUCTION];
+        monitoringRoles = [UserRole.SENIOR_MANAGER];
+        break;
+
+      case 'EXTRA_MATERIAL_ISSUED':
+        // Stores issued extra material -> Production & Managers notified
+        primaryRoles = [UserRole.PRODUCTION];
+        monitoringRoles = [UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER];
+        break;
+
       case 'MSL_LOW_STOCK':
       case 'MSL_OUT_OF_STOCK':
       case 'MSL_RESOLVED':

@@ -235,6 +235,122 @@ export class TemplateService {
       },
     },
 
+    // ─── Phase 17 B3.3: Material Receipt, Return & Extra Material Templates ───
+
+    MATERIAL_RECEIVED: {
+      key: 'MATERIAL_RECEIVED',
+      aliases: ['WORKFLOW_MATERIAL_RECEIVED'],
+      requiredVars: ['scNumber'],
+      allowedVars: ['recipientName', 'scNumber', 'scId', 'receiptId'],
+      render: (vars, escape) => {
+        const scNum = vars.scNumber || vars.scId || 'Sales Component';
+        const escScNum = escape(scNum);
+        const name = vars.recipientName ? `${escape(vars.recipientName)}` : '';
+        const greeting = name ? `Hello ${name},\n\n` : '';
+        const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
+        return {
+          subject: `[RMRIT Notification] Material Received: ${scNum}`,
+          text: `${greeting}Material receipt has been confirmed for SC ${scNum}.`,
+          html: `<h3>Material Received</h3>${htmlGreeting}<p>Material receipt has been confirmed for SC <strong>${escScNum}</strong>.</p>`,
+        };
+      },
+    },
+
+    MATERIAL_RETURNED: {
+      key: 'MATERIAL_RETURNED',
+      aliases: ['WORKFLOW_MATERIAL_RETURNED'],
+      requiredVars: ['scNumber'],
+      allowedVars: ['recipientName', 'scNumber', 'scId', 'returnId'],
+      render: (vars, escape) => {
+        const scNum = vars.scNumber || vars.scId || 'Sales Component';
+        const escScNum = escape(scNum);
+        const name = vars.recipientName ? `${escape(vars.recipientName)}` : '';
+        const greeting = name ? `Hello ${name},\n\n` : '';
+        const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
+        return {
+          subject: `[RMRIT Notification] Material Return Submitted: ${scNum}`,
+          text: `${greeting}Material return has been submitted for SC ${scNum} and awaits Stores acknowledgment.`,
+          html: `<h3>Material Return Submitted</h3>${htmlGreeting}<p>Material return has been submitted for SC <strong>${escScNum}</strong> and awaits Stores acknowledgment.</p>`,
+        };
+      },
+    },
+
+    RETURN_VERIFIED: {
+      key: 'RETURN_VERIFIED',
+      aliases: ['WORKFLOW_RETURN_VERIFIED'],
+      requiredVars: ['scNumber'],
+      allowedVars: ['recipientName', 'scNumber', 'scId', 'returnId'],
+      render: (vars, escape) => {
+        const scNum = vars.scNumber || vars.scId || 'Sales Component';
+        const escScNum = escape(scNum);
+        const name = vars.recipientName ? `${escape(vars.recipientName)}` : '';
+        const greeting = name ? `Hello ${name},\n\n` : '';
+        const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
+        return {
+          subject: `[RMRIT Notification] Material Return Acknowledged: ${scNum}`,
+          text: `${greeting}Material return for SC ${scNum} has been verified and acknowledged by Stores.`,
+          html: `<h3>Material Return Acknowledged</h3>${htmlGreeting}<p>Material return for SC <strong>${escScNum}</strong> has been verified and acknowledged by Stores.</p>`,
+        };
+      },
+    },
+
+    EXTRA_MATERIAL_APPROVED: {
+      key: 'EXTRA_MATERIAL_APPROVED',
+      aliases: ['WORKFLOW_EXTRA_MATERIAL_APPROVED'],
+      requiredVars: ['scNumber'],
+      allowedVars: ['recipientName', 'scNumber', 'scId', 'requestId'],
+      render: (vars, escape) => {
+        const scNum = vars.scNumber || vars.scId || 'Sales Component';
+        const escScNum = escape(scNum);
+        const name = vars.recipientName ? `${escape(vars.recipientName)}` : '';
+        const greeting = name ? `Hello ${name},\n\n` : '';
+        const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
+        return {
+          subject: `[RMRIT Notification] Additional Material Approved: ${scNum}`,
+          text: `${greeting}Additional material request for SC ${scNum} has been APPROVED by Stores.`,
+          html: `<h3>Additional Material Approved</h3>${htmlGreeting}<p>Additional material request for SC <strong>${escScNum}</strong> has been APPROVED by Stores.</p>`,
+        };
+      },
+    },
+
+    EXTRA_MATERIAL_REJECTED: {
+      key: 'EXTRA_MATERIAL_REJECTED',
+      aliases: ['WORKFLOW_EXTRA_MATERIAL_REJECTED'],
+      requiredVars: ['scNumber'],
+      allowedVars: ['recipientName', 'scNumber', 'scId', 'requestId'],
+      render: (vars, escape) => {
+        const scNum = vars.scNumber || vars.scId || 'Sales Component';
+        const escScNum = escape(scNum);
+        const name = vars.recipientName ? `${escape(vars.recipientName)}` : '';
+        const greeting = name ? `Hello ${name},\n\n` : '';
+        const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
+        return {
+          subject: `[RMRIT Notification] Additional Material Rejected: ${scNum}`,
+          text: `${greeting}Additional material request for SC ${scNum} has been REJECTED by Stores.`,
+          html: `<h3>Additional Material Rejected</h3>${htmlGreeting}<p>Additional material request for SC <strong>${escScNum}</strong> has been REJECTED by Stores.</p>`,
+        };
+      },
+    },
+
+    EXTRA_MATERIAL_ISSUED: {
+      key: 'EXTRA_MATERIAL_ISSUED',
+      aliases: ['WORKFLOW_EXTRA_MATERIAL_ISSUED'],
+      requiredVars: ['scNumber'],
+      allowedVars: ['recipientName', 'scNumber', 'scId', 'issueId'],
+      render: (vars, escape) => {
+        const scNum = vars.scNumber || vars.scId || 'Sales Component';
+        const escScNum = escape(scNum);
+        const name = vars.recipientName ? `${escape(vars.recipientName)}` : '';
+        const greeting = name ? `Hello ${name},\n\n` : '';
+        const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
+        return {
+          subject: `[RMRIT Notification] Additional Material Issued: ${scNum}`,
+          text: `${greeting}Additional material has been issued by Stores for SC ${scNum}.`,
+          html: `<h3>Additional Material Issued</h3>${htmlGreeting}<p>Additional material has been issued by Stores for SC <strong>${escScNum}</strong>.</p>`,
+        };
+      },
+    },
+
     // ─── Phase 19.8: Delivery Challan Templates ───────────────────────────────
 
     DC_CREATED: {

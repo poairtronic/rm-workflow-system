@@ -189,6 +189,21 @@ export class AdditionalRequestService {
       await queryRunner.manager.save(AdditionalMaterialRequest, request);
       await queryRunner.commitTransaction();
 
+      // Post-commit notification for EXTRA_MATERIAL_APPROVED
+      if (this.workflowNotificationService) {
+        try {
+          const sc = await this.scRepo.findOne({ where: { id: request.scId } });
+          await this.workflowNotificationService.notifyExtraMaterialApproved({
+            id: request.id,
+            scId: request.scId,
+            rmNumber: sc?.scNumber || request.scId,
+            recipientUserId: request.requestedById,
+          });
+        } catch (notifyErr: any) {
+          console.error('Workflow notification for EXTRA_MATERIAL_APPROVED failed post-commit:', notifyErr);
+        }
+      }
+
       return this.findOne(id);
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -236,6 +251,20 @@ export class AdditionalRequestService {
       }
 
       await queryRunner.commitTransaction();
+
+      // Post-commit notification for EXTRA_MATERIAL_REJECTED
+      if (this.workflowNotificationService) {
+        try {
+          await this.workflowNotificationService.notifyExtraMaterialRejected({
+            id: request.id,
+            scId: request.scId,
+            rmNumber: sc.scNumber,
+            recipientUserId: request.requestedById,
+          });
+        } catch (notifyErr: any) {
+          console.error('Workflow notification for EXTRA_MATERIAL_REJECTED failed post-commit:', notifyErr);
+        }
+      }
 
       return this.findOne(id);
     } catch (error) {

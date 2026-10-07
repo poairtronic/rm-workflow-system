@@ -17,10 +17,11 @@ How to use this file: every task must read this file first and never contradict 
   - An SC can have several RM item rows. No duplicate product within an SC.
   - RM drafts do NOT consume actual stock or log MSL checks until they are SUBMITTED.
   - DRAFT RMs are visible only to the creator (the DESIGNER who created them) and the ADMIN.
+- Stores approves extra-material requests; Admin can override. (Implemented Phase 17 B3.2/B3.3)
+- Reason required on every stock in, out and adjustment; persisted to stock_transactions. (Implemented Phase 17 B3.3)
+- Workflow notifications sent for: MATERIAL_RECEIVED, MATERIAL_RETURNED, RETURN_VERIFIED, EXTRA_MATERIAL_APPROVED, EXTRA_MATERIAL_REJECTED, EXTRA_MATERIAL_ISSUED. (Implemented Phase 17 B3.3)
 
 ## ASSUMED (need my confirmation before the related phase)
-- Stores approves extra-material requests; Admin can override.
-- Reason required on every stock in, out and adjustment.
 - Type 2 outward reduces the SC's production balance, not stores stock.
 - Sample master data is prefixed SAMPLE / VND-SMP / PRC-SMP.
 
@@ -29,3 +30,4 @@ How to use this file: every task must read this file first and never contradict 
 ## CHANGE LOG
 - 2026-10-06 | Created DECISIONS.md | To track project decisions and architectural guidelines | docs/DECISIONS.md
 - 2026-10-07 | Updated DECISIONS.md | Confirmed Design B for RM drafts (One RM per SC, grouped by PO) and added FIELD MAPPING | docs/DECISIONS.md
+- 2026-10-07 | Updated DECISIONS.md | Confirmed Phase 17 B3.3 rules: Reason required on stock in/out and adjustment, Stores approval on extra-material, and registered 6 new notification events | docs/DECISIONS.md

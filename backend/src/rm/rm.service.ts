@@ -328,14 +328,26 @@ export class RmService {
       if (!po) {
         let customerId = dto.customerId;
         if (!customerId) {
-          const defaultCustomer = await queryRunner.manager.findOne(Customer, {
+          let defaultCustomer = await queryRunner.manager.findOne(Customer, {
             where: { code: 'BDL-IND' },
           });
-          if (defaultCustomer) {
-            customerId = defaultCustomer.id;
-          } else {
-            throw new BadRequestException('customerId is required when creating a new PO and default customer BDL-IND not found');
+          if (!defaultCustomer) {
+            const existingCustomers = await queryRunner.manager.find(Customer, {
+              order: { createdAt: 'ASC' },
+              take: 1,
+            });
+            if (existingCustomers.length > 0) {
+              defaultCustomer = existingCustomers[0];
+            }
           }
+          if (!defaultCustomer) {
+            defaultCustomer = queryRunner.manager.create(Customer, {
+              code: 'BDL-IND',
+              name: 'Bharat Dynamics Limited',
+            });
+            defaultCustomer = await queryRunner.manager.save(defaultCustomer);
+          }
+          customerId = defaultCustomer.id;
         }
         po = queryRunner.manager.create(PurchaseOrder, {
           poNumber: dto.poNumber.trim(),
@@ -424,7 +436,7 @@ export class RmService {
       const res = await this.getDraftRmByPo(po!.id, user);
       return res;
     } catch (error) {
-      console.log('[DEBUG] createDraftRm rolling back transaction');
+      console.log('[DEBUG] createDraftRm rolling back transaction', error);
       await queryRunner.rollbackTransaction();
       throw error;
     } finally {

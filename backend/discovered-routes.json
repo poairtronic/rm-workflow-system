@@ -16,6 +16,14 @@
     "path": "/api/additional-requests/:id"
   },
   {
+    "method": "POST",
+    "path": "/api/additional-requests/:id/approve"
+  },
+  {
+    "method": "POST",
+    "path": "/api/additional-requests/:id/reject"
+  },
+  {
     "method": "GET",
     "path": "/api/analytics/status"
   },
@@ -117,6 +125,46 @@
   },
   {
     "method": "GET",
+    "path": "/api/delivery-challans"
+  },
+  {
+    "method": "GET",
+    "path": "/api/delivery-challans/:id"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/delivery-challans/:id/close"
+  },
+  {
+    "method": "GET",
+    "path": "/api/delivery-challans/:id/printable"
+  },
+  {
+    "method": "POST",
+    "path": "/api/delivery-challans/:id/return"
+  },
+  {
+    "method": "GET",
+    "path": "/api/delivery-challans/custody/product/:productId"
+  },
+  {
+    "method": "GET",
+    "path": "/api/delivery-challans/custody/vendor/:vendorId"
+  },
+  {
+    "method": "GET",
+    "path": "/api/delivery-challans/overdue"
+  },
+  {
+    "method": "POST",
+    "path": "/api/delivery-challans/type-1"
+  },
+  {
+    "method": "POST",
+    "path": "/api/delivery-challans/type-2"
+  },
+  {
+    "method": "GET",
     "path": "/api/email/observability"
   },
   {
@@ -172,6 +220,10 @@
     "path": "/api/general-issue/:id"
   },
   {
+    "method": "PATCH",
+    "path": "/api/general-issue/:id/cancel"
+  },
+  {
     "method": "POST",
     "path": "/api/general-issue/:id/cancel"
   },
@@ -225,6 +277,10 @@
   },
   {
     "method": "GET",
+    "path": "/api/inventory/balances"
+  },
+  {
+    "method": "GET",
     "path": "/api/inventory/msl"
   },
   {
@@ -246,6 +302,14 @@
   {
     "method": "GET",
     "path": "/api/inventory/msl/products/:id/history"
+  },
+  {
+    "method": "POST",
+    "path": "/api/inventory/msl/sweep"
+  },
+  {
+    "method": "GET",
+    "path": "/api/inventory/msl/sweep-status"
   },
   {
     "method": "GET",
@@ -373,6 +437,46 @@
   },
   {
     "method": "GET",
+    "path": "/api/production-processes"
+  },
+  {
+    "method": "POST",
+    "path": "/api/production-processes"
+  },
+  {
+    "method": "GET",
+    "path": "/api/production-processes/:id"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/production-processes/:id"
+  },
+  {
+    "method": "GET",
+    "path": "/api/production-processes/:id/navigation"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/production-processes/:id/toggle-active"
+  },
+  {
+    "method": "GET",
+    "path": "/api/production-processes/routing/final"
+  },
+  {
+    "method": "GET",
+    "path": "/api/production-processes/routing/first"
+  },
+  {
+    "method": "POST",
+    "path": "/api/production-processes/routing/validate-transition"
+  },
+  {
+    "method": "GET",
+    "path": "/api/production-processes/routing/vendor-eligible"
+  },
+  {
+    "method": "GET",
     "path": "/api/production/accounting/:scId"
   },
   {
@@ -436,6 +540,10 @@
     "path": "/api/rm"
   },
   {
+    "method": "DELETE",
+    "path": "/api/rm/:id"
+  },
+  {
     "method": "GET",
     "path": "/api/rm/:id"
   },
@@ -460,12 +568,40 @@
     "path": "/api/rm/:id/items"
   },
   {
+    "method": "DELETE",
+    "path": "/api/rm/:id/items/:itemId"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/rm/:id/items/:itemId"
+  },
+  {
     "method": "POST",
     "path": "/api/rm/:id/review"
   },
   {
     "method": "POST",
     "path": "/api/rm/:id/submit"
+  },
+  {
+    "method": "POST",
+    "path": "/api/rm/draft"
+  },
+  {
+    "method": "GET",
+    "path": "/api/rm/mine"
+  },
+  {
+    "method": "GET",
+    "path": "/api/rm/po/:poId/draft"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/rm/po/:poId/draft"
+  },
+  {
+    "method": "POST",
+    "path": "/api/rm/po/:poId/submit"
   },
   {
     "method": "GET",
@@ -525,7 +661,63 @@
   },
   {
     "method": "GET",
+    "path": "/api/sc/production/grouped"
+  },
+  {
+    "method": "GET",
+    "path": "/api/sc/stores/pending-grouped"
+  },
+  {
+    "method": "GET",
+    "path": "/api/sc/test/:id"
+  },
+  {
+    "method": "GET",
     "path": "/api/stores/status"
+  },
+  {
+    "method": "GET",
+    "path": "/api/traceability/analytics/inventory-msl-status"
+  },
+  {
+    "method": "GET",
+    "path": "/api/traceability/analytics/item-outward"
+  },
+  {
+    "method": "GET",
+    "path": "/api/traceability/analytics/process-outward"
+  },
+  {
+    "method": "GET",
+    "path": "/api/traceability/analytics/rm-consumption"
+  },
+  {
+    "method": "GET",
+    "path": "/api/traceability/po/:poId/consolidated"
+  },
+  {
+    "method": "GET",
+    "path": "/api/traceability/rm/lifecycle-summary"
+  },
+  {
+    "method": "GET",
+    "path": "/api/traceability/rm/reconciliation-queue"
+  },
+  {
+    "method": "GET",
+    "path": "/api/traceability/sc/:scId/consolidated"
+  },
+  {
+    "method": "GET",
+    "path": "/api/traceability/sc/:scId/rm-usage"
+  },
+  {
+    "method": "GET",
+    "path": "/api/traceability/vendors/:vendorId/traceability"
+  },
+  {
+    "method": "GET",
+    "path": "/api/traceability/vendors/performance-analytics"
   },
   {
     "method": "GET",
@@ -550,6 +742,82 @@
   {
     "method": "PATCH",
     "path": "/api/users/:id/deactivate"
+  },
+  {
+    "method": "GET",
+    "path": "/api/vendors"
+  },
+  {
+    "method": "POST",
+    "path": "/api/vendors"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/vendors/:id"
+  },
+  {
+    "method": "GET",
+    "path": "/api/vendors/:id"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/vendors/:id"
+  },
+  {
+    "method": "GET",
+    "path": "/api/vendors/:id/capabilities"
+  },
+  {
+    "method": "POST",
+    "path": "/api/vendors/:id/capabilities"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/vendors/:id/capabilities/:processId"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/vendors/:id/capabilities/:processId"
+  },
+  {
+    "method": "GET",
+    "path": "/api/vendors/:id/capabilities/:processId/validate"
+  },
+  {
+    "method": "GET",
+    "path": "/api/vendors/:id/slas"
+  },
+  {
+    "method": "POST",
+    "path": "/api/vendors/:id/slas"
+  },
+  {
+    "method": "GET",
+    "path": "/api/vendors/:id/slas/:processId"
+  },
+  {
+    "method": "GET",
+    "path": "/api/vendors/:id/slas/:processId/expected-return"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/vendors/:id/toggle-active"
+  },
+  {
+    "method": "GET",
+    "path": "/api/vendors/capabilities/by-process/:processId"
+  },
+  {
+    "method": "GET",
+    "path": "/api/vendors/slas"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/vendors/slas/:slaId"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/vendors/slas/:slaId"
   },
   {
     "method": "GET",

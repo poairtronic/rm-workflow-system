@@ -13,6 +13,7 @@ import { MaterialIssue } from '../material-issue/entities/material-issue.entity.
 import { RmItem } from '../rm/entities/rm-item.entity.js';
 import { Bin } from '../inventory/entities/bin.entity.js';
 import { InventoryModule } from '../inventory/inventory.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { InventoryModule } from '../inventory/inventory.module.js';
     ]),
     AuthModule,
     InventoryModule,
+    NotificationsModule,
   ],
   controllers: [ProductionController],
   providers: [ProductionService],
