@@ -268,7 +268,7 @@ export class ScService {
         { status: ScStatus.ADDITIONAL_REQUEST },
       ],
       relations: {
-        purchaseOrder: true,
+        purchaseOrder: { customer: true },
         additionalRequests: true,
         rmRequest: { items: true },
       },
@@ -287,7 +287,7 @@ export class ScService {
         { status: ScStatus.IN_PRODUCTION },
       ],
       relations: {
-        purchaseOrder: true,
+        purchaseOrder: { customer: true },
         additionalRequests: true,
         rmRequest: { items: true },
       },
@@ -307,7 +307,7 @@ export class ScService {
         grouped.set(poId, {
           poId: sc.purchaseOrder.id,
           poNumber: sc.purchaseOrder.poNumber,
-          customerName: sc.purchaseOrder.customerName,
+          customerName: sc.purchaseOrder.customer?.name,
           scs: [],
         });
       }
