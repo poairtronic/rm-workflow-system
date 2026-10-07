@@ -32,6 +32,9 @@ export class Product {
   @JoinColumn({ name: 'family_id' })
   family!: ProductFamily;
 
+  @Column({ length: 100, nullable: true, unique: true })
+  code?: string;
+
   @Column({ length: 255, unique: true })
   name!: string;
 

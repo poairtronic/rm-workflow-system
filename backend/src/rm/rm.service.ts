@@ -6,7 +6,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, In } from 'typeorm';
 import {
   RmRequest,
   RmRequestStatus,
@@ -15,11 +15,17 @@ import {
 import { RmItem, AvailabilityStatus } from './entities/rm-item.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import { SalesOrderComponent, ScStatus } from '../sc/entities/sc.entity.js';
+import { PurchaseOrder } from '../po/entities/po.entity.js';
+import { Customer } from '../customers/entities/customer.entity.js';
+import { Product } from '../inventory/entities/product.entity.js';
 import { CreateRmDto, CreateRmItemDto, SubmitRmDto } from './dto/rm.dto.js';
+import { CreateDraftRmDto, UpdateDraftRmDto } from './dto/draft-rm.dto.js';
 import { StoresReviewRmDto } from './dto/stores-review.dto.js';
 import { QuantityCalculator } from '../common/utils/quantity-calculator.js';
 import { StateMachineValidator } from '../common/utils/state-machine-validator.js';
 import { WorkflowNotificationService } from '../notifications/workflow-notification.service.js';
+import { UserRole } from '../auth/enums/role.enum.js';
+import { RmItemSnapshot, SnapshotChangeType } from './entities/rm-item-snapshot.entity.js';
 
 @Injectable()
 export class RmService {
@@ -148,7 +154,6 @@ export class RmService {
             createdById: rm.createdById,
           });
         } catch (err) {
-          // Notification side effect failure should not roll back completed submission
         }
       }
 
@@ -161,7 +166,7 @@ export class RmService {
     }
   }
 
-  async findAll(query?: { scId?: string; status?: RmRequestStatus }) {
+  async findAll(query?: { scId?: string; status?: RmRequestStatus }, user?: any) {
     const qb = this.rmRepo
       .createQueryBuilder('rm')
       .leftJoinAndSelect('rm.salesOrderComponent', 'sc')
@@ -175,11 +180,17 @@ export class RmService {
       qb.andWhere('rm.status = :status', { status: query.status });
     }
 
+    if (user && user.role !== UserRole.ADMIN && user.role !== UserRole.DESIGNER) {
+       qb.andWhere('rm.status != :draftStatus', { draftStatus: RmRequestStatus.DRAFT });
+    } else if (user && user.role === UserRole.DESIGNER) {
+       qb.andWhere('(rm.status != :draftStatus OR rm.createdById = :userId)', { draftStatus: RmRequestStatus.DRAFT, userId: user.userId });
+    }
+
     qb.orderBy('rm.createdAt', 'DESC');
     return qb.getMany();
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user?: any) {
     const rm = await this.rmRepo.findOne({
       where: { id },
       relations: {
@@ -196,6 +207,14 @@ export class RmService {
     if (!rm) {
       throw new NotFoundException(`RM Request with ID "${id}" not found.`);
     }
+
+    if (user && user.role !== UserRole.ADMIN && user.role !== UserRole.DESIGNER && rm.status === RmRequestStatus.DRAFT) {
+      throw new NotFoundException(`RM Request with ID "${id}" not found.`);
+    }
+    if (user && user.role === UserRole.DESIGNER && rm.status === RmRequestStatus.DRAFT && rm.createdById !== user.userId) {
+      throw new NotFoundException(`RM Request with ID "${id}" not found.`);
+    }
+
     return rm;
   }
 
@@ -286,5 +305,476 @@ export class RmService {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  // --- NEW DRAFT ENDPOINTS ---
+
+  async createDraftRm(dto: CreateDraftRmDto, user: any) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      let po = await queryRunner.manager.findOne(PurchaseOrder, {
+        where: { poNumber: dto.poNumber.trim() },
+      });
+
+      if (!po) {
+        let customerId = dto.customerId;
+        if (!customerId) {
+          const defaultCustomer = await queryRunner.manager.findOne(Customer, {
+            where: { code: 'BDL-IND' },
+          });
+          if (defaultCustomer) {
+            customerId = defaultCustomer.id;
+          } else {
+            throw new BadRequestException('customerId is required when creating a new PO and default customer BDL-IND not found');
+          }
+        }
+        po = queryRunner.manager.create(PurchaseOrder, {
+          poNumber: dto.poNumber.trim(),
+          customerId,
+        });
+        try {
+          po = await queryRunner.manager.save(po);
+        } catch (e: any) {
+          if (e.code === '23505') { 
+            po = await queryRunner.manager.findOne(PurchaseOrder, {
+              where: { poNumber: dto.poNumber.trim() },
+            });
+            if (!po) throw e;
+          } else {
+            throw e;
+          }
+        }
+      }
+
+      for (const scDto of dto.scs) {
+        const scNumber = scDto.scNumber.trim();
+        let sc = await queryRunner.manager.findOne(SalesOrderComponent, {
+          where: { poId: po.id, scNumber },
+          relations: { rmRequest: true }
+        });
+
+        if (sc) {
+          if (sc.rmRequest && sc.rmRequest.status !== RmRequestStatus.DRAFT) {
+            throw new ConflictException(`SC ${scNumber} already has a non-DRAFT RM Request.`);
+          }
+        } else {
+          sc = queryRunner.manager.create(SalesOrderComponent, {
+            poId: po.id,
+            scNumber,
+            productName: scDto.productName,
+            status: ScStatus.DRAFT,
+          });
+          sc = await queryRunner.manager.save(sc);
+        }
+
+        let rm = await queryRunner.manager.findOne(RmRequest, {
+          where: { scId: sc.id }
+        });
+
+        if (!rm) {
+          rm = queryRunner.manager.create(RmRequest, {
+            poId: po.id,
+            scId: sc.id,
+            createdById: user.userId,
+            status: RmRequestStatus.DRAFT,
+          });
+          rm = await queryRunner.manager.save(rm);
+        } else if (rm.status !== RmRequestStatus.DRAFT) {
+           throw new ConflictException(`SC ${scNumber} already has a non-DRAFT RM Request.`);
+        }
+
+        for (const itemDto of scDto.items) {
+          const product = await queryRunner.manager.findOne(Product, { where: { id: itemDto.productId } });
+          if (!product || !product.isActive) {
+            throw new BadRequestException(`Product ${itemDto.productId} not found or inactive`);
+          }
+
+          const existingItem = await queryRunner.manager.findOne(RmItem, {
+            where: { rmFormId: rm.id, mappedProductId: product.id }
+          });
+          if (existingItem) {
+             throw new BadRequestException(`Duplicate product ${product.id} in SC ${scNumber}`);
+          }
+
+          const item = queryRunner.manager.create(RmItem, {
+            rmFormId: rm.id,
+            scId: sc.id,
+            material: product.name,
+            mappedProductId: product.id,
+            materialType: 'ROUND_BAR',
+            grade: itemDto.spec.trim(),
+            size: itemDto.spec.trim(),
+            quantity: QuantityCalculator.roundDecimal(itemDto.quantity),
+          });
+          await queryRunner.manager.save(item);
+        }
+      }
+
+      await queryRunner.commitTransaction();
+      console.log('[DEBUG] createDraftRm transaction committed');
+      const res = await this.getDraftRmByPo(po!.id, user);
+      return res;
+    } catch (error) {
+      console.log('[DEBUG] createDraftRm rolling back transaction');
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      console.log('[DEBUG] createDraftRm releasing queryRunner');
+      await queryRunner.release();
+      console.log('[DEBUG] createDraftRm queryRunner released');
+    }
+  }
+
+  async getDraftRmByPo(poId: string, user: any) {
+    const qb = this.rmRepo.createQueryBuilder('rm')
+      .leftJoinAndSelect('rm.salesOrderComponent', 'sc')
+      .leftJoinAndSelect('rm.items', 'items')
+      .leftJoinAndSelect('rm.purchaseOrder', 'po')
+      .where('rm.poId = :poId', { poId })
+      .andWhere('rm.status = :status', { status: RmRequestStatus.DRAFT });
+      
+    if (user.role !== UserRole.ADMIN) {
+      qb.andWhere('rm.createdById = :userId', { userId: user.userId });
+    }
+
+    const drafts = await qb.getMany();
+    if (!drafts.length) return null;
+    
+    const po = drafts[0].purchaseOrder!;
+    return {
+       poId: po.id,
+       poNumber: po.poNumber,
+       scs: drafts.map(rm => ({
+         scId: rm.scId,
+         scNumber: rm.salesOrderComponent!.scNumber,
+         productName: rm.salesOrderComponent!.productName,
+         items: rm.items.map(i => ({
+           id: i.id,
+           productId: i.mappedProductId,
+           spec: i.grade,
+           quantity: i.quantity,
+           material: i.material
+         }))
+       }))
+    };
+  }
+
+  async updateDraftRm(poId: string, dto: UpdateDraftRmDto, user: any) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const po = await queryRunner.manager.findOne(PurchaseOrder, { where: { id: poId } });
+      if (!po) throw new NotFoundException('PO not found');
+
+      const isOwner = user.role === UserRole.DESIGNER;
+      const ownerCond = isOwner ? { createdById: user.userId } : {};
+
+      const existingDrafts = await queryRunner.manager.find(RmRequest, {
+         where: { poId, status: RmRequestStatus.DRAFT, ...ownerCond },
+         relations: { salesOrderComponent: true, items: true }
+      });
+
+      const inputScNumbers = dto.scs.map(sc => sc.scNumber.trim());
+
+      for (const draft of existingDrafts) {
+        if (!inputScNumbers.includes(draft.salesOrderComponent!.scNumber)) {
+          await queryRunner.manager.delete(RmItem, { rmFormId: draft.id });
+          await queryRunner.manager.delete(RmRequest, { id: draft.id });
+          await queryRunner.manager.delete(SalesOrderComponent, { id: draft.scId });
+        }
+      }
+
+      for (const scDto of dto.scs) {
+        const scNumber = scDto.scNumber.trim();
+        let draft = existingDrafts.find(d => d.salesOrderComponent!.scNumber === scNumber);
+
+        let sc;
+        if (draft) {
+          sc = draft.salesOrderComponent!;
+          sc.productName = scDto.productName;
+          await queryRunner.manager.save(sc);
+          await queryRunner.manager.delete(RmItem, { rmFormId: draft.id });
+        } else {
+          console.log(`[DEBUG] updateDraftRm finding SC ${scNumber} for PO ${po.id}`);
+          sc = await queryRunner.manager.findOne(SalesOrderComponent, {
+            where: { poId: po.id, scNumber },
+            relations: { rmRequest: true }
+          });
+          console.log(`[DEBUG] updateDraftRm found SC:`, sc?.id);
+          if (sc) {
+            if (sc.rmRequest && sc.rmRequest.status !== RmRequestStatus.DRAFT) {
+              console.log(`[DEBUG] throwing ConflictException for SC ${scNumber}`);
+              throw new ConflictException(`SC ${scNumber} already has a non-DRAFT RM Request.`);
+            } else if (sc.rmRequest) {
+               if (isOwner && sc.rmRequest.createdById !== user.userId) {
+                  throw new ConflictException(`SC ${scNumber} draft belongs to another user.`);
+               }
+               draft = sc.rmRequest;
+               sc.productName = scDto.productName;
+               await queryRunner.manager.save(sc);
+               await queryRunner.manager.delete(RmItem, { rmFormId: draft.id });
+            }
+          } else {
+            sc = queryRunner.manager.create(SalesOrderComponent, {
+              poId: po.id,
+              scNumber,
+              productName: scDto.productName,
+              status: ScStatus.DRAFT,
+            });
+            sc = await queryRunner.manager.save(sc);
+          }
+
+          if (!draft) {
+            draft = queryRunner.manager.create(RmRequest, {
+              poId: po.id,
+              scId: sc.id,
+              createdById: isOwner ? user.userId : (sc.rmRequest?.createdById || user.userId),
+              status: RmRequestStatus.DRAFT,
+            });
+            draft = await queryRunner.manager.save(draft);
+          }
+        }
+
+        for (const itemDto of scDto.items) {
+          const product = await queryRunner.manager.findOne(Product, { where: { id: itemDto.productId } });
+          if (!product || !product.isActive) {
+            throw new BadRequestException(`Product ${itemDto.productId} not found or inactive`);
+          }
+
+          const existingItem = await queryRunner.manager.findOne(RmItem, {
+            where: { rmFormId: draft.id, mappedProductId: product.id }
+          });
+          if (existingItem) {
+             throw new BadRequestException(`Duplicate product ${product.id} in SC ${scNumber}`);
+          }
+
+          const item = queryRunner.manager.create(RmItem, {
+            rmFormId: draft.id,
+            scId: sc!.id,
+            material: product.name,
+            mappedProductId: product.id,
+            materialType: 'ROUND_BAR',
+            grade: itemDto.spec.trim(),
+            size: itemDto.spec.trim(),
+            quantity: QuantityCalculator.roundDecimal(itemDto.quantity),
+          });
+          await queryRunner.manager.save(item);
+        }
+      }
+
+      await queryRunner.commitTransaction();
+      console.log('[DEBUG] updateDraftRm transaction committed');
+      const res = await this.getDraftRmByPo(poId, user);
+      return res;
+    } catch (error) {
+      console.log('[DEBUG] updateDraftRm rolling back transaction');
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      console.log('[DEBUG] updateDraftRm releasing queryRunner');
+      await queryRunner.release();
+      console.log('[DEBUG] updateDraftRm queryRunner released');
+    }
+  }
+
+  async submitDraftRmByPo(poId: string, user: any) {
+    let result: any;
+    const queryRunner = this.dataSource.createQueryRunner();
+    console.log('[DEBUG] submitDraftRmByPo connecting...');
+    await queryRunner.connect();
+    console.log('[DEBUG] submitDraftRmByPo starting transaction...');
+    await queryRunner.startTransaction();
+
+    try {
+      const isOwner = user.role === UserRole.DESIGNER;
+      const ownerCond = isOwner ? { createdById: user.userId } : {};
+
+      const qb = queryRunner.manager.createQueryBuilder(RmRequest, 'rm')
+        .select('rm.id')
+        .where('rm.po_id = :poId', { poId })
+        .andWhere('rm.status = :status', { status: RmRequestStatus.DRAFT });
+      if (isOwner) {
+        qb.andWhere('rm.created_by_id = :userId', { userId: user.userId });
+      }
+      qb.setLock('pessimistic_write');
+      console.log('[DEBUG] submitDraftRmByPo getting lock...');
+      const draftsToLock = await qb.getMany();
+      console.log('[DEBUG] submitDraftRmByPo lock acquired');
+
+      const drafts = await queryRunner.manager.find(RmRequest, {
+         where: { poId, status: RmRequestStatus.DRAFT, ...ownerCond },
+         relations: { salesOrderComponent: true, items: true }
+      });
+
+      if (!drafts.length) {
+        throw new BadRequestException('No DRAFT RM Requests found for this PO.');
+      }
+
+      const submittedScs: string[] = [];
+
+      for (const draft of drafts) {
+        if (!draft.items || draft.items.length === 0) {
+          throw new BadRequestException(`Cannot submit RM for SC ${draft.salesOrderComponent!.scNumber} without items.`);
+        }
+
+        draft.status = RmRequestStatus.SUBMITTED;
+        draft.submittedAt = new Date();
+        draft.salesOrderComponent!.status = ScStatus.SUBMITTED;
+        
+        await queryRunner.manager.save(SalesOrderComponent, draft.salesOrderComponent!);
+        await queryRunner.manager.save(RmRequest, draft);
+
+        for (const item of draft.items) {
+          const snap = queryRunner.manager.create(RmItemSnapshot, {
+            rmItemId: item.id,
+            rmFormId: draft.id,
+            revisionNumber: 1,
+            changeType: SnapshotChangeType.ORIGINAL_SUBMISSION,
+            changedById: user.userId,
+            material: item.material,
+            materialType: item.materialType,
+            grade: item.grade,
+            quantity: item.quantity,
+            size: item.size,
+            length: item.length,
+            width: item.width,
+            thickness: item.thickness,
+            diameter: item.diameter,
+            weight: item.weight,
+            weightUnit: item.weightUnit,
+          });
+          await queryRunner.manager.save(snap);
+        }
+
+        submittedScs.push(draft.salesOrderComponent!.scNumber);
+      }
+
+      await queryRunner.commitTransaction();
+      console.log('[DEBUG] submitDraftRmByPo transaction committed');
+
+      result = { 
+        submittedScs, 
+        draftId: drafts[0].id, 
+        createdById: drafts[0].createdById 
+      };
+    } catch (error) {
+      console.log('[DEBUG] submitDraftRmByPo rolling back transaction');
+      if (queryRunner.isTransactionActive) {
+         await queryRunner.rollbackTransaction();
+      }
+      throw error;
+    } finally {
+      console.log('[DEBUG] submitDraftRmByPo releasing queryRunner');
+      await queryRunner.release();
+      console.log('[DEBUG] submitDraftRmByPo queryRunner released');
+    }
+
+    if (this.workflowNotificationService && result) {
+      try {
+        await this.workflowNotificationService.notifyRmSubmitted({
+          id: result.draftId,
+          rmNumber: `SCs: ${result.submittedScs.join(', ')}`,
+          createdById: result.createdById,
+        });
+      } catch (err) {}
+    }
+
+    return { submittedScs: result.submittedScs };
+  }
+
+  async getMine(user: any) {
+    const isOwner = user.role === UserRole.DESIGNER;
+    const ownerCond = isOwner ? { createdById: user.userId } : {};
+
+    const requests = await this.rmRepo.find({
+      where: ownerCond,
+      relations: { salesOrderComponent: { purchaseOrder: true }, items: true },
+      order: { updatedAt: 'DESC' }
+    });
+
+    const grouped = new Map<string, any>();
+    
+    for (const req of requests) {
+      const po = req.salesOrderComponent?.purchaseOrder;
+      if (!po) continue;
+
+      if (!grouped.has(po.id)) {
+        grouped.set(po.id, {
+          poId: po.id,
+          poNumber: po.poNumber,
+          draftCount: 0,
+          submittedCount: 0,
+          scs: [],
+          updatedAt: po.updatedAt,
+        });
+      }
+
+      const group = grouped.get(po.id);
+      
+      if (req.status === RmRequestStatus.DRAFT) group.draftCount++;
+      else group.submittedCount++;
+
+      group.scs.push({
+        scId: req.salesOrderComponent!.id,
+        scNumber: req.salesOrderComponent!.scNumber,
+        productName: req.salesOrderComponent!.productName,
+        status: req.status,
+        itemCount: req.items.length
+      });
+
+      if (req.updatedAt > group.updatedAt) group.updatedAt = req.updatedAt;
+    }
+
+    return Array.from(grouped.values()).sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  }
+
+  async deleteRm(id: string, user: any) {
+    const rm = await this.rmRepo.findOne({ where: { id }, relations: { salesOrderComponent: true } });
+    if (!rm) throw new NotFoundException('RM not found');
+    if (user.role === UserRole.DESIGNER && rm.createdById !== user.userId) throw new NotFoundException('RM not found');
+    
+    StateMachineValidator.assertRmDraft(rm.status, 'delete RM');
+    
+    await this.rmRepo.remove(rm);
+    if (rm.salesOrderComponent && rm.salesOrderComponent.status === ScStatus.DRAFT) {
+      await this.scRepo.remove(rm.salesOrderComponent);
+    }
+    return { success: true };
+  }
+
+  async deleteRmItem(id: string, itemId: string, user: any) {
+    const rm = await this.rmRepo.findOne({ where: { id } });
+    if (!rm) throw new NotFoundException('RM not found');
+    if (user.role === UserRole.DESIGNER && rm.createdById !== user.userId) throw new NotFoundException('RM not found');
+    StateMachineValidator.assertRmDraft(rm.status, 'delete RM item');
+
+    const item = await this.rmItemRepo.findOne({ where: { id: itemId, rmFormId: id } });
+    if (!item) throw new NotFoundException('Item not found');
+
+    await this.rmItemRepo.remove(item);
+    return { success: true };
+  }
+
+  async updateRmItem(id: string, itemId: string, dto: any, user: any) {
+    const rm = await this.rmRepo.findOne({ where: { id } });
+    if (!rm) throw new NotFoundException('RM not found');
+    if (user.role === UserRole.DESIGNER && rm.createdById !== user.userId) throw new NotFoundException('RM not found');
+    StateMachineValidator.assertRmDraft(rm.status, 'update RM item');
+
+    const item = await this.rmItemRepo.findOne({ where: { id: itemId, rmFormId: id } });
+    if (!item) throw new NotFoundException('Item not found');
+
+    if (dto.quantity !== undefined) item.quantity = QuantityCalculator.roundDecimal(dto.quantity);
+    if (dto.spec !== undefined) {
+      item.grade = dto.spec.trim();
+      item.size = dto.spec.trim();
+    }
+
+    return this.rmItemRepo.save(item);
   }
 }

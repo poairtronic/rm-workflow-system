@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Put,
+  Patch,
   Delete,
   Param,
   Body,
@@ -19,6 +21,7 @@ import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { UserRole } from '../auth/enums/role.enum.js';
 import { CreateRmDto, CreateRmItemDto, SubmitRmDto } from './dto/rm.dto.js';
+import { CreateDraftRmDto, UpdateDraftRmDto } from './dto/draft-rm.dto.js';
 import { StoresReviewRmDto } from './dto/stores-review.dto.js';
 import { RmRequestStatus } from './entities/rm-request.entity.js';
 import { CreateRmDocumentDto } from './dto/create-rm-document.dto.js';
@@ -40,6 +43,36 @@ export class RmController {
   @Roles(UserRole.DESIGNER, UserRole.ADMIN)
   createRm(@Body() dto: CreateRmDto, @Req() req: any) {
     return this.rmService.createRm(dto, req.user.userId);
+  }
+
+  @Post('draft')
+  @Roles(UserRole.DESIGNER, UserRole.ADMIN)
+  createDraftRm(@Body() dto: CreateDraftRmDto, @Req() req: any) {
+    return this.rmService.createDraftRm(dto, req.user);
+  }
+
+  @Get('po/:poId/draft')
+  @Roles(UserRole.DESIGNER, UserRole.ADMIN)
+  getDraftRmByPo(@Param('poId', ParseUUIDPipe) poId: string, @Req() req: any) {
+    return this.rmService.getDraftRmByPo(poId, req.user);
+  }
+
+  @Put('po/:poId/draft')
+  @Roles(UserRole.DESIGNER, UserRole.ADMIN)
+  updateDraftRm(@Param('poId', ParseUUIDPipe) poId: string, @Body() dto: UpdateDraftRmDto, @Req() req: any) {
+    return this.rmService.updateDraftRm(poId, dto, req.user);
+  }
+
+  @Post('po/:poId/submit')
+  @Roles(UserRole.DESIGNER, UserRole.ADMIN)
+  submitDraftRmByPo(@Param('poId', ParseUUIDPipe) poId: string, @Req() req: any) {
+    return this.rmService.submitDraftRmByPo(poId, req.user);
+  }
+
+  @Get('mine')
+  @Roles(UserRole.DESIGNER, UserRole.ADMIN)
+  getMine(@Req() req: any) {
+    return this.rmService.getMine(req.user);
   }
 
   @Post(':id/items')
@@ -79,8 +112,9 @@ export class RmController {
   findAll(
     @Query('scId') scId?: string,
     @Query('status') status?: RmRequestStatus,
+    @Req() req?: any,
   ) {
-    return this.rmService.findAll({ scId, status });
+    return this.rmService.findAll({ scId, status }, req?.user);
   }
 
   @Get(':id')
@@ -92,8 +126,35 @@ export class RmController {
     UserRole.SENIOR_MANAGER,
     UserRole.GENERAL_MANAGER,
   )
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.rmService.findOne(id);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @Req() req?: any) {
+    return this.rmService.findOne(id, req?.user);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.DESIGNER, UserRole.ADMIN)
+  deleteRm(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) {
+    return this.rmService.deleteRm(id, req.user);
+  }
+
+  @Delete(':id/items/:itemId')
+  @Roles(UserRole.DESIGNER, UserRole.ADMIN)
+  deleteRmItem(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @Req() req: any,
+  ) {
+    return this.rmService.deleteRmItem(id, itemId, req.user);
+  }
+
+  @Patch(':id/items/:itemId')
+  @Roles(UserRole.DESIGNER, UserRole.ADMIN)
+  updateRmItem(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @Body() dto: any,
+    @Req() req: any,
+  ) {
+    return this.rmService.updateRmItem(id, itemId, dto, req.user);
   }
 
   @Post(':id/documents')
