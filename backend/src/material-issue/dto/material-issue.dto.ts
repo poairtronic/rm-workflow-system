@@ -50,6 +50,10 @@ export class CreateMaterialIssueDto {
   items!: MaterialIssueItemDto[];
 
   @IsOptional()
+  @IsUUID('4')
+  additionalRequestId?: string;
+
+  @IsOptional()
   @IsString()
   remarks?: string;
 }

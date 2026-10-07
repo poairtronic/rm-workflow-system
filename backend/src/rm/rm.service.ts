@@ -231,11 +231,12 @@ export class RmService {
 
       const rmWithRelations = await queryRunner.manager.findOne(RmRequest, {
         where: { id: rmId },
-        relations: { items: true },
+        relations: { items: true, salesOrderComponent: true },
       });
 
       if (rm) {
         Object.assign(rm, rmWithRelations);
+        rm.salesOrderComponent = rmWithRelations?.salesOrderComponent;
       }
       if (!rm) {
         throw new NotFoundException(`RM Request with ID "${rmId}" not found.`);
@@ -293,6 +294,11 @@ export class RmService {
       rm.reviewedById = actorId;
       if (dto.remarks) {
         rm.remarks = `${rm.remarks || ''} [Review: ${dto.remarks}]`;
+      }
+      
+      if (rm.salesOrderComponent) {
+        rm.salesOrderComponent.status = ScStatus.STORES_PENDING;
+        await queryRunner.manager.save(SalesOrderComponent, rm.salesOrderComponent);
       }
 
       await queryRunner.manager.save(RmRequest, rm);

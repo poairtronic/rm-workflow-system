@@ -162,4 +162,87 @@ export class AdditionalRequestService {
     }
     return request;
   }
+
+  async approveRequest(id: string, actorId: string) {
+    const queryRunner = this.scRepo.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const request = await queryRunner.manager.findOne(AdditionalMaterialRequest, {
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!request) {
+        throw new NotFoundException(`Additional Request with ID "${id}" not found.`);
+      }
+
+      if (request.status !== AdditionalRequestStatus.REQUESTED) {
+        throw new BadRequestException(`Cannot approve request in status ${request.status}`);
+      }
+
+      request.status = AdditionalRequestStatus.APPROVED;
+      request.approvedById = actorId;
+      request.approvedAt = new Date();
+
+      await queryRunner.manager.save(AdditionalMaterialRequest, request);
+      await queryRunner.commitTransaction();
+
+      return this.findOne(id);
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async rejectRequest(id: string, actorId: string) {
+    const queryRunner = this.scRepo.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const request = await queryRunner.manager.findOne(AdditionalMaterialRequest, {
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!request) {
+        throw new NotFoundException(`Additional Request with ID "${id}" not found.`);
+      }
+
+      if (request.status !== AdditionalRequestStatus.REQUESTED) {
+        throw new BadRequestException(`Cannot reject request in status ${request.status}`);
+      }
+
+      request.status = AdditionalRequestStatus.REJECTED;
+      request.approvedById = actorId;
+      request.approvedAt = new Date();
+      await queryRunner.manager.save(AdditionalMaterialRequest, request);
+
+      // Revert SC status
+      const sc = await queryRunner.manager.findOne(SalesOrderComponent, {
+        where: { id: request.scId },
+        lock: { mode: 'pessimistic_write' }
+      });
+      if (!sc) {
+        throw new NotFoundException(`SC with ID "${request.scId}" not found.`);
+      }
+      if (sc.status === ScStatus.ADDITIONAL_REQUEST) {
+        sc.status = ScStatus.IN_PRODUCTION;
+        await queryRunner.manager.save(SalesOrderComponent, sc);
+      }
+
+      await queryRunner.commitTransaction();
+
+      return this.findOne(id);
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
 }

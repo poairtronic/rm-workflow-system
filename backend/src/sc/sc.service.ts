@@ -259,4 +259,60 @@ export class ScService {
       await queryRunner.release();
     }
   }
+
+  async getStoresPendingGrouped() {
+    const scs = await this.scRepo.find({
+      where: [
+        { status: ScStatus.STORES_PENDING },
+        { status: ScStatus.PARTIALLY_ISSUED },
+        { status: ScStatus.ADDITIONAL_REQUEST },
+      ],
+      relations: {
+        purchaseOrder: true,
+        additionalRequests: true,
+        rmRequest: { items: true },
+      },
+      order: {
+        createdAt: 'ASC',
+      },
+    });
+    return this.groupByPo(scs);
+  }
+
+  async getProductionGrouped() {
+    const scs = await this.scRepo.find({
+      where: [
+        { status: ScStatus.ISSUED },
+        { status: ScStatus.PARTIALLY_ISSUED },
+        { status: ScStatus.IN_PRODUCTION },
+      ],
+      relations: {
+        purchaseOrder: true,
+        additionalRequests: true,
+        rmRequest: { items: true },
+      },
+      order: {
+        createdAt: 'ASC',
+      },
+    });
+    return this.groupByPo(scs);
+  }
+
+  private groupByPo(scs: SalesOrderComponent[]) {
+    const grouped = new Map<string, any>();
+    for (const sc of scs) {
+      if (!sc.purchaseOrder) continue;
+      const poId = sc.purchaseOrder.id;
+      if (!grouped.has(poId)) {
+        grouped.set(poId, {
+          poId: sc.purchaseOrder.id,
+          poNumber: sc.purchaseOrder.poNumber,
+          customerName: sc.purchaseOrder.customerName,
+          scs: [],
+        });
+      }
+      grouped.get(poId).scs.push(sc);
+    }
+    return Array.from(grouped.values());
+  }
 }

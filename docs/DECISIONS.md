@@ -16,6 +16,7 @@ How to use this file: every task must read this file first and never contradict 
   - Quantity -> rm_items.quantity
   - An SC can have several RM item rows. No duplicate product within an SC.
   - RM drafts do NOT consume actual stock or log MSL checks until they are SUBMITTED.
+  - DRAFT RMs are visible only to the creator (the DESIGNER who created them) and the ADMIN.
 
 ## ASSUMED (need my confirmation before the related phase)
 - Stores approves extra-material requests; Admin can override.

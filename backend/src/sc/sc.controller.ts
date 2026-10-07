@@ -65,6 +65,18 @@ export class ScController {
     return this.scService.findOne(id);
   }
 
+  @Get('stores/pending-grouped')
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER)
+  getStoresPendingGrouped() {
+    return this.scService.getStoresPendingGrouped();
+  }
+
+  @Get('production/grouped')
+  @Roles(UserRole.ADMIN, UserRole.PRODUCTION, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER)
+  getProductionGrouped() {
+    return this.scService.getProductionGrouped();
+  }
+
   @Get(':id')
   @Roles(
     UserRole.ADMIN,

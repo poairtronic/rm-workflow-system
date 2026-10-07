@@ -25,6 +25,7 @@ import { QuantityCalculator } from '../common/utils/quantity-calculator.js';
 import { StateMachineValidator } from '../common/utils/state-machine-validator.js';
 import { WorkflowNotificationService } from '../notifications/workflow-notification.service.js';
 import { MslTriggerService } from '../inventory/msl-trigger.service.js';
+import { AdditionalMaterialRequest, AdditionalRequestStatus } from '../additional-request/entities/additional-request.entity.js';
 
 @Injectable()
 export class MaterialIssueService {
@@ -68,12 +69,29 @@ export class MaterialIssueService {
         `Material issue must contain at least one item.`,
       );
     }
+      let issueType = MaterialIssueType.INITIAL_ISSUE;
+      let additionalReq: AdditionalMaterialRequest | null = null;
+      if (dto.additionalRequestId) {
+        additionalReq = await queryRunner.manager.findOne(AdditionalMaterialRequest, {
+          where: { id: dto.additionalRequestId, scId: dto.scId },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!additionalReq) {
+          throw new BadRequestException(`Additional Request ${dto.additionalRequestId} not found or mismatch`);
+        }
+        if (additionalReq.status !== AdditionalRequestStatus.APPROVED) {
+          throw new BadRequestException(`Additional Request is not APPROVED`);
+        }
+        issueType = MaterialIssueType.ADDITIONAL_ISSUE;
+      }
+
       const issueNumber = `ISS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
       const issue = this.issueRepo.create({
         scId: dto.scId,
         issueNumber,
-        issueType: MaterialIssueType.INITIAL_ISSUE,
+        issueType,
+        additionalRequestId: dto.additionalRequestId,
         issuedById: actorId,
         remarks: dto.remarks,
       });
@@ -110,7 +128,7 @@ export class MaterialIssueService {
           );
         }
 
-        if (rmItem.rmRequest.status !== 'REVIEWED') {
+        if (!dto.additionalRequestId && rmItem.rmRequest.status !== 'REVIEWED') {
           throw new BadRequestException(
             `RM Request must be REVIEWED before Material Issue. Current status: ${rmItem.rmRequest.status}`,
           );
@@ -196,8 +214,40 @@ export class MaterialIssueService {
         );
       }
 
-      // Update SC status
-      sc.status = ScStatus.ISSUED;
+      // Update statuses based on issue type
+      if (issueType === MaterialIssueType.INITIAL_ISSUE) {
+        // Calculate total requested quantity across all RM Items for this SC
+        const allRmItems = await queryRunner.manager.find(RmItem, {
+          where: { scId: dto.scId },
+        });
+        const totalRequested = allRmItems.reduce(
+          (sum, item) => sum + Number(item.quantity),
+          0,
+        );
+
+        // Calculate total issued quantity across all Material Issues of type INITIAL_ISSUE for this SC
+        const sumResult = await queryRunner.manager.query(
+          `SELECT SUM(mii.quantity_issued) as total 
+           FROM material_issue_items mii 
+           JOIN material_issues mi ON mi.id = mii.material_issue_id 
+           WHERE mi.sc_id = $1 AND mi.issue_type = 'INITIAL_ISSUE'`,
+          [dto.scId]
+        );
+        const totalIssued = Number(sumResult[0].total) || 0;
+
+        // Update SC status
+        if (totalIssued >= totalRequested) {
+          sc.status = ScStatus.ISSUED;
+        } else {
+          sc.status = ScStatus.PARTIALLY_ISSUED;
+        }
+      } else if (issueType === MaterialIssueType.ADDITIONAL_ISSUE && additionalReq) {
+        additionalReq.status = AdditionalRequestStatus.ISSUED;
+        await queryRunner.manager.save(AdditionalMaterialRequest, additionalReq);
+        // SC goes back to IN_PRODUCTION (or ISSUED if they haven't consumed yet)
+        sc.status = ScStatus.IN_PRODUCTION; 
+      }
+      
       await queryRunner.manager.save(SalesOrderComponent, sc);
 
       await queryRunner.commitTransaction();

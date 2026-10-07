@@ -1,4 +1,4 @@
-﻿import {
+import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
@@ -9,6 +9,7 @@
   OneToMany,
   JoinColumn,
   Index,
+  Unique,
 } from 'typeorm';
 import { PurchaseOrder } from '../../po/entities/po.entity.js';
 import { RmRequest } from '../../rm/entities/rm-request.entity.js';
@@ -32,6 +33,7 @@ export enum ScStatus {
 }
 
 @Entity('sales_order_components')
+@Unique('UQ_po_sc_number', ['poId', 'scNumber'])
 export class SalesOrderComponent {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

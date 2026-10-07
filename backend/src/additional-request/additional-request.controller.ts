@@ -54,4 +54,16 @@ export class AdditionalRequestController {
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.additionalRequestService.findOne(id);
   }
+
+  @Post(':id/approve')
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  approveRequest(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) {
+    return this.additionalRequestService.approveRequest(id, req.user.userId);
+  }
+
+  @Post(':id/reject')
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  rejectRequest(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) {
+    return this.additionalRequestService.rejectRequest(id, req.user.userId);
+  }
 }
