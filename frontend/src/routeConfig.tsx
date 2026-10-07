@@ -17,6 +17,7 @@ import { ProductionConsumptionWorkspace } from './pages/ProductionConsumptionWor
 import { UiKitShowcase } from './pages/UiKitShowcase';
 import { OverviewPage } from './pages/OverviewPage';
 import { ComingSoon } from './components/ui/ComingSoon';
+import { WarehousesAndBinsWorkspace } from './pages/WarehousesAndBinsWorkspace';
 import type { ElementType } from 'react';
 
 export interface RouteConfig {
@@ -61,7 +62,7 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   // MASTERS (Admin Only)
   { name: 'Users', path: '/masters/users', icon: Users, roles: ['ADMIN'], component: () => <ComingSoon title="Users Master" />, isSidebar: true, group: 'MASTERS' },
   { name: 'Products', path: '/masters/products', icon: Database, roles: ['ADMIN'], component: () => <ComingSoon title="Products Master" />, isSidebar: true, group: 'MASTERS' },
-  { name: 'Warehouses and Bins', path: '/masters/bins', icon: Box, roles: ['ADMIN'], component: () => <ComingSoon title="Warehouses and Bins" />, isSidebar: true, group: 'MASTERS' },
+  { name: 'Warehouses and Bins', path: '/masters/bins', icon: Box, roles: ['ADMIN'], component: WarehousesAndBinsWorkspace, isSidebar: true, group: 'MASTERS' },
   { name: 'Vendors', path: '/masters/vendors', icon: Database, roles: ['ADMIN'], component: () => <ComingSoon title="Vendors Master" />, isSidebar: true, group: 'MASTERS' },
   { name: 'Process Master', path: '/governance/process-master', icon: Settings, roles: ['ADMIN'], component: ProcessMasterWorkspace, isSidebar: true, group: 'MASTERS' },
 

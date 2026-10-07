@@ -10,3 +10,4 @@ export * from './SlideOver';
 export * from './FormControls';
 export * from './SearchSelect';
 export * from './ComingSoon';
+export * from './Button';
