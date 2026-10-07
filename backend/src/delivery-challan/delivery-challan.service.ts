@@ -457,6 +457,9 @@ export class DeliveryChallanService {
       return {
         id: item.id,
         productId: item.productId,
+        // Product entity has no separate code column; expose null so the print
+        // layer can fall back to productName cleanly.
+        productCode: null,
         productName: item.product?.name ?? item.productId,
         binId: item.binId,
         binCode: item.bin?.code ?? '',
@@ -468,35 +471,43 @@ export class DeliveryChallanService {
         poNumber: item.sc?.purchaseOrder?.poNumber ?? (sc as any)?.purchaseOrder?.poNumber,
         processName: item.process?.name ?? productionProcess?.name,
         batchNumber: item.batchNumber,
+        description: item.description ?? null,
       };
     });
 
 
-    // ─── Groups ───────────────────────────────────────────────────────────────
-    const groupsMap = new Map<string, any>();
-    for (const item of lineItems) {
-      const groupKey = `${item.scNumber || 'N/A'}|${item.poNumber || 'N/A'}|${item.processName || 'N/A'}`;
-      if (!groupsMap.has(groupKey)) {
-        groupsMap.set(groupKey, {
-          scNumber: item.scNumber || null,
-          poNumber: item.poNumber || null,
-          processName: item.processName || null,
-          items: [],
-          groupTotal: 0
+    // ─── Groups (Type 1 only) ─────────────────────────────────────────────────
+    // Type 2 / legacy DCs have no SC/PO/process context; leave groups empty so
+    // the frontend renders the flat-table fallback (one ungrouped block).
+    const isType1 = challan.type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD;
+    let groups: PrintableDeliveryChallanDto['groups'] = [];
+
+    if (isType1) {
+      const groupsMap = new Map<string, any>();
+      for (const item of lineItems) {
+        const groupKey = `${item.scNumber || 'N/A'}|${item.poNumber || 'N/A'}|${item.processName || 'N/A'}`;
+        if (!groupsMap.has(groupKey)) {
+          groupsMap.set(groupKey, {
+            scNumber: item.scNumber || null,
+            poNumber: item.poNumber || null,
+            processName: item.processName || null,
+            items: [],
+            groupTotal: 0,
+          });
+        }
+        const group = groupsMap.get(groupKey);
+        group.items.push({
+          productCode: item.productCode,
+          productName: item.productName,
+          binCode: item.binCode,
+          batchNumber: item.batchNumber,
+          description: item.description,
+          quantityDispatched: item.quantityDispatched,
         });
+        group.groupTotal += item.quantityDispatched;
       }
-      const group = groupsMap.get(groupKey);
-      group.items.push({
-        productCode: item.productName, // or productId if product code is not present
-        productName: item.productName,
-        binCode: item.binCode,
-        batchNumber: item.batchNumber,
-        description: (item as any).description,
-        quantityDispatched: item.quantityDispatched
-      });
-      group.groupTotal += item.quantityDispatched;
+      groups = Array.from(groupsMap.values());
     }
-    const groups = Array.from(groupsMap.values());
 
     // ─── Audit & Sign-off ─────────────────────────────────────────────────────
     const audit: PrintableDeliveryChallanDto['audit'] = {

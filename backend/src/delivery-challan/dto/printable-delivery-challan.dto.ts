@@ -79,6 +79,7 @@ export interface PrintableReferences {
 export interface PrintableLineItem {
   id: string;
   productId: string;
+  productCode: string | null;
   productName: string;
   binId: string;
   binCode: string;
@@ -90,6 +91,7 @@ export interface PrintableLineItem {
   poNumber?: string;
   processName?: string;
   batchNumber?: string;
+  description?: string;
 }
 
 // ─── Audit & Sign-off ─────────────────────────────────────────────────────────

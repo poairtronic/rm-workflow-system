@@ -20,7 +20,7 @@ export interface DeliveryChallanPayloadItem {
 }
 
 export interface PrintableGroupItem {
-  productCode?: string;
+  productCode?: string | null;
   productName?: string;
   binCode?: string;
   batchNumber?: string;
