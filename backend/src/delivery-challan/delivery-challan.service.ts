@@ -457,9 +457,7 @@ export class DeliveryChallanService {
       return {
         id: item.id,
         productId: item.productId,
-        // Product entity has no separate code column; expose null so the print
-        // layer can fall back to productName cleanly.
-        productCode: null,
+        productCode: item.product?.code ?? null,
         productName: item.product?.name ?? item.productId,
         binId: item.binId,
         binCode: item.bin?.code ?? '',
