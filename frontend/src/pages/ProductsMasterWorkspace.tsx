@@ -352,7 +352,7 @@ export function ProductsMasterWorkspace() {
         <form onSubmit={handleSave} className="space-y-4 p-6 pt-4">
           {formErrors.submit && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-center space-x-2 text-sm text-red-700">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{formErrors.submit}</span>
             </div>
           )}
