@@ -1,11 +1,42 @@
 import { Search, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { NotificationBell } from '../notifications/NotificationBell';
 
 export function TopBar() {
   const { currentUser, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleNavigateTarget = (targetEntity?: string | null, _targetId?: string | null) => {
+    if (!targetEntity) return;
+    
+    switch (targetEntity) {
+      case 'RM_REQUISITION':
+        if (currentUser?.role === 'STORES') navigate('/stores/rm-issue');
+        else if (currentUser?.role === 'PRODUCTION') navigate('/production/rm');
+        else if (currentUser?.role === 'DESIGNER') navigate('/design/rm-creation');
+        break;
+      case 'ADDITIONAL_REQUEST':
+        if (currentUser?.role === 'STORES') navigate('/stores/extra-requests');
+        else if (currentUser?.role === 'PRODUCTION') navigate('/production/rm');
+        break;
+      case 'MATERIAL_RETURN':
+        if (currentUser?.role === 'STORES') navigate('/stores/returns-verify');
+        else if (currentUser?.role === 'PRODUCTION') navigate('/production/rm');
+        break;
+      case 'PURCHASE_ORDER':
+        navigate('/traceability/po');
+        break;
+      case 'STYLE_CODE':
+        navigate('/traceability/sc');
+        break;
+      default:
+        console.warn('Unknown target entity for navigation:', targetEntity);
+    }
+  };
 
   return (
-    <header className="fixed top-0 right-0 left-[260px] h-16 bg-white/80 backdrop-blur border-b border-slate-200 z-20 flex items-center px-6 justify-between">
+    <header className="fixed top-0 right-0 left-65 h-16 bg-white/80 backdrop-blur border-b border-slate-200 z-20 flex items-center px-6 justify-between">
       <div className="flex items-center gap-4 flex-1">
         <div className="relative group max-w-md w-full">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
@@ -21,6 +52,8 @@ export function TopBar() {
       </div>
       
       <div className="flex items-center gap-6">
+        {currentUser && <NotificationBell onNavigateTarget={handleNavigateTarget} />}
+        
         <div className="flex items-center gap-4 border-l border-slate-200 pl-6">
           {currentUser && (
             <>

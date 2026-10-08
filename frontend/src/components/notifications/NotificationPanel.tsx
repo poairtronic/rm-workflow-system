@@ -121,19 +121,19 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
   return (
     <div
       ref={panelRef}
-      className="notification-panel"
+      className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200 rounded-xl shadow-xl z-50 flex flex-col max-h-[85vh] overflow-hidden"
       role="dialog"
       aria-label="Notifications Panel"
       aria-modal="true"
     >
-      <div className="notification-panel-header">
-        <div className="panel-title-area">
-          <h3 className="panel-title">Notifications</h3>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/50">
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold text-slate-800">Notifications</h3>
           {unreadCount > 0 && (
-            <span className="unread-count-pill">{unreadCount} unread</span>
+            <span className="px-2 py-0.5 text-xs font-medium text-primary bg-primary/10 rounded-full">{unreadCount} unread</span>
           )}
         </div>
-        <div className="panel-action-area">
+        <div className="flex items-center gap-2">
           {unreadCount > 0 && onMarkAllAsRead && (
             <Button
               variant="secondary"
@@ -141,6 +141,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
               onClick={onMarkAllAsRead}
               disabled={loading}
               aria-label="Mark all notifications as read"
+              className="py-1! px-2! text-xs! h-7"
             >
               Mark all read
             </Button>
@@ -151,11 +152,12 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
             onClick={onRefresh}
             disabled={loading}
             aria-label="Refresh notifications"
+            className="p-1! h-7 w-7 flex items-center justify-center"
           >
             ↻
           </Button>
           <button
-            className="close-panel-btn"
+            className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
             onClick={onClose}
             aria-label="Close notifications panel"
           >
@@ -165,11 +167,11 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
       </div>
 
       {onFilterChange && (
-        <div className="notification-filter-tabs" role="tablist" aria-label="Notification history filters">
+        <div className="flex px-4 border-b border-slate-100 bg-white" role="tablist" aria-label="Notification history filters">
           <button
             role="tab"
             aria-selected={filter === 'ALL'}
-            className={`filter-tab ${filter === 'ALL' ? 'active' : ''}`}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${filter === 'ALL' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             onClick={() => onFilterChange('ALL')}
           >
             All
@@ -177,15 +179,15 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
           <button
             role="tab"
             aria-selected={filter === 'UNREAD'}
-            className={`filter-tab ${filter === 'UNREAD' ? 'active' : ''}`}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${filter === 'UNREAD' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             onClick={() => onFilterChange('UNREAD')}
           >
-            Unread {unreadCount > 0 && `(${unreadCount})`}
+            Unread {unreadCount > 0 && <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">{unreadCount}</span>}
           </button>
           <button
             role="tab"
             aria-selected={filter === 'READ'}
-            className={`filter-tab ${filter === 'READ' ? 'active' : ''}`}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${filter === 'READ' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             onClick={() => onFilterChange('READ')}
           >
             Read
@@ -193,17 +195,17 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
         </div>
       )}
 
-      <div className="notification-panel-body">
+      <div className="flex-1 overflow-y-auto bg-white min-h-75">
         {loading && notifications.length === 0 ? (
-          <div className="panel-loading-wrapper">
+          <div className="flex justify-center py-12">
             <LoadingSpinner label="Loading notifications..." size="md" />
           </div>
         ) : error ? (
-          <div className="panel-error-wrapper">
+          <div className="p-4">
             <StatusAlert type="error" title="Error" message={error} />
           </div>
         ) : notifications.length === 0 ? (
-          <div className="panel-empty-wrapper">
+          <div className="flex items-center justify-center py-16 px-4">
             <EmptyState
               icon="🔔"
               title={emptyState.title}
@@ -211,10 +213,10 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
             />
           </div>
         ) : (
-          <div className="notification-list">
+          <div className="divide-y divide-slate-100">
             {groupedNotifications.map((group) => (
-              <div key={group.label} className="notification-date-group">
-                <div className="notification-date-group-header">{group.label}</div>
+              <div key={group.label} className="pb-2">
+                <div className="px-4 py-2.5 bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-sm">{group.label}</div>
                 {group.items.map((notification) => (
                   <NotificationItem
                     key={notification.id}
@@ -230,7 +232,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
       </div>
 
       {totalPages > 1 && (
-        <div className="notification-panel-footer">
+        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50">
           <Button
             variant="secondary"
             size="sm"
@@ -240,7 +242,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
           >
             Previous
           </Button>
-          <span className="pagination-info">
+          <span className="text-xs font-medium text-slate-500">
             Page {page} of {totalPages}
           </span>
           <Button

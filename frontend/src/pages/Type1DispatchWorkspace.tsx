@@ -9,10 +9,10 @@ export function Type1DispatchWorkspace() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
             <Send className="w-6 h-6 text-primary" />
-            DC Type 1: Production Outward
+            DC Type 2: Material in Process
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Dispatch raw materials to external vendors for manufacturing processes.
+            Dispatch material in the production line undergoing a process to vendors (includes SC, Process, SLA).
           </p>
         </div>
       </div>

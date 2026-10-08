@@ -761,6 +761,51 @@ export class RmService {
     return Array.from(grouped.values()).sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   }
 
+  async getStoresQueue() {
+    const requests = await this.rmRepo.find({
+      where: {
+        status: In([
+          RmRequestStatus.SUBMITTED,
+          RmRequestStatus.REVIEWED,
+          RmRequestStatus.COMPLETED,
+        ]),
+      },
+      relations: { salesOrderComponent: { purchaseOrder: true }, items: true },
+      order: { updatedAt: 'DESC' },
+    });
+
+    const grouped = new Map<string, any>();
+    
+    for (const req of requests) {
+      const po = req.salesOrderComponent?.purchaseOrder;
+      if (!po) continue;
+
+      if (!grouped.has(po.id)) {
+        grouped.set(po.id, {
+          poId: po.id,
+          poNumber: po.poNumber,
+          scs: [],
+          updatedAt: po.updatedAt,
+        });
+      }
+
+      const group = grouped.get(po.id);
+      
+      group.scs.push({
+        scId: req.salesOrderComponent!.id,
+        scNumber: req.salesOrderComponent!.scNumber,
+        productName: req.salesOrderComponent!.productName,
+        status: req.status,
+        scStatus: req.salesOrderComponent!.status,
+        itemCount: req.items.length
+      });
+
+      if (req.updatedAt > group.updatedAt) group.updatedAt = req.updatedAt;
+    }
+
+    return Array.from(grouped.values()).sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  }
+
   async deleteRm(id: string, user: any) {
     const rm = await this.rmRepo.findOne({ where: { id }, relations: { salesOrderComponent: true } });
     if (!rm) throw new NotFoundException('RM not found');

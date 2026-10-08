@@ -31,6 +31,10 @@ import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { UserRole } from '../auth/enums/role.enum.js';
 
+export class CreateGrnDto extends ModernStockInDto {
+  // Can extend if needed, for now just alias ModernStockInDto
+}
+
 @Controller('api/inventory')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class InventoryController {
@@ -40,6 +44,14 @@ export class InventoryController {
   @Roles(UserRole.STORES, UserRole.ADMIN)
   create(@Body() createDto: CreateInventoryItemDto) {
     return this.inventoryService.create(createDto);
+  }
+
+  @Post('grn')
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  createGrn(@Body() createDto: CreateGrnDto, @Request() req: any) {
+    // Supplier inward GRN is basically a modern stock in marked as GRN
+    createDto.referenceType = 'SUPPLIER_GRN';
+    return this.inventoryService.modernStockIn(createDto, req.user.userId);
   }
 
   @Get()

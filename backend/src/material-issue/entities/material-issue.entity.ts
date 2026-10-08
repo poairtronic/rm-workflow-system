@@ -12,6 +12,7 @@ import type { SalesOrderComponent } from '../../sc/entities/sc.entity.js';
 import { User } from '../../users/entities/user.entity.js';
 import { MaterialIssueItem } from './material-issue-item.entity.js';
 import { AdditionalMaterialRequest } from '../../additional-request/entities/additional-request.entity.js';
+import type { MaterialReceipt } from '../../production/entities/production-receipt.entity.js';
 
 export enum MaterialIssueType {
   INITIAL_ISSUE = 'INITIAL_ISSUE',
@@ -84,6 +85,9 @@ export class MaterialIssue {
     cascade: true,
   })
   items!: MaterialIssueItem[];
+
+  @OneToMany('MaterialReceipt', 'materialIssue')
+  receipts!: MaterialReceipt[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;

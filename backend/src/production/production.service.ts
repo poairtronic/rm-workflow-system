@@ -745,4 +745,21 @@ export class ProductionService {
       items: itemsSummary,
     };
   }
+
+  async findAllReturns(status?: ReturnStatus) {
+    const qb = this.returnRepo
+      .createQueryBuilder('ret')
+      .leftJoinAndSelect('ret.salesOrderComponent', 'sc')
+      .leftJoinAndSelect('sc.purchaseOrder', 'po')
+      .leftJoinAndSelect('ret.items', 'items')
+      .leftJoinAndSelect('items.rmItem', 'rmItem')
+      .leftJoinAndSelect('ret.returnedBy', 'returnedBy');
+
+    if (status) {
+      qb.andWhere('ret.status = :status', { status });
+    }
+
+    qb.orderBy('ret.createdAt', 'DESC');
+    return qb.getMany();
+  }
 }

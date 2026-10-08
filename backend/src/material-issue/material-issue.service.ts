@@ -336,7 +336,9 @@ export class MaterialIssueService {
       .leftJoinAndSelect('issue.salesOrderComponent', 'sc')
       .leftJoinAndSelect('issue.items', 'items')
       .leftJoinAndSelect('items.rmItem', 'rmItem')
-      .leftJoinAndSelect('issue.issuedBy', 'issuedBy');
+      .leftJoinAndSelect('issue.issuedBy', 'issuedBy')
+      .leftJoinAndSelect('issue.receipts', 'receipts')
+      .leftJoinAndSelect('receipts.items', 'receiptItems');
 
     if (scId) {
       qb.andWhere('issue.scId = :scId', { scId });
@@ -353,6 +355,7 @@ export class MaterialIssueService {
         salesOrderComponent: true,
         items: { rmItem: true },
         issuedBy: true,
+        receipts: { items: true },
       },
     });
 

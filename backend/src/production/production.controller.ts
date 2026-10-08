@@ -7,8 +7,10 @@ import {
   UseGuards,
   Req,
   ParseUUIDPipe,
+  Query,
 } from '@nestjs/common';
 import { ProductionService } from './production.service.js';
+import { ReturnStatus } from './entities/material-return.entity.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
@@ -54,6 +56,19 @@ export class ProductionController {
     @Req() req: any,
   ) {
     return this.productionService.verifyReturn(id, dto, req.user.userId);
+  }
+
+  @Get('returns')
+  @Roles(
+    UserRole.ADMIN,
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.DESIGNER,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+  )
+  getReturns(@Query('status') status?: ReturnStatus) {
+    return this.productionService.findAllReturns(status);
   }
 
   @Get('accounting/:scId')

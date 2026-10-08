@@ -28,16 +28,16 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigateTa
   };
 
   return (
-    <div className="notification-bell-container">
+    <div className="relative inline-block">
       <button
-        className="notification-bell-btn"
+        className="relative p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20"
         onClick={togglePanel}
         aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
       >
         <svg
-          className="bell-icon"
+          className="w-5 h-5"
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
           fill="none"
@@ -52,7 +52,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigateTa
         </svg>
 
         {unreadCount > 0 && (
-          <span className="bell-badge" aria-hidden="true">
+          <span className="absolute top-1 right-1.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full border-2 border-white translate-x-1/2 -translate-y-1/4" aria-hidden="true">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}

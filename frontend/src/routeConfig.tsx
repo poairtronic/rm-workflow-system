@@ -13,9 +13,13 @@ import { VendorDashboardWorkspace } from './pages/VendorDashboardWorkspace';
 import { DeliveryChallanPrintView } from './pages/DeliveryChallanPrintView';
 import { ReportGeneratorWorkspace } from './pages/ReportGeneratorWorkspace';
 import { RmRequisitionWorkspace } from './pages/RmRequisitionWorkspace';
+import { RmCreationWorkspace } from './pages/RmCreationWorkspace';
 import { ProductionConsumptionWorkspace } from './pages/ProductionConsumptionWorkspace';
 import { UiKitShowcase } from './pages/UiKitShowcase';
 import { OverviewPage } from './pages/OverviewPage';
+import { StoresRmIssueWorkspace } from './pages/StoresRmIssueWorkspace';
+import { StoresExtraRequestsWorkspace } from './pages/StoresExtraRequestsWorkspace';
+import { StoresReturnVerifyWorkspace } from './pages/StoresReturnVerifyWorkspace';
 import { ComingSoon } from './components/ui/ComingSoon';
 import { WarehousesAndBinsWorkspace } from './pages/WarehousesAndBinsWorkspace';
 import { UserMasterWorkspace } from './pages/UserMasterWorkspace';
@@ -23,6 +27,7 @@ import { VendorMasterWorkspace } from './pages/VendorMasterWorkspace';
 import { ProductsMasterWorkspace } from './pages/ProductsMasterWorkspace';
 import { InventoryStockWorkspace } from './pages/InventoryStockWorkspace';
 import type { ElementType } from 'react';
+import { ProductionRmWorkspace } from './pages/ProductionRmWorkspace';
 
 export interface RouteConfig {
   name: string;
@@ -37,24 +42,24 @@ export interface RouteConfig {
 
 export const ROUTE_CONFIG: RouteConfig[] = [
   // DESIGNER
-  { name: 'RM Creation', path: '/design/rm-creation', icon: FilePlus, roles: ['DESIGNER', 'ADMIN'], component: () => <ComingSoon title="RM Creation" />, isSidebar: true, group: 'RM WORKFLOW' },
+  { name: 'RM Creation', path: '/design/rm-creation', icon: FilePlus, roles: ['DESIGNER', 'ADMIN'], component: RmCreationWorkspace, isSidebar: true, group: 'RM WORKFLOW' },
   { name: 'My Requisitions', path: '/design/my-requisitions', icon: FileText, roles: ['DESIGNER', 'ADMIN'], component: RmRequisitionWorkspace, isSidebar: true, group: 'RM WORKFLOW' },
 
   // STORES
-  { name: 'RM Issue', path: '/stores/rm-issue', icon: PackageSearch, roles: ['STORES', 'ADMIN'], component: () => <ComingSoon title="RM Issue" />, isSidebar: true, group: 'RM WORKFLOW' },
-  { name: 'Extra Requests', path: '/stores/extra-requests', icon: FilePlus, roles: ['STORES', 'ADMIN'], component: () => <ComingSoon title="Extra Requests" />, isSidebar: true, group: 'RM WORKFLOW' },
-  { name: 'Return Verify', path: '/stores/return-verify', icon: PackageCheck, roles: ['STORES', 'ADMIN'], component: () => <ComingSoon title="Return Verify" />, isSidebar: true, group: 'RM WORKFLOW' },
+  { name: 'RM Issue', path: '/stores/rm-issue', icon: PackageSearch, roles: ['STORES', 'ADMIN'], component: StoresRmIssueWorkspace, isSidebar: true, group: 'RM WORKFLOW' },
+  { name: 'Extra Requests', path: '/stores/extra-requests', icon: FilePlus, roles: ['STORES', 'ADMIN'], component: StoresExtraRequestsWorkspace, isSidebar: true, group: 'RM WORKFLOW' },
+  { name: 'Return Verify', path: '/stores/return-verify', icon: PackageCheck, roles: ['STORES', 'ADMIN'], component: StoresReturnVerifyWorkspace, isSidebar: true, group: 'RM WORKFLOW' },
   
   { name: 'Stock Overview', path: '/inventory/stock', icon: Box, roles: ['STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'DESIGNER'], component: InventoryStockWorkspace, isSidebar: true, group: 'INVENTORY' },
   { name: 'Stock In/Out', path: '/inventory/movements', icon: PackageSearch, roles: ['STORES', 'ADMIN'], component: () => <ComingSoon title="Stock In/Out" />, isSidebar: true, group: 'INVENTORY' },
   { name: 'MSL Alerts', path: '/inventory/msl-alerts', icon: BellRing, roles: ['STORES', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: MslAlertsWorkspace, isSidebar: true, group: 'INVENTORY' },
   
-  { name: 'DC Type 1', path: '/dispatch/delivery-challan/type-1', icon: Box, roles: ['STORES', 'ADMIN'], component: Type1DispatchWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN' },
-  { name: 'DC Type 2', path: '/dispatch/delivery-challan/type-2', icon: Box, roles: ['STORES', 'ADMIN'], component: Type2DispatchWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN' },
+  { name: 'DC Type 1 (Raw)', path: '/dispatch/delivery-challan/type-1', icon: Box, roles: ['STORES', 'ADMIN'], component: Type2DispatchWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN' },
+  { name: 'DC Type 2 (Process)', path: '/dispatch/delivery-challan/type-2', icon: Box, roles: ['STORES', 'ADMIN'], component: Type1DispatchWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN' },
   { name: 'DC Returns', path: '/dispatch/returns', icon: PackageCheck, roles: ['STORES', 'ADMIN'], component: DockReceiptWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN' },
 
   // PRODUCTION
-  { name: 'My RM', path: '/production/rm', icon: PackageSearch, roles: ['PRODUCTION', 'ADMIN'], component: () => <ComingSoon title="My RM" />, isSidebar: true, group: 'RM WORKFLOW' },
+  { name: 'My RM', path: '/production/rm', icon: PackageSearch, roles: ['PRODUCTION', 'ADMIN'], component: ProductionRmWorkspace, isSidebar: true, group: 'RM WORKFLOW' },
   { name: 'Consumption', path: '/production/consumption', icon: PlaySquare, roles: ['PRODUCTION', 'ADMIN'], component: ProductionConsumptionWorkspace, isSidebar: true, group: 'RM WORKFLOW' },
 
   // GOVERNANCE

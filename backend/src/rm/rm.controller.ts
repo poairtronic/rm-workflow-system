@@ -75,6 +75,12 @@ export class RmController {
     return this.rmService.getMine(req.user);
   }
 
+  @Get('stores/queue')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.GENERAL_MANAGER, UserRole.SENIOR_MANAGER)
+  getStoresQueue() {
+    return this.rmService.getStoresQueue();
+  }
+
   @Post(':id/items')
   @Roles(UserRole.DESIGNER, UserRole.ADMIN)
   addRmItem(
