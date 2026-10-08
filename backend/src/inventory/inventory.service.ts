@@ -7,7 +7,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, Not, IsNull } from 'typeorm';
 import { InventoryItem } from './entities/inventory-item.entity.js';
 import { StockBalance } from './entities/stock-balance.entity.js';
 import {
@@ -124,8 +124,16 @@ export class InventoryService {
 
     const [balances, total] = await query.getManyAndCount();
 
-    return {
-      data: balances.map(b => ({
+    const data = await Promise.all(balances.map(async b => {
+      const latestTx = await this.stockTransactionRepository.findOne({
+        where: [
+          { productId: b.productId, destinationBinId: b.binId, lotBatchNumber: Not(IsNull()) },
+          { productId: b.productId, sourceBinId: b.binId, lotBatchNumber: Not(IsNull()) }
+        ],
+        order: { createdAt: 'DESC' }
+      });
+
+      return {
         id: b.id,
         productId: b.productId,
         productCode: b.product?.code,
@@ -135,8 +143,13 @@ export class InventoryService {
         binId: b.binId,
         binCode: b.bin?.code,
         warehouseName: b.bin?.rack?.location?.warehouse?.name || 'Unknown',
-        currentQuantity: Number(b.currentQuantity)
-      })),
+        currentQuantity: Number(b.currentQuantity),
+        latestLotBatchNumber: latestTx?.lotBatchNumber || null
+      };
+    }));
+
+    return {
+      data,
       total,
       page,
       pageSize,
@@ -1016,6 +1029,8 @@ export class InventoryService {
         referenceId: dto.referenceId,
         reason: dto.reason,
         remarks: dto.remarks || dto.reason,
+        lotBatchNumber: dto.lotBatchNumber,
+        cost: dto.cost,
         createdById: userId,
       });
       const savedTx = await queryRunner.manager.save(transaction);
@@ -1087,6 +1102,8 @@ export class InventoryService {
         referenceId: dto.referenceId,
         reason: dto.reason,
         remarks: dto.remarks || dto.reason,
+        lotBatchNumber: dto.lotBatchNumber,
+        cost: dto.cost,
         createdById: userId,
       });
       const savedTx = await queryRunner.manager.save(transaction);
@@ -1179,6 +1196,8 @@ export class InventoryService {
         referenceId: dto.referenceId,
         reason: dto.reason,
         remarks: dto.remarks || dto.reason,
+        lotBatchNumber: dto.lotBatchNumber,
+        cost: dto.cost,
         createdById: userId,
       });
       const savedTx = await queryRunner.manager.save(transaction);

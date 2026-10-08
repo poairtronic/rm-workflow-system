@@ -6,6 +6,7 @@ import {
   NumberInput,
   Textarea,
   Button,
+  TextInput,
 } from '../ui';
 import type { SearchSelectOption } from '../ui';
 import {
@@ -41,6 +42,8 @@ export function StockMovementModal({
   const [direction, setDirection] = useState<'INCREASE' | 'DECREASE'>('INCREASE');
   const [reason, setReason] = useState<string>('');
   const [remarks, setRemarks] = useState<string>('');
+  const [lotBatchNumber, setLotBatchNumber] = useState<string>('');
+  const [cost, setCost] = useState<string>('');
 
   const [products, setProducts] = useState<Product[]>([]);
   const [allBins, setAllBins] = useState<Bin[]>([]);
@@ -88,6 +91,8 @@ export function StockMovementModal({
       setDirection(mode === 'STOCK_OUT' ? 'DECREASE' : 'INCREASE');
       setReason('');
       setRemarks('');
+      setLotBatchNumber('');
+      setCost('');
     }
   }, [isOpen, initialProductId, initialBinId, mode]);
 
@@ -186,32 +191,27 @@ export function StockMovementModal({
 
     setIsSubmitting(true);
     try {
+      const parsedCost = cost ? parseFloat(cost) : undefined;
+      const apiPayload = {
+        productId,
+        binId,
+        quantity: numQty,
+        reason: trimmedReason,
+        remarks: remarks.trim() || undefined,
+        lotBatchNumber: lotBatchNumber.trim() || undefined,
+        cost: parsedCost,
+      };
+
       if (mode === 'STOCK_IN') {
-        await inventoryService.stockIn({
-          productId,
-          binId,
-          quantity: numQty,
-          reason: trimmedReason,
-          remarks: remarks.trim() || undefined,
-        });
+        await inventoryService.stockIn(apiPayload);
         toast.success(`Successfully stocked in ${numQty} ${uom}`);
       } else if (mode === 'STOCK_OUT') {
-        await inventoryService.stockOut({
-          productId,
-          binId,
-          quantity: numQty,
-          reason: trimmedReason,
-          remarks: remarks.trim() || undefined,
-        });
+        await inventoryService.stockOut(apiPayload);
         toast.success(`Successfully stocked out ${numQty} ${uom}`);
       } else if (mode === 'ADJUST') {
         await inventoryService.adjustStock({
-          productId,
-          binId,
-          quantity: numQty,
+          ...apiPayload,
           direction,
-          reason: trimmedReason,
-          remarks: remarks.trim() || undefined,
         });
         toast.success(`Successfully adjusted stock (${direction === 'INCREASE' ? '+' : '-'}${numQty} ${uom})`);
       }
@@ -380,6 +380,27 @@ export function StockMovementModal({
             rows={2}
           />
         </FormField>
+
+        {/* Lot / Batch and Cost */}
+        <div className="grid grid-cols-2 gap-4">
+          <FormField label="Lot/Batch Number" hint="Optional tracking ID">
+            <TextInput
+              value={lotBatchNumber}
+              onChange={(e) => setLotBatchNumber(e.target.value)}
+              placeholder="e.g. BATCH-001"
+            />
+          </FormField>
+          
+          <FormField label="Unit Cost" hint="Optional numeric cost">
+            <NumberInput
+              value={cost}
+              onChange={(e) => setCost(e.target.value)}
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+            />
+          </FormField>
+        </div>
 
         {/* Remarks (Optional) */}
         <FormField label="Remarks" hint="Optional internal notes or reference IDs">

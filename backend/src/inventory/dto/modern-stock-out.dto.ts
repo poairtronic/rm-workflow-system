@@ -38,4 +38,12 @@ export class ModernStockOutDto {
   @IsString()
   @IsOptional()
   referenceId?: string;
+
+  @IsString()
+  @IsOptional()
+  lotBatchNumber?: string;
+
+  @IsNumber()
+  @IsOptional()
+  cost?: number;
 }

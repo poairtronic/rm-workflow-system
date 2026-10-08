@@ -19,6 +19,7 @@ export interface StockBalance {
   binCode?: string;
   warehouseName?: string;
   currentQuantity: number;
+  latestLotBatchNumber?: string;
 }
 
 export interface StockTransaction {
@@ -37,6 +38,8 @@ export interface StockTransaction {
   referenceId?: string;
   reason?: string;
   remarks?: string;
+  lotBatchNumber?: string;
+  cost?: number;
   createdAt: string;
   createdBy?: { name: string; email: string };
 }

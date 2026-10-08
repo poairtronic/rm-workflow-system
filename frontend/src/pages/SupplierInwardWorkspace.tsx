@@ -15,6 +15,8 @@ interface GrnForm {
   poNumber?: string;
   challanNumber?: string;
   notes?: string;
+  lotBatchNumber?: string;
+  cost?: number | string;
 }
 
 export function SupplierInwardWorkspace() {
@@ -27,7 +29,9 @@ export function SupplierInwardWorkspace() {
       quantity: 0,
       poNumber: '',
       challanNumber: '',
-      notes: ''
+      notes: '',
+      lotBatchNumber: '',
+      cost: ''
     }
   });
 
@@ -39,7 +43,9 @@ export function SupplierInwardWorkspace() {
         quantity: Number(data.quantity),
         referenceId: data.poNumber || data.challanNumber || undefined,
         reason: 'Supplier Inward (GRN)',
-        remarks: `Vendor: ${data.vendorId}. ${data.notes || ''}`
+        remarks: `Vendor: ${data.vendorId}. ${data.notes || ''}`,
+        lotBatchNumber: data.lotBatchNumber?.trim() || undefined,
+        cost: data.cost ? Number(data.cost) : undefined
       };
       return api.post('/api/inventory/grn', payload);
     },
@@ -159,6 +165,30 @@ export function SupplierInwardWorkspace() {
                 {...register('challanNumber')}
                 className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors"
                 placeholder="e.g. CH-9923"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Lot / Batch Number (Optional)</label>
+              <input
+                type="text"
+                {...register('lotBatchNumber')}
+                className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors"
+                placeholder="e.g. BATCH-001"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Unit Cost (Optional)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                {...register('cost')}
+                className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors"
+                placeholder="0.00"
               />
             </div>
           </div>

@@ -44,4 +44,12 @@ export class ModernStockAdjustmentDto {
   @IsString()
   @IsOptional()
   referenceId?: string;
+
+  @IsString()
+  @IsOptional()
+  lotBatchNumber?: string;
+
+  @IsNumber()
+  @IsOptional()
+  cost?: number;
 }

@@ -131,6 +131,7 @@ export function InventoryStockWorkspace() {
     { key: 'productName', header: 'Product Name', render: (r) => r.productName || 'N/A' },
     { key: 'binCode', header: 'Bin', render: (r) => r.binCode || 'N/A' },
     { key: 'warehouseName', header: 'Warehouse', render: (r) => r.warehouseName || 'N/A' },
+    { key: 'latestLotBatchNumber', header: 'Lot/Batch', render: (r) => r.latestLotBatchNumber || 'N/A' },
     { key: 'currentQuantity', header: 'Qty', isNumeric: true, render: (r) => `${r.currentQuantity} ${r.uom || ''}` },
     { key: 'msl', header: 'MSL', isNumeric: true, render: (r) => r.msl ?? 'N/A' },
     { 
@@ -200,6 +201,8 @@ export function InventoryStockWorkspace() {
         return <span className={`font-medium ${color}`}>{sign}{r.quantity}</span>;
       }
     },
+    { key: 'lotBatchNumber', header: 'Lot/Batch', render: (r) => r.lotBatchNumber || 'N/A' },
+    { key: 'cost', header: 'Cost', isNumeric: true, render: (r) => r.cost != null ? `$${Number(r.cost).toFixed(2)}` : 'N/A' },
     { key: 'reason', header: 'Reason', render: (r) => r.reason || 'N/A' },
     { key: 'createdBy', header: 'Created By', render: (r) => r.createdBy?.name || 'System' }
   ];
@@ -344,6 +347,10 @@ export function InventoryStockWorkspace() {
                   <p className="text-sm text-gray-500">MSL</p>
                   <p className="font-medium">{selectedBalance.msl ?? 'N/A'}</p>
                 </div>
+                <div>
+                  <p className="text-sm text-gray-500">Latest Lot/Batch</p>
+                  <p className="font-medium">{selectedBalance.latestLotBatchNumber || 'N/A'}</p>
+                </div>
               </div>
             </div>
           )}
@@ -366,7 +373,8 @@ export function InventoryStockWorkspace() {
                     const sign = isAddition ? '+' : isSubtraction ? '-' : '';
                     return <span className={`font-medium ${color}`}>{sign}{r.quantity}</span>;
                   }
-                }
+                },
+                { key: 'lotBatchNumber', header: 'Lot/Batch', render: (r) => r.lotBatchNumber || 'N/A' }
               ]}
               isLoading={isBalanceTxLoading}
             />

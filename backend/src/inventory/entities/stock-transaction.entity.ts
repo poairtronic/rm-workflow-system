@@ -19,6 +19,11 @@ export enum TransactionType {
   RETURN = 'RETURN',
   ADJUSTMENT = 'ADJUSTMENT',
   TRANSFER = 'TRANSFER',
+  PRODUCTION = 'PRODUCTION',
+  RECEIVING = 'RECEIVING',
+  CONSUMPTION = 'CONSUMPTION',
+  SHIPPING = 'SHIPPING',
+  TRANSIT = 'TRANSIT',
 }
 
 export enum AdjustmentDirection {
@@ -102,6 +107,17 @@ export class StockTransaction {
 
   @Column({ type: 'text', nullable: true })
   remarks?: string;
+
+  @Column({ name: 'lot_batch_number', length: 100, nullable: true })
+  lotBatchNumber?: string;
+
+  @Column({
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+  })
+  cost?: number;
 
   @Column({ name: 'created_by_id' })
   createdById!: string;
