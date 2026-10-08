@@ -21,6 +21,7 @@ import { WarehousesAndBinsWorkspace } from './pages/WarehousesAndBinsWorkspace';
 import { UserMasterWorkspace } from './pages/UserMasterWorkspace';
 import { VendorMasterWorkspace } from './pages/VendorMasterWorkspace';
 import { ProductsMasterWorkspace } from './pages/ProductsMasterWorkspace';
+import { InventoryStockWorkspace } from './pages/InventoryStockWorkspace';
 import type { ElementType } from 'react';
 
 export interface RouteConfig {
@@ -44,7 +45,7 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   { name: 'Extra Requests', path: '/stores/extra-requests', icon: FilePlus, roles: ['STORES', 'ADMIN'], component: () => <ComingSoon title="Extra Requests" />, isSidebar: true, group: 'RM WORKFLOW' },
   { name: 'Return Verify', path: '/stores/return-verify', icon: PackageCheck, roles: ['STORES', 'ADMIN'], component: () => <ComingSoon title="Return Verify" />, isSidebar: true, group: 'RM WORKFLOW' },
   
-  { name: 'Stock Overview', path: '/inventory/stock', icon: Box, roles: ['STORES', 'ADMIN'], component: () => <ComingSoon title="Stock Overview" />, isSidebar: true, group: 'INVENTORY' },
+  { name: 'Stock Overview', path: '/inventory/stock', icon: Box, roles: ['STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'DESIGNER'], component: InventoryStockWorkspace, isSidebar: true, group: 'INVENTORY' },
   { name: 'Stock In/Out', path: '/inventory/movements', icon: PackageSearch, roles: ['STORES', 'ADMIN'], component: () => <ComingSoon title="Stock In/Out" />, isSidebar: true, group: 'INVENTORY' },
   { name: 'MSL Alerts', path: '/inventory/msl-alerts', icon: BellRing, roles: ['STORES', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: MslAlertsWorkspace, isSidebar: true, group: 'INVENTORY' },
   

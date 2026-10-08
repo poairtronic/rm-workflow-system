@@ -26,6 +26,7 @@ import {
   GetInventoryFilterDto,
   StockStatusFilter,
 } from './dto/get-inventory-filter.dto.js';
+import { GetBalancesFilterDto } from './dto/get-balances-filter.dto.js';
 import { GetTransactionFilterDto } from './dto/get-transaction-filter.dto.js';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto.js';
 import {
@@ -81,6 +82,61 @@ export class InventoryService {
       productId: b.productId,
       currentQuantity: Number(b.currentQuantity)
     }));
+  }
+
+  async getAllBalances(filterDto: GetBalancesFilterDto) {
+    const { search, productId, binId, page = 1, pageSize = 10 } = filterDto;
+    
+    const query = this.stockBalanceRepository
+      .createQueryBuilder('sb')
+      .leftJoinAndSelect('sb.product', 'product')
+      .leftJoinAndSelect('sb.bin', 'bin')
+      .leftJoinAndSelect('bin.rack', 'rack')
+      .leftJoinAndSelect('rack.location', 'location')
+      .leftJoinAndSelect('location.warehouse', 'warehouse')
+      .where('sb.current_quantity > 0');
+
+    if (productId) {
+      query.andWhere('sb.product_id = :productId', { productId });
+    }
+    
+    if (binId) {
+      query.andWhere('sb.bin_id = :binId', { binId });
+    }
+
+    if (search) {
+      query.andWhere(
+        '(product.name ILIKE :search OR product.code ILIKE :search OR bin.code ILIKE :search)',
+        { search: `%${search}%` }
+      );
+    }
+
+    const skip = (page - 1) * pageSize;
+    query.orderBy('product.name', 'ASC')
+         .addOrderBy('bin.code', 'ASC')
+         .skip(skip)
+         .take(pageSize);
+
+    const [balances, total] = await query.getManyAndCount();
+
+    return {
+      data: balances.map(b => ({
+        id: b.id,
+        productId: b.productId,
+        productCode: b.product?.code,
+        productName: b.product?.name,
+        uom: b.product?.uom,
+        msl: b.product?.minimumInventory,
+        binId: b.binId,
+        binCode: b.bin?.code,
+        warehouseName: b.bin?.rack?.location?.warehouse?.name || 'Unknown',
+        currentQuantity: Number(b.currentQuantity)
+      })),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize) || 1,
+    };
   }
 
   async findAll(
@@ -238,6 +294,68 @@ export class InventoryService {
       query.andWhere('tx.adjustmentDirection = :adjustmentDirection', {
         adjustmentDirection,
       });
+    }
+
+    if (startDate) {
+      query.andWhere('tx.createdAt >= :startDate', { startDate });
+    }
+
+    if (endDate) {
+      query.andWhere('tx.createdAt <= :endDate', { endDate });
+    }
+
+    const skip = (page - 1) * pageSize;
+    query.skip(skip).take(pageSize);
+
+    const [data, total] = await query.getManyAndCount();
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize) || 1,
+    };
+  }
+
+  async getAllTransactions(
+    filterDto?: GetTransactionFilterDto,
+  ): Promise<PaginatedResponseDto<StockTransaction>> {
+    const {
+      productId,
+      binId,
+      transactionType,
+      adjustmentDirection,
+      startDate,
+      endDate,
+      page = 1,
+      pageSize = 10,
+    } = filterDto || {};
+
+    const query = this.stockTransactionRepository
+      .createQueryBuilder('tx')
+      .leftJoinAndSelect('tx.product', 'product')
+      .leftJoinAndSelect('tx.sourceBin', 'sourceBin')
+      .leftJoinAndSelect('tx.destinationBin', 'destinationBin')
+      .leftJoin('tx.createdBy', 'user')
+      .addSelect(['user.id', 'user.name', 'user.email'])
+      .orderBy('tx.createdAt', 'DESC')
+      .addOrderBy('tx.id', 'DESC');
+
+    if (productId) {
+      query.andWhere('tx.productId = :productId', { productId });
+    }
+    
+    if (binId) {
+      query.andWhere('(tx.sourceBinId = :binId OR tx.destinationBinId = :binId)', { binId });
+    }
+
+    if (transactionType) {
+      query.andWhere('tx.transactionType = :transactionType', { transactionType });
+    }
+
+    if (adjustmentDirection && transactionType === TransactionType.ADJUSTMENT) {
+      query.andWhere('tx.adjustmentDirection = :adjustmentDirection', { adjustmentDirection });
     }
 
     if (startDate) {

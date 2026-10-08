@@ -16,6 +16,7 @@ import { InventoryService } from './inventory.service.js';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto.js';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto.js';
 import { GetInventoryFilterDto } from './dto/get-inventory-filter.dto.js';
+import { GetBalancesFilterDto } from './dto/get-balances-filter.dto.js';
 import { GetTransactionFilterDto } from './dto/get-transaction-filter.dto.js';
 import { CreateStockTransactionDto } from './dto/create-stock-transaction.dto.js';
 import { CreateStockInDto } from './dto/create-stock-in.dto.js';
@@ -85,8 +86,29 @@ export class InventoryController {
     UserRole.SENIOR_MANAGER,
     UserRole.GENERAL_MANAGER,
   )
-  getBalancesByProduct(@Query('productId', ParseUUIDPipe) productId: string) {
-    return this.inventoryService.getBalancesByProduct(productId);
+  getBalances(
+    @Query('productId') productId?: string,
+    @Query(new ValidationPipe({ transform: true })) filterDto?: GetBalancesFilterDto,
+  ) {
+    if (productId) {
+      return this.inventoryService.getBalancesByProduct(productId);
+    }
+    return this.inventoryService.getAllBalances(filterDto || new GetBalancesFilterDto());
+  }
+
+  @Get('transactions')
+  @Roles(
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+    UserRole.DESIGNER,
+  )
+  getAllTransactions(
+    @Query(new ValidationPipe({ transform: true }))
+    filterDto: GetTransactionFilterDto,
+  ) {
+    return this.inventoryService.getAllTransactions(filterDto);
   }
 
   @Get(':id')

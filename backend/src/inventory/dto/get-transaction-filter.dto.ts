@@ -5,6 +5,7 @@ import {
   Min,
   Max,
   IsDateString,
+  IsString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
@@ -13,6 +14,13 @@ import {
 } from '../entities/stock-transaction.entity.js';
 
 export class GetTransactionFilterDto {
+  @IsOptional()
+  @IsString()
+  productId?: string;
+
+  @IsOptional()
+  @IsString()
+  binId?: string;
   @IsOptional()
   @IsEnum(TransactionType)
   transactionType?: TransactionType;
