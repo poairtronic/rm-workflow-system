@@ -31,10 +31,11 @@ const SeverityBadge = ({ severity }: { severity: MslException['severity'] }) => 
 export interface MslExceptionGridProps {
   data: MslException[];
   isLoading?: boolean;
-  onRaisePO?: (item: MslException) => void;
+  onAdjustStock?: (item: MslException) => void;
+  onViewLedger?: (item: MslException) => void;
 }
 
-export function MslExceptionGrid({ data, isLoading, onRaisePO }: MslExceptionGridProps) {
+export function MslExceptionGrid({ data, isLoading, onAdjustStock, onViewLedger }: MslExceptionGridProps) {
   const [sortField, setSortField] = useState<keyof MslException>('deficit');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
@@ -175,12 +176,21 @@ export function MslExceptionGrid({ data, isLoading, onRaisePO }: MslExceptionGri
                   <SeverityBadge severity={item.severity} />
                 </td>
                 <td className="px-6 py-2 text-right">
-                  <button
-                    onClick={() => onRaisePO && onRaisePO(item)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-600 shadow-sm transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                  >
-                    Raise Emergency PO
-                  </button>
+                  <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => onViewLedger && onViewLedger(item)}
+                      className="inline-flex items-center px-2 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
+                      title="Review this product's full ledger"
+                    >
+                      View Ledger
+                    </button>
+                    <button
+                      onClick={() => onAdjustStock && onAdjustStock(item)}
+                      className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-600 shadow-sm transition-colors"
+                    >
+                      Adjust Stock
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

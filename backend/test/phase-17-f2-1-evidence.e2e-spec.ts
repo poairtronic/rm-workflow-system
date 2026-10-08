@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
-import { AppModule } from '../src/app.module';
+import request from 'supertest';
+import { AppModule } from '../src/app.module.js';
 import { DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 
@@ -25,10 +25,10 @@ describe('F2.1 Evidence (e2e)', () => {
     dataSource = app.get(DataSource);
     jwtService = app.get(JwtService);
 
-    const storesUser = await dataSource.query(`SELECT id, email, role FROM users WHERE role = 'STORES' LIMIT 1`);
+    const storesUser = await dataSource.query(`SELECT u.id, u.email, r.name as role FROM users u JOIN roles r ON r.id = u.role_id WHERE r.name = 'STORES' LIMIT 1`);
     storesToken = jwtService.sign({ userId: storesUser[0].id, email: storesUser[0].email, role: storesUser[0].role });
 
-    const designerUser = await dataSource.query(`SELECT id, email, role FROM users WHERE role = 'DESIGNER' LIMIT 1`);
+    const designerUser = await dataSource.query(`SELECT u.id, u.email, r.name as role FROM users u JOIN roles r ON r.id = u.role_id WHERE r.name = 'DESIGNER' LIMIT 1`);
     designerToken = jwtService.sign({ userId: designerUser[0].id, email: designerUser[0].email, role: designerUser[0].role });
   });
 

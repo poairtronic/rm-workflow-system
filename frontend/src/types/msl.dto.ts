@@ -17,6 +17,7 @@ export interface InventoryMslSummaryDto {
   criticalStockCount: number;
   outOfStockCount: number;
   totalDeficitQty: number;
+  healthIndex?: number;
 }
 
 export interface InventoryMslStatusResponseDto {

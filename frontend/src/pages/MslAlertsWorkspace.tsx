@@ -5,7 +5,8 @@ import { toast } from 'react-hot-toast';
 import { KpiMetricCard } from '../components/dashboard/KpiMetricCard';
 import { MslExceptionGrid } from '../components/inventory/MslExceptionGrid';
 import { MslFilterPanel, type MslFilters } from '../components/inventory/MslFilterPanel';
-import { EmergencyRequisitionDrawer } from '../components/modals/EmergencyRequisitionDrawer';
+import { useNavigate } from 'react-router-dom';
+import { StockMovementModal } from '../components/inventory/StockMovementModal';
 import { mslApi } from '../services/api';
 import type { MslException } from '../types/msl-alert';
 
@@ -16,10 +17,13 @@ export function MslAlertsWorkspace() {
     severity: '',
   });
 
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [selectedException, setSelectedException] = useState<MslException | null>(null);
+  const navigate = useNavigate();
 
-  const { data: response, isLoading, isError, error } = useQuery({
+  // Temporary drawer state for "Adjust Stock" (assuming F2.2 Stock In modal will replace this later)
+  const [isStockInModalOpen, setIsStockInModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<MslException | null>(null);
+
+  const { data: response, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['inventoryMslStatus'],
     queryFn: () => mslApi.getInventoryMslStatus(),
     refetchInterval: 30000, // 30 seconds polling
@@ -34,69 +38,36 @@ export function MslAlertsWorkspace() {
 
   const exceptions: MslException[] = useMemo(() => {
     if (!response) return [];
-    return response.items.map(item => {
-      const stock = Number(item.currentStock) || 0;
-      const msl = Number(item.minimumInventory) || 0;
-      let computedSeverity: 'OUT_OF_STOCK' | 'CRITICAL' | 'LOW_STOCK' | 'NORMAL' = 'NORMAL';
-      if (msl > 0) {
-        if (stock <= 0) computedSeverity = 'OUT_OF_STOCK';
-        else if (stock < (msl / 2)) computedSeverity = 'CRITICAL';
-        else if (stock < msl) computedSeverity = 'LOW_STOCK';
-      }
-      return {
-        id: item.productId || Math.random().toString(),
-        skuCode: item.productId,
-        itemName: item.productName,
-        category: item.categoryName,
-        zone: item.categoryName, // Fallback as zone is not in DTO
-        currentStock: stock,
-        mslThreshold: msl,
-        deficit: Math.max(0, msl - stock),
-        unit: 'KG', // Fallback for unit
-        severity: computedSeverity,
-      };
-    }).filter(item => item.severity !== 'NORMAL') as MslException[];
+    return response.items.map(item => ({
+      id: item.productId || Math.random().toString(),
+      skuCode: item.productId,
+      itemName: item.productName,
+      category: item.categoryName,
+      zone: item.categoryName,
+      currentStock: Number(item.currentStock) || 0,
+      mslThreshold: Number(item.minimumInventory) || 0,
+      deficit: Number(item.deficitQty) || 0,
+      unit: 'KG',
+      severity: item.status === 'BELOW_MSL' ? 'LOW_STOCK' : item.status as any,
+    }));
   }, [response]);
 
   const stats = useMemo(() => {
-    if (!response) return { critical: 0, lowStock: 0, itemsBelowMsl: 0, healthIndex: 100 };
-    
-    // We calculate stats natively in UI because backend rules don't define <50% as CRITICAL
-    let critical = 0;
-    let lowStock = 0;
-    let itemsBelowMsl = 0;
-    
-    // Fallback to response.summary if we don't have all products, but we only have breached items here.
-    // Actually, response.summary has the enterprise totals.
-    let monitored = 0;
-    response.items.forEach(item => {
-      const msl = Number(item.minimumInventory) || 0;
-      if (msl > 0) {
-        monitored++;
-      }
-    });
-    
-    let outOfStock = 0;
-    
-    // Re-evaluate the breached items based on UI rules
-    exceptions.forEach(ex => {
-      if (ex.severity === 'OUT_OF_STOCK') outOfStock++;
-      if (ex.severity === 'CRITICAL') critical++;
-      if (ex.severity === 'LOW_STOCK') lowStock++;
-    });
-    
-    itemsBelowMsl = outOfStock + critical + lowStock;
-    const itemsAtOrAbove = Math.max(0, monitored - itemsBelowMsl);
-    const healthIndex = monitored > 0 ? Number(((itemsAtOrAbove / monitored) * 100).toFixed(1)) : 100;
-
+    if (!response || !response.summary) {
+      return { outOfStock: 0, critical: 0, lowStock: 0, itemsBelowMsl: 0, healthIndex: 100 };
+    }
+    const summary = response.summary;
+    const monitored = summary.totalMonitoredProducts || 1;
+    const normal = summary.normalStockCount || 0;
+    const healthIndex = Math.round((normal / monitored) * 100);
     return {
-      outOfStock,
-      critical,
-      lowStock,
-      itemsBelowMsl,
+      outOfStock: summary.outOfStockCount,
+      critical: summary.criticalStockCount,
+      lowStock: summary.belowMslCount,
+      itemsBelowMsl: summary.outOfStockCount + summary.criticalStockCount + summary.belowMslCount,
       healthIndex,
     };
-  }, [response, exceptions]);
+  }, [response]);
 
   const handleFilterChange = (key: keyof MslFilters, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -115,9 +86,14 @@ export function MslAlertsWorkspace() {
     });
   }, [filters, exceptions]);
 
-  const handleRaisePO = (item: MslException) => {
-    setSelectedException(item);
-    setIsDrawerOpen(true);
+  const handleAdjustStock = (item: MslException) => {
+    // Open Stock In modal pre-filled with this product
+    setSelectedProduct(item);
+    setIsStockInModalOpen(true);
+  };
+
+  const handleViewLedger = (item: MslException) => {
+    navigate(`/inventory/stock?tab=LEDGER&product=${encodeURIComponent(item.itemName)}`);
   };
 
   return (
@@ -180,15 +156,20 @@ export function MslAlertsWorkspace() {
         <MslExceptionGrid 
           data={filteredExceptions} 
           isLoading={isLoading}
-          onRaisePO={handleRaisePO}
+          onAdjustStock={handleAdjustStock}
+          onViewLedger={handleViewLedger}
         />
       </div>
 
-      <EmergencyRequisitionDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        item={selectedException}
-      />
+      {isStockInModalOpen && (
+        <StockMovementModal
+          isOpen={isStockInModalOpen}
+          onClose={() => setIsStockInModalOpen(false)}
+          mode="STOCK_IN"
+          initialProductId={selectedProduct?.skuCode}
+          onSuccess={() => refetch()}
+        />
+      )}
     </div>
   );
 }

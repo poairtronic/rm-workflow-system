@@ -2357,15 +2357,26 @@ export class TraceabilityService {
     let criticalStockCount = 0;
     let outOfStockCount = 0;
     let totalDeficitQty = 0;
+    let monitoredCount = 0;
+    let healthyCount = 0;
 
-    const allItems: InventoryMslItemDto[] = products.map((prod) => {
+    const allItems: InventoryMslItemDto[] = [];
+    
+    for (const prod of products) {
+      const minimumInventory = Number(prod.minimumInventory) || 0;
+      if (minimumInventory <= 0) {
+        continue;
+      }
+      
+      monitoredCount++;
+
       const currentStock = QuantityCalculator.roundDecimal(
         (prod.stockBalances || []).reduce(
           (sum, b) => sum + (Number(b.currentQuantity) || 0),
           0,
         ),
       );
-      const minimumInventory = Number(prod.minimumInventory) || 0;
+      
       const maximumInventory =
         prod.maximumInventory !== null && prod.maximumInventory !== undefined
           ? Number(prod.maximumInventory)
@@ -2379,19 +2390,21 @@ export class TraceabilityService {
       if (currentStock <= 0) {
         status = 'OUT_OF_STOCK';
         outOfStockCount++;
-      } else if (minimumInventory > 0 && currentStock <= minimumInventory * 0.5) {
+      } else if (currentStock <= minimumInventory * 0.5) {
         status = 'CRITICAL';
         criticalStockCount++;
-      } else if (minimumInventory > 0 && currentStock < minimumInventory) {
+      } else if (currentStock < minimumInventory) {
         status = 'BELOW_MSL';
         belowMslCount++;
       } else {
+        status = 'NORMAL';
         normalStockCount++;
+        healthyCount++;
       }
 
       totalDeficitQty += deficitQty;
 
-      return {
+      allItems.push({
         productId: prod.id,
         productName: prod.name,
         categoryName: prod.family?.category?.name ?? 'General',
@@ -2401,22 +2414,25 @@ export class TraceabilityService {
         maximumInventory,
         deficitQty,
         status,
-      };
-    });
+      });
+    }
 
     let filteredItems = allItems;
     if (filter.status && filter.status !== MslStockFilterStatus.ALL) {
       filteredItems = allItems.filter((i) => i.status === filter.status);
     }
 
+    const healthIndex = monitoredCount === 0 ? 100 : QuantityCalculator.roundDecimal((healthyCount / monitoredCount) * 100);
+
     return {
       summary: {
-        totalMonitoredProducts: products.length,
+        totalMonitoredProducts: monitoredCount,
         normalStockCount,
         belowMslCount,
         criticalStockCount,
         outOfStockCount,
         totalDeficitQty: QuantityCalculator.roundDecimal(totalDeficitQty),
+        healthIndex,
       },
       items: filteredItems,
       generatedAt: new Date().toISOString(),

@@ -22,6 +22,11 @@ import { CreateStockTransactionDto } from './dto/create-stock-transaction.dto.js
 import { CreateStockInDto } from './dto/create-stock-in.dto.js';
 import { CreateStockOutDto } from './dto/create-stock-out.dto.js';
 import { CreateStockAdjustmentDto } from './dto/create-stock-adjustment.dto.js';
+import { Product } from './entities/product.entity.js';
+import { Bin } from './entities/bin.entity.js';
+import { ModernStockInDto } from './dto/modern-stock-in.dto.js';
+import { ModernStockOutDto } from './dto/modern-stock-out.dto.js';
+import { ModernStockAdjustmentDto } from './dto/modern-stock-adjustment.dto.js';
 import {
   GetInventoryFilterDto,
   StockStatusFilter,
@@ -955,6 +960,263 @@ export class InventoryService {
       await queryRunner.commitTransaction();
 
       this.triggerMslCheck(currentBalance?.productId || finalBalance?.productId);
+
+      return {
+        transaction: savedTx,
+        balance: finalBalance,
+      };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async modernStockIn(dto: ModernStockInDto, userId: string) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const product = await queryRunner.manager.findOne(Product, {
+        where: { id: dto.productId },
+      });
+      if (!product) {
+        throw new NotFoundException(`Product ${dto.productId} not found`);
+      }
+
+      const bin = await queryRunner.manager.findOne(Bin, {
+        where: { id: dto.binId },
+      });
+      if (!bin) {
+        throw new NotFoundException(`Bin ${dto.binId} not found`);
+      }
+
+      let balance = await queryRunner.manager.findOne(StockBalance, {
+        where: { productId: dto.productId, binId: dto.binId },
+      });
+
+      if (!balance) {
+        balance = this.stockBalanceRepository.create({
+          productId: dto.productId,
+          binId: dto.binId,
+          currentQuantity: 0,
+          openingBalance: 0,
+        });
+        await queryRunner.manager.save(balance);
+      }
+
+      const transaction = this.stockTransactionRepository.create({
+        productId: dto.productId,
+        destinationBinId: dto.binId,
+        transactionType: TransactionType.STOCK_IN,
+        quantity: dto.quantity,
+        referenceType: dto.referenceType || 'MANUAL',
+        referenceId: dto.referenceId,
+        reason: dto.reason,
+        remarks: dto.remarks || dto.reason,
+        createdById: userId,
+      });
+      const savedTx = await queryRunner.manager.save(transaction);
+
+      await queryRunner.manager.query(
+        `UPDATE stock_balances 
+         SET current_quantity = current_quantity + $1, 
+             last_transaction_id = $2, 
+             updated_at = NOW() 
+         WHERE product_id = $3 AND bin_id = $4`,
+        [dto.quantity, savedTx.id, dto.productId, dto.binId],
+      );
+
+      const finalBalance = await queryRunner.manager.findOne(StockBalance, {
+        where: { productId: dto.productId, binId: dto.binId },
+        relations: { product: true, bin: true },
+      });
+
+      await queryRunner.commitTransaction();
+
+      this.triggerMslCheck(dto.productId);
+
+      return {
+        transaction: savedTx,
+        balance: finalBalance,
+      };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async modernStockOut(dto: ModernStockOutDto, userId: string) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const product = await queryRunner.manager.findOne(Product, {
+        where: { id: dto.productId },
+      });
+      if (!product) {
+        throw new NotFoundException(`Product ${dto.productId} not found`);
+      }
+
+      const bin = await queryRunner.manager.findOne(Bin, {
+        where: { id: dto.binId },
+      });
+      if (!bin) {
+        throw new NotFoundException(`Bin ${dto.binId} not found`);
+      }
+
+      const currentBalance = await queryRunner.manager.findOne(StockBalance, {
+        where: { productId: dto.productId, binId: dto.binId },
+      });
+
+      if (!currentBalance || Number(currentBalance.currentQuantity) < dto.quantity) {
+        throw new BadRequestException('Insufficient stock.');
+      }
+
+      const transaction = this.stockTransactionRepository.create({
+        productId: dto.productId,
+        sourceBinId: dto.binId,
+        transactionType: TransactionType.STOCK_OUT,
+        quantity: dto.quantity,
+        referenceType: dto.referenceType || 'MANUAL',
+        referenceId: dto.referenceId,
+        reason: dto.reason,
+        remarks: dto.remarks || dto.reason,
+        createdById: userId,
+      });
+      const savedTx = await queryRunner.manager.save(transaction);
+
+      const updateResult = await queryRunner.manager.query(
+        `UPDATE stock_balances 
+         SET current_quantity = current_quantity - $1, 
+             last_transaction_id = $2, 
+             updated_at = NOW() 
+         WHERE product_id = $3 AND bin_id = $4 AND current_quantity >= $1`,
+        [dto.quantity, savedTx.id, dto.productId, dto.binId],
+      );
+
+      if (updateResult[1] === 0) {
+        throw new BadRequestException('Insufficient stock.');
+      }
+
+      const finalBalance = await queryRunner.manager.findOne(StockBalance, {
+        where: { productId: dto.productId, binId: dto.binId },
+        relations: { product: true, bin: true },
+      });
+
+      await queryRunner.commitTransaction();
+
+      this.triggerMslCheck(dto.productId);
+
+      return {
+        transaction: savedTx,
+        balance: finalBalance,
+      };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async modernStockAdjustment(dto: ModernStockAdjustmentDto, userId: string) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const product = await queryRunner.manager.findOne(Product, {
+        where: { id: dto.productId },
+      });
+      if (!product) {
+        throw new NotFoundException(`Product ${dto.productId} not found`);
+      }
+
+      const bin = await queryRunner.manager.findOne(Bin, {
+        where: { id: dto.binId },
+      });
+      if (!bin) {
+        throw new NotFoundException(`Bin ${dto.binId} not found`);
+      }
+
+      let currentBalance = await queryRunner.manager.findOne(StockBalance, {
+        where: { productId: dto.productId, binId: dto.binId },
+      });
+
+      if (!currentBalance && dto.direction === AdjustmentDirection.INCREASE) {
+        currentBalance = this.stockBalanceRepository.create({
+          productId: dto.productId,
+          binId: dto.binId,
+          currentQuantity: 0,
+          openingBalance: 0,
+        });
+        await queryRunner.manager.save(currentBalance);
+      } else if (!currentBalance && dto.direction === AdjustmentDirection.DECREASE) {
+        throw new BadRequestException('Insufficient stock for adjustment decrease.');
+      }
+
+      if (
+        dto.direction === AdjustmentDirection.DECREASE &&
+        Number(currentBalance?.currentQuantity || 0) < dto.quantity
+      ) {
+        throw new BadRequestException('Insufficient stock for adjustment decrease.');
+      }
+
+      const transaction = this.stockTransactionRepository.create({
+        productId: dto.productId,
+        sourceBinId: dto.direction === AdjustmentDirection.DECREASE ? dto.binId : undefined,
+        destinationBinId: dto.direction === AdjustmentDirection.INCREASE ? dto.binId : undefined,
+        transactionType: TransactionType.ADJUSTMENT,
+        adjustmentDirection: dto.direction,
+        quantity: dto.quantity,
+        referenceType: dto.referenceType || 'MANUAL',
+        referenceId: dto.referenceId,
+        reason: dto.reason,
+        remarks: dto.remarks || dto.reason,
+        createdById: userId,
+      });
+      const savedTx = await queryRunner.manager.save(transaction);
+
+      if (dto.direction === AdjustmentDirection.INCREASE) {
+        await queryRunner.manager.query(
+          `UPDATE stock_balances 
+           SET current_quantity = current_quantity + $1, 
+               last_transaction_id = $2, 
+               updated_at = NOW() 
+           WHERE product_id = $3 AND bin_id = $4`,
+          [dto.quantity, savedTx.id, dto.productId, dto.binId],
+        );
+      } else if (dto.direction === AdjustmentDirection.DECREASE) {
+        const updateResult = await queryRunner.manager.query(
+          `UPDATE stock_balances 
+           SET current_quantity = current_quantity - $1, 
+               last_transaction_id = $2, 
+               updated_at = NOW() 
+           WHERE product_id = $3 AND bin_id = $4 AND current_quantity >= $1`,
+          [dto.quantity, savedTx.id, dto.productId, dto.binId],
+        );
+
+        if (updateResult[1] === 0) {
+          throw new BadRequestException('Insufficient stock for adjustment decrease.');
+        }
+      } else {
+        throw new BadRequestException('Invalid adjustment direction.');
+      }
+
+      const finalBalance = await queryRunner.manager.findOne(StockBalance, {
+        where: { productId: dto.productId, binId: dto.binId },
+        relations: { product: true, bin: true },
+      });
+
+      await queryRunner.commitTransaction();
+
+      this.triggerMslCheck(dto.productId);
 
       return {
         transaction: savedTx,

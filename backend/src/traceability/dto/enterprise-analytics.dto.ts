@@ -140,6 +140,7 @@ export class InventoryMslSummaryDto {
   criticalStockCount!: number;
   outOfStockCount!: number;
   totalDeficitQty!: number;
+  healthIndex!: number;
 }
 
 export class InventoryMslStatusResponseDto {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   PageHeader,
   DataTable,
@@ -8,17 +8,24 @@ import {
   Select,
 } from '../components/ui';
 import type { ColumnDef } from '../components/ui';
-import { inventoryService, StockBalance, StockTransaction } from '../services/inventoryService';
-import { Box, Search, Filter } from 'lucide-react';
+import { inventoryService } from '../services/inventoryService';
+import type { StockBalance, StockTransaction } from '../services/inventoryService';
+import {
+  StockMovementModal,
+  type StockMovementMode,
+} from '../components/inventory/StockMovementModal';
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  SlidersHorizontal,
+} from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { format } from 'date-fns';
 
 export function InventoryStockWorkspace() {
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'LEDGER'>('OVERVIEW');
   
   // Overview Tab State
   const [balances, setBalances] = useState<StockBalance[]>([]);
-  const [totalBalances, setTotalBalances] = useState(0);
   const [isBalancesLoading, setIsBalancesLoading] = useState(true);
   const [balancesPage, setBalancesPage] = useState(1);
   const [balancesSearch, setBalancesSearch] = useState('');
@@ -31,22 +38,26 @@ export function InventoryStockWorkspace() {
 
   // Ledger Tab State
   const [transactions, setTransactions] = useState<StockTransaction[]>([]);
-  const [totalTransactions, setTotalTransactions] = useState(0);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
   const [txPage, setTxPage] = useState(1);
   const [txTypeFilter, setTxTypeFilter] = useState('');
+
+  // Stock Movement Modal State
+  const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
+  const [movementMode, setMovementMode] = useState<StockMovementMode>('STOCK_IN');
+  const [movementProductId, setMovementProductId] = useState<string | undefined>();
+  const [movementBinId, setMovementBinId] = useState<string | undefined>();
 
   const fetchBalances = async () => {
     setIsBalancesLoading(true);
     try {
       const res = await inventoryService.getAllBalances({
         page: balancesPage,
-        pageSize: 10,
+        pageSize: 50,
         search: balancesSearch
       });
       setBalances(res.data);
-      setTotalBalances(res.total);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load stock balances');
     } finally {
       setIsBalancesLoading(false);
@@ -58,15 +69,31 @@ export function InventoryStockWorkspace() {
     try {
       const res = await inventoryService.getAllTransactions({
         page: txPage,
-        pageSize: 10,
+        pageSize: 50,
         transactionType: txTypeFilter || undefined
       });
       setTransactions(res.data);
-      setTotalTransactions(res.total);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load stock transactions');
     } finally {
       setIsTransactionsLoading(false);
+    }
+  };
+
+  const fetchSelectedBalanceTransactions = async (row: StockBalance) => {
+    setIsBalanceTxLoading(true);
+    try {
+      const res = await inventoryService.getAllTransactions({
+        productId: row.productId,
+        binId: row.binId,
+        page: 1,
+        pageSize: 50
+      });
+      setBalanceTransactions(res.data);
+    } catch (err) {
+      toast.error('Failed to load transactions for product');
+    } finally {
+      setIsBalanceTxLoading(false);
     }
   };
 
@@ -81,19 +108,21 @@ export function InventoryStockWorkspace() {
   const handleRowClick = async (row: StockBalance) => {
     setSelectedBalance(row);
     setIsSlideOverOpen(true);
-    setIsBalanceTxLoading(true);
-    try {
-      const res = await inventoryService.getAllTransactions({
-        productId: row.productId,
-        binId: row.binId,
-        page: 1,
-        pageSize: 50
-      });
-      setBalanceTransactions(res.data);
-    } catch (err) {
-      toast.error('Failed to load transactions for product');
-    } finally {
-      setIsBalanceTxLoading(false);
+    await fetchSelectedBalanceTransactions(row);
+  };
+
+  const handleOpenMovement = (mode: StockMovementMode, prodId?: string, binId?: string) => {
+    setMovementMode(mode);
+    setMovementProductId(prodId);
+    setMovementBinId(binId);
+    setIsMovementModalOpen(true);
+  };
+
+  const handleMovementSuccess = () => {
+    fetchBalances();
+    fetchTransactions();
+    if (selectedBalance) {
+      fetchSelectedBalanceTransactions(selectedBalance);
     }
   };
 
@@ -111,14 +140,46 @@ export function InventoryStockWorkspace() {
         if (r.msl === undefined || r.msl === null) return <StatusBadge status="OK" />;
         const diff = Number(r.currentQuantity) - Number(r.msl);
         if (diff < 0) return <StatusBadge status="CRITICAL" />;
-        if (diff <= 5) return <StatusBadge status="LOW" />; // Just an example threshold
+        if (diff <= 5) return <StatusBadge status="LOW" />;
         return <StatusBadge status="OK" />;
       } 
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (r) => (
+        <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            title="Stock In to this Bin"
+            onClick={() => handleOpenMovement('STOCK_IN', r.productId, r.binId)}
+            className="p-1 rounded text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+          >
+            <ArrowDownToLine className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            title="Stock Out from this Bin"
+            onClick={() => handleOpenMovement('STOCK_OUT', r.productId, r.binId)}
+            className="p-1 rounded text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-colors"
+          >
+            <ArrowUpFromLine className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            title="Adjust Stock in this Bin"
+            onClick={() => handleOpenMovement('ADJUST', r.productId, r.binId)}
+            className="p-1 rounded text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+          </button>
+        </div>
+      ),
     },
   ];
 
   const txColumns: ColumnDef<StockTransaction>[] = [
-    { key: 'createdAt', header: 'Date', render: (r) => format(new Date(r.createdAt), 'dd MMM yyyy HH:mm') },
+    { key: 'createdAt', header: 'Date', render: (r) => new Date(r.createdAt).toLocaleString() },
     { key: 'product', header: 'Product', render: (r) => r.product?.name || 'N/A' },
     { key: 'bin', header: 'Bin', render: (r) => {
         if (r.sourceBin && r.destinationBin) return `${r.sourceBin.code} → ${r.destinationBin.code}`;
@@ -147,8 +208,36 @@ export function InventoryStockWorkspace() {
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <PageHeader
         title="Stock Overview & Ledger"
-        subtitle="View current inventory balances and transaction history"
+        subtitle="View current inventory balances, manage physical movements, and audit transactions"
         breadcrumbs={<span>Inventory / Stock Overview</span>}
+        actionSlot={
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => handleOpenMovement('STOCK_IN')}
+              className="inline-flex items-center px-3 py-1.5 border border-emerald-300 text-xs font-medium rounded-md text-emerald-800 bg-emerald-50 hover:bg-emerald-100 transition-colors shadow-sm"
+            >
+              <ArrowDownToLine className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
+              Stock In
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOpenMovement('STOCK_OUT')}
+              className="inline-flex items-center px-3 py-1.5 border border-rose-300 text-xs font-medium rounded-md text-rose-800 bg-rose-50 hover:bg-rose-100 transition-colors shadow-sm"
+            >
+              <ArrowUpFromLine className="w-3.5 h-3.5 mr-1.5 text-rose-600" />
+              Stock Out
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOpenMovement('ADJUST')}
+              className="inline-flex items-center px-3 py-1.5 border border-blue-300 text-xs font-medium rounded-md text-blue-800 bg-blue-50 hover:bg-blue-100 transition-colors shadow-sm"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
+              Adjust
+            </button>
+          </div>
+        }
       />
 
       <div className="border-b border-gray-200">
@@ -185,9 +274,7 @@ export function InventoryStockWorkspace() {
           <div className="flex justify-between items-end">
             <div className="w-1/3">
               <TextInput
-                label=""
                 placeholder="Search products or bins..."
-                icon={<Search className="w-4 h-4" />}
                 value={balancesSearch}
                 onChange={(e) => { setBalancesSearch(e.target.value); setBalancesPage(1); }}
               />
@@ -198,9 +285,7 @@ export function InventoryStockWorkspace() {
             columns={overviewColumns}
             isLoading={isBalancesLoading}
             pagination
-            page={balancesPage}
-            totalItems={totalBalances}
-            onPageChange={setBalancesPage}
+            defaultPageSize={10}
             onRowClick={handleRowClick}
           />
         </div>
@@ -211,19 +296,17 @@ export function InventoryStockWorkspace() {
           <div className="flex justify-between items-end">
             <div className="w-1/4">
               <Select
-                label=""
                 value={txTypeFilter}
                 onChange={(e) => { setTxTypeFilter(e.target.value); setTxPage(1); }}
-                options={[
-                  { value: '', label: 'All Transactions' },
-                  { value: 'STOCK_IN', label: 'Stock In' },
-                  { value: 'STOCK_OUT', label: 'Stock Out' },
-                  { value: 'STORES_ISSUE', label: 'Stores Issue' },
-                  { value: 'RETURN', label: 'Return' },
-                  { value: 'ADJUSTMENT', label: 'Adjustment' },
-                  { value: 'TRANSFER', label: 'Transfer' },
-                ]}
-              />
+              >
+                <option value="">All Transactions</option>
+                <option value="STOCK_IN">Stock In</option>
+                <option value="STOCK_OUT">Stock Out</option>
+                <option value="STORES_ISSUE">Stores Issue</option>
+                <option value="RETURN">Return</option>
+                <option value="ADJUSTMENT">Adjustment</option>
+                <option value="TRANSFER">Transfer</option>
+              </Select>
             </div>
           </div>
           <DataTable
@@ -231,9 +314,7 @@ export function InventoryStockWorkspace() {
             columns={txColumns}
             isLoading={isTransactionsLoading}
             pagination
-            page={txPage}
-            totalItems={totalTransactions}
-            onPageChange={setTxPage}
+            defaultPageSize={10}
           />
         </div>
       )}
@@ -272,7 +353,7 @@ export function InventoryStockWorkspace() {
             <DataTable
               data={balanceTransactions}
               columns={[
-                { key: 'createdAt', header: 'Date', render: (r) => format(new Date(r.createdAt), 'dd MMM yyyy HH:mm') },
+                { key: 'createdAt', header: 'Date', render: (r) => new Date(r.createdAt).toLocaleString() },
                 { key: 'transactionType', header: 'Type', render: (r) => <StatusBadge status={r.transactionType} /> },
                 { 
                   key: 'quantity', 
@@ -292,6 +373,16 @@ export function InventoryStockWorkspace() {
           </div>
         </div>
       </SlideOver>
+
+      {/* Stock Movement Modal (Stock In / Stock Out / Adjust) */}
+      <StockMovementModal
+        isOpen={isMovementModalOpen}
+        onClose={() => setIsMovementModalOpen(false)}
+        mode={movementMode}
+        initialProductId={movementProductId}
+        initialBinId={movementBinId}
+        onSuccess={handleMovementSuccess}
+      />
     </div>
   );
 }
