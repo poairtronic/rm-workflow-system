@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -125,6 +125,80 @@ export function ProductionRmWorkspace() {
     return <div className="p-8 text-center text-slate-500">Loading pending receipts...</div>;
   }
 
+  if (receivingIssueId) {
+    const currentIssue = issues.find(i => i.id === receivingIssueId);
+    return (
+      <div className="max-w-4xl mx-auto w-full pb-12">
+        <div className="mb-6 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setReceivingIssueId(null)}
+            className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-lg border border-slate-200 shadow-sm transition-all hover:bg-slate-50"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Issue List</span>
+          </button>
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+            Production Receipt
+          </span>
+        </div>
+
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-8 py-5 border-b border-slate-200 bg-slate-50/50">
+            <h3 className="text-xl font-bold text-slate-900">Confirm Material Receipt</h3>
+            <p className="text-sm text-slate-500 mt-1">
+              Issue Number: <span className="font-semibold text-slate-800">{currentIssue?.issueNumber}</span> • Component: <span className="font-semibold text-slate-800">{currentIssue?.salesOrderComponent.scNumber}</span>
+            </p>
+          </div>
+
+          <div className="p-8 space-y-4">
+            {currentIssue?.items.map((item: any) => {
+              const pending = item.quantityIssued - calculateReceived(currentIssue, item.rmItem.id);
+              if (pending <= 0) return null;
+
+              return (
+                <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <p className="font-semibold text-slate-900">{item.rmItem.material}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Grade: {item.rmItem.grade || 'Standard'} • Pending to Receive: <span className="font-bold text-slate-700">{pending}</span></p>
+                  </div>
+                  <div className="w-36">
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Receive Qty</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max={pending}
+                      step="0.001"
+                      value={receiptQuantities[item.rmItem.id] || ''}
+                      onChange={(e) => setReceiptQuantities({ ...receiptQuantities, [item.rmItem.id]: e.target.value })}
+                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex justify-end space-x-3 px-8 py-5 border-t border-slate-200 bg-slate-50/50">
+            <button
+              onClick={() => setReceivingIssueId(null)}
+              className="px-5 py-2.5 text-sm font-medium text-slate-700 border border-slate-200 bg-white hover:bg-slate-50 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleReceive}
+              disabled={submitting}
+              className="px-6 py-2.5 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-hover shadow-sm disabled:opacity-50 transition-colors"
+            >
+              {submitting ? 'Confirming...' : 'Confirm Receipt'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-8 max-w-7xl mx-auto">
       <PageHeader
@@ -203,58 +277,6 @@ export function ProductionRmWorkspace() {
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {receivingIssueId && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6">
-            <h3 className="text-xl font-bold text-slate-900 mb-6">Confirm Material Receipt</h3>
-            
-            <div className="space-y-4 mb-6">
-              {issues.find(i => i.id === receivingIssueId)?.items.map((item: any) => {
-                const pending = item.quantityIssued - calculateReceived(issues.find(i => i.id === receivingIssueId)!, item.rmItem.id);
-                if (pending <= 0) return null;
-                
-                return (
-                  <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
-                    <div>
-                      <p className="font-medium text-slate-900">{item.rmItem.material}</p>
-                      <p className="text-sm text-slate-500">{item.rmItem.grade} • Pending: {pending}</p>
-                    </div>
-                    <div className="w-32">
-                      <label className="block text-xs text-slate-500 mb-1">Receive Qty</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max={pending}
-                        step="0.001"
-                        value={receiptQuantities[item.rmItem.id] || ''}
-                        onChange={(e) => setReceiptQuantities({ ...receiptQuantities, [item.rmItem.id]: e.target.value })}
-                        className="w-full px-3 py-1.5 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setReceivingIssueId(null)}
-                className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleReceive}
-                disabled={submitting}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {submitting ? 'Confirming...' : 'Confirm Receipt'}
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>

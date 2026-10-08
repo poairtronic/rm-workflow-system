@@ -1,4 +1,4 @@
-import { PackageSearch, BellRing, Box, Shield, Settings, PackageCheck, ShieldCheck, Network, BarChart3, FileText, FilePlus, PlaySquare, Users, Database } from 'lucide-react';
+import { PackageSearch, PackagePlus, BellRing, Box, Shield, Settings, PackageCheck, ShieldCheck, Network, BarChart3, FileText, FilePlus, PlaySquare, Users, Database } from 'lucide-react';
 import type { UserRole } from './contexts/AuthContext';
 
 import { MslAlertsWorkspace } from './pages/MslAlertsWorkspace';
@@ -26,6 +26,7 @@ import { UserMasterWorkspace } from './pages/UserMasterWorkspace';
 import { VendorMasterWorkspace } from './pages/VendorMasterWorkspace';
 import { ProductsMasterWorkspace } from './pages/ProductsMasterWorkspace';
 import { InventoryStockWorkspace } from './pages/InventoryStockWorkspace';
+import { StockMovementWorkspace } from './pages/StockMovementWorkspace';
 import type { ElementType } from 'react';
 import { ProductionRmWorkspace } from './pages/ProductionRmWorkspace';
 
@@ -51,7 +52,8 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   { name: 'Return Verify', path: '/stores/return-verify', icon: PackageCheck, roles: ['STORES', 'ADMIN'], component: StoresReturnVerifyWorkspace, isSidebar: true, group: 'RM WORKFLOW' },
   
   { name: 'Stock Overview', path: '/inventory/stock', icon: Box, roles: ['STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'DESIGNER'], component: InventoryStockWorkspace, isSidebar: true, group: 'INVENTORY' },
-  { name: 'Supplier Inward (GRN)', path: '/inventory/grn', icon: PackageSearch, roles: ['STORES', 'ADMIN'], component: SupplierInwardWorkspace, isSidebar: true, group: 'INVENTORY' },
+  { name: 'Stock Movement', path: '/inventory/movements', icon: PackageSearch, roles: ['STORES', 'ADMIN'], component: StockMovementWorkspace, isSidebar: true, group: 'INVENTORY' },
+  { name: 'Supplier Inward (GRN)', path: '/inventory/grn', icon: PackagePlus, roles: ['STORES', 'ADMIN'], component: SupplierInwardWorkspace, isSidebar: true, group: 'INVENTORY' },
   { name: 'MSL Alerts', path: '/inventory/msl-alerts', icon: BellRing, roles: ['STORES', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: MslAlertsWorkspace, isSidebar: true, group: 'INVENTORY' },
   
   { name: 'DC Type 1 (Raw)', path: '/dispatch/delivery-challan/type-1', icon: Box, roles: ['STORES', 'ADMIN'], component: Type2DispatchWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN' },

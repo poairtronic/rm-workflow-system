@@ -29,7 +29,7 @@ export function RmCreationWorkspace() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -248,7 +248,7 @@ export function RmCreationWorkspace() {
   const handleSubmitRequisition = async () => {
     if (!existingPoId) {
        setError('Please Save Draft first before submitting.');
-       setShowSubmitModal(false);
+       setShowSubmitConfirm(false);
        return;
     }
 
@@ -258,7 +258,7 @@ export function RmCreationWorkspace() {
       const saveOk = await performSaveDraft();
       if (!saveOk) {
         setSubmitting(false);
-        setShowSubmitModal(false);
+        setShowSubmitConfirm(false);
         return;
       }
 
@@ -272,7 +272,7 @@ export function RmCreationWorkspace() {
       setError(err.response?.data?.message || 'Failed to submit requisition.');
     } finally {
       setSubmitting(false);
-      setShowSubmitModal(false);
+      setShowSubmitConfirm(false);
     }
   };
 
@@ -293,7 +293,7 @@ export function RmCreationWorkspace() {
             </button>
             {existingPoId && (
               <button
-                onClick={() => setShowSubmitModal(true)}
+                onClick={() => setShowSubmitConfirm(true)}
                 disabled={loading || submitting}
                 className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
               >
@@ -303,6 +303,36 @@ export function RmCreationWorkspace() {
           </div>
         }
       />
+
+      {showSubmitConfirm && (
+        <div className="mb-6 p-5 bg-indigo-50 border border-indigo-200 rounded-xl shadow-xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h4 className="text-base font-bold text-slate-900">Confirm Requisition Submission</h4>
+              <p className="text-sm text-slate-600 mt-0.5">
+                You are about to submit RM requisitions for PO <strong>{poNumber}</strong> with {scCards.length} Style Code{scCards.length !== 1 ? 's' : ''}. Once submitted, this draft will be locked and sent to Stores for review.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowSubmitConfirm(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitRequisition}
+                disabled={submitting}
+                className="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors disabled:opacity-50"
+              >
+                {submitting ? 'Submitting...' : 'Yes, Confirm & Submit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg flex items-center space-x-2">
@@ -474,33 +504,6 @@ export function RmCreationWorkspace() {
           </div>
         ))}
       </div>
-
-      {showSubmitModal && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-slate-900 mb-4">Submit Requisition</h3>
-            <p className="text-slate-600 mb-6">
-              You are about to submit RM requisitions for PO <strong>{poNumber}</strong> with {scCards.length} Style Codes.
-              Once submitted, this draft will be locked and sent to Stores for review.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowSubmitModal(false)}
-                className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmitRequisition}
-                disabled={submitting}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center"
-              >
-                {submitting ? 'Submitting...' : 'Confirm Submit'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

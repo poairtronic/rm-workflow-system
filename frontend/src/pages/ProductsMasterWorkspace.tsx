@@ -3,7 +3,6 @@ import {
   PageHeader,
   DataTable,
   Button,
-  Modal,
   FormField,
   TextInput,
   NumberInput,
@@ -21,7 +20,7 @@ import type {
   Category,
   Family,
 } from '../services/masterDataService';
-import { Plus, Database, RefreshCw, AlertCircle } from 'lucide-react';
+import { Plus, Database, RefreshCw, AlertCircle, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 const UOM_OPTIONS = ['KG', 'NOS', 'SQM', 'MTR', 'LTR'] as const;
@@ -297,59 +296,31 @@ export function ProductsMasterWorkspace() {
 
   return (
     <div className="p-6 space-y-6">
-      <PageHeader
-        title="Products Master & MSL"
-        subtitle="Manage product definitions, specifications, UOMs, and Minimum Stock Levels (MSL)."
-        breadcrumbs={<span>Masters / Products</span>}
-        actionSlot={
-          <div className="flex items-center space-x-3">
-            <Button
-              variant="secondary"
-              onClick={loadData}
-              disabled={isLoading}
-              title="Refresh list"
+      {isModalOpen ? (
+        <div className="max-w-3xl mx-auto w-full pb-12">
+          <div className="mb-6 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-lg border border-slate-200 shadow-sm transition-all hover:bg-slate-50"
             >
-              <RefreshCw
-                className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`}
-              />
-            </Button>
-            <Button onClick={openCreateModal}>
-              <Plus className="w-4 h-4 mr-1.5" /> Add Product
-            </Button>
-          </div>
-        }
-      />
-
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <DataTable
-          columns={columns}
-          data={products}
-          isLoading={isLoading}
-          isError={!!error}
-          errorMsg={error || undefined}
-          onRetry={loadData}
-          onRowClick={openEditModal}
-          searchable={true}
-          searchKeys={['name', 'code']}
-          pagination={true}
-          defaultPageSize={15}
-        />
-      </div>
-
-      {/* Create / Edit Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={
-          <div className="flex items-center space-x-2">
-            <Database className="w-5 h-5 text-primary" />
-            <span className="font-semibold text-gray-900">
-              {editingProduct ? 'Edit Product & MSL' : 'Create New Product'}
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Products List</span>
+            </button>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+              {editingProduct ? 'Edit Mode' : 'New Product'}
             </span>
           </div>
-        }
-      >
-        <form onSubmit={handleSave} className="space-y-4 p-6 pt-4">
+
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="px-6 py-5 border-b border-slate-200 bg-slate-50/50 flex items-center space-x-2">
+              <Database className="w-5 h-5 text-primary" />
+              <h2 className="text-xl font-bold text-slate-900">
+                {editingProduct ? 'Edit Product & MSL' : 'Create New Product'}
+              </h2>
+            </div>
+
+            <form onSubmit={handleSave} className="space-y-4 p-6">
           {formErrors.submit && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-center space-x-2 text-sm text-red-700">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -545,8 +516,8 @@ export function ProductsMasterWorkspace() {
             />
           </div>
 
-          {/* Modal Actions */}
-          <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end space-x-3">
+          {/* Form Actions */}
+          <div className="mt-6 pt-4 border-t border-slate-200 flex justify-end space-x-3">
             <Button
               type="button"
               variant="secondary"
@@ -564,7 +535,50 @@ export function ProductsMasterWorkspace() {
             </Button>
           </div>
         </form>
-      </Modal>
+      </div>
     </div>
-  );
+  ) : (
+    <>
+      <PageHeader
+        title="Products Master & MSL"
+        subtitle="Manage product definitions, specifications, UOMs, and Minimum Stock Levels (MSL)."
+        breadcrumbs={<span>Masters / Products</span>}
+        actionSlot={
+          <div className="flex items-center space-x-3">
+            <Button
+              variant="secondary"
+              onClick={loadData}
+              disabled={isLoading}
+              title="Refresh list"
+            >
+              <RefreshCw
+                className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`}
+              />
+            </Button>
+            <Button onClick={openCreateModal}>
+              <Plus className="w-4 h-4 mr-1.5" /> Add Product
+            </Button>
+          </div>
+        }
+      />
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <DataTable
+          columns={columns}
+          data={products}
+          isLoading={isLoading}
+          isError={!!error}
+          errorMsg={error || undefined}
+          onRetry={loadData}
+          onRowClick={openEditModal}
+          searchable={true}
+          searchKeys={['name', 'code']}
+          pagination={true}
+          defaultPageSize={15}
+        />
+      </div>
+    </>
+  )}
+</div>
+);
 }

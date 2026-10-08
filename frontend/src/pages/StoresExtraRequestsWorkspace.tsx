@@ -10,7 +10,6 @@ export function StoresExtraRequestsWorkspace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
   const [selectedReqForIssue, setSelectedReqForIssue] = useState<any>(null);
 
   useEffect(() => {
@@ -52,8 +51,25 @@ export function StoresExtraRequestsWorkspace() {
 
   const handleOpenIssueModal = (req: any) => {
     setSelectedReqForIssue(req);
-    setIsIssueModalOpen(true);
   };
+
+  if (selectedReqForIssue) {
+    return (
+      <IssueMaterialModal
+        isOpen={true}
+        onClose={() => {
+          setSelectedReqForIssue(null);
+        }}
+        onSuccess={() => {
+          setSelectedReqForIssue(null);
+          loadRequests();
+        }}
+        scId={selectedReqForIssue.scId}
+        scNumber={selectedReqForIssue.salesOrderComponent?.scNumber || ''}
+        additionalRequestId={selectedReqForIssue.id}
+      />
+    );
+  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto flex flex-col h-[calc(100vh-4rem)]">
@@ -150,19 +166,6 @@ export function StoresExtraRequestsWorkspace() {
             </div>
           ))}
         </div>
-      )}
-
-      {selectedReqForIssue && (
-        <IssueMaterialModal
-          isOpen={isIssueModalOpen}
-          onClose={() => setIsIssueModalOpen(false)}
-          onSuccess={() => {
-            loadRequests();
-          }}
-          scId={selectedReqForIssue.scId}
-          scNumber={selectedReqForIssue.salesOrderComponent?.scNumber || ''}
-          additionalRequestId={selectedReqForIssue.id}
-        />
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, X, Plus, Trash2, AlertCircle } from 'lucide-react';
 import { workflowService } from '../../services/workflowService';
 import { inventoryService } from '../../services/inventoryService';
 import type { ProductBinBalance } from '../../services/inventoryService';
@@ -197,29 +197,45 @@ export function IssueMaterialModal({ isOpen, onClose, onSuccess, scId, scNumber,
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overflow-x-hidden bg-slate-900/50 p-4">
-      <div className="relative w-full max-w-4xl rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+    <div className="max-w-5xl mx-auto w-full pb-12">
+      {/* Top Navigation & Breadcrumb */}
+      <div className="mb-6 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-lg border border-slate-200 shadow-sm transition-all hover:bg-slate-50"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Queue</span>
+        </button>
+
+        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+          Stores Fulfillment
+        </span>
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-200 px-8 py-5 bg-slate-50/50">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Issue Material</h2>
             <p className="text-sm text-slate-500 mt-1">Sales Order Component: {scNumber}</p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {error && (
-          <div className="mx-6 mt-4 p-4 bg-red-50 text-red-700 rounded-lg flex items-center space-x-2">
+          <div className="mx-8 mt-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center space-x-2">
             <AlertCircle className="w-5 h-5 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        <div className="p-6 max-h-[70vh] overflow-y-auto">
+        <div className="p-8">
           {loading ? (
             <div className="flex justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -354,11 +370,11 @@ export function IssueMaterialModal({ isOpen, onClose, onSuccess, scId, scNumber,
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-4 bg-slate-50 rounded-b-2xl">
+        <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-8 py-5 bg-slate-50/50">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200"
+            className="rounded-lg px-5 py-2.5 text-sm font-medium text-slate-700 border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
             disabled={submitting}
           >
             Cancel
@@ -366,7 +382,7 @@ export function IssueMaterialModal({ isOpen, onClose, onSuccess, scId, scNumber,
           <button
             onClick={handleSubmit}
             disabled={submitting || loading || items.length === 0}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary-hover shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {submitting ? 'Issuing...' : 'Issue Material'}
           </button>

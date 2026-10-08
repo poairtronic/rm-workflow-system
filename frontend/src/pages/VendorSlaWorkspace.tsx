@@ -104,65 +104,67 @@ export function VendorSlaWorkspace() {
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-8">
-        {/* Left Column - Configuration & Forms */}
-        <div className="col-span-12 xl:col-span-8 space-y-8">
-          {slas.length === 0 && !isLoading ? (
-            <ErrorState message="Failed to load SLAs or no SLAs exist." onRetry={() => queryClient.invalidateQueries({ queryKey: ['vendor-slas'] })} />
-          ) : (
-            <SlaConfigurationGrid 
-              data={slas} 
-              isLoading={isLoading} 
-            />
-          )}
-
-          <FormProvider {...methods}>
-            <form id="create-sla-form" onSubmit={methods.handleSubmit(onSubmitNewSla)} className="space-y-6">
-              <SlaDefinitionForm />
-              <AlertSettingsPanel />
-              
-              <div className="flex justify-end pt-2">
-                <button
-                  type="submit"
-                  disabled={createSlaMutation.isPending || !canSave}
-                  title={!canSave ? "You don't have permission to create SLAs" : undefined}
-                  className="inline-flex items-center gap-2 px-6 h-11 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Plus className="w-4 h-4" />
-                  {createSlaMutation.isPending ? 'Saving...' : 'Create SLA Definition'}
-                </button>
-              </div>
-            </form>
-          </FormProvider>
-        </div>
-
-        {/* Right Column - Compliance View */}
-        <div className="col-span-12 xl:col-span-4">
-          <div className="sticky top-24">
-            {selectedVendorForCompliance ? (
-              <SlaComplianceChart vendorId={selectedVendorForCompliance} />
+      {overrideModalSla ? (
+        <SlaOverrideModal
+          isOpen={!!overrideModalSla}
+          onClose={() => setOverrideModalSla(null)}
+          sla={overrideModalSla}
+          hasOverrideAccess={CURRENT_USER_HAS_OVERRIDE_ACCESS}
+          onSubmit={(data) => {
+            if (overrideModalSla) {
+              overrideSlaMutation.mutate({ slaId: overrideModalSla.id, data });
+            }
+          }}
+        />
+      ) : (
+        <div className="grid grid-cols-12 gap-8">
+          {/* Left Column - Configuration & Forms */}
+          <div className="col-span-12 xl:col-span-8 space-y-8">
+            {slas.length === 0 && !isLoading ? (
+              <ErrorState message="Failed to load SLAs or no SLAs exist." onRetry={() => queryClient.invalidateQueries({ queryKey: ['vendor-slas'] })} />
             ) : (
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 text-center h-64 flex flex-col items-center justify-center">
-                <Shield className="w-12 h-12 text-slate-300 mb-4" />
-                <h3 className="text-sm font-medium text-slate-900">No Vendor Selected</h3>
-                <p className="text-xs text-slate-500 mt-1 max-w-[200px]">Select a vendor from the configuration grid to view historical compliance.</p>
-              </div>
+              <SlaConfigurationGrid 
+                data={slas} 
+                isLoading={isLoading} 
+              />
             )}
+
+            <FormProvider {...methods}>
+              <form id="create-sla-form" onSubmit={methods.handleSubmit(onSubmitNewSla)} className="space-y-6">
+                <SlaDefinitionForm />
+                <AlertSettingsPanel />
+                
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="submit"
+                    disabled={createSlaMutation.isPending || !canSave}
+                    title={!canSave ? "You don't have permission to create SLAs" : undefined}
+                    className="inline-flex items-center gap-2 px-6 h-11 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="w-4 h-4" />
+                    {createSlaMutation.isPending ? 'Saving...' : 'Create SLA Definition'}
+                  </button>
+                </div>
+              </form>
+            </FormProvider>
+          </div>
+
+          {/* Right Column - Compliance View */}
+          <div className="col-span-12 xl:col-span-4">
+            <div className="sticky top-24">
+              {selectedVendorForCompliance ? (
+                <SlaComplianceChart vendorId={selectedVendorForCompliance} />
+              ) : (
+                <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 text-center h-64 flex flex-col items-center justify-center">
+                  <Shield className="w-12 h-12 text-slate-300 mb-4" />
+                  <h3 className="text-sm font-medium text-slate-900">No Vendor Selected</h3>
+                  <p className="text-xs text-slate-500 mt-1 max-w-[200px]">Select a vendor from the configuration grid to view historical compliance.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-
-      <SlaOverrideModal
-        isOpen={!!overrideModalSla}
-        onClose={() => setOverrideModalSla(null)}
-        sla={overrideModalSla}
-        hasOverrideAccess={CURRENT_USER_HAS_OVERRIDE_ACCESS}
-        onSubmit={(data) => {
-          if (overrideModalSla) {
-            overrideSlaMutation.mutate({ slaId: overrideModalSla.id, data });
-          }
-        }}
-      />
+      )}
     </div>
   );
 }

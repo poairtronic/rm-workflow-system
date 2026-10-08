@@ -6,7 +6,6 @@ import { KpiMetricCard } from '../components/dashboard/KpiMetricCard';
 import { MslExceptionGrid } from '../components/inventory/MslExceptionGrid';
 import { MslFilterPanel, type MslFilters } from '../components/inventory/MslFilterPanel';
 import { useNavigate } from 'react-router-dom';
-import { StockMovementModal } from '../components/inventory/StockMovementModal';
 import { mslApi } from '../services/api';
 import type { MslException } from '../types/msl-alert';
 
@@ -19,11 +18,7 @@ export function MslAlertsWorkspace() {
 
   const navigate = useNavigate();
 
-  // Temporary drawer state for "Adjust Stock" (assuming F2.2 Stock In modal will replace this later)
-  const [isStockInModalOpen, setIsStockInModalOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<MslException | null>(null);
-
-  const { data: response, isLoading, isError, error, refetch } = useQuery({
+  const { data: response, isLoading, isError, error } = useQuery({
     queryKey: ['inventoryMslStatus'],
     queryFn: () => mslApi.getInventoryMslStatus(),
     refetchInterval: 30000, // 30 seconds polling
@@ -87,9 +82,7 @@ export function MslAlertsWorkspace() {
   }, [filters, exceptions]);
 
   const handleAdjustStock = (item: MslException) => {
-    // Open Stock In modal pre-filled with this product
-    setSelectedProduct(item);
-    setIsStockInModalOpen(true);
+    navigate(`/inventory/movements?mode=STOCK_IN&productId=${encodeURIComponent(item.skuCode)}`);
   };
 
   const handleViewLedger = (item: MslException) => {
@@ -160,16 +153,6 @@ export function MslAlertsWorkspace() {
           onViewLedger={handleViewLedger}
         />
       </div>
-
-      {isStockInModalOpen && (
-        <StockMovementModal
-          isOpen={isStockInModalOpen}
-          onClose={() => setIsStockInModalOpen(false)}
-          mode="STOCK_IN"
-          initialProductId={selectedProduct?.skuCode}
-          onSuccess={() => refetch()}
-        />
-      )}
     </div>
   );
 }

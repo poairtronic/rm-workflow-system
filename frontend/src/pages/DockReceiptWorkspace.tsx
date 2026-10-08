@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, FormProvider } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { Search, PackageCheck, Loader2 } from 'lucide-react';
+import { Search, PackageCheck, Loader2, Lock, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { deliveryChallanApi } from '../services/api';
 import type { DeliveryChallanDto } from '../types/delivery-challan.dto';
 import type { ProcessDcReturnDto } from '../types/dc-return.dto';
 import { ActiveCustodyBoard } from '../components/dispatch/ActiveCustodyBoard';
 import { ReconciliationGrid } from '../components/dispatch/ReconciliationGrid';
-import { ChallanClosureModal } from '../components/dispatch/ChallanClosureModal';
 
 // Status badge
 function StatusBadge({ status }: { status: string }) {
@@ -29,7 +28,9 @@ function StatusBadge({ status }: { status: string }) {
 export function DockReceiptWorkspace() {
   const queryClient = useQueryClient();
   const [selectedDc, setSelectedDc] = useState<DeliveryChallanDto | null>(null);
-  const [isClosureModalOpen, setIsClosureModalOpen] = useState(false);
+  const [activeDcView, setActiveDcView] = useState<'RECONCILE' | 'CLOSURE'>('RECONCILE');
+  const [closureNotes, setClosureNotes] = useState('');
+  const [isClosureConfirmed, setIsClosureConfirmed] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   const { data: challans = [] } = useQuery({
@@ -43,6 +44,9 @@ export function DockReceiptWorkspace() {
 
   const handleSelectDc = (dc: any) => {
     setSelectedDc(dc);
+    setActiveDcView('RECONCILE');
+    setClosureNotes('');
+    setIsClosureConfirmed(false);
     methods.reset({
       items: (dc.items || []).map((item: any) => ({
         itemId: item.id,
@@ -57,7 +61,6 @@ export function DockReceiptWorkspace() {
   const processReturnMutation = useMutation({
     mutationFn: (data: ProcessDcReturnDto) => {
       if (!selectedDc) throw new Error('No DC selected');
-      // Map to exact backend DTO: { actualReceiptDate, verificationRemarks, items:[{itemId, quantityToReturn}] }
       const payload = {
         actualReceiptDate: new Date().toISOString(),
         verificationRemarks: '',
@@ -78,8 +81,31 @@ export function DockReceiptWorkspace() {
     }
   });
 
+  const closeDcMutation = useMutation({
+    mutationFn: () => {
+      if (!selectedDc) throw new Error('No DC selected');
+      return deliveryChallanApi.close(selectedDc.id, { closureNotes });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['delivery-challans'] });
+      toast.success(`Delivery Challan ${selectedDc?.challanNumber || selectedDc?.dcNumber} permanently closed.`);
+      setSelectedDc(null);
+      setActiveDcView('RECONCILE');
+      setClosureNotes('');
+      setIsClosureConfirmed(false);
+    },
+    onError: (error: any) => {
+      const status = error.response?.status;
+      if (status === 403) {
+        toast.error('Unauthorized closure attempt', { style: { background: '#FEF2F2', color: '#B91C1C' } });
+      } else {
+        toast.error('Failed to close Delivery Challan');
+      }
+    }
+  });
+
   const onProcessReturn = (data: ProcessDcReturnDto) => {
-    if (processReturnMutation.isPending) return; // guard double-submit
+    if (processReturnMutation.isPending) return;
     processReturnMutation.mutate(data);
   };
 
@@ -101,29 +127,123 @@ export function DockReceiptWorkspace() {
         </div>
       </div>
 
-      <div className="mb-6 relative max-w-2xl">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Scan or enter DC Number (e.g., DC-1791190289098)..."
-          className="w-full h-12 pl-12 pr-4 rounded-lg bg-white border border-slate-200 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              const found = (challans as any[]).find((dc: any) => dc.challanNumber === searchTerm || dc.dcNumber === searchTerm);
-              if (found) {
-                handleSelectDc(found);
-              } else {
-                toast.error('DC not found or already closed');
+      {!selectedDc && (
+        <div className="mb-6 relative max-w-2xl">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Scan or enter DC Number (e.g., DC-1791190289098)..."
+            className="w-full h-12 pl-12 pr-4 rounded-lg bg-white border border-slate-200 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const found = (challans as any[]).find((dc: any) => dc.challanNumber === searchTerm || dc.dcNumber === searchTerm);
+                if (found) {
+                  handleSelectDc(found);
+                } else {
+                  toast.error('DC not found or already closed');
+                }
               }
-            }
-          }}
-        />
-      </div>
+            }}
+          />
+        </div>
+      )}
 
       {!selectedDc ? (
         <ActiveCustodyBoard challans={challans as any[]} onSelect={handleSelectDc} />
+      ) : activeDcView === 'CLOSURE' ? (
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setActiveDcView('RECONCILE')}
+              className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-lg border border-slate-200 shadow-sm transition-all hover:bg-slate-50"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Reconciliation Grid</span>
+            </button>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+              Administrative Closure Protocol
+            </span>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200 bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <Lock className="w-5 h-5 text-slate-700" />
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">
+                    Administrative Closure — {selectedDc.challanNumber || selectedDc.dcNumber}
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Vendor: {selectedDc.vendor?.name || selectedDc.vendorName || selectedDc.vendorId}
+                  </p>
+                </div>
+              </div>
+              <StatusBadge status={selectedDc.status} />
+            </div>
+
+            <div className="bg-amber-50 border-b border-amber-200 p-4 flex gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-amber-800">Immutable Ledger Action</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  Closing this challan is a permanent action. All variances will be locked, and no further returns or scrap allocations can be made against DC #{selectedDc.challanNumber || selectedDc.dcNumber}.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Closure Notes / Variance Justification
+                </label>
+                <textarea
+                  value={closureNotes}
+                  onChange={(e) => setClosureNotes(e.target.value)}
+                  placeholder="Enter final remarks or justification for closing this challan..."
+                  rows={3}
+                  className="w-full p-3.5 rounded-lg bg-white border border-slate-300 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm resize-none"
+                />
+              </div>
+
+              <label className="flex items-start gap-3 p-4 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer">
+                <div className="flex items-center h-5">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                    checked={isClosureConfirmed}
+                    onChange={(e) => setIsClosureConfirmed(e.target.checked)}
+                  />
+                </div>
+                <div className="text-sm">
+                  <span className="font-semibold text-slate-900 block">I verify all material variances are accounted for.</span>
+                  <span className="text-slate-500 text-xs">This electronic signature executes the closure protocol.</span>
+                </div>
+              </label>
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50/50 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setActiveDcView('RECONCILE')}
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => closeDcMutation.mutate()}
+                disabled={!isClosureConfirmed || closeDcMutation.isPending}
+                className="inline-flex items-center justify-center gap-2 px-6 py-2 bg-slate-900 text-white text-sm font-semibold rounded-lg hover:bg-slate-800 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {closeDcMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+                {closeDcMutation.isPending ? 'Closing...' : 'Sign & Close Challan'}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
           <div className="flex items-center justify-between mb-4">
@@ -164,7 +284,7 @@ export function DockReceiptWorkspace() {
           <div className="fixed bottom-0 left-[260px] right-0 p-4 bg-white border-t border-slate-200 z-20 flex justify-end gap-3 shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)]">
             <button
               type="button"
-              onClick={() => setIsClosureModalOpen(true)}
+              onClick={() => setActiveDcView('CLOSURE')}
               disabled={!canClose || processReturnMutation.isPending}
               title={!canClose ? 'Challan must be DISPATCHED before closing' : undefined}
               className="px-6 h-10 bg-white border border-slate-200 text-slate-900 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -184,16 +304,6 @@ export function DockReceiptWorkspace() {
           </div>
         </div>
       )}
-
-      <ChallanClosureModal
-        dc={selectedDc}
-        isOpen={isClosureModalOpen}
-        onClose={() => setIsClosureModalOpen(false)}
-        onSuccess={() => {
-          setIsClosureModalOpen(false);
-          setSelectedDc(null);
-        }}
-      />
     </div>
   );
 }

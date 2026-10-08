@@ -11,7 +11,6 @@ import {
   PageHeader,
   DataTable,
   StatusBadge,
-  Modal,
   ConfirmDialog,
   FormField,
   TextInput,
@@ -20,7 +19,7 @@ import {
   Button,
 } from '../components/ui';
 import type { ColumnDef } from '../components/ui';
-import { Plus, Shield, Mail, Calendar } from 'lucide-react';
+import { Plus, Shield, Mail, Calendar, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const SYSTEM_ROLES: { value: UserRoleType; label: string; desc: string }[] = [
@@ -263,135 +262,155 @@ export function UserMasterWorkspace() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Users Master & Access Control"
-        subtitle="Manage employee accounts, assign system roles, configure departments, and control active access."
-        actionSlot={
-          <Button
-            onClick={() => setIsCreateOpen(true)}
-            className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New User</span>
-          </Button>
-        }
-      />
-
-      {/* Main Table */}
-      <DataTable
-        columns={columns}
-        data={users}
-        isLoading={isLoading}
-        isError={isError}
-        errorMsg={(error as any)?.message || 'Failed to load users'}
-        onRetry={refetch}
-        searchable={true}
-        searchKeys={['name', 'email', 'department']}
-        pagination={true}
-        defaultPageSize={10}
-      />
-
-      {/* Create User Modal */}
-      <Modal
-        isOpen={isCreateOpen}
-        onClose={() => {
-          setIsCreateOpen(false);
-          resetCreateForm();
-        }}
-        title="Create New User Account"
-      >
-        <form onSubmit={handleCreateSubmit} className="space-y-4 pt-2">
-          <FormField label="Full Name" required id="name">
-            <TextInput
-              id="name"
-              value={createForm.name}
-              onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-              placeholder="e.g. Ramesh Chandra"
-              required
-            />
-          </FormField>
-
-          <FormField label="Email Address" required id="email" hint="Must be unique. Used for system login.">
-            <TextInput
-              id="email"
-              type="email"
-              value={createForm.email}
-              onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-              placeholder="name@airtronic.com"
-              required
-            />
-          </FormField>
-
-          <FormField label="System Role" required id="role">
-            <Select
-              id="role"
-              value={createForm.role}
-              onChange={(e) =>
-                setCreateForm({ ...createForm, role: e.target.value as UserRoleType })
-              }
-            >
-              {SYSTEM_ROLES.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label} — {r.desc}
-                </option>
-              ))}
-            </Select>
-          </FormField>
-
-          <FormField label="Department" id="department" hint="Optional department categorization">
-            <TextInput
-              id="department"
-              value={createForm.department || ''}
-              onChange={(e) => setCreateForm({ ...createForm, department: e.target.value })}
-              placeholder="e.g. Stores & Inventory, Machining, Design"
-            />
-          </FormField>
-
-          <div className="bg-amber-50 border border-amber-200 rounded p-3 text-xs text-amber-800 space-y-1">
-            <p className="font-semibold flex items-center">
-              <Shield className="w-3.5 h-3.5 mr-1" />
-              Default Initial Password
-            </p>
-            <p>
-              New users are assigned the system default password (
-              <code className="font-mono bg-white px-1 py-0.5 rounded border border-amber-300">
-                airtronic123A@
-              </code>
-              ). Self-service invite/reset will be enabled in a future release.
-            </p>
-          </div>
-
-          <div className="pt-2">
-            <Checkbox
-              id="isActiveUser"
-              label="Active Account"
-              description="User will be able to log in immediately upon creation"
-              checked={createForm.isActive}
-              onChange={(e) => setCreateForm({ ...createForm, isActive: e.target.checked })}
-            />
-          </div>
-
-          <div className="mt-6 flex justify-end space-x-3 pt-4 border-t border-gray-100">
-            <Button
+      {isCreateOpen ? (
+        <div className="max-w-2xl mx-auto w-full pb-12">
+          <div className="mb-6 flex items-center justify-between">
+            <button
               type="button"
-              variant="secondary"
               onClick={() => {
                 setIsCreateOpen(false);
                 resetCreateForm();
               }}
+              className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-lg border border-slate-200 shadow-sm transition-all hover:bg-slate-50"
             >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={createMutation.isPending}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {createMutation.isPending ? 'Creating User...' : 'Create User'}
-            </Button>
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Users List</span>
+            </button>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+              New User
+            </span>
           </div>
-        </form>
-      </Modal>
+
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="px-6 py-5 border-b border-slate-200 bg-slate-50/50">
+              <h2 className="text-xl font-bold text-slate-900">Create New User Account</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Provision an employee account with role-based access.</p>
+            </div>
+
+            <form onSubmit={handleCreateSubmit} className="space-y-4 p-6">
+              <FormField label="Full Name" required id="name">
+                <TextInput
+                  id="name"
+                  value={createForm.name}
+                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                  placeholder="e.g. Ramesh Chandra"
+                  required
+                />
+              </FormField>
+
+              <FormField label="Email Address" required id="email" hint="Must be unique. Used for system login.">
+                <TextInput
+                  id="email"
+                  type="email"
+                  value={createForm.email}
+                  onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                  placeholder="name@airtronic.com"
+                  required
+                />
+              </FormField>
+
+              <FormField label="System Role" required id="role">
+                <Select
+                  id="role"
+                  value={createForm.role}
+                  onChange={(e) =>
+                    setCreateForm({ ...createForm, role: e.target.value as UserRoleType })
+                  }
+                >
+                  {SYSTEM_ROLES.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label} — {r.desc}
+                    </option>
+                  ))}
+                </Select>
+              </FormField>
+
+              <FormField label="Department" id="department" hint="Optional department categorization">
+                <TextInput
+                  id="department"
+                  value={createForm.department || ''}
+                  onChange={(e) => setCreateForm({ ...createForm, department: e.target.value })}
+                  placeholder="e.g. Stores & Inventory, Machining, Design"
+                />
+              </FormField>
+
+              <div className="bg-amber-50 border border-amber-200 rounded p-3 text-xs text-amber-800 space-y-1">
+                <p className="font-semibold flex items-center">
+                  <Shield className="w-3.5 h-3.5 mr-1" />
+                  Default Initial Password
+                </p>
+                <p>
+                  New users are assigned the system default password (
+                  <code className="font-mono bg-white px-1 py-0.5 rounded border border-amber-300">
+                    airtronic123A@
+                  </code>
+                  ). Self-service invite/reset will be enabled in a future release.
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <Checkbox
+                  id="isActiveUser"
+                  label="Active Account"
+                  description="User will be able to log in immediately upon creation"
+                  checked={createForm.isActive}
+                  onChange={(e) => setCreateForm({ ...createForm, isActive: e.target.checked })}
+                />
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-3 pt-4 border-t border-slate-200">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setIsCreateOpen(false);
+                    resetCreateForm();
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={createMutation.isPending}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {createMutation.isPending ? 'Creating User...' : 'Create User'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : (
+        <>
+          <PageHeader
+            title="Users Master & Access Control"
+            subtitle="Manage employee accounts, assign system roles, configure departments, and control active access."
+            actionSlot={
+              <Button
+                onClick={() => setIsCreateOpen(true)}
+                className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Plus className="w-4 h-4" />
+                <span>New User</span>
+              </Button>
+            }
+          />
+
+          {/* Main Table */}
+          <DataTable
+            columns={columns}
+            data={users}
+            isLoading={isLoading}
+            isError={isError}
+            errorMsg={(error as any)?.message || 'Failed to load users'}
+            onRetry={refetch}
+            searchable={true}
+            searchKeys={['name', 'email', 'department']}
+            pagination={true}
+            defaultPageSize={10}
+          />
+        </>
+      )}
 
       {/* Confirm Active Toggle Dialog */}
       <ConfirmDialog

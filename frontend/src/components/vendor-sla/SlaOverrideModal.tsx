@@ -1,5 +1,5 @@
 import { useForm } from 'react-hook-form';
-import { X, Lock, AlertTriangle } from 'lucide-react';
+import { X, Lock, AlertTriangle, ArrowLeft } from 'lucide-react';
 import type { VendorSlaDto, SlaOverrideDto } from '../../types/vendor-sla.dto';
 
 interface SlaOverrideModalProps {
@@ -21,16 +21,32 @@ export function SlaOverrideModal({ isOpen, onClose, sla, hasOverrideAccess, onSu
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
-        
+    <div className="max-w-2xl mx-auto w-full pb-12">
+      <div className="mb-6 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-lg border border-slate-200 shadow-sm transition-all hover:bg-slate-50"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to SLA Governance</span>
+        </button>
+        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+          SLA Exception Protocol
+        </span>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200 bg-slate-50/50">
           <div className="flex items-center gap-2">
             <Lock className={`w-5 h-5 ${hasOverrideAccess ? 'text-amber-600' : 'text-slate-400'}`} />
-            <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
-              SLA Exception Override
-            </h2>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">
+                SLA Exception Override
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">Authorize SLA exception target dates and reason codes.</p>
+            </div>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
             <X className="w-5 h-5" />

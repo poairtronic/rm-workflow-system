@@ -10,7 +10,6 @@ export function StoresReturnVerifyWorkspace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
   const [selectedReturn, setSelectedReturn] = useState<any>(null);
 
   useEffect(() => {
@@ -32,8 +31,25 @@ export function StoresReturnVerifyWorkspace() {
 
   const handleOpenVerifyModal = (ret: any) => {
     setSelectedReturn(ret);
-    setIsVerifyModalOpen(true);
   };
+
+  if (selectedReturn) {
+    return (
+      <VerifyReturnModal
+        isOpen={true}
+        onClose={() => {
+          setSelectedReturn(null);
+        }}
+        onSuccess={() => {
+          setSelectedReturn(null);
+          loadReturns();
+          toast.success('Return verified successfully');
+        }}
+        returnId={selectedReturn.id}
+        returnNumber={selectedReturn.returnNumber}
+      />
+    );
+  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto flex flex-col h-[calc(100vh-4rem)]">
@@ -105,19 +121,6 @@ export function StoresReturnVerifyWorkspace() {
             </div>
           ))}
         </div>
-      )}
-
-      {selectedReturn && (
-        <VerifyReturnModal
-          isOpen={isVerifyModalOpen}
-          onClose={() => setIsVerifyModalOpen(false)}
-          onSuccess={() => {
-            loadReturns();
-            toast.success('Return verified successfully');
-          }}
-          returnId={selectedReturn.id}
-          returnNumber={selectedReturn.returnNumber}
-        />
       )}
     </div>
   );

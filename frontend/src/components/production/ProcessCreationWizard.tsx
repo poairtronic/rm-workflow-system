@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
-import { X, Plus, Trash2, ArrowRight, Check } from 'lucide-react';
+import { X, Plus, Trash2, ArrowRight, Check, ArrowLeft } from 'lucide-react';
 import type { CreateProductionProcessDto, VendorDto } from '../../types/process-master.dto';
 
 interface ProcessCreationWizardProps {
@@ -63,14 +63,26 @@ export function ProcessCreationWizard({ isOpen, onClose, onSubmit, isPending, av
   };
 
   return (
-    <>
-      <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-40 transition-opacity" onClick={onClose} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-white shadow-xl rounded-xl z-50 flex flex-col max-h-[90vh] border border-slate-200">
-        
+    <div className="max-w-4xl mx-auto w-full pb-12">
+      <div className="mb-6 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-lg border border-slate-200 shadow-sm transition-all hover:bg-slate-50"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Process Directory</span>
+        </button>
+        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+          Step {step} of 3
+        </span>
+      </div>
+
+      <div className="bg-white shadow-sm rounded-xl flex flex-col border border-slate-200 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50 rounded-t-xl">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-slate-50/50">
           <div>
-            <h2 className="text-lg font-bold tracking-tight text-slate-900">Define Production Process</h2>
+            <h2 className="text-xl font-bold tracking-tight text-slate-900">Define Production Process</h2>
             <p className="text-xs text-slate-500 mt-1">Step {step} of 3: {step === 1 ? 'Basic Details' : step === 2 ? 'Technical Parameters' : 'Vendor Mapping'}</p>
           </div>
           <button 
@@ -82,7 +94,7 @@ export function ProcessCreationWizard({ isOpen, onClose, onSubmit, isPending, av
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1 bg-white">
+        <div className="p-6 bg-white">
           <form id="process-wizard-form" onSubmit={handleSubmit(submitForm)} className="space-y-6">
             
             {/* STEP 1: Basic Details */}
@@ -276,6 +288,6 @@ export function ProcessCreationWizard({ isOpen, onClose, onSubmit, isPending, av
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 }

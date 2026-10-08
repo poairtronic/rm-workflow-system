@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { X, Lock } from 'lucide-react';
+import { X, Lock, ArrowLeft } from 'lucide-react';
 import type { ProductionProcessDto, UpdateProductionProcessDto } from '../../types/process-master.dto';
 
 interface ProcessEditViewProps {
@@ -49,15 +49,27 @@ export function ProcessEditView({ isOpen, onClose, process, onSubmit, isPending,
   };
 
   return (
-    <>
-      <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-40 transition-opacity" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 w-[450px] bg-white shadow-[0_10px_15px_-3px_rgba(0,0,0,0.08),0_4px_6px_-4px_rgba(0,0,0,0.04)] z-50 flex flex-col animate-in slide-in-from-right duration-200">
-        
+    <div className="max-w-3xl mx-auto w-full pb-12">
+      <div className="mb-6 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-lg border border-slate-200 shadow-sm transition-all hover:bg-slate-50"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Process Directory</span>
+        </button>
+        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+          Edit Process: {process.sequenceId}
+        </span>
+      </div>
+
+      <div className="bg-white shadow-sm rounded-xl flex flex-col border border-slate-200 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-slate-50/50">
           <div>
-            <div className="text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-1">{process.sequenceId}</div>
-            <h2 className="text-lg font-bold tracking-tight text-slate-900 leading-none">{process.nomenclature}</h2>
+            <div className="text-xs font-bold text-slate-500 tracking-wider uppercase mb-1">{process.sequenceId}</div>
+            <h2 className="text-xl font-bold tracking-tight text-slate-900 leading-none">{process.nomenclature}</h2>
           </div>
           <button 
             onClick={onClose}
@@ -156,6 +168,6 @@ export function ProcessEditView({ isOpen, onClose, process, onSubmit, isPending,
           </button>
         </div>
       </div>
-    </>
+    </div>
   );
 }

@@ -1,0 +1,941 @@
+{
+  "F3": {
+    "create": {
+      "request": {
+        "poNumber": "PO-VERIFY-1791450493251",
+        "scs": [
+          {
+            "scNumber": "SC-V1-1791450493251",
+            "productName": "Aerospace Wing Flap A",
+            "items": [
+              {
+                "productId": "aff79779-24ec-4306-937e-3d1b36482d35",
+                "spec": "Aero-Titanium-Grade-5",
+                "quantity": 25
+              }
+            ]
+          },
+          {
+            "scNumber": "SC-V2-1791450493251",
+            "productName": "Aerospace Tail Rudder B",
+            "items": [
+              {
+                "productId": "aff79779-24ec-4306-937e-3d1b36482d35",
+                "spec": "Aero-Titanium-Grade-5",
+                "quantity": 30
+              }
+            ]
+          }
+        ]
+      },
+      "response": {
+        "poId": "c87eec85-da0d-4732-b949-e2be95b0fb4b",
+        "poNumber": "PO-VERIFY-1791450493251",
+        "scs": [
+          {
+            "scId": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+            "scNumber": "SC-V1-1791450493251",
+            "productName": "Aerospace Wing Flap A",
+            "items": [
+              {
+                "id": "8eeffcd7-f834-4beb-be6d-83f9197c4395",
+                "productId": "aff79779-24ec-4306-937e-3d1b36482d35",
+                "spec": "Aero-Titanium-Grade-5",
+                "quantity": "25.000",
+                "material": "ConcProduct1"
+              }
+            ]
+          },
+          {
+            "scId": "c8eff51a-aae3-487b-840e-b3f8797022f8",
+            "scNumber": "SC-V2-1791450493251",
+            "productName": "Aerospace Tail Rudder B",
+            "items": [
+              {
+                "id": "df89a002-553c-4066-8a95-af3a68cb43b5",
+                "productId": "aff79779-24ec-4306-937e-3d1b36482d35",
+                "spec": "Aero-Titanium-Grade-5",
+                "quantity": "30.000",
+                "material": "ConcProduct1"
+              }
+            ]
+          }
+        ]
+      },
+      "dbRows": [
+        {
+          "rm_id": "eca742c5-38ed-4e31-b71c-0cecf192bff9",
+          "status": "DRAFT",
+          "po_id": "c87eec85-da0d-4732-b949-e2be95b0fb4b",
+          "sc_id": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+          "sc_number": "SC-V1-1791450493251",
+          "product_name": "Aerospace Wing Flap A",
+          "sc_status": "DRAFT"
+        },
+        {
+          "rm_id": "2d5fd453-bb1d-4341-939e-b737954a9029",
+          "status": "DRAFT",
+          "po_id": "c87eec85-da0d-4732-b949-e2be95b0fb4b",
+          "sc_id": "c8eff51a-aae3-487b-840e-b3f8797022f8",
+          "sc_number": "SC-V2-1791450493251",
+          "product_name": "Aerospace Tail Rudder B",
+          "sc_status": "DRAFT"
+        }
+      ]
+    },
+    "edit": {
+      "request": {
+        "poNumber": "PO-VERIFY-1791450493251",
+        "scs": [
+          {
+            "scNumber": "SC-V1-1791450493251",
+            "productName": "Aerospace Wing Flap A (Revised)",
+            "items": [
+              {
+                "productId": "aff79779-24ec-4306-937e-3d1b36482d35",
+                "spec": "Aero-Titanium-Grade-5-SpecRev",
+                "quantity": 28
+              }
+            ]
+          },
+          {
+            "scNumber": "SC-V2-1791450493251",
+            "productName": "Aerospace Tail Rudder B",
+            "items": [
+              {
+                "productId": "aff79779-24ec-4306-937e-3d1b36482d35",
+                "spec": "Aero-Titanium-Grade-5",
+                "quantity": 30
+              }
+            ]
+          }
+        ]
+      },
+      "response": {
+        "poId": "c87eec85-da0d-4732-b949-e2be95b0fb4b",
+        "poNumber": "PO-VERIFY-1791450493251",
+        "scs": [
+          {
+            "scId": "c8eff51a-aae3-487b-840e-b3f8797022f8",
+            "scNumber": "SC-V2-1791450493251",
+            "productName": "Aerospace Tail Rudder B",
+            "items": [
+              {
+                "id": "94b60de6-d8a1-4128-9970-f7fa20bb5a45",
+                "productId": "aff79779-24ec-4306-937e-3d1b36482d35",
+                "spec": "Aero-Titanium-Grade-5",
+                "quantity": "30.000",
+                "material": "ConcProduct1"
+              }
+            ]
+          },
+          {
+            "scId": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+            "scNumber": "SC-V1-1791450493251",
+            "productName": "Aerospace Wing Flap A (Revised)",
+            "items": [
+              {
+                "id": "3350fa8d-87b9-46d5-96ad-669f53c4cd4e",
+                "productId": "aff79779-24ec-4306-937e-3d1b36482d35",
+                "spec": "Aero-Titanium-Grade-5-SpecRev",
+                "quantity": "28.000",
+                "material": "ConcProduct1"
+              }
+            ]
+          }
+        ]
+      },
+      "dbRows": [
+        {
+          "rm_id": "eca742c5-38ed-4e31-b71c-0cecf192bff9",
+          "status": "DRAFT",
+          "item_id": "3350fa8d-87b9-46d5-96ad-669f53c4cd4e",
+          "grade": "Aero-Titanium-Grade-5-SpecRev",
+          "quantity": "28.000",
+          "sc_number": "SC-V1-1791450493251",
+          "product_name": "Aerospace Wing Flap A (Revised)"
+        },
+        {
+          "rm_id": "2d5fd453-bb1d-4341-939e-b737954a9029",
+          "status": "DRAFT",
+          "item_id": "94b60de6-d8a1-4128-9970-f7fa20bb5a45",
+          "grade": "Aero-Titanium-Grade-5",
+          "quantity": "30.000",
+          "sc_number": "SC-V2-1791450493251",
+          "product_name": "Aerospace Tail Rudder B"
+        }
+      ]
+    },
+    "submit": {
+      "request": {
+        "remarks": "Submitting verified batch to stores"
+      },
+      "response": {
+        "submittedScs": [
+          "SC-V2-1791450493251",
+          "SC-V1-1791450493251"
+        ]
+      },
+      "dbRows": [
+        {
+          "rm_id": "eca742c5-38ed-4e31-b71c-0cecf192bff9",
+          "rm_status": "SUBMITTED",
+          "submitted_at": "2026-10-08T09:08:26.347Z",
+          "sc_id": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+          "sc_number": "SC-V1-1791450493251",
+          "sc_status": "SUBMITTED"
+        },
+        {
+          "rm_id": "2d5fd453-bb1d-4341-939e-b737954a9029",
+          "rm_status": "SUBMITTED",
+          "submitted_at": "2026-10-08T09:08:26.347Z",
+          "sc_id": "c8eff51a-aae3-487b-840e-b3f8797022f8",
+          "sc_number": "SC-V2-1791450493251",
+          "sc_status": "SUBMITTED"
+        }
+      ]
+    }
+  },
+  "F4": {
+    "queueResponseEntry": {
+      "poId": "c87eec85-da0d-4732-b949-e2be95b0fb4b",
+      "poNumber": "PO-VERIFY-1791450493251",
+      "scs": [
+        {
+          "scId": "c8eff51a-aae3-487b-840e-b3f8797022f8",
+          "scNumber": "SC-V2-1791450493251",
+          "productName": "Aerospace Tail Rudder B",
+          "status": "SUBMITTED",
+          "scStatus": "SUBMITTED",
+          "itemCount": 1
+        },
+        {
+          "scId": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+          "scNumber": "SC-V1-1791450493251",
+          "productName": "Aerospace Wing Flap A (Revised)",
+          "status": "SUBMITTED",
+          "scStatus": "SUBMITTED",
+          "itemCount": 1
+        }
+      ],
+      "updatedAt": "2026-10-08T03:37:46.025Z"
+    },
+    "reviewResponse": {
+      "id": "eca742c5-38ed-4e31-b71c-0cecf192bff9",
+      "poId": "c87eec85-da0d-4732-b949-e2be95b0fb4b",
+      "scId": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+      "salesOrderComponent": {
+        "id": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+        "scNumber": "SC-V1-1791450493251",
+        "poId": "c87eec85-da0d-4732-b949-e2be95b0fb4b",
+        "purchaseOrder": {
+          "id": "c87eec85-da0d-4732-b949-e2be95b0fb4b",
+          "poNumber": "PO-VERIFY-1791450493251",
+          "customerId": "99999999-9999-9999-9999-999999999999",
+          "externalReference": null,
+          "referenceDate": null,
+          "remarks": null,
+          "createdAt": "2026-10-08T03:37:33.670Z",
+          "updatedAt": "2026-10-08T03:37:33.670Z"
+        },
+        "productName": "Aerospace Wing Flap A (Revised)",
+        "description": null,
+        "drawingNumber": null,
+        "targetQuantity": "1.000",
+        "status": "STORES_PENDING",
+        "completedAt": null,
+        "completedById": null,
+        "completionRemarks": null,
+        "createdAt": "2026-10-08T03:37:33.670Z",
+        "updatedAt": "2026-10-08T03:37:51.958Z"
+      },
+      "formType": "SC",
+      "createdById": "00549f3b-893c-44af-bb92-4c9a49402e92",
+      "createdBy": {
+        "id": "00549f3b-893c-44af-bb92-4c9a49402e92",
+        "name": "Designer",
+        "email": "designer@airtronic.com",
+        "passwordHash": "$2b$10$FCScaK8s8IUfXqzPYX0CHemUvKNq5Q/p28gtrXxXBPpVMRHjKjslW",
+        "roleId": "fa283b9d-187c-4859-b77a-c07892e4670d",
+        "department": "Engineering",
+        "isActive": true,
+        "createdAt": "2026-10-08T03:02:42.438Z",
+        "updatedAt": "2026-10-08T03:02:42.438Z"
+      },
+      "status": "REVIEWED",
+      "revisionNumber": 1,
+      "submittedAt": "2026-10-08T09:08:26.347Z",
+      "completedAt": null,
+      "reviewedAt": "2026-10-08T09:08:33.312Z",
+      "reviewedById": "fe8111fb-0fad-4370-9048-5524db1f1fd3",
+      "items": [
+        {
+          "id": "3350fa8d-87b9-46d5-96ad-669f53c4cd4e",
+          "rmFormId": "eca742c5-38ed-4e31-b71c-0cecf192bff9",
+          "scId": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+          "material": "ConcProduct1",
+          "materialType": "ROUND_BAR",
+          "grade": "Aero-Titanium-Grade-5-SpecRev",
+          "quantity": "28.000",
+          "size": "Aero-Titanium-Grade-5-SpecRev",
+          "length": null,
+          "width": null,
+          "thickness": null,
+          "diameter": null,
+          "weight": null,
+          "weightUnit": "KG",
+          "remarks": null,
+          "mappedProductId": "aff79779-24ec-4306-937e-3d1b36482d35",
+          "availabilityStatus": "AVAILABLE",
+          "availableQuantitySnapshot": "227.000",
+          "materialIssues": [],
+          "materialConsumptions": [],
+          "materialReturns": [],
+          "createdAt": "2026-10-08T03:37:41.498Z",
+          "updatedAt": "2026-10-08T03:37:51.958Z"
+        }
+      ],
+      "remarks": " [Review: Stores inventory allocation verified and approved]",
+      "createdAt": "2026-10-08T03:37:33.670Z",
+      "updatedAt": "2026-10-08T03:37:51.958Z"
+    },
+    "issueRequest": {
+      "scId": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+      "items": [
+        {
+          "rmItemId": "3350fa8d-87b9-46d5-96ad-669f53c4cd4e",
+          "binId": "9071ff41-4585-4fac-9dec-dc3f52d69e32",
+          "quantityIssued": 28,
+          "batchNumber": "BAT-1791450493251",
+          "heatNumber": "HEAT-992",
+          "remarks": "Stores issue for verified SC1"
+        }
+      ],
+      "remarks": "Dispatched from Stores to Production"
+    },
+    "issueResponse": {
+      "id": "9ce874bd-a35b-4959-b427-ced4f7e5433e",
+      "scId": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+      "salesOrderComponent": {
+        "id": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+        "scNumber": "SC-V1-1791450493251",
+        "poId": "c87eec85-da0d-4732-b949-e2be95b0fb4b",
+        "productName": "Aerospace Wing Flap A (Revised)",
+        "description": null,
+        "drawingNumber": null,
+        "targetQuantity": "1.000",
+        "status": "ISSUED",
+        "completedAt": null,
+        "completedById": null,
+        "completionRemarks": null,
+        "createdAt": "2026-10-08T03:37:33.670Z",
+        "updatedAt": "2026-10-08T03:37:56.593Z"
+      },
+      "issueNumber": "ISS-1791450516690-2340",
+      "issueType": "INITIAL_ISSUE",
+      "additionalRequestId": null,
+      "issuedById": "fe8111fb-0fad-4370-9048-5524db1f1fd3",
+      "issuedBy": {
+        "id": "fe8111fb-0fad-4370-9048-5524db1f1fd3",
+        "name": "Stores Manager",
+        "email": "stores@airtronic.com",
+        "passwordHash": "$2b$10$FCScaK8s8IUfXqzPYX0CHemUvKNq5Q/p28gtrXxXBPpVMRHjKjslW",
+        "roleId": "dafc3622-e26b-4b30-9e66-1eed49ddce39",
+        "department": "Stores",
+        "isActive": true,
+        "createdAt": "2026-10-08T03:14:44.834Z",
+        "updatedAt": "2026-10-08T03:14:44.834Z"
+      },
+      "issueDate": "2026-10-08T09:07:56.593Z",
+      "remarks": "Dispatched from Stores to Production",
+      "items": [
+        {
+          "id": "2e9ad66f-ec96-4526-83bc-72543d3f9ebd",
+          "materialIssueId": "9ce874bd-a35b-4959-b427-ced4f7e5433e",
+          "rmItemId": "3350fa8d-87b9-46d5-96ad-669f53c4cd4e",
+          "rmItem": {
+            "id": "3350fa8d-87b9-46d5-96ad-669f53c4cd4e",
+            "rmFormId": "eca742c5-38ed-4e31-b71c-0cecf192bff9",
+            "scId": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+            "material": "ConcProduct1",
+            "materialType": "ROUND_BAR",
+            "grade": "Aero-Titanium-Grade-5-SpecRev",
+            "quantity": "28.000",
+            "size": "Aero-Titanium-Grade-5-SpecRev",
+            "length": null,
+            "width": null,
+            "thickness": null,
+            "diameter": null,
+            "weight": null,
+            "weightUnit": "KG",
+            "remarks": null,
+            "mappedProductId": "aff79779-24ec-4306-937e-3d1b36482d35",
+            "availabilityStatus": "AVAILABLE",
+            "availableQuantitySnapshot": "227.000",
+            "createdAt": "2026-10-08T03:37:41.498Z",
+            "updatedAt": "2026-10-08T03:37:51.958Z"
+          },
+          "quantityIssued": "28.000",
+          "heatNumber": "HEAT-992",
+          "batchNumber": "BAT-1791450493251",
+          "remarks": "Stores issue for verified SC1",
+          "createdAt": "2026-10-08T03:37:56.593Z"
+        }
+      ],
+      "receipts": [],
+      "createdAt": "2026-10-08T03:37:56.593Z"
+    },
+    "stockBalanceBefore": {
+      "id": "d787c23e-8139-4093-8c1b-97c454c185b7",
+      "inventory_item_id": null,
+      "current_quantity": "227.000",
+      "last_transaction_id": "3f3715a2-3ed5-4b82-8bc1-5d486eed3acf",
+      "created_at": "2026-10-08T02:06:01.868Z",
+      "updated_at": "2026-10-08T03:36:20.334Z",
+      "opening_balance": "100.000",
+      "product_id": "aff79779-24ec-4306-937e-3d1b36482d35",
+      "bin_id": "9071ff41-4585-4fac-9dec-dc3f52d69e32"
+    },
+    "stockBalanceAfter": {
+      "id": "d787c23e-8139-4093-8c1b-97c454c185b7",
+      "inventory_item_id": null,
+      "current_quantity": "199.000",
+      "last_transaction_id": "5643554c-d623-4b97-b1eb-875c1d20f515",
+      "created_at": "2026-10-08T02:06:01.868Z",
+      "updated_at": "2026-10-08T03:37:56.593Z",
+      "opening_balance": "100.000",
+      "product_id": "aff79779-24ec-4306-937e-3d1b36482d35",
+      "bin_id": "9071ff41-4585-4fac-9dec-dc3f52d69e32"
+    }
+  },
+  "F5": {
+    "productionQueue": [
+      {
+        "id": "9ce874bd-a35b-4959-b427-ced4f7e5433e",
+        "scId": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+        "salesOrderComponent": {
+          "id": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+          "scNumber": "SC-V1-1791450493251",
+          "poId": "c87eec85-da0d-4732-b949-e2be95b0fb4b",
+          "productName": "Aerospace Wing Flap A (Revised)",
+          "description": null,
+          "drawingNumber": null,
+          "targetQuantity": "1.000",
+          "status": "ISSUED",
+          "completedAt": null,
+          "completedById": null,
+          "completionRemarks": null,
+          "createdAt": "2026-10-08T03:37:33.670Z",
+          "updatedAt": "2026-10-08T03:37:56.593Z"
+        },
+        "issueNumber": "ISS-1791450516690-2340",
+        "issueType": "INITIAL_ISSUE",
+        "additionalRequestId": null,
+        "issuedById": "fe8111fb-0fad-4370-9048-5524db1f1fd3",
+        "issuedBy": {
+          "id": "fe8111fb-0fad-4370-9048-5524db1f1fd3",
+          "name": "Stores Manager",
+          "email": "stores@airtronic.com",
+          "passwordHash": "$2b$10$FCScaK8s8IUfXqzPYX0CHemUvKNq5Q/p28gtrXxXBPpVMRHjKjslW",
+          "roleId": "dafc3622-e26b-4b30-9e66-1eed49ddce39",
+          "department": "Stores",
+          "isActive": true,
+          "createdAt": "2026-10-08T03:14:44.834Z",
+          "updatedAt": "2026-10-08T03:14:44.834Z"
+        },
+        "issueDate": "2026-10-08T09:07:56.593Z",
+        "remarks": "Dispatched from Stores to Production",
+        "items": [
+          {
+            "id": "2e9ad66f-ec96-4526-83bc-72543d3f9ebd",
+            "materialIssueId": "9ce874bd-a35b-4959-b427-ced4f7e5433e",
+            "rmItemId": "3350fa8d-87b9-46d5-96ad-669f53c4cd4e",
+            "rmItem": {
+              "id": "3350fa8d-87b9-46d5-96ad-669f53c4cd4e",
+              "rmFormId": "eca742c5-38ed-4e31-b71c-0cecf192bff9",
+              "scId": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+              "material": "ConcProduct1",
+              "materialType": "ROUND_BAR",
+              "grade": "Aero-Titanium-Grade-5-SpecRev",
+              "quantity": "28.000",
+              "size": "Aero-Titanium-Grade-5-SpecRev",
+              "length": null,
+              "width": null,
+              "thickness": null,
+              "diameter": null,
+              "weight": null,
+              "weightUnit": "KG",
+              "remarks": null,
+              "mappedProductId": "aff79779-24ec-4306-937e-3d1b36482d35",
+              "availabilityStatus": "AVAILABLE",
+              "availableQuantitySnapshot": "227.000",
+              "createdAt": "2026-10-08T03:37:41.498Z",
+              "updatedAt": "2026-10-08T03:37:51.958Z"
+            },
+            "quantityIssued": "28.000",
+            "heatNumber": "HEAT-992",
+            "batchNumber": "BAT-1791450493251",
+            "remarks": "Stores issue for verified SC1",
+            "createdAt": "2026-10-08T03:37:56.593Z"
+          }
+        ],
+        "receipts": [],
+        "createdAt": "2026-10-08T03:37:56.593Z"
+      }
+    ],
+    "receiptRequest": {
+      "materialIssueId": "9ce874bd-a35b-4959-b427-ced4f7e5433e",
+      "scId": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+      "items": [
+        {
+          "rmItemId": "3350fa8d-87b9-46d5-96ad-669f53c4cd4e",
+          "quantityReceived": 28,
+          "remarks": "Production confirmed receipt full qty"
+        }
+      ],
+      "remarks": "Production shop floor receipt acknowledged"
+    },
+    "receiptResponse": {
+      "id": "5483c637-f8b4-4512-95cd-7a4ca2235361",
+      "materialIssueId": "9ce874bd-a35b-4959-b427-ced4f7e5433e",
+      "receivedById": "a81446de-7893-4508-a125-b189aa1356f2",
+      "receivedBy": {
+        "id": "a81446de-7893-4508-a125-b189aa1356f2",
+        "name": "Production Manager",
+        "email": "production@airtronic.com",
+        "passwordHash": "$2b$10$FCScaK8s8IUfXqzPYX0CHemUvKNq5Q/p28gtrXxXBPpVMRHjKjslW",
+        "roleId": "328f5687-6c0b-4385-8485-bdbf484152f9",
+        "department": "Production",
+        "isActive": true,
+        "createdAt": "2026-10-08T03:14:45.574Z",
+        "updatedAt": "2026-10-08T03:14:45.574Z"
+      },
+      "status": "RECEIVED",
+      "idempotencyKey": null,
+      "remarks": "Production shop floor receipt acknowledged",
+      "items": [
+        {
+          "id": "c988b755-0cd1-4f23-a88a-7e6cf82b24ac",
+          "materialReceiptId": "5483c637-f8b4-4512-95cd-7a4ca2235361",
+          "rmItemId": "3350fa8d-87b9-46d5-96ad-669f53c4cd4e",
+          "rmItem": {
+            "id": "3350fa8d-87b9-46d5-96ad-669f53c4cd4e",
+            "rmFormId": "eca742c5-38ed-4e31-b71c-0cecf192bff9",
+            "scId": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+            "material": "ConcProduct1",
+            "materialType": "ROUND_BAR",
+            "grade": "Aero-Titanium-Grade-5-SpecRev",
+            "quantity": "28.000",
+            "size": "Aero-Titanium-Grade-5-SpecRev",
+            "length": null,
+            "width": null,
+            "thickness": null,
+            "diameter": null,
+            "weight": null,
+            "weightUnit": "KG",
+            "remarks": null,
+            "mappedProductId": "aff79779-24ec-4306-937e-3d1b36482d35",
+            "availabilityStatus": "AVAILABLE",
+            "availableQuantitySnapshot": "227.000",
+            "createdAt": "2026-10-08T03:37:41.498Z",
+            "updatedAt": "2026-10-08T03:37:51.958Z"
+          },
+          "quantityReceived": "28.000",
+          "remarks": "Production confirmed receipt full qty",
+          "createdAt": "2026-10-08T03:38:05.827Z"
+        }
+      ],
+      "receivedAt": "2026-10-08T09:08:05.827Z",
+      "createdAt": "2026-10-08T03:38:05.827Z"
+    },
+    "extraRequest": {
+      "scId": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+      "reason": "MANUFACTURING_ERROR",
+      "items": [
+        {
+          "rmItemId": "3350fa8d-87b9-46d5-96ad-669f53c4cd4e",
+          "quantity": 5,
+          "remarks": "Need 5 units extra for unexpected thermal expansion scrap"
+        }
+      ],
+      "remarks": "Shop floor tool chatter defect compensation"
+    },
+    "extraResponse": {
+      "id": "0452eda7-c46a-4f0c-b01b-2be56be53932",
+      "scId": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+      "salesOrderComponent": {
+        "id": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+        "scNumber": "SC-V1-1791450493251",
+        "poId": "c87eec85-da0d-4732-b949-e2be95b0fb4b",
+        "productName": "Aerospace Wing Flap A (Revised)",
+        "description": null,
+        "drawingNumber": null,
+        "targetQuantity": "1.000",
+        "status": "ADDITIONAL_REQUEST",
+        "completedAt": null,
+        "completedById": null,
+        "completionRemarks": null,
+        "createdAt": "2026-10-08T03:37:33.670Z",
+        "updatedAt": "2026-10-08T03:38:14.476Z"
+      },
+      "requestedById": "a81446de-7893-4508-a125-b189aa1356f2",
+      "requestedBy": {
+        "id": "a81446de-7893-4508-a125-b189aa1356f2",
+        "name": "Production Manager",
+        "email": "production@airtronic.com",
+        "passwordHash": "$2b$10$FCScaK8s8IUfXqzPYX0CHemUvKNq5Q/p28gtrXxXBPpVMRHjKjslW",
+        "roleId": "328f5687-6c0b-4385-8485-bdbf484152f9",
+        "department": "Production",
+        "isActive": true,
+        "createdAt": "2026-10-08T03:14:45.574Z",
+        "updatedAt": "2026-10-08T03:14:45.574Z"
+      },
+      "status": "REQUESTED",
+      "reason": "MANUFACTURING_ERROR",
+      "remarks": "Shop floor tool chatter defect compensation",
+      "requestedAt": "2026-10-08T09:08:14.476Z",
+      "approvedAt": null,
+      "approvedById": null,
+      "approvedBy": null,
+      "items": [
+        {
+          "id": "8b8802c8-3697-4e3a-917c-188fa5b4e4d0",
+          "requestId": "0452eda7-c46a-4f0c-b01b-2be56be53932",
+          "rmItemId": "3350fa8d-87b9-46d5-96ad-669f53c4cd4e",
+          "rmItem": {
+            "id": "3350fa8d-87b9-46d5-96ad-669f53c4cd4e",
+            "rmFormId": "eca742c5-38ed-4e31-b71c-0cecf192bff9",
+            "scId": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+            "material": "ConcProduct1",
+            "materialType": "ROUND_BAR",
+            "grade": "Aero-Titanium-Grade-5-SpecRev",
+            "quantity": "28.000",
+            "size": "Aero-Titanium-Grade-5-SpecRev",
+            "length": null,
+            "width": null,
+            "thickness": null,
+            "diameter": null,
+            "weight": null,
+            "weightUnit": "KG",
+            "remarks": null,
+            "mappedProductId": "aff79779-24ec-4306-937e-3d1b36482d35",
+            "availabilityStatus": "AVAILABLE",
+            "availableQuantitySnapshot": "227.000",
+            "createdAt": "2026-10-08T03:37:41.498Z",
+            "updatedAt": "2026-10-08T03:37:51.958Z"
+          },
+          "quantityRequested": "5.000",
+          "quantityApproved": null,
+          "remarks": "Need 5 units extra for unexpected thermal expansion scrap",
+          "createdAt": "2026-10-08T03:38:14.476Z"
+        }
+      ],
+      "createdAt": "2026-10-08T03:38:14.476Z",
+      "updatedAt": "2026-10-08T03:38:14.476Z"
+    },
+    "extraDbRow": {
+      "id": "0452eda7-c46a-4f0c-b01b-2be56be53932",
+      "sc_id": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+      "requested_by_id": "a81446de-7893-4508-a125-b189aa1356f2",
+      "status": "REQUESTED",
+      "reason": "MANUFACTURING_ERROR",
+      "remarks": "Shop floor tool chatter defect compensation",
+      "requested_at": "2026-10-08T09:08:14.476Z",
+      "approved_at": null,
+      "approved_by_id": null,
+      "created_at": "2026-10-08T03:38:14.476Z",
+      "updated_at": "2026-10-08T03:38:14.476Z"
+    }
+  },
+  "F6": {
+    "storesUserId": "fe8111fb-0fad-4370-9048-5524db1f1fd3",
+    "notifications": [
+      {
+        "id": "0a10bd81-7d02-424a-b739-526c9dd6d809",
+        "user_id": "fe8111fb-0fad-4370-9048-5524db1f1fd3",
+        "type": "ADDITIONAL_REQUEST",
+        "title": "Additional Material Request: SC-V1-1791450493251",
+        "message": "Additional material request has been created for RM Request SC-V1-1791450493251.",
+        "is_read": false,
+        "target_entity": "ADDITIONAL_REQUEST",
+        "target_id": "0452eda7-c46a-4f0c-b01b-2be56be53932",
+        "created_at": "2026-10-08T03:38:17.589Z"
+      },
+      {
+        "id": "9a983811-12eb-4c84-8e41-4ae1c5494661",
+        "user_id": "fe8111fb-0fad-4370-9048-5524db1f1fd3",
+        "type": "MATERIAL_RECEIVED",
+        "title": "Material Received for SC: SC-V1-1791450493251",
+        "message": "Material receipt has been confirmed for SC SC-V1-1791450493251.",
+        "is_read": false,
+        "target_entity": "MATERIAL_RECEIPT",
+        "target_id": "5483c637-f8b4-4512-95cd-7a4ca2235361",
+        "created_at": "2026-10-08T03:38:09.371Z"
+      },
+      {
+        "id": "5daf3464-c5b0-4c6b-bc15-777d32e56b36",
+        "user_id": "fe8111fb-0fad-4370-9048-5524db1f1fd3",
+        "type": "RM_SUBMITTED",
+        "title": "RM Request Submitted: SCs: SC-V2-1791450493251, SC-V1-1791450493251",
+        "message": "RM Request SCs: SC-V2-1791450493251, SC-V1-1791450493251 was submitted.",
+        "is_read": false,
+        "target_entity": "RM_REQUEST",
+        "target_id": "2d5fd453-bb1d-4341-939e-b737954a9029",
+        "created_at": "2026-10-08T03:37:49.789Z"
+      },
+      {
+        "id": "db41f17d-4b3f-40a5-897c-cac63d48e9d0",
+        "user_id": "fe8111fb-0fad-4370-9048-5524db1f1fd3",
+        "type": "RM_SUBMITTED",
+        "title": "RM Request Submitted: SCs: SC-V1-1791450393429, SC-V2-1791450393429",
+        "message": "RM Request SCs: SC-V1-1791450393429, SC-V2-1791450393429 was submitted.",
+        "is_read": false,
+        "target_entity": "RM_REQUEST",
+        "target_id": "3709430e-39f5-45c3-a51a-92c1e033139c",
+        "created_at": "2026-10-08T03:36:09.338Z"
+      },
+      {
+        "id": "aa84f7ea-ffba-43d9-b1cd-884b7a2fc694",
+        "user_id": "fe8111fb-0fad-4370-9048-5524db1f1fd3",
+        "type": "RM_SUBMITTED",
+        "title": "RM Request Submitted: SCs: SC-V1-1791450345264, SC-V2-1791450345264",
+        "message": "RM Request SCs: SC-V1-1791450345264, SC-V2-1791450345264 was submitted.",
+        "is_read": false,
+        "target_entity": "RM_REQUEST",
+        "target_id": "c85f187b-71f2-4958-b186-6c2f1092daef",
+        "created_at": "2026-10-08T03:35:20.990Z"
+      },
+      {
+        "id": "8531862d-36ef-4de4-b613-a0ee88a5c1ed",
+        "user_id": "fe8111fb-0fad-4370-9048-5524db1f1fd3",
+        "type": "RM_SUBMITTED",
+        "title": "RM Request Submitted: SCs: SC-V1-1791450290024, SC-V2-1791450290024",
+        "message": "RM Request SCs: SC-V1-1791450290024, SC-V2-1791450290024 was submitted.",
+        "is_read": false,
+        "target_entity": "RM_REQUEST",
+        "target_id": "3474e974-a765-48cd-8d8c-65ba63295ed9",
+        "created_at": "2026-10-08T03:34:28.366Z"
+      }
+    ]
+  },
+  "F7_2": {
+    "request": {
+      "productId": "aff79779-24ec-4306-937e-3d1b36482d35",
+      "binId": "9071ff41-4585-4fac-9dec-dc3f52d69e32",
+      "quantity": 20,
+      "reason": "Supplier Batch Delivery Inward",
+      "remarks": "GRN test delivery batch",
+      "referenceType": "SUPPLIER_GRN",
+      "referenceId": "GRN-REF-1791450493251"
+    },
+    "response": {
+      "transaction": {
+        "id": "6e8cb966-4442-438b-b1b8-a69e07b846b6",
+        "productId": "aff79779-24ec-4306-937e-3d1b36482d35",
+        "inventoryItemId": null,
+        "sourceBinId": null,
+        "destinationBinId": "9071ff41-4585-4fac-9dec-dc3f52d69e32",
+        "transactionType": "STOCK_IN",
+        "adjustmentDirection": null,
+        "quantity": 20,
+        "referenceType": "SUPPLIER_GRN",
+        "referenceId": "GRN-REF-1791450493251",
+        "reason": "Supplier Batch Delivery Inward",
+        "remarks": "GRN test delivery batch",
+        "createdById": "fe8111fb-0fad-4370-9048-5524db1f1fd3",
+        "createdAt": "2026-10-08T03:38:23.374Z"
+      },
+      "balance": {
+        "id": "d787c23e-8139-4093-8c1b-97c454c185b7",
+        "productId": "aff79779-24ec-4306-937e-3d1b36482d35",
+        "product": {
+          "id": "aff79779-24ec-4306-937e-3d1b36482d35",
+          "familyId": "0addc1a8-91db-46c8-b710-180d08a5c9b9",
+          "code": null,
+          "name": "ConcProduct1",
+          "minimumInventory": "0.000",
+          "maximumInventory": null,
+          "isActive": true,
+          "uom": "KG",
+          "createdAt": "2026-10-08T02:05:53.625Z",
+          "updatedAt": "2026-10-08T02:05:53.625Z"
+        },
+        "binId": "9071ff41-4585-4fac-9dec-dc3f52d69e32",
+        "bin": {
+          "id": "9071ff41-4585-4fac-9dec-dc3f52d69e32",
+          "rackId": "5b300e14-6c04-4103-ba4f-d1a24abbbe75",
+          "code": "B-CONC-01",
+          "name": "Bin1",
+          "isActive": true,
+          "createdAt": "2026-10-08T02:06:00.374Z",
+          "updatedAt": "2026-10-08T02:06:00.374Z"
+        },
+        "inventoryItemId": null,
+        "currentQuantity": "219.000",
+        "openingBalance": "100.000",
+        "lastTransactionId": "6e8cb966-4442-438b-b1b8-a69e07b846b6",
+        "createdAt": "2026-10-08T02:06:01.868Z",
+        "updatedAt": "2026-10-08T03:38:23.374Z"
+      }
+    },
+    "stockBalanceBefore": {
+      "id": "d787c23e-8139-4093-8c1b-97c454c185b7",
+      "inventory_item_id": null,
+      "current_quantity": "199.000",
+      "last_transaction_id": "5643554c-d623-4b97-b1eb-875c1d20f515",
+      "created_at": "2026-10-08T02:06:01.868Z",
+      "updated_at": "2026-10-08T03:37:56.593Z",
+      "opening_balance": "100.000",
+      "product_id": "aff79779-24ec-4306-937e-3d1b36482d35",
+      "bin_id": "9071ff41-4585-4fac-9dec-dc3f52d69e32"
+    },
+    "stockBalanceAfter": {
+      "id": "d787c23e-8139-4093-8c1b-97c454c185b7",
+      "inventory_item_id": null,
+      "current_quantity": "219.000",
+      "last_transaction_id": "6e8cb966-4442-438b-b1b8-a69e07b846b6",
+      "created_at": "2026-10-08T02:06:01.868Z",
+      "updated_at": "2026-10-08T03:38:23.374Z",
+      "opening_balance": "100.000",
+      "product_id": "aff79779-24ec-4306-937e-3d1b36482d35",
+      "bin_id": "9071ff41-4585-4fac-9dec-dc3f52d69e32"
+    },
+    "stockTransaction": {
+      "id": "6e8cb966-4442-438b-b1b8-a69e07b846b6",
+      "inventory_item_id": null,
+      "quantity": "20.000",
+      "remarks": "GRN test delivery batch",
+      "created_by_id": "fe8111fb-0fad-4370-9048-5524db1f1fd3",
+      "created_at": "2026-10-08T03:38:23.374Z",
+      "adjustment_direction": null,
+      "product_id": "aff79779-24ec-4306-937e-3d1b36482d35",
+      "source_bin_id": null,
+      "destination_bin_id": "9071ff41-4585-4fac-9dec-dc3f52d69e32",
+      "referenceType": "SUPPLIER_GRN",
+      "transaction_type": "STOCK_IN",
+      "reference_id": "GRN-REF-1791450493251",
+      "reason": "Supplier Batch Delivery Inward"
+    }
+  },
+  "F8": {
+    "storesDashboard": {
+      "pendingRmRequests": 13,
+      "pendingAdditionalRequests": 5,
+      "approvedAdditionalToIssue": 1
+    },
+    "productionDashboard": {
+      "pendingReceipts": 2,
+      "activeBatches": 18,
+      "additionalRequested": 5
+    }
+  },
+  "DC_TESTS": {
+    "dcRawMaterial": {
+      "route": "/dispatch/delivery-challan/type-1",
+      "targetEndpoint": "POST /api/delivery-challans/type-2",
+      "request": {
+        "type": "GENERAL_INVENTORY_OUTWARD",
+        "vendorId": "a705907d-bf81-4702-8e57-ced596974a66",
+        "notes": "Outward raw inventory dispatch for sample testing",
+        "dispatchDate": "2026-10-08T09:09:05.864Z",
+        "items": [
+          {
+            "productId": "aff79779-24ec-4306-937e-3d1b36482d35",
+            "binId": "9071ff41-4585-4fac-9dec-dc3f52d69e32",
+            "quantityDispatched": 5
+          }
+        ]
+      },
+      "response": {
+        "id": "be2797a0-0748-496b-b7fa-b891a32c4461",
+        "challanNumber": "DC-1791450546371",
+        "type": "GENERAL_INVENTORY_OUTWARD",
+        "vendorId": "a705907d-bf81-4702-8e57-ced596974a66",
+        "scId": null,
+        "processId": null,
+        "dispatchDate": "2026-10-08T09:09:05.864Z",
+        "expectedReturnDate": null,
+        "status": "DISPATCHED",
+        "notes": "Outward raw inventory dispatch for sample testing",
+        "createdById": "fe8111fb-0fad-4370-9048-5524db1f1fd3",
+        "actualReturnDate": null,
+        "verifiedById": null,
+        "verificationRemarks": null,
+        "createdAt": "2026-10-08T09:08:26.281Z",
+        "updatedAt": "2026-10-08T09:08:26.281Z",
+        "items": [
+          {
+            "id": "14909f92-b032-4dfd-a324-b7392b5042d5",
+            "scId": null,
+            "processId": null,
+            "description": null,
+            "batchNumber": null,
+            "challanId": "be2797a0-0748-496b-b7fa-b891a32c4461",
+            "productId": "aff79779-24ec-4306-937e-3d1b36482d35",
+            "binId": "9071ff41-4585-4fac-9dec-dc3f52d69e32",
+            "quantityDispatched": "5.000",
+            "quantityReturned": "0.000",
+            "createdAt": "2026-10-08T09:08:26.281Z",
+            "updatedAt": "2026-10-08T09:08:26.281Z"
+          }
+        ]
+      }
+    },
+    "dcProcess": {
+      "route": "/dispatch/delivery-challan/type-2",
+      "targetEndpoint": "POST /api/delivery-challans/type-1",
+      "request": {
+        "type": "PRODUCTION_PROCESS_OUTWARD",
+        "vendorId": "4e904493-023d-4334-b204-de0a1bd85c1b",
+        "dispatchDate": "2026-10-08T09:09:08.956Z",
+        "expectedReturnDate": "2026-10-13",
+        "notes": "Outward process DC for CNC milling operation",
+        "items": [
+          {
+            "scId": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+            "processId": "fa0daa55-51c6-420c-921c-2f4cd80b020c",
+            "productId": "aff79779-24ec-4306-937e-3d1b36482d35",
+            "binId": "9071ff41-4585-4fac-9dec-dc3f52d69e32",
+            "quantityDispatched": 3,
+            "batchNumber": "BAT-DC-1791450493251",
+            "description": "Titanium pre-machined billet"
+          }
+        ]
+      },
+      "response": {
+        "id": "b1b2da3d-6aad-4dd0-976e-b14a38ffd960",
+        "challanNumber": "DC-1791450549465",
+        "type": "PRODUCTION_PROCESS_OUTWARD",
+        "vendorId": "4e904493-023d-4334-b204-de0a1bd85c1b",
+        "scId": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+        "processId": "fa0daa55-51c6-420c-921c-2f4cd80b020c",
+        "dispatchDate": "2026-10-08T09:09:08.956Z",
+        "expectedReturnDate": "2026-10-13T00:00:00.000Z",
+        "status": "DISPATCHED",
+        "notes": "Outward process DC for CNC milling operation",
+        "createdById": "fe8111fb-0fad-4370-9048-5524db1f1fd3",
+        "actualReturnDate": null,
+        "verifiedById": null,
+        "verificationRemarks": null,
+        "createdAt": "2026-10-08T09:08:29.376Z",
+        "updatedAt": "2026-10-08T09:08:29.376Z",
+        "items": [
+          {
+            "id": "4736f014-9085-4635-81f4-bd0d41f68632",
+            "scId": "0e9aea8b-b9f6-455d-bb79-f6d4bfc238e0",
+            "processId": "fa0daa55-51c6-420c-921c-2f4cd80b020c",
+            "description": "Titanium pre-machined billet",
+            "batchNumber": "BAT-DC-1791450493251",
+            "challanId": "b1b2da3d-6aad-4dd0-976e-b14a38ffd960",
+            "productId": "aff79779-24ec-4306-937e-3d1b36482d35",
+            "binId": "9071ff41-4585-4fac-9dec-dc3f52d69e32",
+            "quantityDispatched": "3.000",
+            "quantityReturned": "0.000",
+            "createdAt": "2026-10-08T09:08:29.376Z",
+            "updatedAt": "2026-10-08T09:08:29.376Z"
+          }
+        ]
+      }
+    }
+  }
+}

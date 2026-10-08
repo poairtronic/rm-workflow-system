@@ -11,7 +11,6 @@ import {
   PageHeader,
   DataTable,
   StatusBadge,
-  Modal,
   ConfirmDialog,
   FormField,
   TextInput,
@@ -20,7 +19,7 @@ import {
   Button,
 } from '../components/ui';
 import type { ColumnDef } from '../components/ui';
-import { Plus, Edit2, CheckCircle2, XCircle, Building2, Phone, Mail, User } from 'lucide-react';
+import { Plus, Edit2, CheckCircle2, XCircle, Building2, Phone, Mail, User, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export function VendorMasterWorkspace() {
@@ -326,87 +325,34 @@ export function VendorMasterWorkspace() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Vendors Master"
-        subtitle="Manage approved external vendors, process capabilities, contact profiles, and active statuses."
-        actionSlot={
-          canWrite && (
-            <Button
-              onClick={handleOpenCreate}
-              className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+      {isModalOpen ? (
+        <div className="max-w-3xl mx-auto w-full pb-12">
+          <div className="mb-6 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => {
+                setIsModalOpen(false);
+                resetForm();
+              }}
+              className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-lg border border-slate-200 shadow-sm transition-all hover:bg-slate-50"
             >
-              <Plus className="w-4 h-4" />
-              <span>New Vendor</span>
-            </Button>
-          )
-        }
-      />
-
-      {/* Filter Toolbar */}
-      <div className="bg-white p-4 rounded-lg border border-gray-200 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <label className="text-xs font-medium text-gray-600">Category:</label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="text-xs border border-gray-300 rounded px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="ALL">All Categories ({vendors.length})</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Vendors List</span>
+            </button>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+              {editingVendor ? 'Edit Vendor' : 'New Vendor'}
+            </span>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <label className="text-xs font-medium text-gray-600">Status:</label>
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="text-xs border border-gray-300 rounded px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="ACTIVE">Active Only</option>
-              <option value="INACTIVE">Inactive Only</option>
-            </select>
-          </div>
-        </div>
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="px-6 py-5 border-b border-slate-200 bg-slate-50/50">
+              <h2 className="text-xl font-bold text-slate-900">
+                {editingVendor ? `Edit Vendor: ${editingVendor.name}` : 'Register New Vendor'}
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">Manage vendor registration and procurement profile.</p>
+            </div>
 
-        <div className="text-xs text-gray-500 flex items-center space-x-1">
-          <Building2 className="w-3.5 h-3.5 text-gray-400" />
-          <span>
-            Showing {filteredVendors.length} of {vendors.length} vendors
-          </span>
-        </div>
-      </div>
-
-      {/* Main Table */}
-      <DataTable
-        columns={columns}
-        data={filteredVendors}
-        isLoading={isLoading}
-        isError={isError}
-        errorMsg={(error as any)?.message || 'Failed to load vendors'}
-        onRetry={refetch}
-        searchable={true}
-        searchKeys={['code', 'name', 'category', 'contactPerson', 'email']}
-        pagination={true}
-        defaultPageSize={10}
-      />
-
-      {/* Create / Edit Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          resetForm();
-        }}
-        title={editingVendor ? `Edit Vendor: ${editingVendor.name}` : 'Register New Vendor'}
-      >
-        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+            <form onSubmit={handleSubmit} className="space-y-4 p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField label="Vendor Code" required id="code" hint="Unique identifier (e.g. VND-010)">
               <TextInput
@@ -524,7 +470,82 @@ export function VendorMasterWorkspace() {
             </Button>
           </div>
         </form>
-      </Modal>
+      </div>
+    </div>
+  ) : (
+    <>
+      <PageHeader
+        title="Vendors Master"
+        subtitle="Manage approved external vendors, process capabilities, contact profiles, and active statuses."
+        actionSlot={
+          canWrite && (
+            <Button
+              onClick={handleOpenCreate}
+              className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New Vendor</span>
+            </Button>
+          )
+        }
+      />
+
+      {/* Filter Toolbar */}
+      <div className="bg-white p-4 rounded-lg border border-gray-200 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <label className="text-xs font-medium text-gray-600">Category:</label>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="text-xs border border-gray-300 rounded px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="ALL">All Categories ({vendors.length})</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <label className="text-xs font-medium text-gray-600">Status:</label>
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="text-xs border border-gray-300 rounded px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="ACTIVE">Active Only</option>
+              <option value="INACTIVE">Inactive Only</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="text-xs text-gray-500 flex items-center space-x-1">
+          <Building2 className="w-3.5 h-3.5 text-gray-400" />
+          <span>
+            Showing {filteredVendors.length} of {vendors.length} vendors
+          </span>
+        </div>
+      </div>
+
+      {/* Main Table */}
+      <DataTable
+        columns={columns}
+        data={filteredVendors}
+        isLoading={isLoading}
+        isError={isError}
+        errorMsg={(error as any)?.message || 'Failed to load vendors'}
+        onRetry={refetch}
+        searchable={true}
+        searchKeys={['code', 'name', 'category', 'contactPerson', 'email']}
+        pagination={true}
+        defaultPageSize={10}
+      />
+    </>
+  )}
 
       {/* Confirm Status Toggle Dialog */}
       <ConfirmDialog

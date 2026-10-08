@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   PageHeader,
   DataTable,
@@ -10,10 +11,7 @@ import {
 import type { ColumnDef } from '../components/ui';
 import { inventoryService } from '../services/inventoryService';
 import type { StockBalance, StockTransaction } from '../services/inventoryService';
-import {
-  StockMovementModal,
-  type StockMovementMode,
-} from '../components/inventory/StockMovementModal';
+import type { StockMovementMode } from './StockMovementWorkspace';
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -22,6 +20,7 @@ import {
 import { toast } from 'react-hot-toast';
 
 export function InventoryStockWorkspace() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'LEDGER'>('OVERVIEW');
   
   // Overview Tab State
@@ -41,12 +40,6 @@ export function InventoryStockWorkspace() {
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
   const [txPage, setTxPage] = useState(1);
   const [txTypeFilter, setTxTypeFilter] = useState('');
-
-  // Stock Movement Modal State
-  const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
-  const [movementMode, setMovementMode] = useState<StockMovementMode>('STOCK_IN');
-  const [movementProductId, setMovementProductId] = useState<string | undefined>();
-  const [movementBinId, setMovementBinId] = useState<string | undefined>();
 
   const fetchBalances = async () => {
     setIsBalancesLoading(true);
@@ -112,18 +105,10 @@ export function InventoryStockWorkspace() {
   };
 
   const handleOpenMovement = (mode: StockMovementMode, prodId?: string, binId?: string) => {
-    setMovementMode(mode);
-    setMovementProductId(prodId);
-    setMovementBinId(binId);
-    setIsMovementModalOpen(true);
-  };
-
-  const handleMovementSuccess = () => {
-    fetchBalances();
-    fetchTransactions();
-    if (selectedBalance) {
-      fetchSelectedBalanceTransactions(selectedBalance);
-    }
+    const params = new URLSearchParams({ mode });
+    if (prodId) params.set('productId', prodId);
+    if (binId) params.set('binId', binId);
+    navigate(`/inventory/movements?${params.toString()}`);
   };
 
   const overviewColumns: ColumnDef<StockBalance>[] = [
@@ -381,16 +366,6 @@ export function InventoryStockWorkspace() {
           </div>
         </div>
       </SlideOver>
-
-      {/* Stock Movement Modal (Stock In / Stock Out / Adjust) */}
-      <StockMovementModal
-        isOpen={isMovementModalOpen}
-        onClose={() => setIsMovementModalOpen(false)}
-        mode={movementMode}
-        initialProductId={movementProductId}
-        initialBinId={movementBinId}
-        onSuccess={handleMovementSuccess}
-      />
     </div>
   );
 }

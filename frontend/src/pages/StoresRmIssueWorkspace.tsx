@@ -25,8 +25,7 @@ export function StoresRmIssueWorkspace() {
   
   const [selectedPoId, setSelectedPoId] = useState<string | null>(null);
 
-  // Modal State
-  const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
+  // Active issue selection
   const [selectedScForIssue, setSelectedScForIssue] = useState<{ id: string; num: string } | null>(null);
 
   useEffect(() => {
@@ -68,10 +67,26 @@ export function StoresRmIssueWorkspace() {
 
   const handleOpenIssueModal = (scId: string, scNumber: string) => {
     setSelectedScForIssue({ id: scId, num: scNumber });
-    setIsIssueModalOpen(true);
   };
 
   const selectedPo = queues.find((q) => q.poId === selectedPoId);
+
+  if (selectedScForIssue) {
+    return (
+      <IssueMaterialModal
+        isOpen={true}
+        onClose={() => {
+          setSelectedScForIssue(null);
+        }}
+        onSuccess={() => {
+          setSelectedScForIssue(null);
+          loadQueue();
+        }}
+        scId={selectedScForIssue.id}
+        scNumber={selectedScForIssue.num}
+      />
+    );
+  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto h-[calc(100vh-4rem)] flex flex-col">
@@ -184,18 +199,6 @@ export function StoresRmIssueWorkspace() {
             )}
           </div>
         </div>
-      )}
-
-      {selectedScForIssue && (
-        <IssueMaterialModal
-          isOpen={isIssueModalOpen}
-          onClose={() => setIsIssueModalOpen(false)}
-          onSuccess={() => {
-            loadQueue();
-          }}
-          scId={selectedScForIssue.id}
-          scNumber={selectedScForIssue.num}
-        />
       )}
     </div>
   );

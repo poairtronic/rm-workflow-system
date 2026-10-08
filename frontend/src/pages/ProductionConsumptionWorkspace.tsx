@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { PlaySquare, AlertCircle, RefreshCcw, Plus, PackageMinus, CheckCircle, Scissors } from 'lucide-react';
+import { PlaySquare, AlertCircle, RefreshCcw, Plus, PackageMinus, CheckCircle, Scissors, ArrowLeft } from 'lucide-react';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { workflowService } from '../services/workflowService';
 import type { SC, MaterialAccounting } from '../services/workflowService';
@@ -11,9 +11,8 @@ export function ProductionConsumptionWorkspace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Modals state
-  const [extraModalOpen, setExtraModalOpen] = useState(false);
-  const [returnModalOpen, setReturnModalOpen] = useState(false);
+  // Active sub-view within selected SC: null (overview), 'EXTRA', 'RETURN', or 'CONSUME'
+  const [activeAction, setActiveAction] = useState<'EXTRA' | 'RETURN' | 'CONSUME' | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Form State
@@ -23,7 +22,6 @@ export function ProductionConsumptionWorkspace() {
   const [returnItems, setReturnItems] = useState<Record<string, string>>({});
   const [returnRemarks, setReturnRemarks] = useState('');
 
-  const [consumeModalOpen, setConsumeModalOpen] = useState(false);
   const [consumeItemId, setConsumeItemId] = useState<string | null>(null);
   const [consumeQty, setConsumeQty] = useState('');
   const [consumeRemarks, setConsumeRemarks] = useState('');
@@ -82,7 +80,7 @@ export function ProductionConsumptionWorkspace() {
     try {
       await workflowService.createAdditionalRequest(selectedSc.id, items, extraReason);
       alert('Additional material requested successfully!');
-      setExtraModalOpen(false);
+      setActiveAction(null);
       setExtraItems({});
       await loadAccounting(selectedSc.id);
     } catch (err: any) {
@@ -119,7 +117,7 @@ export function ProductionConsumptionWorkspace() {
     try {
       await workflowService.recordReturn(selectedSc.id, items, returnRemarks);
       alert('Return initiated successfully. Stores will be notified to verify.');
-      setReturnModalOpen(false);
+      setActiveAction(null);
       setReturnItems({});
       setReturnRemarks('');
       await loadAccounting(selectedSc.id);
@@ -145,7 +143,7 @@ export function ProductionConsumptionWorkspace() {
     try {
       await workflowService.recordConsumption(selectedSc.id, consumeItemId, qty, consumeRemarks);
       alert('Material consumption recorded successfully.');
-      setConsumeModalOpen(false);
+      setActiveAction(null);
       setConsumeItemId(null);
       setConsumeQty('');
       setConsumeRemarks('');
@@ -243,330 +241,381 @@ export function ProductionConsumptionWorkspace() {
           <div className="p-8 text-center text-slate-500">Loading accounting data...</div>
         ) : (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">{selectedSc.scNumber}</h1>
-                <p className="text-slate-500">{selectedSc.productName}</p>
+            {!activeAction && (
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900">{selectedSc.scNumber}</h1>
+                  <p className="text-slate-500">{selectedSc.productName}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCompleteSc}
+                    disabled={submitting}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 border border-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    Complete SC
+                  </button>
+                  <button
+                    onClick={() => setActiveAction('EXTRA')}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 text-sm font-medium transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Request Extra
+                  </button>
+                  <button
+                    onClick={() => setActiveAction('RETURN')}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 text-sm font-medium transition-colors"
+                  >
+                    <PackageMinus className="w-4 h-4" />
+                    Return Surplus
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleCompleteSc}
-                  disabled={submitting}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 border border-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  Complete SC
-                </button>
-                <button
-                  onClick={() => setExtraModalOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 text-sm font-medium transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Request Extra
-                </button>
-                <button
-                  onClick={() => setReturnModalOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 text-sm font-medium transition-colors"
-                >
-                  <PackageMinus className="w-4 h-4" />
-                  Return Surplus
-                </button>
+            )}
+
+            {activeAction === 'EXTRA' ? (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setActiveAction(null)}
+                    className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-lg border border-slate-200 shadow-sm transition-all hover:bg-slate-50"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Back to Material Balance</span>
+                  </button>
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    Request Additional RM
+                  </span>
+                </div>
+
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="px-6 py-5 border-b border-slate-200 bg-slate-50/50">
+                    <h3 className="text-xl font-bold text-slate-900">Request Extra Material</h3>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Request additional raw materials from Stores for SC <span className="font-semibold text-slate-800">{selectedSc.scNumber}</span> ({selectedSc.productName})
+                    </p>
+                  </div>
+
+                  <div className="p-6 space-y-6">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Reason for Request</label>
+                      <select
+                        value={extraReason}
+                        onChange={(e) => setExtraReason(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                      >
+                        <option value="ADDITIONAL_REQUIREMENT">Additional Requirement</option>
+                        <option value="DAMAGE">Damage</option>
+                        <option value="WASTAGE">Wastage</option>
+                        <option value="MANUFACTURING_ERROR">Manufacturing Error</option>
+                        <option value="OTHER">Other</option>
+                      </select>
+                    </div>
+
+                    <div className="border border-slate-200 rounded-lg overflow-hidden">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                          <tr>
+                            <th className="px-4 py-3 font-semibold text-slate-700">Material</th>
+                            <th className="px-4 py-3 font-semibold text-slate-700 text-right">Target Qty</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {accounting.items.map(item => (
+                            <tr key={item.rmItemId} className="hover:bg-slate-50/50">
+                              <td className="px-4 py-3">
+                                <p className="font-medium text-slate-900">{item.material}</p>
+                                <p className="text-xs text-slate-500">WIP: {item.wip}</p>
+                              </td>
+                              <td className="px-4 py-3">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.001"
+                                  placeholder="0.000"
+                                  value={extraItems[item.rmItemId] || ''}
+                                  onChange={(e) => setExtraItems({ ...extraItems, [item.rmItemId]: e.target.value })}
+                                  className="w-28 px-3 py-1.5 text-right bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary ml-auto block shadow-sm"
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3 bg-slate-50/50">
+                    <button
+                      type="button"
+                      onClick={() => setActiveAction(null)}
+                      className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-lg bg-white transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRequestExtra}
+                      disabled={submitting}
+                      className="px-5 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm"
+                    >
+                      {submitting ? 'Submitting...' : 'Submit Request'}
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : activeAction === 'RETURN' ? (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setActiveAction(null)}
+                    className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-lg border border-slate-200 shadow-sm transition-all hover:bg-slate-50"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Back to Material Balance</span>
+                  </button>
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    Return Surplus RM
+                  </span>
+                </div>
 
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-                <h3 className="font-semibold text-slate-900">Material Balance Panel</h3>
-                <button onClick={() => loadAccounting(selectedSc.id)} className="text-slate-400 hover:text-slate-600">
-                  <RefreshCcw className="w-4 h-4" />
-                </button>
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="px-6 py-5 border-b border-slate-200 bg-slate-50/50">
+                    <h3 className="text-xl font-bold text-slate-900">Return Surplus Material</h3>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Return unused raw material to Stores for SC <span className="font-semibold text-slate-800">{selectedSc.scNumber}</span> ({selectedSc.productName})
+                    </p>
+                  </div>
+
+                  <div className="p-6 space-y-6">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Remarks (Optional)</label>
+                      <textarea
+                        value={returnRemarks}
+                        onChange={(e) => setReturnRemarks(e.target.value)}
+                        placeholder="Reason for return..."
+                        rows={2}
+                        className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary resize-none shadow-sm"
+                      />
+                    </div>
+
+                    <div className="border border-slate-200 rounded-lg overflow-hidden">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                          <tr>
+                            <th className="px-4 py-3 font-semibold text-slate-700">Material</th>
+                            <th className="px-4 py-3 font-semibold text-slate-700 text-right">Return Qty</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {accounting.items.map(item => {
+                            const maxReturn = item.wip;
+                            if (maxReturn <= 0) return null;
+
+                            return (
+                              <tr key={item.rmItemId} className="hover:bg-slate-50/50">
+                                <td className="px-4 py-3">
+                                  <p className="font-medium text-slate-900">{item.material}</p>
+                                  <p className="text-xs text-slate-500">Max Available (WIP): <span className="font-semibold text-indigo-600">{maxReturn}</span></p>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max={maxReturn}
+                                    step="0.001"
+                                    placeholder="0.000"
+                                    value={returnItems[item.rmItemId] || ''}
+                                    onChange={(e) => setReturnItems({ ...returnItems, [item.rmItemId]: e.target.value })}
+                                    className="w-28 px-3 py-1.5 text-right bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary ml-auto block shadow-sm"
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3 bg-slate-50/50">
+                    <button
+                      type="button"
+                      onClick={() => setActiveAction(null)}
+                      className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-lg bg-white transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleReturnSurplus}
+                      disabled={submitting}
+                      className="px-5 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm"
+                    >
+                      {submitting ? 'Submitting...' : 'Initiate Return'}
+                    </button>
+                  </div>
+                </div>
               </div>
-              
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm whitespace-nowrap">
-                  <thead>
-                    <tr className="text-slate-500 border-b border-slate-200 bg-white">
-                      <th className="px-6 py-3 font-medium">Material</th>
-                      <th className="px-6 py-3 font-medium text-right bg-slate-50">Issued</th>
-                      <th className="px-6 py-3 font-medium text-right bg-slate-50">Received</th>
-                      <th className="px-6 py-3 font-medium text-right bg-amber-50">Consumed</th>
-                      <th className="px-6 py-3 font-medium text-right bg-indigo-50">Returned</th>
-                      <th className="px-6 py-3 font-medium text-right bg-indigo-50 text-indigo-700">WIP (Available)</th>
-                      <th className="px-6 py-3 font-medium text-right bg-red-50 text-red-600">Unaccounted</th>
-                      <th className="px-6 py-3 font-medium text-center">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {accounting.items.map(item => (
-                      <tr key={item.rmItemId} className="hover:bg-slate-50/50">
-                        <td className="px-6 py-4">
-                          <p className="font-medium text-slate-900">{item.material}</p>
-                          <p className="text-xs text-slate-500">{item.grade} • Req: {item.required}</p>
-                        </td>
-                        <td className="px-6 py-4 text-right font-medium text-slate-700 bg-slate-50/50">{item.issued}</td>
-                        <td className="px-6 py-4 text-right font-medium text-slate-700 bg-slate-50/50">{item.received}</td>
-                        <td className="px-6 py-4 text-right font-medium text-amber-700 bg-amber-50/30">{item.consumed}</td>
-                        <td className="px-6 py-4 text-right font-medium text-indigo-600 bg-indigo-50/30">
-                          {item.returned}
-                          {item.pendingReturned > 0 && (
-                            <span className="block text-xs text-indigo-400">+{item.pendingReturned} pending</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-right font-bold text-indigo-700 bg-indigo-50/50">{item.wip}</td>
-                        <td className="px-6 py-4 text-right font-bold text-red-600 bg-red-50/30">{item.unaccounted}</td>
-                        <td className="px-6 py-4 text-center">
-                          <button
-                            onClick={() => {
-                              setConsumeItemId(item.rmItemId);
-                              setConsumeModalOpen(true);
-                            }}
-                            disabled={item.wip <= 0}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          >
-                            <Scissors className="w-3.5 h-3.5" />
-                            Consume
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {accounting.items.length === 0 && (
-                      <tr>
-                        <td colSpan={8} className="px-6 py-8 text-center text-slate-500">
-                          No materials mapped for this SC yet.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+            ) : activeAction === 'CONSUME' ? (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => { setActiveAction(null); setConsumeItemId(null); }}
+                    className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-lg border border-slate-200 shadow-sm transition-all hover:bg-slate-50"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Back to Material Balance</span>
+                  </button>
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                    Log Consumption
+                  </span>
+                </div>
 
-      {/* Request Extra Modal */}
-      {extraModalOpen && accounting && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-slate-200">
-              <h3 className="text-xl font-bold text-slate-900">Request Extra Material</h3>
-              <p className="text-slate-500 text-sm mt-1">Request additional RM from Stores for SC {selectedSc?.scNumber}</p>
-            </div>
-            
-            <div className="p-6 overflow-y-auto flex-1 space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Reason for Request</label>
-                <select 
-                  value={extraReason}
-                  onChange={(e) => setExtraReason(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="ADDITIONAL_REQUIREMENT">Additional Requirement</option>
-                  <option value="DAMAGE">Damage</option>
-                  <option value="WASTAGE">Wastage</option>
-                  <option value="MANUFACTURING_ERROR">Manufacturing Error</option>
-                  <option value="OTHER">Other</option>
-                </select>
-              </div>
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="px-6 py-5 border-b border-slate-200 bg-slate-50/50">
+                    <h3 className="text-xl font-bold text-slate-900">Record Material Consumption</h3>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Log RM used for production on SC <span className="font-semibold text-slate-800">{selectedSc.scNumber}</span>
+                    </p>
+                  </div>
 
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="px-4 py-2 font-medium text-slate-700">Material</th>
-                      <th className="px-4 py-2 font-medium text-slate-700 text-right">Target Qty</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {accounting.items.map(item => (
-                      <tr key={item.rmItemId}>
-                        <td className="px-4 py-3">
-                          <p className="font-medium text-slate-900">{item.material}</p>
-                          <p className="text-xs text-slate-500">WIP: {item.wip}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.001"
-                            placeholder="0.000"
-                            value={extraItems[item.rmItemId] || ''}
-                            onChange={(e) => setExtraItems({ ...extraItems, [item.rmItemId]: e.target.value })}
-                            className="w-24 px-2 py-1.5 text-right border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 ml-auto block"
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-slate-200 flex justify-end gap-3 bg-slate-50 rounded-b-xl">
-              <button
-                onClick={() => setExtraModalOpen(false)}
-                className="px-4 py-2 text-slate-700 hover:bg-slate-200 rounded-lg font-medium transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRequestExtra}
-                disabled={submitting}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium disabled:opacity-50 transition-colors"
-              >
-                {submitting ? 'Submitting...' : 'Submit Request'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Return Surplus Modal */}
-      {returnModalOpen && accounting && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-slate-200">
-              <h3 className="text-xl font-bold text-slate-900">Return Surplus Material</h3>
-              <p className="text-slate-500 text-sm mt-1">Return unused material to Stores for SC {selectedSc?.scNumber}</p>
-            </div>
-            
-            <div className="p-6 overflow-y-auto flex-1 space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Remarks (Optional)</label>
-                <textarea 
-                  value={returnRemarks}
-                  onChange={(e) => setReturnRemarks(e.target.value)}
-                  placeholder="Reason for return..."
-                  rows={2}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
-                />
-              </div>
-
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="px-4 py-2 font-medium text-slate-700">Material</th>
-                      <th className="px-4 py-2 font-medium text-slate-700 text-right">Return Qty</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {accounting.items.map(item => {
-                      const maxReturn = item.wip;
-                      if (maxReturn <= 0) return null;
-
+                  <div className="p-6 space-y-5">
+                    {(() => {
+                      const item = accounting.items.find(i => i.rmItemId === consumeItemId);
+                      if (!item) return null;
                       return (
-                        <tr key={item.rmItemId}>
-                          <td className="px-4 py-3">
-                            <p className="font-medium text-slate-900">{item.material}</p>
-                            <p className="text-xs text-slate-500">Max Available (WIP): {maxReturn}</p>
-                          </td>
-                          <td className="px-4 py-3">
+                        <>
+                          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <p className="font-semibold text-slate-900">{item.material}</p>
+                            <p className="text-sm text-slate-500 mt-0.5">Available WIP: <span className="font-bold text-indigo-600">{item.wip}</span></p>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Quantity Consumed</label>
                             <input
                               type="number"
                               min="0"
-                              max={maxReturn}
+                              max={item.wip}
                               step="0.001"
+                              value={consumeQty}
+                              onChange={(e) => setConsumeQty(e.target.value)}
                               placeholder="0.000"
-                              value={returnItems[item.rmItemId] || ''}
-                              onChange={(e) => setReturnItems({ ...returnItems, [item.rmItemId]: e.target.value })}
-                              className="w-24 px-2 py-1.5 text-right border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 ml-auto block"
+                              className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
                             />
-                          </td>
-                        </tr>
+                          </div>
+                        </>
                       );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-slate-200 flex justify-end gap-3 bg-slate-50 rounded-b-xl">
-              <button
-                onClick={() => setReturnModalOpen(false)}
-                className="px-4 py-2 text-slate-700 hover:bg-slate-200 rounded-lg font-medium transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleReturnSurplus}
-                disabled={submitting}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium disabled:opacity-50 transition-colors"
-              >
-                {submitting ? 'Submitting...' : 'Initiate Return'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Consume Material Modal */}
-      {consumeModalOpen && consumeItemId && accounting && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full flex flex-col">
-            <div className="p-6 border-b border-slate-200">
-              <h3 className="text-xl font-bold text-slate-900">Record Material Consumption</h3>
-              <p className="text-slate-500 text-sm mt-1">Log RM used for production on SC {selectedSc?.scNumber}</p>
-            </div>
-            
-            <div className="p-6 space-y-4 flex-1">
-              {(() => {
-                const item = accounting.items.find(i => i.rmItemId === consumeItemId);
-                if (!item) return null;
-                return (
-                  <>
-                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-2">
-                      <p className="font-semibold text-slate-900">{item.material}</p>
-                      <p className="text-sm text-slate-500">Available WIP: <span className="font-bold text-indigo-600">{item.wip}</span></p>
-                    </div>
+                    })()}
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Quantity Consumed</label>
-                      <input 
-                        type="number"
-                        min="0"
-                        max={item.wip}
-                        step="0.001"
-                        value={consumeQty}
-                        onChange={(e) => setConsumeQty(e.target.value)}
-                        placeholder="0.000"
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Remarks (Optional)</label>
+                      <textarea
+                        value={consumeRemarks}
+                        onChange={(e) => setConsumeRemarks(e.target.value)}
+                        placeholder="Details of consumption or scrap..."
+                        rows={2}
+                        className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary resize-none shadow-sm"
                       />
                     </div>
-                  </>
-                )
-              })()}
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Remarks (Optional)</label>
-                <textarea 
-                  value={consumeRemarks}
-                  onChange={(e) => setConsumeRemarks(e.target.value)}
-                  placeholder="Details of consumption or scrap..."
-                  rows={2}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
-                />
+                  <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3 bg-slate-50/50">
+                    <button
+                      type="button"
+                      onClick={() => { setActiveAction(null); setConsumeItemId(null); }}
+                      className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-lg bg-white transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConsume}
+                      disabled={submitting}
+                      className="px-5 py-2 bg-amber-600 text-white text-sm font-semibold rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors shadow-sm"
+                    >
+                      {submitting ? 'Recording...' : 'Record Consumption'}
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-
-            <div className="p-6 border-t border-slate-200 flex justify-end gap-3 bg-slate-50 rounded-b-xl">
-              <button
-                onClick={() => setConsumeModalOpen(false)}
-                className="px-4 py-2 text-slate-700 hover:bg-slate-200 rounded-lg font-medium transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConsume}
-                disabled={submitting}
-                className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium disabled:opacity-50 transition-colors"
-              >
-                {submitting ? 'Recording...' : 'Record Consumption'}
-              </button>
-            </div>
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                  <h3 className="font-semibold text-slate-900">Material Balance Panel</h3>
+                  <button onClick={() => loadAccounting(selectedSc.id)} className="text-slate-400 hover:text-slate-600">
+                    <RefreshCcw className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm whitespace-nowrap">
+                    <thead>
+                      <tr className="text-slate-500 border-b border-slate-200 bg-white">
+                        <th className="px-6 py-3 font-medium">Material</th>
+                        <th className="px-6 py-3 font-medium text-right bg-slate-50">Issued</th>
+                        <th className="px-6 py-3 font-medium text-right bg-slate-50">Received</th>
+                        <th className="px-6 py-3 font-medium text-right bg-amber-50">Consumed</th>
+                        <th className="px-6 py-3 font-medium text-right bg-indigo-50">Returned</th>
+                        <th className="px-6 py-3 font-medium text-right bg-indigo-50 text-indigo-700">WIP (Available)</th>
+                        <th className="px-6 py-3 font-medium text-right bg-red-50 text-red-600">Unaccounted</th>
+                        <th className="px-6 py-3 font-medium text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {accounting.items.map(item => (
+                        <tr key={item.rmItemId} className="hover:bg-slate-50/50">
+                          <td className="px-6 py-4">
+                            <p className="font-medium text-slate-900">{item.material}</p>
+                            <p className="text-xs text-slate-500">{item.grade} • Req: {item.required}</p>
+                          </td>
+                          <td className="px-6 py-4 text-right font-medium text-slate-700 bg-slate-50/50">{item.issued}</td>
+                          <td className="px-6 py-4 text-right font-medium text-slate-700 bg-slate-50/50">{item.received}</td>
+                          <td className="px-6 py-4 text-right font-medium text-amber-700 bg-amber-50/30">{item.consumed}</td>
+                          <td className="px-6 py-4 text-right font-medium text-indigo-600 bg-indigo-50/30">
+                            {item.returned}
+                            {item.pendingReturned > 0 && (
+                              <span className="block text-xs text-indigo-400">+{item.pendingReturned} pending</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-right font-bold text-indigo-700 bg-indigo-50/50">{item.wip}</td>
+                          <td className="px-6 py-4 text-right font-bold text-red-600 bg-red-50/30">{item.unaccounted}</td>
+                          <td className="px-6 py-4 text-center">
+                            <button
+                              onClick={() => {
+                                setConsumeItemId(item.rmItemId);
+                                setConsumeQty('');
+                                setConsumeRemarks('');
+                                setActiveAction('CONSUME');
+                              }}
+                              disabled={item.wip <= 0}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              <Scissors className="w-3.5 h-3.5" />
+                              Consume
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {accounting.items.length === 0 && (
+                        <tr>
+                          <td colSpan={8} className="px-6 py-8 text-center text-slate-500">
+                            No materials mapped for this SC yet.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
