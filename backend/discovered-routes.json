@@ -276,8 +276,16 @@
     "path": "/api/inventory/:id/transactions"
   },
   {
+    "method": "POST",
+    "path": "/api/inventory/adjustment"
+  },
+  {
     "method": "GET",
     "path": "/api/inventory/balances"
+  },
+  {
+    "method": "POST",
+    "path": "/api/inventory/grn"
   },
   {
     "method": "GET",
@@ -318,6 +326,18 @@
   {
     "method": "GET",
     "path": "/api/inventory/reconciliation/workflow"
+  },
+  {
+    "method": "POST",
+    "path": "/api/inventory/stock-in"
+  },
+  {
+    "method": "POST",
+    "path": "/api/inventory/stock-out"
+  },
+  {
+    "method": "GET",
+    "path": "/api/inventory/transactions"
   },
   {
     "method": "GET",
@@ -437,6 +457,46 @@
   },
   {
     "method": "GET",
+    "path": "/api/product-categories"
+  },
+  {
+    "method": "POST",
+    "path": "/api/product-categories"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/product-categories/:id"
+  },
+  {
+    "method": "GET",
+    "path": "/api/product-categories/:id"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/product-categories/:id"
+  },
+  {
+    "method": "GET",
+    "path": "/api/product-families"
+  },
+  {
+    "method": "POST",
+    "path": "/api/product-families"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/product-families/:id"
+  },
+  {
+    "method": "GET",
+    "path": "/api/product-families/:id"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/product-families/:id"
+  },
+  {
+    "method": "GET",
     "path": "/api/production-processes"
   },
   {
@@ -494,6 +554,10 @@
   {
     "method": "POST",
     "path": "/api/production/return/:id/verify"
+  },
+  {
+    "method": "GET",
+    "path": "/api/production/returns"
   },
   {
     "method": "GET",
@@ -602,6 +666,10 @@
   {
     "method": "POST",
     "path": "/api/rm/po/:poId/submit"
+  },
+  {
+    "method": "GET",
+    "path": "/api/rm/stores/queue"
   },
   {
     "method": "GET",
@@ -741,7 +809,15 @@
   },
   {
     "method": "PATCH",
+    "path": "/api/users/:id/active"
+  },
+  {
+    "method": "PATCH",
     "path": "/api/users/:id/deactivate"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/users/:id/role"
   },
   {
     "method": "GET",
@@ -838,5 +914,61 @@
   {
     "method": "PATCH",
     "path": "/api/warehouses/:id"
+  },
+  {
+    "method": "GET",
+    "path": "/categories"
+  },
+  {
+    "method": "POST",
+    "path": "/categories"
+  },
+  {
+    "method": "DELETE",
+    "path": "/categories/:id"
+  },
+  {
+    "method": "GET",
+    "path": "/categories/:id"
+  },
+  {
+    "method": "PATCH",
+    "path": "/categories/:id"
+  },
+  {
+    "method": "GET",
+    "path": "/families"
+  },
+  {
+    "method": "POST",
+    "path": "/families"
+  },
+  {
+    "method": "DELETE",
+    "path": "/families/:id"
+  },
+  {
+    "method": "GET",
+    "path": "/families/:id"
+  },
+  {
+    "method": "PATCH",
+    "path": "/families/:id"
+  },
+  {
+    "method": "GET",
+    "path": "/products"
+  },
+  {
+    "method": "POST",
+    "path": "/products"
+  },
+  {
+    "method": "GET",
+    "path": "/products/:id"
+  },
+  {
+    "method": "PATCH",
+    "path": "/products/:id"
   }
 ]

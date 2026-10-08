@@ -1,326 +1,487 @@
 # Live API & Email Verification Report
-*Generated At: 2026-10-07T09:03:57.154Z*
+*Generated At: 2026-10-08T06:55:08.117Z*
 
 ## 1. REST API Smoke & Functional Tests
-- **Vendors Fetch** (`GET /api/vendors`): Status 200 [267ms] - PASS
-- **Production Processes Fetch** (`GET /api/production-processes`): Status 200 [245ms] - PASS
-- **Process Outward Analytics** (`GET /api/traceability/analytics/process-outward`): Status 200 [706ms] - PASS
-- **Vendor Performance Analytics** (`GET /api/traceability/vendors/performance-analytics`): Status 200 [710ms] - PASS
+- **Vendors Fetch** (`GET /api/vendors`): Status 200 [294ms] - PASS
+- **Production Processes Fetch** (`GET /api/production-processes`): Status 200 [254ms] - PASS
+- **Process Outward Analytics** (`GET /api/traceability/analytics/process-outward`): Status 200 [497ms] - PASS
+- **Vendor Performance Analytics** (`GET /api/traceability/vendors/performance-analytics`): Status 200 [742ms] - PASS
 
 ## 2. Email Queue & Notification Pipeline Audit
-- **Create DC Type 2** (`POST /api/delivery-challans/type-2`): Status 201 [4008ms] - PASS
-- **Emails Generated During Run:** 21
-- **In-App Notifications Generated:** 68
+- **Create DC Type 2** (`POST /api/delivery-challans/type-2`): Status 201 [4005ms] - PASS
+- **Emails Generated During Run:** 46
+- **In-App Notifications Generated:** 80
 
 ### Sample Email Templates Validated
-- **Event Type:** `RM_SUBMITTED`
-  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-INACT-1
-  - **Recipient:** stores.169@test.com
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** vpc_e2e_1791442507490_stores@example.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `DC_CLOSED`
-  - **Subject:** [RMRIT] Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** stores_p145@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** admin.19.5.1791442500887@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
   - **Recipient:** admin2@example.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
 - **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791363843077
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
   - **Recipient:** admin_iso@example.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `RM_SUBMITTED`
-  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-INACT-1
-  - **Recipient:** stores.19.5.1791363825731@test.com
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** admin@example.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
 - **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791363843077
-  - **Recipient:** stores.167@test.com
-  - **Status:** PENDING
-  - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `MSL_OUT_OF_STOCK`
-  - **Subject:** [RMRIT Alert] CRITICAL: OUT OF STOCK: Prod-Out-msl_e2e_1791363804434
-  - **Recipient:** p20_1_1791363796978@rmrit.com
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** admin_auth@example.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
 - **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791363843077
-  - **Recipient:** admin2@example.com
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** stores.1791442301646@example.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `RM_SUBMITTED`
-  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-INACT-1
-  - **Recipient:** p20_5_1791363809497@rmrit.com
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** admin2@attach.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `MSL_OUT_OF_STOCK`
-  - **Subject:** [RMRIT Alert] CRITICAL: OUT OF STOCK: Prod-Out-msl_e2e_1791363804434
-  - **Recipient:** p20_4_1791363700696@rmrit.com
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** user1@test.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `RM_SUBMITTED`
-  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-INACT-1
-  - **Recipient:** p20_2_1791363768990@rmrit.com
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** p20_6_1791442504820@rmrit.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `MSL_OUT_OF_STOCK`
-  - **Subject:** [RMRIT Alert] CRITICAL: OUT OF STOCK: Prod-Out-msl_e2e_1791363804434
-  - **Recipient:** msl_e2e_1791363804434_stores@example.com
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** user2@test.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `RM_SUBMITTED`
-  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-INACT-1
-  - **Recipient:** p20_3_1791363757604@rmrit.com
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** p20_5_1791442496155@rmrit.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `MSL_OUT_OF_STOCK`
-  - **Subject:** [RMRIT Alert] CRITICAL: OUT OF STOCK: Prod-Out-msl_e2e_1791363804434
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** vpc_e2e_1791442507490_admin@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** stores.19.9.1844cbc9-73dc-49e0-8a10-fe19331efd40@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** admin_lifecycle@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** p20_1_1791442466556@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
   - **Recipient:** stores_iso@example.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `RM_SUBMITTED`
-  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-INACT-1
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** f13_1791442513629_admin@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
   - **Recipient:** stores_audit@example.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `MSL_OUT_OF_STOCK`
-  - **Subject:** [RMRIT Alert] CRITICAL: OUT OF STOCK: Prod-Out-msl_e2e_1791363804434
-  - **Recipient:** stores_rem@test.com
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** stores.19.5.1791442500887@test.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `RM_SUBMITTED`
-  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-INACT-1
-  - **Recipient:** p20_1_1791363796978@rmrit.com
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** admin_audit@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** stores_auth@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** user3@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** p20_3_1791442419200@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** p20_2_1791442446868@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791442514059
+  - **Recipient:** p20_4_1791442377949@rmrit.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
 - **Event Type:** `DC_PARTIALLY_RETURNED`
-  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791363825731
+  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791442500887
+  - **Recipient:** vpc_e2e_1791442507490_stores@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_PARTIALLY_RETURNED`
+  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791442500887
+  - **Recipient:** admin-live-1791442508613@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_PARTIALLY_RETURNED`
+  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791442500887
+  - **Recipient:** admin.19.5.1791442500887@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_PARTIALLY_RETURNED`
+  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791442500887
+  - **Recipient:** admin2@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_PARTIALLY_RETURNED`
+  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791442500887
+  - **Recipient:** admin@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_PARTIALLY_RETURNED`
+  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791442500887
+  - **Recipient:** stores_p145@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_PARTIALLY_RETURNED`
+  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791442500887
+  - **Recipient:** admin_lifecycle@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_PARTIALLY_RETURNED`
+  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791442500887
+  - **Recipient:** p20_5_1791442496155@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_PARTIALLY_RETURNED`
+  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791442500887
+  - **Recipient:** p20_1_1791442466556@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_PARTIALLY_RETURNED`
+  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791442500887
+  - **Recipient:** stores.19.9.1844cbc9-73dc-49e0-8a10-fe19331efd40@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_PARTIALLY_RETURNED`
+  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791442500887
+  - **Recipient:** admin_auth@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_PARTIALLY_RETURNED`
+  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791442500887
+  - **Recipient:** stores_iso@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_PARTIALLY_RETURNED`
+  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791442500887
+  - **Recipient:** p20_2_1791442446868@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_PARTIALLY_RETURNED`
+  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791442500887
+  - **Recipient:** admin2@attach.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_PARTIALLY_RETURNED`
+  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791442500887
+  - **Recipient:** user1@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_PARTIALLY_RETURNED`
+  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791442500887
+  - **Recipient:** stores.1791442301646@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_PARTIALLY_RETURNED`
+  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791442500887
+  - **Recipient:** vpc_e2e_1791442507490_admin@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_PARTIALLY_RETURNED`
+  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791442500887
   - **Recipient:** admin_iso@example.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `MSL_OUT_OF_STOCK`
-  - **Subject:** [RMRIT Alert] CRITICAL: OUT OF STOCK: Prod-Out-msl_e2e_1791363804434
-  - **Recipient:** stores.167@test.com
-  - **Status:** PENDING
-  - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `RM_SUBMITTED`
-  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-INACT-1
-  - **Recipient:** p20_4_1791363700696@rmrit.com
-  - **Status:** PENDING
-  - **Template Integrity Check:** PASS (Variables resolved)
 - **Event Type:** `DC_PARTIALLY_RETURNED`
-  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791363825731
-  - **Recipient:** stores.167@test.com
+  - **Subject:** [RMRIT] Partial Return Received: Challan DC-PART-1791442500887
+  - **Recipient:** stores_audit@example.com
   - **Status:** PENDING
-  - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `RM_SUBMITTED`
-  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-INACT-1
-  - **Recipient:** msl_e2e_1791363804434_stores@example.com
-  - **Status:** PROCESSING
   - **Template Integrity Check:** PASS (Variables resolved)
 
 ### Sample In-App Notifications Validated
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Closed: DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f
-  - **Message:** Delivery Challan DC-19-6-0e67ec6b-7530-4544-a06e-e2f33a56e56f has been administratively closed.
-  - **Target Entity:** DELIVERY_CHALLAN (a89a13d5-ba1b-4d0b-82e5-b3db34782cd6)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** Delivery Challan Created: DC-1791363843077
-  - **Message:** A new Delivery Challan DC-1791363843077 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (b5ca76a9-8f20-4a94-84ab-70fe6c515558)
-- **Title:** OUT OF STOCK: Prod-Out-msl_e2e_1791363804434
-  - **Message:** Product Prod-Out-msl_e2e_1791363804434 is completely OUT OF STOCK (0 / 50). Immediate replenishment required.
-  - **Target Entity:** PRODUCT (4dc13e96-b375-4d3b-9a27-51d5fe3eacca)
-- **Title:** OUT OF STOCK: Prod-Out-msl_e2e_1791363804434
-  - **Message:** Product Prod-Out-msl_e2e_1791363804434 is completely OUT OF STOCK (0 / 50). Immediate replenishment required.
-  - **Target Entity:** PRODUCT (4dc13e96-b375-4d3b-9a27-51d5fe3eacca)
-- **Title:** OUT OF STOCK: Prod-Out-msl_e2e_1791363804434
-  - **Message:** Product Prod-Out-msl_e2e_1791363804434 is completely OUT OF STOCK (0 / 50). Immediate replenishment required.
-  - **Target Entity:** PRODUCT (4dc13e96-b375-4d3b-9a27-51d5fe3eacca)
-- **Title:** OUT OF STOCK: Prod-Out-msl_e2e_1791363804434
-  - **Message:** Product Prod-Out-msl_e2e_1791363804434 is completely OUT OF STOCK (0 / 50). Immediate replenishment required.
-  - **Target Entity:** PRODUCT (4dc13e96-b375-4d3b-9a27-51d5fe3eacca)
-- **Title:** OUT OF STOCK: Prod-Out-msl_e2e_1791363804434
-  - **Message:** Product Prod-Out-msl_e2e_1791363804434 is completely OUT OF STOCK (0 / 50). Immediate replenishment required.
-  - **Target Entity:** PRODUCT (4dc13e96-b375-4d3b-9a27-51d5fe3eacca)
-- **Title:** OUT OF STOCK: Prod-Out-msl_e2e_1791363804434
-  - **Message:** Product Prod-Out-msl_e2e_1791363804434 is completely OUT OF STOCK (0 / 50). Immediate replenishment required.
-  - **Target Entity:** PRODUCT (4dc13e96-b375-4d3b-9a27-51d5fe3eacca)
-- **Title:** OUT OF STOCK: Prod-Out-msl_e2e_1791363804434
-  - **Message:** Product Prod-Out-msl_e2e_1791363804434 is completely OUT OF STOCK (0 / 50). Immediate replenishment required.
-  - **Target Entity:** PRODUCT (4dc13e96-b375-4d3b-9a27-51d5fe3eacca)
-- **Title:** OUT OF STOCK: Prod-Out-msl_e2e_1791363804434
-  - **Message:** Product Prod-Out-msl_e2e_1791363804434 is completely OUT OF STOCK (0 / 50). Immediate replenishment required.
-  - **Target Entity:** PRODUCT (4dc13e96-b375-4d3b-9a27-51d5fe3eacca)
-- **Title:** OUT OF STOCK: Prod-Out-msl_e2e_1791363804434
-  - **Message:** Product Prod-Out-msl_e2e_1791363804434 is completely OUT OF STOCK (0 / 50). Immediate replenishment required.
-  - **Target Entity:** PRODUCT (4dc13e96-b375-4d3b-9a27-51d5fe3eacca)
-- **Title:** OUT OF STOCK: Prod-Out-msl_e2e_1791363804434
-  - **Message:** Product Prod-Out-msl_e2e_1791363804434 is completely OUT OF STOCK (0 / 50). Immediate replenishment required.
-  - **Target Entity:** PRODUCT (4dc13e96-b375-4d3b-9a27-51d5fe3eacca)
-- **Title:** OUT OF STOCK: Prod-Out-msl_e2e_1791363804434
-  - **Message:** Product Prod-Out-msl_e2e_1791363804434 is completely OUT OF STOCK (0 / 50). Immediate replenishment required.
-  - **Target Entity:** PRODUCT (4dc13e96-b375-4d3b-9a27-51d5fe3eacca)
-- **Title:** OUT OF STOCK: Prod-Out-msl_e2e_1791363804434
-  - **Message:** Product Prod-Out-msl_e2e_1791363804434 is completely OUT OF STOCK (0 / 50). Immediate replenishment required.
-  - **Target Entity:** PRODUCT (4dc13e96-b375-4d3b-9a27-51d5fe3eacca)
-- **Title:** OUT OF STOCK: Prod-Out-msl_e2e_1791363804434
-  - **Message:** Product Prod-Out-msl_e2e_1791363804434 is completely OUT OF STOCK (0 / 50). Immediate replenishment required.
-  - **Target Entity:** PRODUCT (4dc13e96-b375-4d3b-9a27-51d5fe3eacca)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Challan Fully Returned: DC-FULL-1791442500887
+  - **Message:** All items from Delivery Challan DC-FULL-1791442500887 have been returned.
+  - **Target Entity:** DELIVERY_CHALLAN (ba12aa99-79a9-433c-a585-7cc89d5736b9)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Delivery Challan Created: DC-1791442514059
+  - **Message:** A new Delivery Challan DC-1791442514059 has been created for vendor N/A.
+  - **Target Entity:** DELIVERY_CHALLAN (3eb24d2e-0057-4bd9-ad54-17d5d2a92c51)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** Partial Return Received: Challan DC-PART-1791442500887
+  - **Message:** Partial return received for Delivery Challan DC-PART-1791442500887.
+  - **Target Entity:** DELIVERY_CHALLAN (c058676a-3fe1-486f-83c7-c88e76433c17)
+- **Title:** RM Request Submitted: SC001
+  - **Message:** RM Request SC001 was submitted.
+  - **Target Entity:** RM_REQUEST (3b92e58d-12ca-4bf7-9761-2752359115be)
+- **Title:** RM Request Submitted: SC001
+  - **Message:** RM Request SC001 was submitted.
+  - **Target Entity:** RM_REQUEST (3b92e58d-12ca-4bf7-9761-2752359115be)
+- **Title:** RM Request Submitted: SC001
+  - **Message:** RM Request SC001 was submitted.
+  - **Target Entity:** RM_REQUEST (3b92e58d-12ca-4bf7-9761-2752359115be)
+- **Title:** RM Request Submitted: SC001
+  - **Message:** RM Request SC001 was submitted.
+  - **Target Entity:** RM_REQUEST (3b92e58d-12ca-4bf7-9761-2752359115be)
+- **Title:** RM Request Submitted: SC001
+  - **Message:** RM Request SC001 was submitted.
+  - **Target Entity:** RM_REQUEST (3b92e58d-12ca-4bf7-9761-2752359115be)
+- **Title:** RM Request Submitted: SC001
+  - **Message:** RM Request SC001 was submitted.
+  - **Target Entity:** RM_REQUEST (3b92e58d-12ca-4bf7-9761-2752359115be)
