@@ -1,30 +1,50 @@
 import { useState } from 'react';
 import { FileText, Download, Calendar } from 'lucide-react';
-import { reportApi } from '../services/api';
+import { api } from '../services/api';
 
 export function ReportGeneratorWorkspace() {
-  const [reportType, setReportType] = useState('process_summary');
+  const [reportType, setReportType] = useState('process-wise');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const handleExport = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setLoading(true);
     
     try {
-      const response = await reportApi.exportReport(reportType, startDate, endDate);
+      // In this Phase 8.2 implementation, the backend returns raw JSON.
+      // We are ignoring dates for now since the backend endpoints get all data.
+      const response = await api.get<any[]>(`/api/reports/${reportType}`);
+      
+      if (!Array.isArray(response) || response.length === 0) {
+        setError('No data found for this report type.');
+        setLoading(false);
+        return;
+      }
+
+      // Convert JSON array to CSV string
+      const headers = Object.keys(response[0]).join(',');
+      const rows = response.map((row: any) => 
+        Object.values(row).map(val => `"${val}"`).join(',')
+      );
+      const csvContent = [headers, ...rows].join('\n');
       
       // Handle file download
-      const url = window.URL.createObjectURL(response);
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `${reportType}_${startDate}_to_${endDate}.csv`);
+      link.setAttribute('download', `${reportType}_export.csv`);
       document.body.appendChild(link);
       link.click();
       link.remove();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to generate report. Please try again.');
+      setError(err.response?.data?.message || 'Failed to generate report. You might lack permissions.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -58,21 +78,20 @@ export function ReportGeneratorWorkspace() {
                 onChange={(e) => setReportType(e.target.value)}
                 className="w-full h-10 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white shadow-sm"
               >
-                <option value="process_summary">Process-wise Summary</option>
-                <option value="item_ledger">Item-wise Ledger</option>
-                <option value="rm_consumption">RM Consumption Analysis</option>
+                <option value="process-wise">Process-wise Summary</option>
+                <option value="item-wise">Item-wise Ledger</option>
+                <option value="rm-consumption">RM Consumption Analysis</option>
               </select>
             </div>
 
-            {/* Date Range */}
+            {/* Date Range (visual only for now, can be wired up backend later if needed) */}
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Start Date</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Start Date (Optional)</label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input 
                     type="date"
-                    required
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
                     className="w-full h-10 pl-10 pr-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white shadow-sm"
@@ -81,12 +100,11 @@ export function ReportGeneratorWorkspace() {
               </div>
               
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">End Date</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">End Date (Optional)</label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input 
                     type="date"
-                    required
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
                     min={startDate}
@@ -102,17 +120,14 @@ export function ReportGeneratorWorkspace() {
               </div>
             )}
             
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-sm font-medium text-amber-600 bg-amber-50 px-3 py-1 rounded-md border border-amber-200">
-                Reporting module coming soon
-              </span>
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-end">
               <button 
-                type="button"
-                disabled={true}
-                className="inline-flex items-center gap-2 px-6 h-10 bg-slate-200 text-slate-400 text-sm font-semibold rounded-lg cursor-not-allowed shadow-none"
+                type="submit"
+                disabled={loading}
+                className="inline-flex items-center gap-2 px-6 h-10 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-colors shadow-sm disabled:opacity-50"
               >
                 <Download className="w-4 h-4" />
-                Generate & Export
+                {loading ? 'Generating...' : 'Generate & Export CSV'}
               </button>
             </div>
           </div>

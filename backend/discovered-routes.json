@@ -125,6 +125,22 @@
   },
   {
     "method": "GET",
+    "path": "/api/dashboards/designer"
+  },
+  {
+    "method": "GET",
+    "path": "/api/dashboards/management"
+  },
+  {
+    "method": "GET",
+    "path": "/api/dashboards/production"
+  },
+  {
+    "method": "GET",
+    "path": "/api/dashboards/stores"
+  },
+  {
+    "method": "GET",
     "path": "/api/delivery-challans"
   },
   {

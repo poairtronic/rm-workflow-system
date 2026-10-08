@@ -31,6 +31,8 @@ import { ProductionProcessModule } from './production-process/production-process
 import { VendorModule } from './vendor/vendor.module.js';
 import { DeliveryChallanModule } from './delivery-challan/delivery-challan.module.js';
 import { TraceabilityModule } from './traceability/traceability.module.js';
+import { DashboardsModule } from './dashboards/dashboards.module.js';
+import { ReportsModule } from './reports/reports.module.js';
 
 @Module({
   imports: [
@@ -89,6 +91,8 @@ import { TraceabilityModule } from './traceability/traceability.module.js';
     VendorModule,
     DeliveryChallanModule,
     TraceabilityModule,
+    DashboardsModule,
+    ReportsModule,
   ],
 
   controllers: [AppController],
