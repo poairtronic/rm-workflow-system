@@ -62,33 +62,28 @@ const SAMPLE_PRODUCTS = [
 ];
 
 const SAMPLE_VENDORS = [
-  {
-    code: 'VND-SMP-HT',
-    name: 'Sample Precision Heat Treaters Pvt Ltd',
-    category: 'HEAT_TREATMENT',
-    contactPerson: 'K. R. Verma',
-    email: 'info@sample-heattreat.com',
-    phone: '+91-80-28390001',
-    address: 'Plot 12, Peenya Industrial Area Phase 1, Bangalore',
-  },
-  {
-    code: 'VND-SMP-CNC',
-    name: 'Sample Aero Machining & CNC Works',
-    category: 'MACHINING',
-    contactPerson: 'Sunil Patil',
-    email: 'contracts@sample-aerocnc.com',
-    phone: '+91-80-28390002',
-    address: 'Plot 45, Peenya Industrial Area Phase 2, Bangalore',
-  },
-  {
-    code: 'VND-SMP-PLT',
-    name: 'Sample Advanced Surface Electroplaters',
-    category: 'SURFACE_TREATMENT',
-    contactPerson: 'David Joseph',
-    email: 'operations@sample-electroplate.com',
-    phone: '+91-80-28390003',
-    address: 'Plot 88, Bommasandra Industrial Area, Bangalore',
-  },
+  { code: 'V1', name: 'Abi', category: 'General' },
+  { code: 'V2', name: 'RK Engg', category: 'Machining' },
+  { code: 'V3', name: 'Shiva Shakthi', category: 'Machining' },
+  { code: 'V4', name: 'Fine Turn', category: 'Machining' },
+  { code: 'V6', name: 'NVCNC', category: 'Machining' },
+  { code: 'V7', name: 'Micro Mac', category: 'Machining' },
+  { code: 'V8', name: 'Skyline', category: 'Engineering' },
+  { code: 'V10', name: 'Std Engg', category: 'Engineering' },
+  { code: 'V11', name: 'Flame Tech / HTV', category: 'Heat Treatment' },
+  { code: 'V12', name: 'Mech Tools', category: 'Tooling' },
+  { code: 'V13', name: 'VS Engg', category: 'Engineering' },
+  { code: 'V14', name: 'RKV Metal', category: 'Fabrication' },
+  { code: 'V15', name: 'Metal Form', category: 'Fabrication' },
+  { code: 'V16', name: 'Export', category: 'General' },
+  { code: 'V17', name: 'Sivam', category: 'General' },
+  { code: 'V18', name: 'JMC / Pre Tooling', category: 'Tooling' },
+  { code: 'V19', name: 'PS Coating', category: 'Surface Coating' },
+  { code: 'V24', name: 'Nisha Tools', category: 'Tooling' },
+  { code: 'V26', name: 'GA Tools', category: 'Tooling' },
+  { code: 'V27', name: 'JV Tools', category: 'Tooling' },
+  { code: 'V35', name: 'GSM', category: 'General' },
+  { code: 'V38', name: 'SMV Engg', category: 'Engineering' },
 ];
 
 const SAMPLE_PROCESSES = [
@@ -340,9 +335,9 @@ async function seed() {
 
     // 9. Vendor Process Capabilities and SLAs
     const pairings = [
-      { vendorCode: 'VND-SMP-HT', processCode: 'PRC-SMP-HT', slaDays: 5, leadDays: 4 },
-      { vendorCode: 'VND-SMP-CNC', processCode: 'PRC-SMP-CNC', slaDays: 5, leadDays: 5 },
-      { vendorCode: 'VND-SMP-PLT', processCode: 'PRC-SMP-PLT', slaDays: 7, leadDays: 6 },
+      { vendorCode: 'V11', processCode: 'PRC-SMP-HT', slaDays: 5, leadDays: 4 },
+      { vendorCode: 'V2', processCode: 'PRC-SMP-CNC', slaDays: 5, leadDays: 5 },
+      { vendorCode: 'V19', processCode: 'PRC-SMP-PLT', slaDays: 7, leadDays: 6 },
     ];
 
     for (const p of pairings) {

@@ -3,11 +3,13 @@ import { PackageSearch, FileText, PackagePlus, AlertCircle } from 'lucide-react'
 import { PageHeader } from '../components/ui/PageHeader';
 import { workflowService } from '../services/workflowService';
 import { IssueMaterialModal } from '../components/modals/IssueMaterialModal';
+import { ReviewMappingWorkspace } from './ReviewMappingWorkspace';
 
 interface DraftItem {
   poId: string;
   poNumber: string;
   scs: {
+    rmId?: string;
     scId: string;
     scNumber: string;
     productName: string;
@@ -27,6 +29,15 @@ export function StoresRmIssueWorkspace() {
 
   // Active issue selection
   const [selectedScForIssue, setSelectedScForIssue] = useState<{ id: string; num: string } | null>(null);
+
+  // Active review mapping selection
+  const [selectedScForReview, setSelectedScForReview] = useState<{
+    scId: string;
+    scNumber: string;
+    poNumber: string;
+    productName: string;
+    rmId?: string;
+  } | null>(null);
 
   useEffect(() => {
     loadQueue();
@@ -70,6 +81,29 @@ export function StoresRmIssueWorkspace() {
   };
 
   const selectedPo = queues.find((q) => q.poId === selectedPoId);
+
+  if (selectedScForReview) {
+    return (
+      <ReviewMappingWorkspace
+        scId={selectedScForReview.scId}
+        scNumber={selectedScForReview.scNumber}
+        poNumber={selectedScForReview.poNumber}
+        productName={selectedScForReview.productName}
+        rmId={selectedScForReview.rmId}
+        onBack={() => {
+          setSelectedScForReview(null);
+          loadQueue();
+        }}
+        onSuccess={() => {
+          loadQueue();
+        }}
+        onProceedToIssue={(scId, scNumber) => {
+          setSelectedScForReview(null);
+          setSelectedScForIssue({ id: scId, num: scNumber });
+        }}
+      />
+    );
+  }
 
   if (selectedScForIssue) {
     return (
@@ -174,18 +208,43 @@ export function StoresRmIssueWorkspace() {
                       
                       <div className="flex justify-end space-x-3 border-t border-slate-100 pt-4">
                         {sc.status === 'SUBMITTED' ? (
-                          <button className="flex items-center space-x-2 px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-medium rounded-lg transition-colors">
+                          <button 
+                            onClick={() => setSelectedScForReview({
+                              scId: sc.scId,
+                              scNumber: sc.scNumber,
+                              poNumber: selectedPo.poNumber,
+                              productName: sc.productName,
+                              rmId: sc.rmId,
+                            })}
+                            className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-medium rounded-lg transition-colors shadow-sm cursor-pointer"
+                          >
                             <FileText className="w-4 h-4" />
                             <span>Review Mapping</span>
                           </button>
                         ) : (
-                          <button 
-                            onClick={() => handleOpenIssueModal(sc.scId, sc.scNumber)}
-                            className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-medium rounded-lg transition-colors shadow-sm"
-                          >
-                            <PackagePlus className="w-4 h-4" />
-                            <span>Issue Material</span>
-                          </button>
+                          <div className="flex items-center space-x-3">
+                            <button
+                              onClick={() => setSelectedScForReview({
+                                scId: sc.scId,
+                                scNumber: sc.scNumber,
+                                poNumber: selectedPo.poNumber,
+                                productName: sc.productName,
+                                rmId: sc.rmId,
+                              })}
+                              className="flex items-center space-x-1.5 px-3 py-2 text-sm text-slate-600 hover:text-slate-800 hover:bg-slate-100 font-medium rounded-lg transition-colors cursor-pointer"
+                              title="View or modify inventory mapping"
+                            >
+                              <FileText className="w-4 h-4" />
+                              <span>View Mapping</span>
+                            </button>
+                            <button 
+                              onClick={() => handleOpenIssueModal(sc.scId, sc.scNumber)}
+                              className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-medium rounded-lg transition-colors shadow-sm cursor-pointer"
+                            >
+                              <PackagePlus className="w-4 h-4" />
+                              <span>Issue Material</span>
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>

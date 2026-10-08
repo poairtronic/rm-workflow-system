@@ -76,13 +76,22 @@ export function VendorMasterWorkspace() {
 
   // Filtered Vendors
   const filteredVendors = useMemo(() => {
-    return vendors.filter((v) => {
+    const list = vendors.filter((v) => {
       if (selectedCategory !== 'ALL' && v.category !== selectedCategory) {
         return false;
       }
       if (selectedStatus === 'ACTIVE' && !v.isActive) return false;
       if (selectedStatus === 'INACTIVE' && v.isActive) return false;
       return true;
+    });
+
+    return list.sort((a, b) => {
+      const numA = parseInt(a.code.replace(/\D/g, ''), 10);
+      const numB = parseInt(b.code.replace(/\D/g, ''), 10);
+      if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+        return numA - numB;
+      }
+      return a.code.localeCompare(b.code);
     });
   }, [vendors, selectedCategory, selectedStatus]);
 

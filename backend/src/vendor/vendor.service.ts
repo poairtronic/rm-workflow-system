@@ -81,8 +81,15 @@ export class VendorService {
       );
     }
 
-    query.orderBy('vendor.name', 'ASC');
-    return query.getMany();
+    const vendors = await query.getMany();
+    return vendors.sort((a, b) => {
+      const numA = parseInt(a.code.replace(/\D/g, ''), 10);
+      const numB = parseInt(b.code.replace(/\D/g, ''), 10);
+      if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+        return numA - numB;
+      }
+      return a.code.localeCompare(b.code);
+    });
   }
 
   /**

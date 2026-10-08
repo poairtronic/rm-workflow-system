@@ -32,12 +32,22 @@ export function VendorSelect({ value, onChange, error, className, disabled, plac
     fetchVendors();
   }, [fetchVendors]);
 
-  const options = vendors.map((v) => ({
-    id: v.id,
-    primary: v.name,
-    secondary: v.code,
-    data: v,
-  }));
+  const options = vendors
+    .slice()
+    .sort((a, b) => {
+      const numA = parseInt(a.code.replace(/\D/g, ''), 10);
+      const numB = parseInt(b.code.replace(/\D/g, ''), 10);
+      if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+        return numA - numB;
+      }
+      return a.code.localeCompare(b.code);
+    })
+    .map((v) => ({
+      id: v.id,
+      primary: `${v.code} – ${v.name}`,
+      secondary: v.category || undefined,
+      data: v,
+    }));
 
   return (
     <SearchSelect

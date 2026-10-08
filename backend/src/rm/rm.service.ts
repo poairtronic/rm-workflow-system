@@ -792,6 +792,7 @@ export class RmService {
       const group = grouped.get(po.id);
       
       group.scs.push({
+        rmId: req.id,
         scId: req.salesOrderComponent!.id,
         scNumber: req.salesOrderComponent!.scNumber,
         productName: req.salesOrderComponent!.productName,
