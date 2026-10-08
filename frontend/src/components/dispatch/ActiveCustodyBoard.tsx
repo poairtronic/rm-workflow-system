@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import type { DeliveryChallanDto } from '../../types/delivery-challan.dto';
 
@@ -7,8 +8,14 @@ interface ActiveCustodyBoardProps {
 }
 
 export function ActiveCustodyBoard({ challans, onSelect }: ActiveCustodyBoardProps) {
-  // Filter only active challans (not CLOSED)
-  const activeChallans = challans.filter(dc => dc.status !== 'CLOSED' && dc.status !== 'DRAFT');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'DISPATCHED' | 'PARTIALLY_RETURNED'>('ALL');
+
+  // Filter based on selected status (excluding CLOSED and DRAFT)
+  const activeChallans = challans.filter(dc => {
+    if (dc.status === 'CLOSED' || dc.status === 'DRAFT') return false;
+    if (statusFilter !== 'ALL' && dc.status !== statusFilter) return false;
+    return true;
+  });
 
   const getSlaStatus = (expectedReturnDate?: string) => {
     if (!expectedReturnDate) return { label: 'No SLA', color: 'bg-slate-100 text-slate-700', icon: Clock };
@@ -35,7 +42,12 @@ export function ActiveCustodyBoard({ challans, onSelect }: ActiveCustodyBoardPro
       <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
         <div>
           <h2 className="text-[15px] font-semibold text-slate-900 uppercase tracking-wide">Active Custody Board</h2>
-          <p className="text-xs text-slate-500 mt-1">Monitor SLA status for open outbound materials</p>
+          <div className="flex gap-2 mt-2">
+            <button onClick={() => setStatusFilter('ALL')} className={`px-2 py-1 text-xs font-medium rounded ${statusFilter === 'ALL' ? 'bg-primary text-white' : 'bg-slate-200 text-slate-700'}`}>All</button>
+            <button onClick={() => setStatusFilter('OPEN')} className={`px-2 py-1 text-xs font-medium rounded ${statusFilter === 'OPEN' ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-700'}`}>Open</button>
+            <button onClick={() => setStatusFilter('DISPATCHED')} className={`px-2 py-1 text-xs font-medium rounded ${statusFilter === 'DISPATCHED' ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700'}`}>Dispatched</button>
+            <button onClick={() => setStatusFilter('PARTIALLY_RETURNED')} className={`px-2 py-1 text-xs font-medium rounded ${statusFilter === 'PARTIALLY_RETURNED' ? 'bg-amber-600 text-white' : 'bg-amber-100 text-amber-700'}`}>Partial Return</button>
+          </div>
         </div>
         <div className="flex gap-4 text-xs font-medium">
           <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-600"></div>On Track</span>
@@ -65,7 +77,7 @@ export function ActiveCustodyBoard({ challans, onSelect }: ActiveCustodyBoardPro
                   <td className="px-6 py-2 font-medium text-slate-900">{dc.dcNumber}</td>
                   <td className="px-6 py-2 text-slate-600">{(dc as any).vendor?.name || dc.vendorName || dc.destinationEntity || dc.vendorId || 'N/A'}</td>
                   <td className="px-6 py-2 tabular-nums text-slate-600">
-                    {dc.issueDate ? new Date(dc.issueDate).toLocaleDateString() : 'N/A'}
+                    {dc.dispatchDate ? new Date(dc.dispatchDate).toLocaleDateString() : 'N/A'}
                   </td>
                   <td className="px-6 py-2 tabular-nums text-slate-600">
                     {dc.expectedReturnDate ? new Date(dc.expectedReturnDate).toLocaleDateString() : 'N/A'}

@@ -20,7 +20,7 @@ import { OverviewPage } from './pages/OverviewPage';
 import { StoresRmIssueWorkspace } from './pages/StoresRmIssueWorkspace';
 import { StoresExtraRequestsWorkspace } from './pages/StoresExtraRequestsWorkspace';
 import { StoresReturnVerifyWorkspace } from './pages/StoresReturnVerifyWorkspace';
-import { ComingSoon } from './components/ui/ComingSoon';
+import { SupplierInwardWorkspace } from './pages/SupplierInwardWorkspace';
 import { WarehousesAndBinsWorkspace } from './pages/WarehousesAndBinsWorkspace';
 import { UserMasterWorkspace } from './pages/UserMasterWorkspace';
 import { VendorMasterWorkspace } from './pages/VendorMasterWorkspace';
@@ -51,7 +51,7 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   { name: 'Return Verify', path: '/stores/return-verify', icon: PackageCheck, roles: ['STORES', 'ADMIN'], component: StoresReturnVerifyWorkspace, isSidebar: true, group: 'RM WORKFLOW' },
   
   { name: 'Stock Overview', path: '/inventory/stock', icon: Box, roles: ['STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'DESIGNER'], component: InventoryStockWorkspace, isSidebar: true, group: 'INVENTORY' },
-  { name: 'Stock In/Out', path: '/inventory/movements', icon: PackageSearch, roles: ['STORES', 'ADMIN'], component: () => <ComingSoon title="Stock In/Out" />, isSidebar: true, group: 'INVENTORY' },
+  { name: 'Supplier Inward (GRN)', path: '/inventory/grn', icon: PackageSearch, roles: ['STORES', 'ADMIN'], component: SupplierInwardWorkspace, isSidebar: true, group: 'INVENTORY' },
   { name: 'MSL Alerts', path: '/inventory/msl-alerts', icon: BellRing, roles: ['STORES', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: MslAlertsWorkspace, isSidebar: true, group: 'INVENTORY' },
   
   { name: 'DC Type 1 (Raw)', path: '/dispatch/delivery-challan/type-1', icon: Box, roles: ['STORES', 'ADMIN'], component: Type2DispatchWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN' },

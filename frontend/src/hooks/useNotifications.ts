@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { InAppNotification } from '../types/notification';
 import { NotificationService } from '../services/notification.service';
-import { useAuth } from './useAuth';
+import { useAuth } from '../contexts/AuthContext';
 
 export type NotificationHistoryFilter = 'ALL' | 'UNREAD' | 'READ';
 
