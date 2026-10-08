@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { SearchSelect } from '../ui/SearchSelect';
 import { masterDataService, type Bin } from '../../services/masterDataService';
 
 interface BinSelectProps {
   value?: string;
   onChange: (binId: string, bin?: Bin) => void;
-  error?: boolean;
+  error?: boolean | string;
   className?: string;
   disabled?: boolean;
   placeholder?: string;
@@ -42,14 +42,14 @@ export function BinSelect({ value, onChange, error, className, disabled, placeho
   return (
     <SearchSelect
       value={value}
-      onChange={(id, option) => {
+      onChange={(id) => {
         const bin = bins.find((b) => b.id === id);
         if (bin) onChange(id, bin);
       }}
       options={options}
       onSearch={fetchBins}
       isLoading={isLoading}
-      error={error}
+      error={Boolean(error)}
       className={className}
       disabled={disabled}
       placeholder={placeholder}

@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { SearchSelect } from '../ui/SearchSelect';
 import { masterDataService, type Product } from '../../services/masterDataService';
 
 interface ProductSelectProps {
   value?: string;
   onChange: (productId: string, product?: Product) => void;
-  error?: boolean;
+  error?: boolean | string;
   className?: string;
   disabled?: boolean;
   placeholder?: string;
@@ -41,14 +41,14 @@ export function ProductSelect({ value, onChange, error, className, disabled, pla
   return (
     <SearchSelect
       value={value}
-      onChange={(id, option) => {
+      onChange={(id) => {
         const product = products.find((p) => p.id === id);
         if (product) onChange(id, product);
       }}
       options={options}
       onSearch={fetchProducts}
       isLoading={isLoading}
-      error={error}
+      error={Boolean(error)}
       className={className}
       disabled={disabled}
       placeholder={placeholder}

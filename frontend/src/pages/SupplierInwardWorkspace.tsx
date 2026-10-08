@@ -1,8 +1,7 @@
-import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { Download, PackagePlus, AlertCircle } from 'lucide-react';
+import { Download, PackagePlus } from 'lucide-react';
 import { api } from '../services/api';
 import { ProductSelect } from '../components/inventory/ProductSelect';
 import { BinSelect } from '../components/inventory/BinSelect';

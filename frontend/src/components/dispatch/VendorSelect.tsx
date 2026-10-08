@@ -1,12 +1,12 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { SearchSelect } from '../ui/SearchSelect';
 import { vendorMasterApi } from '../../services/vendorMaster.service';
-import { VendorMasterDto } from '../../types/vendor-master.dto';
+import type { VendorMasterDto } from '../../types/vendor-master.dto';
 
 interface VendorSelectProps {
   value?: string;
   onChange: (vendorId: string, vendor?: VendorMasterDto) => void;
-  error?: boolean;
+  error?: boolean | string;
   className?: string;
   disabled?: boolean;
   placeholder?: string;
@@ -42,17 +42,18 @@ export function VendorSelect({ value, onChange, error, className, disabled, plac
   return (
     <SearchSelect
       value={value}
-      onChange={(id, option) => {
+      onChange={(id) => {
         const vendor = vendors.find((v) => v.id === id);
         if (vendor) onChange(id, vendor);
       }}
       options={options}
       onSearch={fetchVendors}
       isLoading={isLoading}
-      error={error}
+      error={Boolean(error)}
       className={className}
       disabled={disabled}
       placeholder={placeholder}
     />
   );
 }
+
