@@ -4,6 +4,7 @@ import { useForm, FormProvider } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { Search, PackageCheck, Loader2, Lock, AlertTriangle, ArrowLeft, X, RotateCcw } from 'lucide-react';
 import { deliveryChallanApi } from '../services/api';
+import { vendorMasterApi } from '../services/vendorMaster.service';
 import type { DeliveryChallanDto } from '../types/delivery-challan.dto';
 import type { ProcessDcReturnDto } from '../types/dc-return.dto';
 import { ActiveCustodyBoard } from '../components/dispatch/ActiveCustodyBoard';
@@ -40,7 +41,48 @@ export function DockReceiptWorkspace() {
     queryFn: () => deliveryChallanApi.getAll(),
   });
 
+  const { data: allVendors = [] } = useQuery({
+    queryKey: ['all-vendors-master'],
+    queryFn: () => vendorMasterApi.getAll({ isActive: true }),
+  });
+
   const vendorOptions = useMemo(() => {
+    const challanCountByVendor = new Map<string, number>();
+    (challans as any[]).forEach((dc) => {
+      const vId = dc.vendor?.id || dc.vendorId;
+      const vName = (dc.vendor?.name || dc.vendorName || dc.vendor?.code || '').toLowerCase();
+      if (vId) {
+        challanCountByVendor.set(vId, (challanCountByVendor.get(vId) || 0) + 1);
+      }
+      if (vName) {
+        challanCountByVendor.set(vName, (challanCountByVendor.get(vName) || 0) + 1);
+      }
+    });
+
+    if (allVendors && allVendors.length > 0) {
+      return (allVendors as any[])
+        .slice()
+        .sort((a, b) => {
+          const numA = parseInt((a.code || '').replace(/\D/g, ''), 10);
+          const numB = parseInt((b.code || '').replace(/\D/g, ''), 10);
+          if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+            return numA - numB;
+          }
+          return (a.name || '').localeCompare(b.name || '');
+        })
+        .map((v) => {
+          const count =
+            challanCountByVendor.get(v.id) ||
+            challanCountByVendor.get((v.name || '').toLowerCase()) ||
+            0;
+          return {
+            id: v.id,
+            label: `${v.code} – ${v.name}`,
+            subtext: count > 0 ? `${count} active DC` : undefined,
+          };
+        });
+    }
+
     const map = new Map<string, { label: string; count: number }>();
     (challans as any[]).forEach((dc) => {
       const vId = dc.vendor?.id || dc.vendorId;
@@ -55,10 +97,10 @@ export function DockReceiptWorkspace() {
       .map(([id, data]) => ({
         id,
         label: data.label,
-        count: data.count,
+        subtext: data.count > 0 ? `${data.count} active DC` : undefined,
       }))
       .sort((a, b) => a.label.localeCompare(b.label));
-  }, [challans]);
+  }, [allVendors, challans]);
 
   const filteredChallans = useMemo(() => {
     return (challans as any[]).filter((dc) => {
@@ -66,9 +108,21 @@ export function DockReceiptWorkspace() {
       if (selectedVendors.length > 0) {
         const vId = dc.vendor?.id || dc.vendorId;
         const vName = (dc.vendor?.name || dc.vendorName || '').toLowerCase();
+        const vCode = (dc.vendor?.code || '').toLowerCase();
         const matchesVendor =
           selectedVendors.includes(vId) ||
-          selectedVendors.some((sv) => vName.includes(sv.toLowerCase()));
+          selectedVendors.some((sv) => {
+            const vendorObj = (allVendors as any[]).find((v) => v.id === sv);
+            if (vendorObj) {
+              return (
+                vId === vendorObj.id ||
+                vName === (vendorObj.name || '').toLowerCase() ||
+                vCode === (vendorObj.code || '').toLowerCase() ||
+                vName.includes((vendorObj.name || '').toLowerCase())
+              );
+            }
+            return vName.includes(sv.toLowerCase());
+          });
         if (!matchesVendor) return false;
       }
 

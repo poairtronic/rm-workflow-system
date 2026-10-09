@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { ClipboardList, ArrowLeft, Send, Loader2 } from 'lucide-react';
 import { deliveryChallanApi, api, unwrapList } from '../../services/api';
+import { masterDataService } from '../../services/masterDataService';
 import { DispatchPayloadGrid } from './DispatchPayloadGrid';
 
 export function Type2DispatchView() {
@@ -15,6 +16,34 @@ export function Type2DispatchView() {
     queryKey: ['vendors'], 
     queryFn: async () => unwrapList(await api.get<any[]>('/api/vendors?isActive=true')) 
   });
+
+  const { data: products } = useQuery({ 
+    queryKey: ['products'], 
+    queryFn: async () => unwrapList(await api.get<any[]>('/api/products?pageSize=1000')) 
+  });
+
+  const { data: allBins = [] } = useQuery({
+    queryKey: ['all-bins-master'],
+    queryFn: async () => {
+      const res = await masterDataService.getBins({ pageSize: 1000, isActive: true });
+      return res.data || [];
+    },
+    staleTime: 60000,
+  });
+
+  const sortedVendorList = useMemo(() => {
+    if (!vendorList) return [];
+    return (vendorList as any[])
+      .slice()
+      .sort((a, b) => {
+        const numA = parseInt((a.code || '').replace(/\D/g, ''), 10);
+        const numB = parseInt((b.code || '').replace(/\D/g, ''), 10);
+        if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+          return numA - numB;
+        }
+        return (a.name || '').localeCompare(b.name || '');
+      });
+  }, [vendorList]);
   
   const methods = useForm<any>({
     defaultValues: {
@@ -30,7 +59,7 @@ export function Type2DispatchView() {
   const items = watch('scBlocks')?.[0]?.items || [];
   const vendorId = watch('vendorId');
   const notes = watch('notes');
-  const selectedVendor = vendorList?.find((v: any) => v.id === vendorId);
+  const selectedVendor = sortedVendorList?.find((v: any) => v.id === vendorId);
 
   const isFormValid = isValid && items.length > 0;
 
@@ -80,7 +109,11 @@ export function Type2DispatchView() {
                     className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                   >
                     <option value="">Select Vendor...</option>
-                    {vendorList?.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                    {sortedVendorList.map((v: any) => (
+                      <option key={v.id} value={v.id}>
+                        {v.code} – {v.name}
+                      </option>
+                    ))}
                   </select>
                   {errors.vendorId && (
                     <p className="mt-1 text-xs text-red-500">{errors.vendorId.message as string}</p>
@@ -169,18 +202,30 @@ export function Type2DispatchView() {
                       <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold uppercase text-slate-600">
                         <tr>
                           <th className="px-4 py-2.5">Material</th>
+                          <th className="px-4 py-2.5">Rack</th>
                           <th className="px-4 py-2.5">Bin</th>
                           <th className="px-4 py-2.5 text-right">Quantity</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {items.map((item: any, idx: number) => (
-                          <tr key={idx} className="hover:bg-slate-50/50">
-                            <td className="px-4 py-2.5 font-medium text-slate-900">{item.materialCode || item.productId || 'Item'}</td>
-                            <td className="px-4 py-2.5 text-slate-600">{item.sourceBinId || '-'}</td>
-                            <td className="px-4 py-2.5 text-right tabular-nums font-semibold">{item.quantity} {item.uom || ''}</td>
-                          </tr>
-                        ))}
+                        {items.map((item: any, idx: number) => {
+                          const prod = (products as any[])?.find((p: any) => p.id === item.productId);
+                          const binObj = (allBins as any[])?.find((b: any) => b.id === item.binId);
+                          const rackName = binObj?.rack?.name || binObj?.rack?.code || '—';
+                          const binCode = binObj?.code || '—';
+                          return (
+                            <tr key={idx} className="hover:bg-slate-50/50">
+                              <td className="px-4 py-2.5 font-medium text-slate-900">
+                                {prod ? `${prod.code} - ${prod.name}` : (item.materialCode || item.productId || 'Item')}
+                              </td>
+                              <td className="px-4 py-2.5 text-slate-600 font-medium">{rackName}</td>
+                              <td className="px-4 py-2.5 text-slate-600 font-medium">{binCode}</td>
+                              <td className="px-4 py-2.5 text-right tabular-nums font-semibold">
+                                {item.quantity} {prod?.uom || item.uom || 'NOS'}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
