@@ -41,7 +41,7 @@ export class PoController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.STORES)
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.DESIGNER)
   create(@Body() createPoDto: CreatePoDto) {
     return this.poService.create(createPoDto);
   }
