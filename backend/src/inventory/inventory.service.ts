@@ -480,6 +480,8 @@ export class InventoryService {
         if (
           type === TransactionType.STOCK_IN ||
           type === TransactionType.RETURN ||
+          type === TransactionType.GRN_RECEIPT ||
+          type === TransactionType.DC_RETURN ||
           (type === TransactionType.ADJUSTMENT &&
             row.adjustmentDirection === AdjustmentDirection.INCREASE)
         ) {
@@ -490,6 +492,7 @@ export class InventoryService {
         } else if (
           type === TransactionType.STOCK_OUT ||
           type === TransactionType.STORES_ISSUE ||
+          type === TransactionType.DC_DISPATCH ||
           (type === TransactionType.ADJUSTMENT &&
             row.adjustmentDirection === AdjustmentDirection.DECREASE)
         ) {
@@ -593,13 +596,13 @@ export class InventoryService {
 
         if (
           row.destinationBinId === binId &&
-          (row.type === 'STOCK_IN' || row.type === 'RETURN' || row.type === 'TRANSFER' || (row.type === 'ADJUSTMENT' && row.adjustmentDirection === 'INCREASE'))
+          (row.type === 'STOCK_IN' || row.type === 'RETURN' || row.type === 'GRN_RECEIPT' || row.type === 'DC_RETURN' || row.type === 'TRANSFER' || (row.type === 'ADJUSTMENT' && row.adjustmentDirection === 'INCREASE'))
         ) {
           inQty += qty;
         }
         if (
           row.sourceBinId === binId &&
-          (row.type === 'STOCK_OUT' || row.type === 'STORES_ISSUE' || row.type === 'TRANSFER' || (row.type === 'ADJUSTMENT' && row.adjustmentDirection === 'DECREASE'))
+          (row.type === 'STOCK_OUT' || row.type === 'STORES_ISSUE' || row.type === 'DC_DISPATCH' || row.type === 'TRANSFER' || (row.type === 'ADJUSTMENT' && row.adjustmentDirection === 'DECREASE'))
         ) {
           outQty += qty;
         }
@@ -986,7 +989,7 @@ export class InventoryService {
     }
   }
 
-  async modernStockIn(dto: ModernStockInDto, userId: string) {
+  async modernStockIn(dto: ModernStockInDto, userId: string, customTxType?: TransactionType) {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -1023,7 +1026,7 @@ export class InventoryService {
       const transaction = this.stockTransactionRepository.create({
         productId: dto.productId,
         destinationBinId: dto.binId,
-        transactionType: TransactionType.STOCK_IN,
+        transactionType: customTxType || TransactionType.STOCK_IN,
         quantity: dto.quantity,
         referenceType: dto.referenceType || 'MANUAL',
         referenceId: dto.referenceId,

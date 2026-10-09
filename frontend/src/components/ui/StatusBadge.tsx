@@ -75,6 +75,20 @@ const userStatusMap: Record<string, BadgeVariant> = {
   GENERAL_MANAGER: 'success',
 };
 
+// Transaction Types
+const transactionTypeCustomClasses: Record<string, string> = {
+  GRN_RECEIPT: 'bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold',
+  DC_DISPATCH: 'bg-amber-100 text-amber-800 border-amber-300 font-semibold',
+  DC_RETURN: 'bg-indigo-100 text-indigo-800 border-indigo-300 font-semibold',
+  PRODUCTION_CONSUMPTION: 'bg-purple-100 text-purple-800 border-purple-300 font-semibold',
+  STOCK_IN: 'bg-green-100 text-green-800 border-green-200',
+  STOCK_OUT: 'bg-rose-100 text-rose-800 border-rose-200',
+  STORES_ISSUE: 'bg-orange-100 text-orange-800 border-orange-200',
+  RETURN: 'bg-teal-100 text-teal-800 border-teal-200',
+  ADJUSTMENT: 'bg-slate-100 text-slate-800 border-slate-200',
+  TRANSFER: 'bg-sky-100 text-sky-800 border-sky-200',
+};
+
 const allStatusMaps = {
   ...scStatusMap,
   ...rmRequestStatusMap,
@@ -93,6 +107,7 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ status, variant: explicitVariant, className }: StatusBadgeProps) {
   const normalizedStatus = (status || '').toUpperCase();
+  const customClass = transactionTypeCustomClasses[normalizedStatus];
   const variant = explicitVariant || allStatusMaps[normalizedStatus] || 'neutral';
   
   // Format text: replace underscores with spaces, Title Case
@@ -105,7 +120,7 @@ export function StatusBadge({ status, variant: explicitVariant, className }: Sta
     <span
       className={cn(
         "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border",
-        variantClasses[variant],
+        customClass || variantClasses[variant],
         className
       )}
     >

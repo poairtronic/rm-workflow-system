@@ -27,7 +27,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
     if (!isRead && onMarkAsRead) {
       onMarkAsRead(id);
     }
-    if (targetEntity && targetId && onNavigateTarget) {
+    if (targetEntity && onNavigateTarget) {
       onNavigateTarget(targetEntity, targetId);
     }
   };

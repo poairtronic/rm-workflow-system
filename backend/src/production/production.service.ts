@@ -334,8 +334,20 @@ export class ProductionService {
         consumption,
       );
 
-      // CRITICAL: Production consumption DOES NOT alter inventory stock (prevents double-deduction)
-      // Return is future workflow. No StockBalance or StockTransaction updates.
+      // Log immutable StockTransaction for PRODUCTION_CONSUMPTION
+      const tx = queryRunner.manager.create(StockTransaction, {
+        transactionType: TransactionType.PRODUCTION_CONSUMPTION,
+        productId: rmItem.mappedProductId || undefined,
+        quantity: QuantityCalculator.roundDecimal(dto.quantityConsumed),
+        referenceType: 'PRODUCTION_CONSUMPTION',
+        referenceId: saved.id,
+        remarks: dto.remarks || `Production consumption for SC ${sc.scNumber || sc.id}`,
+        createdById: actorId,
+      });
+      await queryRunner.manager.save(StockTransaction, tx);
+
+      // CRITICAL: Production consumption DOES NOT alter inventory stock_balances (prevents double-deduction)
+      // because stock was already deducted at STORES_ISSUE.
 
       await queryRunner.commitTransaction();
       return saved;

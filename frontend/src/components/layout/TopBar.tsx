@@ -11,10 +11,21 @@ export function TopBar() {
     if (!targetEntity) return;
     
     switch (targetEntity) {
+      case 'RM_REQUEST':
       case 'RM_REQUISITION':
         if (currentUser?.role === 'STORES') navigate('/stores/rm-issue');
         else if (currentUser?.role === 'PRODUCTION') navigate('/production/rm');
         else if (currentUser?.role === 'DESIGNER') navigate('/design/rm-creation');
+        else navigate('/stores/rm-issue');
+        break;
+      case 'MATERIAL_ISSUE':
+        if (currentUser?.role === 'PRODUCTION') navigate('/production/rm');
+        else if (currentUser?.role === 'STORES') navigate('/stores/rm-issue');
+        else navigate('/production/rm');
+        break;
+      case 'MATERIAL_RECEIPT':
+        if (currentUser?.role === 'STORES') navigate('/stores/rm-issue');
+        else if (currentUser?.role === 'PRODUCTION') navigate('/production/rm');
         break;
       case 'ADDITIONAL_REQUEST':
         if (currentUser?.role === 'STORES') navigate('/stores/extra-requests');
@@ -24,10 +35,14 @@ export function TopBar() {
         if (currentUser?.role === 'STORES') navigate('/stores/returns-verify');
         else if (currentUser?.role === 'PRODUCTION') navigate('/production/rm');
         break;
+      case 'DELIVERY_CHALLAN':
+        navigate('/inventory/dc');
+        break;
       case 'PURCHASE_ORDER':
         navigate('/traceability/po');
         break;
       case 'STYLE_CODE':
+      case 'SC':
         navigate('/traceability/sc');
         break;
       default:

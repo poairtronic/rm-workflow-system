@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   PageHeader,
   DataTable,
@@ -21,7 +21,19 @@ import { toast } from 'react-hot-toast';
 
 export function InventoryStockWorkspace() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'LEDGER'>('OVERVIEW');
+  const [searchParams] = useSearchParams();
+  const urlTab = (searchParams.get('tab') || '').toUpperCase();
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'LEDGER'>(
+    urlTab === 'MOVEMENTS' || urlTab === 'LEDGER' ? 'LEDGER' : 'OVERVIEW'
+  );
+
+  useEffect(() => {
+    if (urlTab === 'MOVEMENTS' || urlTab === 'LEDGER') {
+      setActiveTab('LEDGER');
+    } else if (urlTab === 'OVERVIEW') {
+      setActiveTab('OVERVIEW');
+    }
+  }, [urlTab]);
   
   // Overview Tab State
   const [balances, setBalances] = useState<StockBalance[]>([]);
@@ -179,8 +191,8 @@ export function InventoryStockWorkspace() {
       header: 'Qty', 
       isNumeric: true,
       render: (r) => {
-        const isAddition = r.transactionType === 'STOCK_IN' || r.transactionType === 'RETURN' || (r.transactionType === 'ADJUSTMENT' && r.adjustmentDirection === 'INCREASE');
-        const isSubtraction = r.transactionType === 'STOCK_OUT' || r.transactionType === 'STORES_ISSUE' || (r.transactionType === 'ADJUSTMENT' && r.adjustmentDirection === 'DECREASE');
+        const isAddition = r.transactionType === 'STOCK_IN' || r.transactionType === 'RETURN' || r.transactionType === 'GRN_RECEIPT' || r.transactionType === 'DC_RETURN' || (r.transactionType === 'ADJUSTMENT' && r.adjustmentDirection === 'INCREASE');
+        const isSubtraction = r.transactionType === 'STOCK_OUT' || r.transactionType === 'STORES_ISSUE' || r.transactionType === 'DC_DISPATCH' || r.transactionType === 'PRODUCTION_CONSUMPTION' || (r.transactionType === 'ADJUSTMENT' && r.adjustmentDirection === 'DECREASE');
         const color = isAddition ? 'text-green-600' : isSubtraction ? 'text-red-600' : 'text-gray-900';
         const sign = isAddition ? '+' : isSubtraction ? '-' : '';
         return <span className={`font-medium ${color}`}>{sign}{r.quantity}</span>;
@@ -252,7 +264,7 @@ export function InventoryStockWorkspace() {
               }
             `}
           >
-            Ledger
+            Movements
           </button>
         </nav>
       </div>
@@ -294,6 +306,10 @@ export function InventoryStockWorkspace() {
                 <option value="RETURN">Return</option>
                 <option value="ADJUSTMENT">Adjustment</option>
                 <option value="TRANSFER">Transfer</option>
+                <option value="GRN_RECEIPT">GRN Receipt</option>
+                <option value="DC_DISPATCH">DC Dispatch</option>
+                <option value="DC_RETURN">DC Return</option>
+                <option value="PRODUCTION_CONSUMPTION">Production Consumption</option>
               </Select>
             </div>
           </div>
@@ -352,8 +368,8 @@ export function InventoryStockWorkspace() {
                   header: 'Qty',
                   isNumeric: true,
                   render: (r) => {
-                    const isAddition = r.transactionType === 'STOCK_IN' || r.transactionType === 'RETURN' || (r.transactionType === 'ADJUSTMENT' && r.adjustmentDirection === 'INCREASE');
-                    const isSubtraction = r.transactionType === 'STOCK_OUT' || r.transactionType === 'STORES_ISSUE' || (r.transactionType === 'ADJUSTMENT' && r.adjustmentDirection === 'DECREASE');
+                    const isAddition = r.transactionType === 'STOCK_IN' || r.transactionType === 'RETURN' || r.transactionType === 'GRN_RECEIPT' || r.transactionType === 'DC_RETURN' || (r.transactionType === 'ADJUSTMENT' && r.adjustmentDirection === 'INCREASE');
+                    const isSubtraction = r.transactionType === 'STOCK_OUT' || r.transactionType === 'STORES_ISSUE' || r.transactionType === 'DC_DISPATCH' || r.transactionType === 'PRODUCTION_CONSUMPTION' || (r.transactionType === 'ADJUSTMENT' && r.adjustmentDirection === 'DECREASE');
                     const color = isAddition ? 'text-green-600' : isSubtraction ? 'text-red-600' : 'text-gray-900';
                     const sign = isAddition ? '+' : isSubtraction ? '-' : '';
                     return <span className={`font-medium ${color}`}>{sign}{r.quantity}</span>;

@@ -31,6 +31,8 @@ import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { UserRole } from '../auth/enums/role.enum.js';
 
+import { TransactionType } from './entities/stock-transaction.entity.js';
+
 export class CreateGrnDto extends ModernStockInDto {
   // Can extend if needed, for now just alias ModernStockInDto
 }
@@ -51,7 +53,7 @@ export class InventoryController {
   createGrn(@Body() createDto: CreateGrnDto, @Request() req: any) {
     // Supplier inward GRN is basically a modern stock in marked as GRN
     createDto.referenceType = 'SUPPLIER_GRN';
-    return this.inventoryService.modernStockIn(createDto, req.user.userId);
+    return this.inventoryService.modernStockIn(createDto, req.user.userId, TransactionType.GRN_RECEIPT);
   }
 
   @Get()

@@ -127,7 +127,7 @@ export class DeliveryChallanService {
         const stockTx = stockTxRepo.create({
           productId: itemDto.productId,
           sourceBinId: itemDto.binId,
-          transactionType: TransactionType.STOCK_OUT,
+          transactionType: TransactionType.DC_DISPATCH,
           quantity: quantityToDispatch,
           referenceType: 'DELIVERY_CHALLAN_TYPE_1',
           referenceId: savedChallan.id,
@@ -234,7 +234,7 @@ export class DeliveryChallanService {
         const stockTx = stockTxRepo.create({
           productId: itemDto.productId,
           sourceBinId: itemDto.binId,
-          transactionType: TransactionType.STOCK_OUT,
+          transactionType: TransactionType.DC_DISPATCH,
           quantity: quantityToDispatch,
           referenceType: 'DELIVERY_CHALLAN_TYPE_2',
           referenceId: savedChallan.id,
@@ -639,7 +639,7 @@ export class DeliveryChallanService {
         const transaction = txRepo.create({
           productId: challanItem.productId,
           destinationBinId: challanItem.binId,
-          transactionType: TransactionType.RETURN,
+          transactionType: TransactionType.DC_RETURN,
           quantity: dtoItem.quantityToReturn,
           referenceId: challanId,
           referenceType: 'DELIVERY_CHALLAN_RETURN',

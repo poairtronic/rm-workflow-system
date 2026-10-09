@@ -1295,9 +1295,9 @@ export class TraceabilityService {
     let totalStockIn = 0;
     stockTransactions.forEach((tx) => {
       const q = Number(tx.quantity) || 0;
-      if (tx.transactionType === TransactionType.STOCK_OUT || tx.transactionType === TransactionType.STORES_ISSUE) {
+      if (tx.transactionType === TransactionType.STOCK_OUT || tx.transactionType === TransactionType.STORES_ISSUE || tx.transactionType === TransactionType.DC_DISPATCH) {
         totalStockOut += q;
-      } else if (tx.transactionType === TransactionType.STOCK_IN || tx.transactionType === TransactionType.RETURN) {
+      } else if (tx.transactionType === TransactionType.STOCK_IN || tx.transactionType === TransactionType.RETURN || tx.transactionType === TransactionType.GRN_RECEIPT || tx.transactionType === TransactionType.DC_RETURN) {
         totalStockIn += q;
       }
     });
