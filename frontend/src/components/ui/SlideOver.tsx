@@ -39,9 +39,9 @@ export function SlideOver({
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
       <div className="absolute inset-0 overflow-hidden">
-        {/* Backdrop */}
+        {/* Modern semi-transparent blurred backdrop */}
         <div 
-          className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
+          className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity duration-300"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -51,25 +51,23 @@ export function SlideOver({
             ref={panelRef}
             role="dialog"
             aria-modal="true"
-            className={cn("w-screen pointer-events-auto transform transition ease-in-out duration-500", width, className)}
+            className={cn("w-screen pointer-events-auto transform transition ease-in-out duration-300", width, className)}
           >
-            <div className="flex flex-col h-full bg-white shadow-xl">
-              <div className="px-4 py-6 bg-gray-50 border-b border-gray-200 sm:px-6">
-                <div className="flex items-start justify-between">
-                  <h2 className="text-lg font-medium text-gray-900">{title}</h2>
-                  <div className="ml-3 flex h-7 items-center">
-                    <button
-                      type="button"
-                      className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                      onClick={onClose}
-                    >
-                      <span className="sr-only">Close panel</span>
-                      <X className="h-6 w-6" aria-hidden="true" />
-                    </button>
-                  </div>
+            <div className="flex flex-col h-full bg-white shadow-2xl border-l border-slate-200">
+              <div className="px-6 py-5 bg-slate-50/80 border-b border-slate-200">
+                <div className="flex items-center justify-between">
+                  <div className="text-lg font-bold text-slate-900">{title}</div>
+                  <button
+                    type="button"
+                    className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer"
+                    onClick={onClose}
+                  >
+                    <span className="sr-only">Close panel</span>
+                    <X className="h-5 w-5" aria-hidden="true" />
+                  </button>
                 </div>
               </div>
-              <div className="relative flex-1 px-4 py-6 sm:px-6 overflow-y-auto">
+              <div className="relative flex-1 p-6 overflow-y-auto">
                 {children}
               </div>
             </div>

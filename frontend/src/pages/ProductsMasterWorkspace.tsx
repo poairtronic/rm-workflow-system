@@ -19,8 +19,22 @@ import type {
   Product,
   Category,
   Family,
+  Location,
+  Rack,
+  Bin,
 } from '../services/masterDataService';
-import { Plus, Database, RefreshCw, AlertCircle, ArrowLeft } from 'lucide-react';
+import { api } from '../services/api';
+import {
+  Plus,
+  Database,
+  RefreshCw,
+  AlertCircle,
+  ArrowLeft,
+  Search,
+  Filter,
+  RotateCcw,
+  X,
+} from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 const UOM_OPTIONS = ['KG', 'NOS', 'SQM', 'MTR', 'LTR'] as const;
@@ -29,8 +43,23 @@ export function ProductsMasterWorkspace() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [families, setFamilies] = useState<Family[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [racks, setRacks] = useState<Rack[]>([]);
+  const [bins, setBins] = useState<Bin[]>([]);
+  const [balances, setBalances] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Multi-Filter State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [familyFilter, setFamilyFilter] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
+  const [rackFilter, setRackFilter] = useState('');
+  const [binFilter, setBinFilter] = useState('');
+  const [uomFilter, setUomFilter] = useState('');
+  const [mslFilter, setMslFilter] = useState(''); // '' | 'MONITORED' | 'UNMONITORED'
+  const [statusFilter, setStatusFilter] = useState(''); // '' | 'ACTIVE' | 'INACTIVE'
 
   // Modal / Form state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -57,14 +86,32 @@ export function ProductsMasterWorkspace() {
     try {
       setIsLoading(true);
       setError(null);
-      const [prodRes, catRes, famRes] = await Promise.all([
-        masterDataService.getProducts({ pageSize: 100 }),
-        masterDataService.getCategories({ pageSize: 100 }),
-        masterDataService.getFamilies({ pageSize: 100 }),
-      ]);
+      const [prodRes, catRes, famRes, locRes, rackRes, binRes, bal1, bal2, bal3, bal4] =
+        await Promise.all([
+          masterDataService.getProducts({ pageSize: 100 }),
+          masterDataService.getCategories({ pageSize: 100 }),
+          masterDataService.getFamilies({ pageSize: 100 }),
+          masterDataService.getLocations({ pageSize: 100 }).catch(() => ({ data: [] })),
+          masterDataService.getRacks({ pageSize: 100 }).catch(() => ({ data: [] })),
+          masterDataService.getBins({ pageSize: 100 }).catch(() => ({ data: [] })),
+          api.get<any>('/api/inventory/balances?pageSize=100&page=1').catch(() => ({ data: [] })),
+          api.get<any>('/api/inventory/balances?pageSize=100&page=2').catch(() => ({ data: [] })),
+          api.get<any>('/api/inventory/balances?pageSize=100&page=3').catch(() => ({ data: [] })),
+          api.get<any>('/api/inventory/balances?pageSize=100&page=4').catch(() => ({ data: [] })),
+        ]);
       setProducts(prodRes.data || []);
       setCategories(catRes.data || []);
       setFamilies(famRes.data || []);
+      setLocations(locRes.data || []);
+      setRacks(rackRes.data || []);
+      setBins(binRes.data || []);
+      const allBalances = [
+        ...(bal1.data || []),
+        ...(bal2.data || []),
+        ...(bal3.data || []),
+        ...(bal4.data || []),
+      ];
+      setBalances(allBalances);
     } catch (err: any) {
       console.error('Failed to load products master data', err);
       setError(err.message || 'Failed to load products master data');
@@ -217,6 +264,167 @@ export function ProductsMasterWorkspace() {
     }
   };
 
+  // Product Storage Mapping from stock_balances
+  const productStorageMap = useMemo(() => {
+    const binMap = new Map(bins.map((b) => [b.id, b]));
+    const rackMap = new Map(racks.map((r) => [r.id, r]));
+    const map = new Map<
+      string,
+      { binIds: Set<string>; rackIds: Set<string>; locationIds: Set<string>; binLabels: string[] }
+    >();
+
+    for (const bal of balances) {
+      if (!bal.productId) continue;
+      if (!map.has(bal.productId)) {
+        map.set(bal.productId, {
+          binIds: new Set(),
+          rackIds: new Set(),
+          locationIds: new Set(),
+          binLabels: [],
+        });
+      }
+      const entry = map.get(bal.productId)!;
+      if (bal.binId) entry.binIds.add(bal.binId);
+      if (bal.binCode && !entry.binLabels.includes(bal.binCode)) {
+        entry.binLabels.push(bal.binCode);
+      }
+      const bin = binMap.get(bal.binId);
+      if (bin) {
+        if (bin.rackId) {
+          entry.rackIds.add(bin.rackId);
+          const rack = rackMap.get(bin.rackId);
+          if (rack?.locationId) {
+            entry.locationIds.add(rack.locationId);
+          }
+        }
+        if (bin.rack?.locationId) {
+          entry.locationIds.add(bin.rack.locationId);
+        }
+      }
+    }
+    return map;
+  }, [balances, bins, racks]);
+
+  // Cascading options for Rack and Bin filters
+  const availableRacks = useMemo(() => {
+    if (!locationFilter) return racks;
+    return racks.filter((r) => r.locationId === locationFilter);
+  }, [racks, locationFilter]);
+
+  const availableBins = useMemo(() => {
+    if (rackFilter) {
+      return bins.filter((b) => b.rackId === rackFilter);
+    }
+    if (locationFilter) {
+      return bins.filter((b) => b.rack?.locationId === locationFilter);
+    }
+    return bins;
+  }, [bins, rackFilter, locationFilter]);
+
+  // Multi-Filter Computation
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      // 1. Text Search
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const codeMatch = p.code?.toLowerCase().includes(q);
+        const nameMatch = p.name?.toLowerCase().includes(q);
+        const catMatch = (p.family?.category?.name || '').toLowerCase().includes(q);
+        const famMatch = (p.family?.name || '').toLowerCase().includes(q);
+        const uomMatch = (p.uom || '').toLowerCase().includes(q);
+        if (!codeMatch && !nameMatch && !catMatch && !famMatch && !uomMatch) return false;
+      }
+      // 2. Category Filter
+      if (categoryFilter) {
+        const pCatId = p.family?.categoryId || p.family?.category?.id;
+        if (pCatId !== categoryFilter) return false;
+      }
+      // 3. Product Family Filter
+      if (familyFilter && p.familyId !== familyFilter && p.family?.id !== familyFilter) {
+        return false;
+      }
+      // 4. Storage Location Filter
+      if (locationFilter) {
+        const storage = productStorageMap.get(p.id);
+        if (!storage || !storage.locationIds.has(locationFilter)) return false;
+      }
+      // 5. Rack Filter
+      if (rackFilter) {
+        const storage = productStorageMap.get(p.id);
+        if (!storage || !storage.rackIds.has(rackFilter)) return false;
+      }
+      // 6. Bin Filter
+      if (binFilter) {
+        const storage = productStorageMap.get(p.id);
+        if (!storage || !storage.binIds.has(binFilter)) return false;
+      }
+      // 7. UOM Filter
+      if (uomFilter && p.uom !== uomFilter) {
+        return false;
+      }
+      // 8. MSL Filter
+      if (mslFilter === 'MONITORED' && (!p.minimumInventory || Number(p.minimumInventory) <= 0)) {
+        return false;
+      }
+      if (mslFilter === 'UNMONITORED' && p.minimumInventory && Number(p.minimumInventory) > 0) {
+        return false;
+      }
+      // 9. Active Status Filter
+      if (statusFilter === 'ACTIVE' && !p.isActive) return false;
+      if (statusFilter === 'INACTIVE' && p.isActive) return false;
+
+      return true;
+    });
+  }, [
+    products,
+    searchQuery,
+    categoryFilter,
+    familyFilter,
+    locationFilter,
+    rackFilter,
+    binFilter,
+    uomFilter,
+    mslFilter,
+    statusFilter,
+    productStorageMap,
+  ]);
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (searchQuery.trim()) count++;
+    if (categoryFilter) count++;
+    if (familyFilter) count++;
+    if (locationFilter) count++;
+    if (rackFilter) count++;
+    if (binFilter) count++;
+    if (uomFilter) count++;
+    if (mslFilter) count++;
+    if (statusFilter) count++;
+    return count;
+  }, [
+    searchQuery,
+    categoryFilter,
+    familyFilter,
+    locationFilter,
+    rackFilter,
+    binFilter,
+    uomFilter,
+    mslFilter,
+    statusFilter,
+  ]);
+
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setCategoryFilter('');
+    setFamilyFilter('');
+    setLocationFilter('');
+    setRackFilter('');
+    setBinFilter('');
+    setUomFilter('');
+    setMslFilter('');
+    setStatusFilter('');
+  };
+
   // Table Columns
   const columns: ColumnDef<Product>[] = useMemo(
     () => [
@@ -257,6 +465,33 @@ export function ProductsMasterWorkspace() {
         ),
       },
       {
+        key: 'storageBin',
+        header: 'Bin Location',
+        render: (row) => {
+          const storage = productStorageMap.get(row.id);
+          if (!storage || storage.binLabels.length === 0) {
+            return <span className="text-xs text-slate-400 italic">Unassigned</span>;
+          }
+          return (
+            <div className="flex flex-wrap items-center gap-1 max-w-[160px]">
+              {storage.binLabels.slice(0, 2).map((bCode) => (
+                <span
+                  key={bCode}
+                  className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-semibold bg-blue-50 text-blue-700 border border-blue-200"
+                >
+                  {bCode}
+                </span>
+              ))}
+              {storage.binLabels.length > 2 && (
+                <span className="text-[10px] text-slate-500 font-medium">
+                  +{storage.binLabels.length - 2}
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
+      {
         key: 'uom',
         header: 'UOM',
         sortable: true,
@@ -291,7 +526,7 @@ export function ProductsMasterWorkspace() {
         ),
       },
     ],
-    [],
+    [productStorageMap],
   );
 
   return (
@@ -572,8 +807,34 @@ export function ProductsMasterWorkspace() {
         title="Products Master & MSL"
         subtitle="Manage product definitions, specifications, UOMs, and Minimum Stock Levels (MSL)."
         breadcrumbs={<span>Masters / Products</span>}
-        actionSlot={
-          <div className="flex items-center space-x-3">
+      />
+
+      {/* Aligned Search & Multi-Filter Toolbar */}
+      <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-4 space-y-3">
+        {/* Row 1: Aligned Search Bar & Primary Actions */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search products by code, name, category, family, or specification..."
+              className="w-full h-10 pl-10 pr-9 rounded-lg border border-slate-300 bg-white text-sm text-slate-900 placeholder:text-slate-400 shadow-xs transition-colors hover:border-slate-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 focus:outline-none"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 p-0.5 rounded cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-2 shrink-0">
             <Button
               variant="secondary"
               onClick={loadData}
@@ -588,20 +849,158 @@ export function ProductsMasterWorkspace() {
               <Plus className="w-4 h-4 mr-1.5" /> Add Product
             </Button>
           </div>
-        }
-      />
+        </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        {/* Row 2: Multiple Filter Dropdowns */}
+        <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-slate-100 text-xs">
+          <div className="flex items-center gap-1.5 text-slate-500 font-semibold mr-1">
+            <Filter className="w-3.5 h-3.5" />
+            <span>Filters:</span>
+          </div>
+
+          {/* Category Filter */}
+          <select
+            value={categoryFilter}
+            onChange={(e) => {
+              setCategoryFilter(e.target.value);
+              setFamilyFilter('');
+            }}
+            className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
+          >
+            <option value="">All Categories ({categories.length})</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+
+          {/* Product Family Filter */}
+          <select
+            value={familyFilter}
+            onChange={(e) => setFamilyFilter(e.target.value)}
+            className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
+          >
+            <option value="">All Families ({families.length})</option>
+            {(categoryFilter
+              ? families.filter((f) => f.categoryId === categoryFilter)
+              : families
+            ).map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </select>
+
+          {/* Storage Location Filter */}
+          <select
+            value={locationFilter}
+            onChange={(e) => {
+              setLocationFilter(e.target.value);
+              setRackFilter('');
+              setBinFilter('');
+            }}
+            className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
+          >
+            <option value="">All Locations ({locations.length})</option>
+            {locations.map((loc) => (
+              <option key={loc.id} value={loc.id}>
+                {loc.name}
+              </option>
+            ))}
+          </select>
+
+          {/* Storage Rack Filter */}
+          <select
+            value={rackFilter}
+            onChange={(e) => {
+              setRackFilter(e.target.value);
+              setBinFilter('');
+            }}
+            className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
+          >
+            <option value="">All Racks ({availableRacks.length})</option>
+            {availableRacks.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name} ({r.code})
+              </option>
+            ))}
+          </select>
+
+          {/* Storage Bin Filter */}
+          <select
+            value={binFilter}
+            onChange={(e) => setBinFilter(e.target.value)}
+            className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
+          >
+            <option value="">All Bins ({availableBins.length})</option>
+            {availableBins.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.code}
+              </option>
+            ))}
+          </select>
+
+          {/* UOM Filter */}
+          <select
+            value={uomFilter}
+            onChange={(e) => setUomFilter(e.target.value)}
+            className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
+          >
+            <option value="">All UOMs</option>
+            {UOM_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+
+          {/* MSL Status Filter */}
+          <select
+            value={mslFilter}
+            onChange={(e) => setMslFilter(e.target.value)}
+            className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
+          >
+            <option value="">All MSL Monitoring</option>
+            <option value="MONITORED">Monitored Items (MSL &gt; 0)</option>
+            <option value="UNMONITORED">Not Monitored</option>
+          </select>
+
+          {/* Active Status Filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
+          >
+            <option value="">All Status</option>
+            <option value="ACTIVE">Active Only</option>
+            <option value="INACTIVE">Inactive Only</option>
+          </select>
+
+          {/* Active Filters Reset Button */}
+          {activeFilterCount > 0 && (
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 font-medium transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset Filters ({activeFilterCount})</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
         <DataTable
           columns={columns}
-          data={products}
+          data={filteredProducts}
           isLoading={isLoading}
           isError={!!error}
           errorMsg={error || undefined}
           onRetry={loadData}
           onRowClick={openEditModal}
-          searchable={true}
-          searchKeys={['name', 'code']}
+          searchable={false}
           pagination={true}
           defaultPageSize={15}
         />
