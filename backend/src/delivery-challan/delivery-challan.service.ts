@@ -36,6 +36,27 @@ export class DeliveryChallanService {
       throw new BadRequestException('scId and processId are required for all items in Type 1 challan');
     }
 
+    if (!dto.dispatchDate) {
+      throw new BadRequestException('Dispatch date is required');
+    }
+    const dispatchDate = new Date(dto.dispatchDate);
+    if (isNaN(dispatchDate.getTime())) {
+      throw new BadRequestException('Invalid dispatch date format');
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dispatchDay = new Date(dispatchDate);
+    dispatchDay.setHours(0, 0, 0, 0);
+    if (dispatchDay < today) {
+      throw new BadRequestException('Dispatch date cannot be set in the past');
+    }
+    if (dto.expectedReturnDate) {
+      const expDate = new Date(dto.expectedReturnDate);
+      if (expDate < dispatchDate) {
+        throw new BadRequestException('Expected return date cannot be before dispatch date');
+      }
+    }
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -176,6 +197,27 @@ export class DeliveryChallanService {
       throw new BadRequestException('Invalid challan type for Type 2 creation');
     }
 
+    if (!dto.dispatchDate) {
+      throw new BadRequestException('Dispatch date is required');
+    }
+    const dispatchDate = new Date(dto.dispatchDate);
+    if (isNaN(dispatchDate.getTime())) {
+      throw new BadRequestException('Invalid dispatch date format');
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dispatchDay = new Date(dispatchDate);
+    dispatchDay.setHours(0, 0, 0, 0);
+    if (dispatchDay < today) {
+      throw new BadRequestException('Dispatch date cannot be set in the past');
+    }
+    if (dto.expectedReturnDate) {
+      const expDate = new Date(dto.expectedReturnDate);
+      if (expDate < dispatchDate) {
+        throw new BadRequestException('Expected return date cannot be before dispatch date');
+      }
+    }
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -278,10 +320,13 @@ export class DeliveryChallanService {
     }
   }
 
-  async findAll(filters?: { scId?: string; processId?: string; vendorId?: string; type?: DeliveryChallanType; isOverdue?: boolean }) {
+  async findAll(filters?: { scId?: string; processId?: string; vendorId?: string; type?: DeliveryChallanType; isOverdue?: boolean; status?: DeliveryChallanStatus }) {
     const baseWhere: any = {};
     if (filters?.vendorId) baseWhere.vendorId = filters.vendorId;
     if (filters?.type) baseWhere.type = filters.type;
+    if (filters?.status && !filters?.isOverdue) {
+      baseWhere.status = filters.status;
+    }
     if (filters?.isOverdue) {
       baseWhere.status = In([
         DeliveryChallanStatus.OPEN,

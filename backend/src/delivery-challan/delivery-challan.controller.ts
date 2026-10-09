@@ -5,7 +5,7 @@ import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { CreateDeliveryChallanDto } from './dto/create-delivery-challan.dto.js';
 import { ReturnDeliveryChallanDto } from './dto/return-delivery-challan.dto.js';
-import { DeliveryChallanType } from './entities/delivery-challan.entity.js';
+import { DeliveryChallanType, DeliveryChallanStatus } from './entities/delivery-challan.entity.js';
 import { UserRole } from '../auth/enums/role.enum.js';
 
 @Controller('api/delivery-challans')
@@ -50,9 +50,10 @@ export class DeliveryChallanController {
     @Query('vendorId') vendorId?: string,
     @Query('type') type?: DeliveryChallanType,
     @Query('isOverdue') isOverdue?: string,
+    @Query('status') status?: DeliveryChallanStatus,
   ) {
     const isOverdueBool = isOverdue === 'true';
-    return this.deliveryChallanService.findAll({ scId, processId, vendorId, type, isOverdue: isOverdueBool });
+    return this.deliveryChallanService.findAll({ scId, processId, vendorId, type, isOverdue: isOverdueBool, status });
   }
 
   @Get(':id/printable')

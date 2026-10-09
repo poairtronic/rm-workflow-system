@@ -9,10 +9,10 @@ export function Type2DispatchWorkspace() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
             <PackageOpen className="w-6 h-6 text-primary" />
-            DC Type 1: Raw Material
+            DC Type 2: General Inventory Outward
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Dispatch raw material from inventory directly to vendors.
+            Dispatch general inventory directly to vendors.
           </p>
         </div>
       </div>
