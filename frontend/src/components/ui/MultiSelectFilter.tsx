@@ -14,6 +14,7 @@ interface MultiSelectFilterProps {
   onChange: (selected: string[]) => void;
   placeholder?: string;
   className?: string;
+  align?: 'left' | 'right' | 'auto';
 }
 
 export function MultiSelectFilter({
@@ -23,10 +24,31 @@ export function MultiSelectFilter({
   onChange,
   placeholder,
   className = '',
+  align = 'auto',
 }: MultiSelectFilterProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [effectiveAlign, setEffectiveAlign] = useState<'left' | 'right'>(align === 'right' ? 'right' : 'left');
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-detect edge alignment to prevent horizontal page overflow
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      if (align === 'right') {
+        setEffectiveAlign('right');
+      } else if (align === 'left') {
+        setEffectiveAlign('left');
+      } else {
+        const rect = containerRef.current.getBoundingClientRect();
+        const dropdownWidth = 280;
+        if (rect.left + dropdownWidth > window.innerWidth - 24) {
+          setEffectiveAlign('right');
+        } else {
+          setEffectiveAlign('left');
+        }
+      }
+    }
+  }, [isOpen, align]);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -113,7 +135,11 @@ export function MultiSelectFilter({
 
       {/* Popover Dropdown */}
       {isOpen && (
-        <div className="absolute left-0 mt-1.5 w-64 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-100">
+        <div
+          className={`absolute ${
+            effectiveAlign === 'right' ? 'right-0' : 'left-0'
+          } mt-1.5 w-72 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-100`}
+        >
           {/* Header Actions */}
           <div className="flex items-center justify-between px-1 pb-1.5 border-b border-slate-100 text-[11px]">
             <span className="font-semibold text-slate-700">Filter by {label}</span>

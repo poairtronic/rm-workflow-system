@@ -297,6 +297,7 @@ export function DockReceiptWorkspace() {
                 selectedValues={selectedVendors}
                 onChange={setSelectedVendors}
                 placeholder="Filter by Vendor..."
+                align="right"
                 className="w-full sm:w-auto"
               />
 
