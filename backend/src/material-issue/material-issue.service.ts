@@ -238,7 +238,7 @@ export class MaterialIssueService {
           rmItemId: itemDto.rmItemId,
           quantityIssued: requestedQty,
           heatNumber: itemDto.heatNumber,
-          batchNumber: itemDto.batchNumber,
+          batchNumber: itemDto.batchNumber || itemDto.lotBatchNumber,
           remarks: itemDto.remarks,
         });
         issueItems.push(
@@ -276,8 +276,7 @@ export class MaterialIssueService {
       } else if (issueType === MaterialIssueType.ADDITIONAL_ISSUE && additionalReq) {
         additionalReq.status = AdditionalRequestStatus.ISSUED;
         await queryRunner.manager.save(AdditionalMaterialRequest, additionalReq);
-        // SC goes back to IN_PRODUCTION (or ISSUED if they haven't consumed yet)
-        sc.status = ScStatus.IN_PRODUCTION; 
+        // SC status remains in ADDITIONAL_REQUEST until Production confirms receipt via /api/production/receipt
       }
       
       await queryRunner.manager.save(SalesOrderComponent, sc);

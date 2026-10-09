@@ -83,10 +83,17 @@ export class AdditionalRequestService {
           );
         }
 
+        const reqQty = itemDto.quantityRequested ?? itemDto.quantity;
+        if (reqQty == null) {
+          throw new BadRequestException(
+            `Quantity or quantityRequested is required for RM Item "${itemDto.rmItemId}".`,
+          );
+        }
+
         const item = queryRunner.manager.create(AdditionalMaterialRequestItem, {
           requestId: savedRequest.id,
           rmItemId: itemDto.rmItemId,
-          quantityRequested: itemDto.quantity,
+          quantityRequested: reqQty,
           remarks: itemDto.remarks,
         });
         await queryRunner.manager.save(AdditionalMaterialRequestItem, item);

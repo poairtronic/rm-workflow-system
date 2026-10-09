@@ -36,6 +36,11 @@ export class MaterialIssueItemDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(100)
+  lotBatchNumber?: string;
+
+  @IsOptional()
+  @IsString()
   remarks?: string;
 }
 

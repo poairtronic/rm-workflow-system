@@ -19,7 +19,13 @@ export class AdditionalRequestItemDto {
 
   @IsNumber()
   @Min(0.001)
-  quantity!: number;
+  @IsOptional()
+  quantity?: number;
+
+  @IsNumber()
+  @Min(0.001)
+  @IsOptional()
+  quantityRequested?: number;
 
   @IsOptional()
   @IsString()

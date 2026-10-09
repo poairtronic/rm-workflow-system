@@ -72,15 +72,20 @@ export class ProductionService {
     await queryRunner.startTransaction();
 
     try {
+      const targetIssueId = dto.materialIssueId || dto.issueId;
+      if (!targetIssueId) {
+        throw new BadRequestException('materialIssueId or issueId is required.');
+      }
+
       // 1. Lock the Material Issue to serialize all receipts for it
       const issue = await queryRunner.manager.findOne(MaterialIssue, {
-        where: { id: dto.materialIssueId },
+        where: { id: targetIssueId },
         lock: { mode: 'pessimistic_write' },
       });
 
       if (!issue) {
         throw new NotFoundException(
-          `Material Issue with ID "${dto.materialIssueId}" not found.`,
+          `Material Issue with ID "${targetIssueId}" not found.`,
         );
       }
 

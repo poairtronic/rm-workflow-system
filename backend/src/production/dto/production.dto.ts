@@ -26,9 +26,13 @@ export class ReceiptItemDto {
 }
 
 export class CreateProductionReceiptDto {
+  @IsOptional()
   @IsUUID('4')
-  @IsNotEmpty()
-  materialIssueId!: string;
+  materialIssueId?: string;
+
+  @IsOptional()
+  @IsUUID('4')
+  issueId?: string;
 
   @IsOptional()
   @IsUUID('4')
