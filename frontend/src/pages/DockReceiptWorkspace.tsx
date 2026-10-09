@@ -366,7 +366,7 @@ export function DockReceiptWorkspace() {
             </div>
 
             <div className="bg-amber-50 border-b border-amber-200 p-4 flex gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
               <div>
                 <p className="text-sm font-semibold text-amber-800">Immutable Ledger Action</p>
                 <p className="text-xs text-amber-700 mt-0.5">
@@ -462,7 +462,7 @@ export function DockReceiptWorkspace() {
           </FormProvider>
 
           {/* Sticky Action Footer */}
-          <div className="fixed bottom-0 left-[260px] right-0 p-4 bg-white border-t border-slate-200 z-20 flex justify-end gap-3 shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)]">
+          <div className="fixed bottom-0 left-65 right-0 p-4 bg-white border-t border-slate-200 z-20 flex justify-end gap-3 shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)]">
             <button
               type="button"
               onClick={() => setActiveDcView('CLOSURE')}
