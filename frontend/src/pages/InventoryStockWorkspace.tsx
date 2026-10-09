@@ -1,12 +1,10 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   PageHeader,
   DataTable,
   StatusBadge,
   SlideOver,
-  TextInput,
-  Select,
 } from '../components/ui';
 import type { ColumnDef } from '../components/ui';
 import { inventoryService } from '../services/inventoryService';
@@ -18,6 +16,13 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { MultiSelectFilter } from '../components/ui/MultiSelectFilter';
+import { masterDataService } from '../services/masterDataService';
+import type { Product, Category, Family, Warehouse, Location, Rack, Bin } from '../services/masterDataService';
+import { Filter, Search, RefreshCw } from 'lucide-react';
+const UOM_OPTIONS = ['NOS', 'KGS', 'MTRS', 'LTRS', 'BOX', 'PACK', 'SET', 'ROLL'];
+
+
 
 export function InventoryStockWorkspace() {
   const navigate = useNavigate();
@@ -35,10 +40,30 @@ export function InventoryStockWorkspace() {
     }
   }, [urlTab]);
   
+  
+  // Metadata for filters
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [families, setFamilies] = useState<Family[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [racks, setRacks] = useState<Rack[]>([]);
+  const [bins, setBins] = useState<Bin[]>([]);
+
+  // Filter selections
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedFamilies, setSelectedFamilies] = useState<string[]>([]);
+  const [selectedWarehouses, setSelectedWarehouses] = useState<string[]>([]);
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [selectedRacks, setSelectedRacks] = useState<string[]>([]);
+  const [selectedBins, setSelectedBins] = useState<string[]>([]);
+  const [uomFilter, setUomFilter] = useState<string>('');
+  const [mslFilter, setMslFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+
   // Overview Tab State
   const [balances, setBalances] = useState<StockBalance[]>([]);
   const [isBalancesLoading, setIsBalancesLoading] = useState(true);
-  const [balancesPage, setBalancesPage] = useState(1);
   const [balancesSearch, setBalancesSearch] = useState('');
   
   // SlideOver State for Overview
@@ -53,17 +78,29 @@ export function InventoryStockWorkspace() {
   const [txPage, setTxPage] = useState(1);
   const [txTypeFilter, setTxTypeFilter] = useState('');
 
-  const fetchBalances = async () => {
+  const loadData = async () => {
     setIsBalancesLoading(true);
     try {
-      const res = await inventoryService.getAllBalances({
-        page: balancesPage,
-        pageSize: 50,
-        search: balancesSearch
-      });
-      setBalances(res.data);
+      const [prodRes, catRes, famRes, whRes, locRes, rackRes, binRes, balRes] = await Promise.all([
+        masterDataService.getProducts({ pageSize: 1000 }).catch(() => ({ data: [] })),
+        masterDataService.getCategories({ pageSize: 100 }).catch(() => ({ data: [] })),
+        masterDataService.getFamilies({ pageSize: 100 }).catch(() => ({ data: [] })),
+        masterDataService.getWarehouses({ pageSize: 100 }).catch(() => ({ data: [] })),
+        masterDataService.getLocations({ pageSize: 100 }).catch(() => ({ data: [] })),
+        masterDataService.getRacks({ pageSize: 1000 }).catch(() => ({ data: [] })),
+        masterDataService.getBins({ pageSize: 1000 }).catch(() => ({ data: [] })),
+        inventoryService.getAllBalances({ page: 1, pageSize: 2000 }).catch(() => ({ data: [] }))
+      ]);
+      setProducts(prodRes.data || []);
+      setCategories(catRes.data || []);
+      setFamilies(famRes.data || []);
+      setWarehouses(whRes.data || []);
+      setLocations(locRes.data || []);
+      setRacks(rackRes.data || []);
+      setBins(binRes.data || []);
+      setBalances(balRes.data || []);
     } catch {
-      toast.error('Failed to load stock balances');
+      toast.error('Failed to load stock overview data');
     } finally {
       setIsBalancesLoading(false);
     }
@@ -102,13 +139,92 @@ export function InventoryStockWorkspace() {
     }
   };
 
+  
   useEffect(() => {
     if (activeTab === 'OVERVIEW') {
-      fetchBalances();
+      if (balances.length === 0) loadData();
     } else {
       fetchTransactions();
     }
-  }, [activeTab, balancesPage, balancesSearch, txPage, txTypeFilter]);
+  }, [activeTab, txPage, txTypeFilter]);
+
+  // Cascading options
+  const filteredFamilyOptions = families.filter((f) => selectedCategories.length === 0 || selectedCategories.includes(f.categoryId));
+  const filteredLocationOptions = locations.filter((l) => selectedWarehouses.length === 0 || selectedWarehouses.includes(l.warehouseId));
+  const filteredRackOptions = racks.filter((r) => selectedLocations.length === 0 || selectedLocations.includes(r.locationId));
+  const filteredBinOptions = bins.filter((b) => selectedRacks.length === 0 || selectedRacks.includes(b.rackId));
+
+  // Build maps for fast lookup
+  const binMap = new Map(bins.map(b => [b.id, b]));
+  const rackMap = new Map(racks.map(r => [r.id, r]));
+  const locMap = new Map(locations.map(l => [l.id, l]));
+  const famMap = new Map(families.map(f => [f.id, f]));
+
+  const filteredBalances = React.useMemo(() => {
+    return balances.filter(b => {
+      const p = products.find(prod => prod.id === b.productId);
+      
+      // Search
+      if (balancesSearch) {
+        const s = balancesSearch.toLowerCase();
+        if (
+          !b.productCode?.toLowerCase().includes(s) &&
+          !b.productName?.toLowerCase().includes(s) &&
+          !b.binCode?.toLowerCase().includes(s)
+        ) {
+          return false;
+        }
+      }
+
+      // Categories & Families
+      if (p) {
+        const catId = (p as any).categoryId || p.family?.categoryId || famMap.get(p.familyId)?.categoryId;
+        if (selectedCategories.length > 0 && (!catId || !selectedCategories.includes(catId))) return false;
+        if (selectedFamilies.length > 0 && !selectedFamilies.includes(p.familyId)) return false;
+      } else {
+        if (selectedCategories.length > 0 || selectedFamilies.length > 0) return false;
+      }
+
+      // Warehouse, Location, Rack, Bin
+      if (selectedBins.length > 0 && !selectedBins.includes(b.binId)) return false;
+      
+      const bin = binMap.get(b.binId);
+      if (bin) {
+        if (selectedRacks.length > 0 && !selectedRacks.includes(bin.rackId)) return false;
+        const rack = rackMap.get(bin.rackId);
+        if (rack) {
+          if (selectedLocations.length > 0 && !selectedLocations.includes(rack.locationId)) return false;
+          const loc = locMap.get(rack.locationId);
+          if (loc) {
+            if (selectedWarehouses.length > 0 && !selectedWarehouses.includes(loc.warehouseId)) return false;
+          }
+        }
+      } else {
+        if (selectedRacks.length > 0 || selectedLocations.length > 0 || selectedWarehouses.length > 0) return false;
+      }
+
+      // UOM
+      if (uomFilter && b.uom !== uomFilter) return false;
+
+      // MSL
+      const mslVal = b.msl ?? 0;
+      const diff = b.currentQuantity - mslVal;
+      let status = 'OK';
+      if (diff < 0) status = 'CRITICAL';
+      else if (diff <= 5) status = 'LOW';
+      
+      if (mslFilter === 'BELOW' && status !== 'CRITICAL') return false;
+      if (mslFilter === 'AT' && status !== 'LOW') return false;
+      if (mslFilter === 'ABOVE' && status !== 'OK') return false;
+      
+      // Status
+      if (statusFilter === 'ACTIVE' && p && !p.isActive) return false;
+      if (statusFilter === 'INACTIVE' && p && p.isActive) return false;
+
+      return true;
+    });
+  }, [balances, balancesSearch, selectedCategories, selectedFamilies, selectedWarehouses, selectedLocations, selectedRacks, selectedBins, uomFilter, mslFilter, statusFilter, products, binMap, rackMap, locMap]);
+
 
   const handleRowClick = async (row: StockBalance) => {
     setSelectedBalance(row);
@@ -124,9 +240,27 @@ export function InventoryStockWorkspace() {
   };
 
   const overviewColumns: ColumnDef<StockBalance>[] = [
-    { key: 'productCode', header: 'Code', render: (r) => r.productCode || 'N/A' },
+        { key: 'productCode', header: 'Code', render: (r) => r.productCode || 'N/A' },
     { key: 'productName', header: 'Product Name', render: (r) => r.productName || 'N/A' },
-    { key: 'binCode', header: 'Bin', render: (r) => r.binCode || 'N/A' },
+    { key: 'warehouseLocation', header: 'Warehouse Location', render: (r) => {
+        const bin = binMap.get(r.binId);
+        let primaryLabel = r.binCode || 'N/A';
+        if (bin && bin.rackId) {
+          const rack = rackMap.get(bin.rackId);
+          if (rack && rack.locationId) {
+            const loc = locMap.get(rack.locationId);
+            if (loc) {
+              const isBinArea = loc.name.toLowerCase().includes('bin');
+              if (isBinArea) {
+                primaryLabel = bin.code;
+              } else {
+                primaryLabel = rack.code;
+              }
+            }
+          }
+        }
+        return <span className="font-mono text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-700">{primaryLabel}</span>;
+    } },
     { key: 'warehouseName', header: 'Warehouse', render: (r) => r.warehouseName || 'N/A' },
     { key: 'latestLotBatchNumber', header: 'Lot/Batch', render: (r) => r.latestLotBatchNumber || 'N/A' },
     { key: 'currentQuantity', header: 'Qty', isNumeric: true, render: (r) => `${r.currentQuantity} ${r.uom || ''}` },
@@ -269,59 +403,160 @@ export function InventoryStockWorkspace() {
         </nav>
       </div>
 
+      
       {activeTab === 'OVERVIEW' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-end">
-            <div className="w-1/3">
-              <TextInput
-                placeholder="Search products or bins..."
-                value={balancesSearch}
-                onChange={(e) => { setBalancesSearch(e.target.value); setBalancesPage(1); }}
+          <div className="flex flex-col gap-4 bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+            {/* Row 1: Search & Actions */}
+            <div className="flex justify-between items-center">
+              <div className="w-1/2 relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-4 w-4 text-slate-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search products or bins..."
+                  className="pl-10 h-10 w-full rounded-lg border border-slate-300 bg-slate-50 text-sm focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                  value={balancesSearch}
+                  onChange={(e) => setBalancesSearch(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={loadData}
+                  disabled={isBalancesLoading}
+                  className="h-10 px-3 flex items-center justify-center border border-slate-300 bg-white hover:bg-slate-50 rounded-lg text-slate-600 transition-colors shadow-sm"
+                  title="Refresh data"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isBalancesLoading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Row 2: Filter Dropdowns */}
+            <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-slate-100 text-xs">
+              <div className="flex items-center gap-1.5 text-slate-500 font-semibold mr-1">
+                <Filter className="w-3.5 h-3.5" />
+                <span>Filters:</span>
+              </div>
+              <MultiSelectFilter
+                label="Category"
+                placeholder="All Categories"
+                options={categories.map((c) => ({ id: c.id, label: c.name }))}
+                selectedValues={selectedCategories}
+                onChange={setSelectedCategories}
               />
+              <MultiSelectFilter
+                label="Family"
+                placeholder="All Families"
+                options={filteredFamilyOptions.map((f) => ({ id: f.id, label: f.name, subtext: f.category?.name }))}
+                selectedValues={selectedFamilies}
+                onChange={setSelectedFamilies}
+              />
+              <MultiSelectFilter
+                label="Warehouse"
+                placeholder="All Warehouses"
+                options={warehouses.map((w) => ({ id: w.id, label: w.name, subtext: w.code }))}
+                selectedValues={selectedWarehouses}
+                onChange={setSelectedWarehouses}
+              />
+              <MultiSelectFilter
+                label="Location"
+                placeholder="All Locations"
+                options={filteredLocationOptions.map((l) => ({ id: l.id, label: l.name, subtext: l.code }))}
+                selectedValues={selectedLocations}
+                onChange={setSelectedLocations}
+              />
+              <MultiSelectFilter
+                label="Rack"
+                placeholder="All Racks"
+                options={filteredRackOptions.map((r) => ({ id: r.id, label: r.name, subtext: r.code }))}
+                selectedValues={selectedRacks}
+                onChange={setSelectedRacks}
+              />
+              <MultiSelectFilter
+                label="Bin"
+                placeholder="All Bins"
+                options={filteredBinOptions.map((b) => ({ id: b.id, label: b.code, subtext: b.name }))}
+                selectedValues={selectedBins}
+                onChange={setSelectedBins}
+              />
+              <select
+                value={uomFilter}
+                onChange={(e) => setUomFilter(e.target.value)}
+                className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
+              >
+                <option value="">All UOMs</option>
+                {UOM_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+              <select
+                value={mslFilter}
+                onChange={(e) => setMslFilter(e.target.value)}
+                className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
+              >
+                <option value="">All MSL Monitoring</option>
+                <option value="BELOW">Below MSL (Critical)</option>
+                <option value="AT">Near MSL (Low)</option>
+                <option value="ABOVE">Above MSL (Ok)</option>
+              </select>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
+              >
+                <option value="">All Status</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
             </div>
           </div>
+          
           <DataTable
-            data={balances}
+            data={filteredBalances}
             columns={overviewColumns}
             isLoading={isBalancesLoading}
             pagination
-            defaultPageSize={10}
+            defaultPageSize={20}
             onRowClick={handleRowClick}
           />
         </div>
       )}
 
       {activeTab === 'LEDGER' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-end">
-            <div className="w-1/4">
-              <Select
-                value={txTypeFilter}
-                onChange={(e) => { setTxTypeFilter(e.target.value); setTxPage(1); }}
-              >
-                <option value="">All Transactions</option>
-                <option value="STOCK_IN">Stock In</option>
-                <option value="STOCK_OUT">Stock Out</option>
-                <option value="STORES_ISSUE">Stores Issue</option>
-                <option value="RETURN">Return</option>
-                <option value="ADJUSTMENT">Adjustment</option>
-                <option value="TRANSFER">Transfer</option>
-                <option value="GRN_RECEIPT">GRN Receipt</option>
-                <option value="DC_DISPATCH">DC Dispatch</option>
-                <option value="DC_RETURN">DC Return</option>
-                <option value="PRODUCTION_CONSUMPTION">Production Consumption</option>
-              </Select>
-            </div>
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-slate-900">Physical Stock Movements & Transactions</h3>
+            <select
+              value={txTypeFilter}
+              onChange={(e) => {
+                setTxTypeFilter(e.target.value);
+                setTxPage(1);
+              }}
+              className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
+            >
+              <option value="">All Movement Types</option>
+              <option value="STOCK_IN">Stock In</option>
+              <option value="STOCK_OUT">Stock Out</option>
+              <option value="TRANSFER">Bin Transfer</option>
+              <option value="ADJUSTMENT">Adjustment</option>
+              <option value="STORES_ISSUE">Stores RM Issue</option>
+              <option value="RETURN">Surplus Return</option>
+              <option value="PRODUCTION_CONSUMPTION">Production Consumption</option>
+            </select>
           </div>
           <DataTable
             data={transactions}
             columns={txColumns}
             isLoading={isTransactionsLoading}
             pagination
-            defaultPageSize={10}
+            defaultPageSize={20}
           />
         </div>
       )}
+
 
       <SlideOver
         isOpen={isSlideOverOpen}

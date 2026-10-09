@@ -47,13 +47,13 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   { name: 'Overview', path: '/overview', icon: LayoutDashboard, roles: ['DESIGNER', 'STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: OverviewPage, isSidebar: true, group: 'OVERVIEW', moduleKey: 'overview' },
 
   // RM WORKFLOW
-  { name: 'RM Creation', path: '/design/rm-creation', icon: FilePlus, roles: ['DESIGNER', 'ADMIN'], component: RmCreationWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'rm_creation' },
-  { name: 'My Requisitions', path: '/design/my-requisitions', icon: FileText, roles: ['DESIGNER', 'ADMIN'], component: RmRequisitionWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'rm_requisitions' },
+  { name: 'RM Creation', path: '/design/rm-creation', icon: FilePlus, roles: ['PRODUCTION', 'DESIGNER', 'ADMIN'], component: RmCreationWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'rm_creation' },
+  { name: 'My Requisitions', path: '/design/my-requisitions', icon: FileText, roles: ['PRODUCTION', 'DESIGNER', 'ADMIN'], component: RmRequisitionWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'rm_requisitions' },
   { name: 'RM Issue', path: '/stores/rm-issue', icon: PackageSearch, roles: ['STORES', 'ADMIN'], component: StoresRmIssueWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'rm_issue' },
-  { name: 'Extra Requests', path: '/stores/extra-requests', icon: FilePlus, roles: ['STORES', 'ADMIN'], component: StoresExtraRequestsWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'extra_requests' },
-  { name: 'Return Verify', path: '/stores/return-verify', icon: PackageCheck, roles: ['STORES', 'ADMIN'], component: StoresReturnVerifyWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'return_verify' },
+  { name: 'Extra Requests', path: '/stores/extra-requests', icon: FilePlus, roles: ['PRODUCTION', 'STORES', 'ADMIN'], component: StoresExtraRequestsWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'extra_requests' },
+  { name: 'Return Verify', path: '/stores/return-verify', icon: PackageCheck, roles: ['PRODUCTION', 'STORES', 'ADMIN'], component: StoresReturnVerifyWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'return_verify' },
   { name: 'My RM', path: '/production/rm', icon: PackageSearch, roles: ['PRODUCTION', 'ADMIN'], component: ProductionRmWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'production_rm' },
-  { name: 'Consumption', path: '/production/consumption', icon: PlaySquare, roles: ['PRODUCTION', 'ADMIN'], component: ProductionConsumptionWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'consumption' },
+  { name: 'Consumption', path: '/production/consumption', icon: PlaySquare, roles: ['PRODUCTION', 'STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER'], component: ProductionConsumptionWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'consumption' },
 
   // INVENTORY
   { name: 'Stock Overview', path: '/inventory/stock', icon: Box, roles: ['STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'DESIGNER'], component: InventoryStockWorkspace, isSidebar: true, group: 'INVENTORY', moduleKey: 'stock_overview' },

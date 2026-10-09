@@ -779,4 +779,24 @@ export class ProductionService {
     qb.orderBy('ret.createdAt', 'DESC');
     return qb.getMany();
   }
+
+  async findAllReceipts(scId?: string) {
+    const qb = this.receiptRepo
+      .createQueryBuilder('receipt')
+      .leftJoinAndSelect('receipt.receivedBy', 'receivedBy')
+      .leftJoinAndSelect('receipt.materialIssue', 'issue')
+      .leftJoinAndSelect('issue.salesOrderComponent', 'sc')
+      .leftJoinAndSelect('sc.purchaseOrder', 'po')
+      .leftJoinAndSelect('issue.items', 'issueItems')
+      .leftJoinAndSelect('issueItems.rmItem', 'issueRmItem')
+      .leftJoinAndSelect('receipt.items', 'receiptItems')
+      .leftJoinAndSelect('receiptItems.rmItem', 'rmItem')
+      .orderBy('receipt.createdAt', 'DESC');
+
+    if (scId) {
+      qb.andWhere('issue.sc_id = :scId', { scId });
+    }
+
+    return qb.getMany();
+  }
 }

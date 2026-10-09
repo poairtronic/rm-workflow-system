@@ -30,6 +30,7 @@ export enum ScStatus {
   ADDITIONAL_REQUEST = 'ADDITIONAL_REQUEST',
   COMPLETED = 'COMPLETED',
   CLOSED = 'CLOSED',
+  REJECTED = 'REJECTED',
 }
 
 @Entity('sales_order_components')

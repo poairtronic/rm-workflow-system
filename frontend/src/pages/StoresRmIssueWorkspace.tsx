@@ -39,6 +39,11 @@ export function StoresRmIssueWorkspace() {
     rmId?: string;
   } | null>(null);
 
+  // Reject modal state
+  const [rejectTarget, setRejectTarget] = useState<{ rmId: string; scNumber: string } | null>(null);
+  const [rejectRemarks, setRejectRemarks] = useState('');
+  const [submittingReject, setSubmittingReject] = useState(false);
+
   useEffect(() => {
     loadQueue();
   }, []);
@@ -71,8 +76,29 @@ export function StoresRmIssueWorkspace() {
       case 'ISSUED':
       case 'COMPLETED':
         return <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-md">Issued</span>;
+      case 'REJECTED':
+        return <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-md">Rejected</span>;
       default:
         return <span className="px-2 py-1 text-xs font-medium bg-slate-100 text-slate-700 rounded-md">{status}</span>;
+    }
+  };
+
+  const handleRejectRequisition = async () => {
+    if (!rejectTarget || !rejectTarget.rmId) return;
+    if (!rejectRemarks.trim()) {
+      alert('Please provide a reason for rejection.');
+      return;
+    }
+    setSubmittingReject(true);
+    try {
+      await workflowService.rejectRm(rejectTarget.rmId, rejectRemarks.trim());
+      setRejectTarget(null);
+      setRejectRemarks('');
+      await loadQueue();
+    } catch (err: any) {
+      alert(err.response?.data?.message || err.message || 'Failed to reject requisition');
+    } finally {
+      setSubmittingReject(false);
     }
   };
 
@@ -208,19 +234,29 @@ export function StoresRmIssueWorkspace() {
                       
                       <div className="flex justify-end space-x-3 border-t border-slate-100 pt-4">
                         {sc.status === 'SUBMITTED' ? (
-                          <button 
-                            onClick={() => setSelectedScForReview({
-                              scId: sc.scId,
-                              scNumber: sc.scNumber,
-                              poNumber: selectedPo.poNumber,
-                              productName: sc.productName,
-                              rmId: sc.rmId,
-                            })}
-                            className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-medium rounded-lg transition-colors shadow-sm cursor-pointer"
-                          >
-                            <FileText className="w-4 h-4" />
-                            <span>Review Mapping</span>
-                          </button>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => setRejectTarget({ rmId: sc.rmId || '', scNumber: sc.scNumber })}
+                              className="px-3 py-2 text-sm text-red-700 hover:bg-red-50 font-medium rounded-lg border border-red-200 transition-colors cursor-pointer"
+                            >
+                              Reject
+                            </button>
+                            <button 
+                              onClick={() => setSelectedScForReview({
+                                scId: sc.scId,
+                                scNumber: sc.scNumber,
+                                poNumber: selectedPo.poNumber,
+                                productName: sc.productName,
+                                rmId: sc.rmId,
+                              })}
+                              className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-medium rounded-lg transition-colors shadow-sm cursor-pointer"
+                            >
+                              <FileText className="w-4 h-4" />
+                              <span>Review Mapping</span>
+                            </button>
+                          </div>
+                        ) : sc.status === 'REJECTED' ? (
+                          <span className="text-xs text-red-600 font-medium italic">Requisition Rejected by Stores</span>
                         ) : (
                           <div className="flex items-center space-x-3">
                             <button
@@ -256,6 +292,56 @@ export function StoresRmIssueWorkspace() {
                 <p className="text-slate-500">Select a Purchase Order to view its Sales Order Components.</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Reject Requisition Modal Dialog */}
+      {rejectTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="text-base font-bold text-slate-900">Reject RM Requisition</h3>
+              <button
+                type="button"
+                onClick={() => setRejectTarget(null)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-slate-600">
+              Are you sure you want to reject the Raw Material Requisition for SC <strong>{rejectTarget.scNumber}</strong>? Production will be informed with your reason.
+            </p>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                Reason for Rejection *
+              </label>
+              <textarea
+                rows={3}
+                value={rejectRemarks}
+                onChange={(e) => setRejectRemarks(e.target.value)}
+                placeholder="e.g. Stock unavailable, Material grade mismatch, Needs supervisor approval"
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none"
+              />
+            </div>
+            <div className="flex justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setRejectTarget(null)}
+                className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleRejectRequisition}
+                disabled={submittingReject || !rejectRemarks.trim()}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold shadow-xs disabled:opacity-50"
+              >
+                {submittingReject ? 'Rejecting...' : 'Confirm Rejection'}
+              </button>
+            </div>
           </div>
         </div>
       )}

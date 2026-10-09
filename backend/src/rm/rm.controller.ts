@@ -40,37 +40,37 @@ export class RmController {
   ) {}
 
   @Post()
-  @Roles(UserRole.DESIGNER, UserRole.ADMIN)
+  @Roles(UserRole.PRODUCTION, UserRole.DESIGNER, UserRole.ADMIN)
   createRm(@Body() dto: CreateRmDto, @Req() req: any) {
     return this.rmService.createRm(dto, req.user.userId);
   }
 
   @Post('draft')
-  @Roles(UserRole.DESIGNER, UserRole.ADMIN)
+  @Roles(UserRole.PRODUCTION, UserRole.DESIGNER, UserRole.ADMIN)
   createDraftRm(@Body() dto: CreateDraftRmDto, @Req() req: any) {
     return this.rmService.createDraftRm(dto, req.user);
   }
 
   @Get('po/:poId/draft')
-  @Roles(UserRole.DESIGNER, UserRole.ADMIN)
+  @Roles(UserRole.PRODUCTION, UserRole.DESIGNER, UserRole.ADMIN)
   getDraftRmByPo(@Param('poId', ParseUUIDPipe) poId: string, @Req() req: any) {
     return this.rmService.getDraftRmByPo(poId, req.user);
   }
 
   @Put('po/:poId/draft')
-  @Roles(UserRole.DESIGNER, UserRole.ADMIN)
+  @Roles(UserRole.PRODUCTION, UserRole.DESIGNER, UserRole.ADMIN)
   updateDraftRm(@Param('poId', ParseUUIDPipe) poId: string, @Body() dto: UpdateDraftRmDto, @Req() req: any) {
     return this.rmService.updateDraftRm(poId, dto, req.user);
   }
 
   @Post('po/:poId/submit')
-  @Roles(UserRole.DESIGNER, UserRole.ADMIN)
+  @Roles(UserRole.PRODUCTION, UserRole.DESIGNER, UserRole.ADMIN)
   submitDraftRmByPo(@Param('poId', ParseUUIDPipe) poId: string, @Req() req: any) {
     return this.rmService.submitDraftRmByPo(poId, req.user);
   }
 
   @Get('mine')
-  @Roles(UserRole.DESIGNER, UserRole.ADMIN)
+  @Roles(UserRole.PRODUCTION, UserRole.DESIGNER, UserRole.ADMIN)
   getMine(@Req() req: any) {
     return this.rmService.getMine(req.user);
   }
@@ -82,7 +82,7 @@ export class RmController {
   }
 
   @Post(':id/items')
-  @Roles(UserRole.DESIGNER, UserRole.ADMIN)
+  @Roles(UserRole.PRODUCTION, UserRole.DESIGNER, UserRole.ADMIN)
   addRmItem(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CreateRmItemDto,
@@ -91,7 +91,7 @@ export class RmController {
   }
 
   @Post(':id/submit')
-  @Roles(UserRole.DESIGNER, UserRole.ADMIN)
+  @Roles(UserRole.PRODUCTION, UserRole.DESIGNER, UserRole.ADMIN)
   submitRm(@Param('id', ParseUUIDPipe) id: string, @Body() dto: SubmitRmDto) {
     return this.rmService.submitRm(id, dto);
   }
@@ -104,6 +104,16 @@ export class RmController {
     @Req() req: any,
   ) {
     return this.rmService.reviewRm(id, dto, req.user.userId);
+  }
+
+  @Post(':id/reject')
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  rejectRm(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('remarks') remarks: string,
+    @Req() req: any,
+  ) {
+    return this.rmService.rejectRm(id, remarks || 'Rejected by Stores', req.user.userId);
   }
 
   @Get()

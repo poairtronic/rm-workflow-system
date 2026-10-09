@@ -91,6 +91,8 @@ export const workflowService = {
   getRmById: (id: string) => api.get<RMRequest>(`/api/rm/${id}`),
   reviewRm: (id: string, itemMappings: { rmItemId: string; productId: string }[], remarks?: string) =>
     api.post<any>(`/api/rm/${id}/review`, { itemMappings, remarks }),
+  rejectRm: (id: string, remarks?: string) =>
+    api.post<any>(`/api/rm/${id}/reject`, { remarks }),
 
   // Material Issue (Stores)
   createIssue: (scId: string, items: { rmItemId: string; binId: string; quantityIssued: number; heatNumber?: string; batchNumber?: string }[], remarks?: string, additionalRequestId?: string) =>
@@ -100,8 +102,10 @@ export const workflowService = {
   // Production
   receiveMaterial: (materialIssueId: string, scId: string, items: { rmItemId: string; quantityReceived: number }[], remarks?: string) =>
     api.post<any>('/api/production/receipt', { materialIssueId, scId, items, remarks }),
+  getReceipts: (scId?: string) =>
+    api.get<any[]>(`/api/production/receipts${scId ? `?scId=${scId}` : ''}`),
   recordConsumption: (scId: string, rmItemId: string, quantityConsumed: number, remarks?: string) =>
-    api.post<any>('/api/production/consume', { scId, rmItemId, quantityConsumed, remarks }),
+    api.post<any>(`/api/production/consume`, { scId, rmItemId, quantityConsumed, remarks }),
   recordReturn: (scId: string, items: { rmItemId: string; quantityReturned: number }[], remarks?: string) =>
     api.post<any>('/api/production/return', { scId, items, remarks }),
   verifyReturn: (returnId: string, destinationBinId: string, remarks?: string) =>

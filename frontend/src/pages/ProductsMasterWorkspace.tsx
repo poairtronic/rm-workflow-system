@@ -299,22 +299,43 @@ export function ProductsMasterWorkspace() {
       }
       const entry = map.get(bal.productId)!;
       if (bal.binId) entry.binIds.add(bal.binId);
-      if (bal.binCode && !entry.binLabels.includes(bal.binCode)) {
-        entry.binLabels.push(bal.binCode);
-      }
+      
       const bin = binMap.get(bal.binId);
       if (bin) {
         if (bin.rackId) {
           entry.rackIds.add(bin.rackId);
           const rack = rackMap.get(bin.rackId);
-          if (rack?.locationId) {
-            entry.locationIds.add(rack.locationId);
-            const loc = locMap.get(rack.locationId);
-            if (loc?.warehouseId) {
-              entry.warehouseIds.add(loc.warehouseId);
+          if (rack) {
+            let isBinArea = false;
+            if (rack.locationId) {
+              entry.locationIds.add(rack.locationId);
+              const loc = locMap.get(rack.locationId);
+              if (loc) {
+                isBinArea = loc.name.toLowerCase().includes('bin');
+                if (loc.warehouseId) {
+                  entry.warehouseIds.add(loc.warehouseId);
+                }
+              }
+            }
+            
+            // Flatten presentation based on Location Name
+            if (isBinArea) {
+              if (bal.binCode && !entry.binLabels.includes(bal.binCode)) {
+                entry.binLabels.push(bal.binCode);
+              }
+            } else {
+              if (rack.code && !entry.binLabels.includes(rack.code)) {
+                entry.binLabels.push(rack.code);
+              }
             }
           }
+        } else {
+          if (bal.binCode && !entry.binLabels.includes(bal.binCode)) {
+            entry.binLabels.push(bal.binCode);
+          }
         }
+        
+        // Also capture from populated relations if any (fallback)
         if (bin.rack?.locationId) {
           entry.locationIds.add(bin.rack.locationId);
           const loc = locMap.get(bin.rack.locationId) || bin.rack.location;

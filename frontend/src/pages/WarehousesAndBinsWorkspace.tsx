@@ -439,9 +439,18 @@ function RacksAndBinsRowView({
               <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
                 {location.code}
               </span>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
-                {racks.length} Rack{racks.length !== 1 ? 's' : ''}
-              </span>
+              
+              {/* Dynamic naming based on location name */}
+              {(() => {
+                const locName = location.name.toLowerCase();
+                const sectionLabel = locName.includes('rack') ? 'Rack' : locName.includes('bin') ? 'Shelving' : 'Section';
+                const sectionLabelPlural = locName.includes('rack') ? 'Racks' : locName.includes('bin') ? 'Shelves' : 'Sections';
+                return (
+                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                    {racks.length} {racks.length === 1 ? sectionLabel : sectionLabelPlural}
+                  </span>
+                );
+              })()}
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
               Arranged in responsive rows • Hover over any storage unit to scale and inspect details
@@ -455,7 +464,10 @@ function RacksAndBinsRowView({
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search racks by code/name..."
+              placeholder={(() => {
+                const locName = location.name.toLowerCase();
+                return locName.includes('rack') ? 'Search racks by code/name...' : locName.includes('bin') ? 'Search shelving by code/name...' : 'Search sections by code/name...';
+              })()}
               value={rackSearch}
               onChange={(e) => setRackSearch(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-600 shadow-xs"
@@ -472,7 +484,11 @@ function RacksAndBinsRowView({
           </div>
 
           <Button size="sm" onClick={() => setIsAddRackOpen(true)}>
-            <Plus className="w-3.5 h-3.5 mr-1" /> Add Rack
+            <Plus className="w-3.5 h-3.5 mr-1" /> 
+            {(() => {
+                const locName = location.name.toLowerCase();
+                return locName.includes('rack') ? 'Add Rack' : locName.includes('bin') ? 'Add Shelving' : 'Add Section';
+            })()}
           </Button>
 
           <button
@@ -494,17 +510,26 @@ function RacksAndBinsRowView({
       ) : racks.length === 0 ? (
         <div className="py-8 text-center bg-white rounded-xl border border-slate-200 p-6">
           <Layers className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-          <h5 className="font-bold text-slate-800 text-sm">No storage racks in this location yet</h5>
+          <h5 className="font-bold text-slate-800 text-sm">
+            {(() => {
+                const locName = location.name.toLowerCase();
+                return locName.includes('rack') ? 'No storage racks in this location yet' : locName.includes('bin') ? 'No shelving in this location yet' : 'No sections in this location yet';
+            })()}
+          </h5>
           <p className="text-xs text-slate-500 mt-1 mb-4">
-            Create your first storage rack or shelving bay to begin placing storage units.
+            Create your first storage structure to begin placing units.
           </p>
           <Button size="sm" onClick={() => setIsAddRackOpen(true)}>
-            <Plus className="w-3.5 h-3.5 mr-1" /> Create First Rack
+            <Plus className="w-3.5 h-3.5 mr-1" /> 
+            {(() => {
+                const locName = location.name.toLowerCase();
+                return locName.includes('rack') ? 'Create First Rack' : locName.includes('bin') ? 'Create First Shelving' : 'Create First Section';
+            })()}
           </Button>
         </div>
       ) : filteredRacks.length === 0 ? (
         <div className="py-8 text-center bg-white rounded-xl border border-slate-200 p-6 text-xs text-slate-500">
-          No racks matched "{rackSearch}".
+          No matches found for "{rackSearch}".
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -514,6 +539,7 @@ function RacksAndBinsRowView({
               rack={rack}
               warehouseId={warehouse.id}
               locationId={location.id}
+              locationName={location.name}
               onOpenAddBin={onOpenAddBin}
             />
           ))}
@@ -538,17 +564,19 @@ function RacksAndBinsRowView({
 }
 
 // ==========================================
-// 3. Rack Box Card with Wide, Legible Bins (Requirement 1 & 3)
+// 3. Rack Box Card (Dynamically flattens hierarchy based on Location)
 // ==========================================
 function RackBoxCard({
   rack,
   warehouseId,
   locationId,
+  locationName,
   onOpenAddBin,
 }: {
   rack: Rack;
   warehouseId: string;
   locationId: string;
+  locationName: string;
   onOpenAddBin: (ctx: { warehouseId?: string; locationId?: string; rackId?: string }) => void;
 }) {
   const [bins, setBins] = useState<Bin[]>([]);
@@ -573,87 +601,89 @@ function RackBoxCard({
     loadBins();
   }, [rack.id]);
 
+  const locName = locationName.toLowerCase();
+  const isBinArea = locName.includes('bin');
+
+  if (isBinArea) {
+    if (isLoading) return null; // Or a small skeleton
+    if (bins.length === 0) {
+      return (
+        <div
+          onClick={() => onOpenAddBin({ warehouseId, locationId, rackId: rack.id })}
+          className="rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/50 hover:bg-blue-50/50 hover:border-blue-400 p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 min-h-[100px]"
+        >
+          <Plus className="w-5 h-5 text-slate-400 mb-2" />
+          <span className="text-sm font-semibold text-slate-600">Add First Bin</span>
+        </div>
+      );
+    }
+    return (
+      <>
+        {bins.map(bin => (
+          <div
+            key={bin.id}
+            className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs hover:shadow-md hover:border-blue-400 transition-all duration-200 flex flex-col justify-between space-y-3 cursor-pointer group"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center space-x-3 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                  <Box className="w-4 h-4" />
+                </div>
+                <span className="font-bold text-slate-900 text-base font-mono truncate">
+                  {bin.code}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-500 font-medium">{bin.name || 'Storage Bin'}</span>
+              <span className={`px-2 py-1 rounded-md font-semibold ${bin.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                {bin.isActive ? 'ACTIVE' : 'INACTIVE'}
+              </span>
+            </div>
+          </div>
+        ))}
+      </>
+    );
+  }
+
+  // If not a Bin Area (i.e. Rack Area, Rod Area, Box Area), show only the Rack card!
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4.5 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between space-y-3.5">
-      {/* Rack Title Bar */}
+    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between h-[120px]">
       <div>
-        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-          <div className="flex items-center space-x-2 min-w-0">
-            <Layers className="w-4 h-4 text-slate-500 shrink-0" />
-            <span className="font-bold text-slate-900 text-sm truncate" title={rack.name}>
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center space-x-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-slate-50 text-slate-600 flex items-center justify-center shrink-0">
+              <Layers className="w-4 h-4" />
+            </div>
+            <span className="font-bold text-slate-900 text-base truncate" title={rack.name}>
               {rack.name}
             </span>
           </div>
-          <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700 shrink-0 ml-1">
+          <span className="font-mono text-xs font-semibold px-2 py-1 rounded bg-slate-100 border border-slate-200 text-slate-700 shrink-0 ml-1">
             {rack.code}
           </span>
         </div>
-        <div className="flex items-center justify-between text-xs text-slate-500 mt-2">
-          <span>{bins.length} Unit{bins.length !== 1 ? 's' : ''} Allocated</span>
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-slate-500 mt-3 pt-1">
+        <div className="flex items-center space-x-2">
+          <span className={`w-2 h-2 rounded-full ${rack.isActive ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+          <span className="font-medium text-slate-600">{rack.isActive ? 'Active' : 'Inactive'}</span>
+        </div>
+        
+        {/* Hide bins entirely, only prompt to initialize if missing */}
+        {isLoading ? (
+          <span className="text-slate-400">Loading...</span>
+        ) : bins.length > 0 ? (
+          <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-1 rounded">● Ready</span>
+        ) : (
           <button
             type="button"
             onClick={() => onOpenAddBin({ warehouseId, locationId, rackId: rack.id })}
-            className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline cursor-pointer"
+            className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline cursor-pointer bg-blue-50 px-2 py-1 rounded"
           >
-            <Plus className="w-3.5 h-3.5" /> New Unit
+            <Plus className="w-3 h-3" /> Initialize Node
           </button>
-        </div>
-      </div>
-
-      {/* Bins Grid with Roomy, Legible Layout (Requirement 1: Wide & Clear Values) */}
-      <div className="space-y-2 pt-1 flex-1">
-        {isLoading ? (
-          <div className="py-2">
-            <LoadingState />
-          </div>
-        ) : bins.length === 0 ? (
-          <div
-            onClick={() => onOpenAddBin({ warehouseId, locationId, rackId: rack.id })}
-            className="p-3.5 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 hover:bg-blue-50/30 hover:border-blue-500 text-center cursor-pointer text-xs text-slate-500 hover:text-blue-600 transition-colors"
-          >
-            <Plus className="w-4 h-4 mx-auto mb-1 text-slate-400" />
-            <span>Empty rack — Add first unit</span>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {bins.map((bin) => (
-              <div
-                key={bin.id}
-                className="group/bin flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white transition-all duration-200 ease-out hover:scale-[1.03] hover:-translate-y-0.5 hover:shadow-sm hover:border-blue-500 hover:ring-2 hover:ring-blue-100 cursor-pointer select-none"
-                title={`Storage Unit: ${bin.code}`}
-              >
-                <div className="flex items-center space-x-2.5 min-w-0">
-                  <div className="w-7 h-7 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0 group-hover/bin:bg-blue-600 group-hover/bin:text-white transition-all duration-200">
-                    <Box className="w-3.5 h-3.5" />
-                  </div>
-                  {/* Single-line bold monospace bin code, never wraps awkwardly! */}
-                  <span className="font-mono text-xs font-bold text-slate-900 group-hover/bin:text-blue-600 transition-colors whitespace-nowrap">
-                    {bin.code}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      bin.isActive ? 'bg-emerald-500' : 'bg-slate-300'
-                    }`}
-                  />
-                  <span className="text-[11px] font-medium text-slate-500">
-                    {bin.isActive ? 'Active' : 'Off'}
-                  </span>
-                </div>
-              </div>
-            ))}
-
-            {/* Quick Add Bin Button */}
-            <div
-              onClick={() => onOpenAddBin({ warehouseId, locationId, rackId: rack.id })}
-              className="flex items-center justify-center gap-1.5 p-2 rounded-lg border border-dashed border-slate-300 bg-white hover:bg-blue-50/40 hover:border-blue-500 text-slate-400 hover:text-blue-600 transition-all duration-200 hover:scale-[1.02] cursor-pointer text-xs font-medium select-none"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Unit to {rack.code}</span>
-            </div>
-          </div>
         )}
       </div>
     </div>

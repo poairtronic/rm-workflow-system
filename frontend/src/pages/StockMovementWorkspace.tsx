@@ -167,20 +167,32 @@ export function StockMovementWorkspace() {
   if (isDeduction) {
     binOptions = productBalances
       .filter(b => Number(b.currentQuantity) > 0)
-      .map(b => ({
-        id: b.binId,
-        primary: b.binCode || 'Bin',
-        secondary: `Available: ${b.currentQuantity} ${uom} • ${b.warehouseName || 'Warehouse'}`
-      }));
+      .map(b => {
+        const bin = allBins.find(ab => ab.id === b.binId);
+        let primaryLabel = b.binCode || 'Bin';
+        if (bin?.rack?.location) {
+          const locName = bin.rack.location.name.toLowerCase();
+          primaryLabel = locName.includes('bin') ? bin.code : bin.rack.code;
+        }
+        return {
+          id: b.binId,
+          primary: primaryLabel,
+          secondary: `Available: ${b.currentQuantity} ${uom} • ${b.warehouseName || 'Warehouse'}`
+        };
+      });
   } else {
     binOptions = allBins.map(b => {
       const match = productBalances.find(pb => pb.binId === b.id);
       const currentQty = match ? Number(match.currentQuantity) : 0;
-      const rackLocation = b.rack ? `${b.rack.code}` : '';
+      let primaryLabel = b.code;
+      if (b.rack?.location) {
+        const locName = b.rack.location.name.toLowerCase();
+        primaryLabel = locName.includes('bin') ? b.code : b.rack.code;
+      }
       return {
         id: b.id,
-        primary: b.code,
-        secondary: `${b.name || ''}${rackLocation ? ` (${rackLocation})` : ''}${currentQty > 0 ? ` • Current: ${currentQty} ${uom}` : ''}`
+        primary: primaryLabel,
+        secondary: `${b.name || ''}${currentQty > 0 ? ` • Current: ${currentQty} ${uom}` : ''}`
       };
     });
   }

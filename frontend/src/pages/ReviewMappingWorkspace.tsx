@@ -63,6 +63,9 @@ export function ReviewMappingWorkspace({
   const [items, setItems] = useState<ReviewItemState[]>([]);
   const [remarks, setRemarks] = useState('');
 
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -190,6 +193,26 @@ export function ReviewMappingWorkspace({
     }
   };
 
+  const handleReject = async () => {
+    if (!activeRmId) return;
+    if (!rejectReason.trim()) {
+      alert('Please provide a reason for rejecting this requisition.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await workflowService.rejectRm(activeRmId, rejectReason.trim());
+      setShowRejectModal(false);
+      onSuccess();
+      onBack();
+    } catch (err: any) {
+      alert(err.response?.data?.message || err.message || 'Failed to reject requisition.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6">
       {/* Top Breadcrumb Navigation */}
@@ -242,23 +265,33 @@ export function ReviewMappingWorkspace({
             </button>
 
             {!reviewSuccess ? (
-              <button
-                onClick={handleApprove}
-                disabled={submitting || loading || items.length === 0}
-                className="flex items-center space-x-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {submitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Approving...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Approve & Mark as Reviewed</span>
-                  </>
-                )}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowRejectModal(true)}
+                  disabled={submitting || loading}
+                  className="px-4 py-2 border border-red-300 text-red-700 hover:bg-red-50 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Reject Requisition
+                </button>
+                <button
+                  onClick={handleApprove}
+                  disabled={submitting || loading || items.length === 0}
+                  className="flex items-center space-x-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Approving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Approve & Mark as Reviewed</span>
+                    </>
+                  )}
+                </button>
+              </div>
             ) : (
               onProceedToIssue && (
                 <button
@@ -529,6 +562,56 @@ export function ReviewMappingWorkspace({
           </div>
         </div>
       </div>
+
+      {/* Reject Modal Dialog */}
+      {showRejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="text-base font-bold text-slate-900">Reject RM Requisition</h3>
+              <button
+                type="button"
+                onClick={() => setShowRejectModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-slate-600">
+              Please specify the reason for rejecting this raw material requisition for SC <strong>{scNumber}</strong>. Production will be informed and can amend the requisition.
+            </p>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                Rejection Reason / Notes *
+              </label>
+              <textarea
+                rows={3}
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="e.g. Insufficient warehouse stock, Obsolete material specification, Wrong alloy grade specified"
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none"
+              />
+            </div>
+            <div className="flex justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowRejectModal(false)}
+                className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleReject}
+                disabled={submitting || !rejectReason.trim()}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold shadow-xs disabled:opacity-50"
+              >
+                {submitting ? 'Rejecting...' : 'Confirm Rejection'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

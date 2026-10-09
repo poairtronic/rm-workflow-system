@@ -50,7 +50,11 @@ export function Type2DispatchView() {
       type: 'GENERAL_INVENTORY_OUTWARD',
       vendorId: '',
       notes: '',
-      scBlocks: [{ scId: null, processId: null, items: [] }]
+      scBlocks: [{
+        scId: null,
+        processId: null,
+        items: [{ productId: '', binId: '', batchNumber: '', quantity: 0, description: '' }]
+      }]
     },
     mode: 'onChange'
   });

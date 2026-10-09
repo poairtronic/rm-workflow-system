@@ -71,6 +71,19 @@ export class ProductionController {
     return this.productionService.findAllReturns(status);
   }
 
+  @Get('receipts')
+  @Roles(
+    UserRole.ADMIN,
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.DESIGNER,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+  )
+  getReceipts(@Query('scId') scId?: string) {
+    return this.productionService.findAllReceipts(scId);
+  }
+
   @Get('accounting/:scId')
   @Roles(
     UserRole.ADMIN,

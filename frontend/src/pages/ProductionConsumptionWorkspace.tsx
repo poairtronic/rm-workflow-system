@@ -1,30 +1,33 @@
 import { useState, useEffect } from 'react';
-import { PlaySquare, AlertCircle, RefreshCcw, Plus, PackageMinus, CheckCircle, Scissors, ArrowLeft } from 'lucide-react';
-import { StatusBadge } from '../components/ui/StatusBadge';
-import { workflowService } from '../services/workflowService';
-import type { SC, MaterialAccounting } from '../services/workflowService';
+import { 
+  PlaySquare, 
+  AlertCircle, 
+  Plus, 
+  FileText, 
+  Printer, 
+  Search, 
+  Boxes
+} from 'lucide-react';
+import { workflowService, type SC, type MaterialAccounting } from '../services/workflowService';
+import toast from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 
 export function ProductionConsumptionWorkspace() {
+  const { currentUser } = useAuth();
   const [scList, setScList] = useState<SC[]>([]);
   const [selectedSc, setSelectedSc] = useState<SC | null>(null);
   const [accounting, setAccounting] = useState<MaterialAccounting | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingAccounting, setLoadingAccounting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Active sub-view within selected SC: null (overview), 'EXTRA', 'RETURN', or 'CONSUME'
-  const [activeAction, setActiveAction] = useState<'EXTRA' | 'RETURN' | 'CONSUME' | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  // Form State
-  const [extraItems, setExtraItems] = useState<Record<string, string>>({});
-  const [extraReason, setExtraReason] = useState<string>('ADDITIONAL_REQUIREMENT');
-  
-  const [returnItems, setReturnItems] = useState<Record<string, string>>({});
-  const [returnRemarks, setReturnRemarks] = useState('');
-
-  const [consumeItemId, setConsumeItemId] = useState<string | null>(null);
+  // Daily Consumption Modal State
+  const [showConsumeModal, setShowConsumeModal] = useState(false);
+  const [consumeItemId, setConsumeItemId] = useState<string>('');
   const [consumeQty, setConsumeQty] = useState('');
   const [consumeRemarks, setConsumeRemarks] = useState('');
+  const [submittingConsume, setSubmittingConsume] = useState(false);
 
   useEffect(() => {
     loadSCs();
@@ -33,14 +36,17 @@ export function ProductionConsumptionWorkspace() {
   const loadSCs = async () => {
     setLoading(true);
     try {
-      // Get SCs that are active in production
       const data = await workflowService.getScList();
+      // Show SCs that have been issued, are in production, or completed
       const activeSCs = data.filter(sc => 
-        ['ISSUED', 'PARTIALLY_ISSUED', 'IN_PRODUCTION'].includes(sc.status)
+        ['ISSUED', 'PARTIALLY_ISSUED', 'IN_PRODUCTION', 'COMPLETED', 'CLOSED'].includes(sc.status)
       );
       setScList(activeSCs);
+      if (activeSCs.length > 0 && !selectedSc) {
+        selectSc(activeSCs[0]);
+      }
     } catch (err: any) {
-      setError(err.message || 'Failed to load SCs');
+      setError(err.message || 'Failed to load Sales Order Components');
     } finally {
       setLoading(false);
     }
@@ -52,570 +58,435 @@ export function ProductionConsumptionWorkspace() {
   };
 
   const loadAccounting = async (scId: string) => {
+    setLoadingAccounting(true);
     try {
       const data = await workflowService.getAccounting(scId);
       setAccounting(data);
     } catch (err: any) {
-      setError(err.message || 'Failed to load accounting data');
-    }
-  };
-
-  const handleRequestExtra = async () => {
-    if (!selectedSc || !accounting) return;
-    
-    const items = accounting.items.filter(item => {
-      const qty = Number(extraItems[item.rmItemId]);
-      return qty > 0;
-    }).map(item => ({
-      rmItemId: item.rmItemId,
-      material: item.material,
-      quantity: Number(extraItems[item.rmItemId])
-    }));
-
-    if (items.length === 0) {
-      return alert('Please specify at least one quantity greater than zero.');
-    }
-
-    setSubmitting(true);
-    try {
-      await workflowService.createAdditionalRequest(selectedSc.id, items, extraReason);
-      alert('Additional material requested successfully!');
-      setActiveAction(null);
-      setExtraItems({});
-      await loadAccounting(selectedSc.id);
-    } catch (err: any) {
-      alert(err.message || 'Failed to request extra material');
+      setError(err.message || 'Failed to load material accounting report');
     } finally {
-      setSubmitting(false);
+      setLoadingAccounting(false);
     }
   };
 
-  const handleReturnSurplus = async () => {
-    if (!selectedSc || !accounting) return;
-
-    const items = accounting.items.filter(item => {
-      const qty = Number(returnItems[item.rmItemId]);
-      return qty > 0;
-    }).map(item => ({
-      rmItemId: item.rmItemId,
-      quantityReturned: Number(returnItems[item.rmItemId])
-    }));
-
-    if (items.length === 0) {
-      return alert('Please specify at least one quantity greater than zero.');
-    }
-
-    // Validate against WIP
-    for (const item of items) {
-      const accItem = accounting.items.find(i => i.rmItemId === item.rmItemId);
-      if (accItem && item.quantityReturned > accItem.wip) {
-        return alert(`Cannot return more than available WIP for ${accItem.material}. Max available: ${accItem.wip}`);
-      }
-    }
-
-    setSubmitting(true);
-    try {
-      await workflowService.recordReturn(selectedSc.id, items, returnRemarks);
-      alert('Return initiated successfully. Stores will be notified to verify.');
-      setActiveAction(null);
-      setReturnItems({});
-      setReturnRemarks('');
-      await loadAccounting(selectedSc.id);
-    } catch (err: any) {
-      alert(err.message || 'Failed to initiate return');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleConsume = async () => {
+  const handleRecordConsumption = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!selectedSc || !consumeItemId) return;
-    
     const qty = Number(consumeQty);
-    if (qty <= 0) return alert('Quantity must be greater than zero.');
-
-    const accItem = accounting?.items.find(i => i.rmItemId === consumeItemId);
-    if (accItem && qty > accItem.wip) {
-      return alert(`Cannot consume more than available WIP. Max available: ${accItem.wip}`);
+    if (!qty || qty <= 0) {
+      toast.error('Please enter a valid consumed quantity (> 0)');
+      return;
     }
 
-    setSubmitting(true);
+    setSubmittingConsume(true);
     try {
-      await workflowService.recordConsumption(selectedSc.id, consumeItemId, qty, consumeRemarks);
-      alert('Material consumption recorded successfully.');
-      setActiveAction(null);
-      setConsumeItemId(null);
+      await workflowService.recordConsumption(
+        selectedSc.id,
+        consumeItemId,
+        qty,
+        consumeRemarks.trim() || undefined
+      );
+      toast.success('Production consumption logged successfully!');
+      setShowConsumeModal(false);
       setConsumeQty('');
       setConsumeRemarks('');
       await loadAccounting(selectedSc.id);
     } catch (err: any) {
-      alert(err.message || 'Failed to record consumption');
+      toast.error(err.response?.data?.message || err.message || 'Failed to record consumption');
     } finally {
-      setSubmitting(false);
+      setSubmittingConsume(false);
     }
   };
 
-  const handleCompleteSc = async () => {
-    if (!selectedSc) return;
-    
-    // Warn if there is unreturned WIP
-    const totalWip = accounting?.items.reduce((sum, item) => sum + item.wip, 0) || 0;
-    let msg = 'Are you sure you want to complete this work order?';
-    if (totalWip > 0) {
-      msg = `WARNING: There are still ${totalWip} units of material in WIP. Are you sure you want to complete this SC without returning them?`;
-    }
+  const filteredScList = scList.filter(sc => {
+    const q = searchQuery.toLowerCase();
+    return sc.scNumber.toLowerCase().includes(q) || sc.productName.toLowerCase().includes(q);
+  });
 
-    if (!window.confirm(msg)) return;
+  // Totals for executive summary cards
+  const totalRequired = accounting?.items.reduce((s, i) => s + (Number(i.required) || 0), 0) || 0;
+  const totalIssued = accounting?.items.reduce((s, i) => s + (Number(i.issued) || 0), 0) || 0;
+  const totalReceived = accounting?.items.reduce((s, i) => s + (Number(i.received) || 0), 0) || 0;
+  const totalConsumed = accounting?.items.reduce((s, i) => s + (Number(i.consumed) || 0), 0) || 0;
+  const totalReturned = accounting?.items.reduce((s, i) => s + (Number(i.returned) || 0), 0) || 0;
+  const totalWipBalance = accounting?.items.reduce((s, i) => s + (Number(i.wip) || 0), 0) || 0;
 
-    setSubmitting(true);
-    try {
-      await workflowService.completeSc(selectedSc.id);
-      alert('Work order marked as completed!');
-      setSelectedSc(null);
-      setAccounting(null);
-      await loadSCs();
-    } catch (err: any) {
-      alert(err.message || 'Failed to complete SC');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (loading) {
-    return <div className="p-8 text-center text-slate-500">Loading Production Data...</div>;
-  }
+  const overallConsumedPercent = totalIssued > 0 ? Math.round((totalConsumed / totalIssued) * 100) : 0;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto flex gap-6">
-      <div className="w-1/3 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col min-h-[calc(100vh-8rem)]">
-        <div className="p-4 border-b border-slate-200 bg-slate-50">
-          <h2 className="font-bold text-slate-800">Active Work Orders</h2>
-          <p className="text-xs text-slate-500 mt-1">Select an SC to manage materials</p>
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center space-x-2.5">
+            <h1 className="text-2xl font-bold text-slate-900">Material Consumption & Accounting Report</h1>
+            <span className="px-2.5 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider">
+              Report Module
+            </span>
+          </div>
+          <p className="text-sm text-slate-500 mt-1">
+            Complete material lifecycle audit statement for Raw Material creations: Issued, Consumed, Returned, and Shop Floor Balance.
+          </p>
         </div>
-        <div className="overflow-y-auto flex-1">
-          {scList.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 text-sm">No active SCs found.</div>
-          ) : (
-            <ul className="divide-y divide-slate-100">
-              {scList.map(sc => (
-                <li key={sc.id}>
-                  <button
-                    onClick={() => selectSc(sc)}
-                    className={`w-full text-left px-4 py-4 hover:bg-indigo-50 transition-colors ${
-                      selectedSc?.id === sc.id ? 'bg-indigo-50 border-l-4 border-indigo-600' : 'border-l-4 border-transparent'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="font-semibold text-slate-900">{sc.scNumber}</span>
-                      <StatusBadge status={sc.status} />
-                    </div>
-                    <div className="text-sm text-slate-600 truncate">{sc.productName}</div>
-                    <div className="text-xs text-slate-400 mt-2 flex items-center gap-1">
-                      Target Qty: {sc.targetQuantity}
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
+
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center space-x-2 px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 shadow-xs transition-colors"
+          >
+            <Printer className="w-4 h-4 text-slate-500" />
+            <span>Print Report</span>
+          </button>
+
+          {(currentUser?.role === 'PRODUCTION' || currentUser?.role === 'ADMIN') && (
+            <button
+              onClick={() => {
+                if (accounting?.items && accounting.items.length > 0) {
+                  setConsumeItemId(accounting.items[0].rmItemId);
+                }
+                setShowConsumeModal(true);
+              }}
+              disabled={!selectedSc || !accounting || accounting.items.length === 0}
+              className="inline-flex items-center space-x-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold shadow-sm transition-colors disabled:opacity-50"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Log Daily Consumption</span>
+            </button>
           )}
         </div>
       </div>
 
-      <div className="w-2/3">
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg flex items-center space-x-2">
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
+      {error && (
+        <div className="p-4 bg-red-50 text-red-700 rounded-lg flex items-center space-x-2 border border-red-200">
+          <AlertCircle className="w-5 h-5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
-        {!selectedSc ? (
-          <div className="h-full flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 p-12 text-center">
-            <PlaySquare className="w-12 h-12 text-slate-300 mb-4" />
-            <h3 className="text-lg font-medium text-slate-900 mb-1">No SC Selected</h3>
-            <p className="text-slate-500 text-sm max-w-sm">
-              Select a work order from the list on the left to view accounting balances, request extra materials, or return surplus stock.
-            </p>
+      {/* Main Split Layout: SC Selection Drawer on left, Comprehensive Report on right */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left: Active Work Orders List */}
+        <div className="lg:col-span-4 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col h-[720px]">
+          <div className="p-4 border-b border-slate-100 bg-slate-50/60">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-bold text-slate-900 text-sm">Active RM Work Orders</h3>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
+                {scList.length}
+              </span>
+            </div>
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                placeholder="Search SC or product..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
           </div>
-        ) : !accounting ? (
-          <div className="p-8 text-center text-slate-500">Loading accounting data...</div>
-        ) : (
-          <div className="space-y-6">
-            {!activeAction && (
-              <div className="flex items-center justify-between">
+
+          <div className="flex-1 overflow-y-auto divide-y divide-slate-100 p-2 space-y-1">
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+              </div>
+            ) : filteredScList.length === 0 ? (
+              <div className="text-center py-12 text-slate-400 text-xs">No matching components found.</div>
+            ) : (
+              filteredScList.map((sc) => {
+                const isSelected = selectedSc?.id === sc.id;
+                return (
+                  <button
+                    key={sc.id}
+                    onClick={() => selectSc(sc)}
+                    className={`w-full text-left p-3 rounded-lg transition-all text-xs ${
+                      isSelected
+                        ? 'bg-indigo-50/80 border border-indigo-200 text-slate-900 ring-1 ring-indigo-500/30'
+                        : 'hover:bg-slate-50 border border-transparent text-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-slate-900 text-sm">{sc.scNumber}</span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                        sc.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' :
+                        sc.status === 'IN_PRODUCTION' ? 'bg-blue-100 text-blue-800' :
+                        'bg-purple-100 text-purple-800'
+                      }`}>
+                        {sc.status.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                    <div className="text-slate-500 truncate">{sc.productName}</div>
+                    <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-400">
+                      <span>Target: {sc.targetQuantity} units</span>
+                      {sc.purchaseOrder && <span>PO: {sc.purchaseOrder.poNumber}</span>}
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Right: Comprehensive Material Accounting Report */}
+        <div className="lg:col-span-8 space-y-6">
+          {selectedSc ? (
+            <>
+              {/* Selected SC Banner */}
+              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-900">{selectedSc.scNumber}</h1>
-                  <p className="text-slate-500">{selectedSc.productName}</p>
+                  <div className="flex items-center space-x-2">
+                    <h2 className="text-lg font-bold text-slate-900">SC: {selectedSc.scNumber}</h2>
+                    <span className="px-2.5 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      {selectedSc.status}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    Target Finished Product: <strong className="text-slate-800">{selectedSc.productName}</strong>
+                    {selectedSc.purchaseOrder && <> (Linked PO: {selectedSc.purchaseOrder.poNumber})</>}
+                  </p>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleCompleteSc}
-                    disabled={submitting}
-                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 border border-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    Complete SC
-                  </button>
-                  <button
-                    onClick={() => setActiveAction('EXTRA')}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 text-sm font-medium transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Request Extra
-                  </button>
-                  <button
-                    onClick={() => setActiveAction('RETURN')}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 text-sm font-medium transition-colors"
-                  >
-                    <PackageMinus className="w-4 h-4" />
-                    Return Surplus
-                  </button>
+
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <div className="text-xs text-slate-400">Consumption Rate</div>
+                    <div className="text-base font-bold text-slate-900">{overallConsumedPercent}% Consumed</div>
+                  </div>
+                  <div className="w-16 bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
+                    <div
+                      className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(overallConsumedPercent, 100)}%` }}
+                    />
+                  </div>
                 </div>
               </div>
-            )}
 
-            {activeAction === 'EXTRA' ? (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => setActiveAction(null)}
-                    className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-lg border border-slate-200 shadow-sm transition-all hover:bg-slate-50"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span>Back to Material Balance</span>
-                  </button>
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                    Request Additional RM
+              {/* Executive Material Accounting KPIs */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div className="bg-white border border-slate-200 p-3.5 rounded-xl shadow-xs">
+                  <div className="text-xs font-medium text-slate-500">1. Required</div>
+                  <div className="text-lg font-bold text-slate-900 mt-1">{totalRequired}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">From Requisition</div>
+                </div>
+
+                <div className="bg-white border border-slate-200 p-3.5 rounded-xl shadow-xs">
+                  <div className="text-xs font-medium text-indigo-600">2. Issued (Stores)</div>
+                  <div className="text-lg font-bold text-indigo-700 mt-1">{totalIssued}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Stores Dispatched</div>
+                </div>
+
+                <div className="bg-white border border-slate-200 p-3.5 rounded-xl shadow-xs">
+                  <div className="text-xs font-medium text-blue-600">3. Received</div>
+                  <div className="text-lg font-bold text-blue-700 mt-1">{totalReceived}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Floor Confirmed</div>
+                </div>
+
+                <div className="bg-white border border-slate-200 p-3.5 rounded-xl shadow-xs">
+                  <div className="text-xs font-medium text-emerald-600">4. Consumed</div>
+                  <div className="text-lg font-bold text-emerald-700 mt-1">{totalConsumed}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Used in Production</div>
+                </div>
+
+                <div className="bg-white border border-slate-200 p-3.5 rounded-xl shadow-xs">
+                  <div className="text-xs font-medium text-amber-600">5. Returned</div>
+                  <div className="text-lg font-bold text-amber-700 mt-1">{totalReturned}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Sent Back to Stores</div>
+                </div>
+
+                <div className="bg-white border border-slate-200 p-3.5 rounded-xl shadow-xs">
+                  <div className="text-xs font-medium text-purple-600">6. Floor Balance</div>
+                  <div className="text-lg font-bold text-purple-700 mt-1">{totalWipBalance}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Active WIP on Floor</div>
+                </div>
+              </div>
+
+              {/* Item-by-Item Breakdown Table */}
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Boxes className="w-4 h-4 text-slate-600" />
+                    <h3 className="font-bold text-slate-900 text-sm">Raw Material Item Consumption Breakdown</h3>
+                  </div>
+                  <span className="text-xs text-slate-500">
+                    {accounting?.items.length || 0} Material Specification(s)
                   </span>
                 </div>
 
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="px-6 py-5 border-b border-slate-200 bg-slate-50/50">
-                    <h3 className="text-xl font-bold text-slate-900">Request Extra Material</h3>
-                    <p className="text-sm text-slate-500 mt-1">
-                      Request additional raw materials from Stores for SC <span className="font-semibold text-slate-800">{selectedSc.scNumber}</span> ({selectedSc.productName})
-                    </p>
+                {loadingAccounting ? (
+                  <div className="flex justify-center py-16">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                   </div>
-
-                  <div className="p-6 space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Reason for Request</label>
-                      <select
-                        value={extraReason}
-                        onChange={(e) => setExtraReason(e.target.value)}
-                        className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-                      >
-                        <option value="ADDITIONAL_REQUIREMENT">Additional Requirement</option>
-                        <option value="DAMAGE">Damage</option>
-                        <option value="WASTAGE">Wastage</option>
-                        <option value="MANUFACTURING_ERROR">Manufacturing Error</option>
-                        <option value="OTHER">Other</option>
-                      </select>
-                    </div>
-
-                    <div className="border border-slate-200 rounded-lg overflow-hidden">
-                      <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                          <tr>
-                            <th className="px-4 py-3 font-semibold text-slate-700">Material</th>
-                            <th className="px-4 py-3 font-semibold text-slate-700 text-right">Target Qty</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {accounting.items.map(item => (
-                            <tr key={item.rmItemId} className="hover:bg-slate-50/50">
-                              <td className="px-4 py-3">
-                                <p className="font-medium text-slate-900">{item.material}</p>
-                                <p className="text-xs text-slate-500">WIP: {item.wip}</p>
+                ) : !accounting || accounting.items.length === 0 ? (
+                  <div className="text-center py-12 text-slate-400 text-sm">
+                    No material items found for this component.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 text-slate-600 border-b border-slate-200 font-semibold uppercase tracking-wider">
+                          <th className="py-3 px-4">Material Specification</th>
+                          <th className="py-3 px-3 text-right">Required</th>
+                          <th className="py-3 px-3 text-right text-indigo-700">Issued</th>
+                          <th className="py-3 px-3 text-right text-blue-700">Received</th>
+                          <th className="py-3 px-3 text-right text-emerald-700">Consumed</th>
+                          <th className="py-3 px-3 text-right text-amber-700">Returned</th>
+                          <th className="py-3 px-3 text-right text-purple-700">WIP Balance</th>
+                          <th className="py-3 px-4 text-center">Utilization</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {accounting.items.map((item) => {
+                          const percent = item.issued > 0 ? Math.round((item.consumed / item.issued) * 100) : 0;
+                          return (
+                            <tr key={item.rmItemId} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="py-3 px-4">
+                                <div className="font-bold text-slate-900">{item.material}</div>
+                                <div className="text-[11px] text-slate-500">
+                                  Grade: {item.grade || 'Standard'} | Size: {item.size || 'N/A'}
+                                </div>
                               </td>
-                              <td className="px-4 py-3">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.001"
-                                  placeholder="0.000"
-                                  value={extraItems[item.rmItemId] || ''}
-                                  onChange={(e) => setExtraItems({ ...extraItems, [item.rmItemId]: e.target.value })}
-                                  className="w-28 px-3 py-1.5 text-right bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary ml-auto block shadow-sm"
-                                />
+                              <td className="py-3 px-3 text-right font-medium text-slate-700">{item.required}</td>
+                              <td className="py-3 px-3 text-right font-bold text-indigo-700">{item.issued}</td>
+                              <td className="py-3 px-3 text-right font-medium text-blue-700">{item.received}</td>
+                              <td className="py-3 px-3 text-right font-bold text-emerald-700">{item.consumed}</td>
+                              <td className="py-3 px-3 text-right font-medium text-amber-700">{item.returned}</td>
+                              <td className="py-3 px-3 text-right font-bold text-purple-700">{item.wip}</td>
+                              <td className="py-3 px-4 text-center">
+                                <div className="flex items-center justify-center space-x-2">
+                                  <div className="w-16 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                    <div
+                                      className="bg-emerald-500 h-1.5 rounded-full"
+                                      style={{ width: `${Math.min(percent, 100)}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[11px] font-semibold text-slate-700">{percent}%</span>
+                                </div>
                               </td>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
+                )}
+              </div>
 
-                  <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3 bg-slate-50/50">
-                    <button
-                      type="button"
-                      onClick={() => setActiveAction(null)}
-                      className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-lg bg-white transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleRequestExtra}
-                      disabled={submitting}
-                      className="px-5 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm"
-                    >
-                      {submitting ? 'Submitting...' : 'Submit Request'}
-                    </button>
-                  </div>
+              {/* Material Life Cycle Governance Note */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-600 flex items-start space-x-3">
+                <FileText className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-bold text-slate-800">Complete Traceability Compliance</div>
+                  <p className="mt-0.5 text-slate-500">
+                    This report verifies that all raw material allocations from Stores have been tracked across production receipt, machining consumption, and verified surplus returns. For extra material requisitions, consult the dedicated <strong>Extra Requests</strong> module. For physical surplus restitution, use the <strong>Return Verify</strong> module.
+                  </p>
                 </div>
               </div>
-            ) : activeAction === 'RETURN' ? (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => setActiveAction(null)}
-                    className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-lg border border-slate-200 shadow-sm transition-all hover:bg-slate-50"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span>Back to Material Balance</span>
-                  </button>
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                    Return Surplus RM
-                  </span>
-                </div>
-
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="px-6 py-5 border-b border-slate-200 bg-slate-50/50">
-                    <h3 className="text-xl font-bold text-slate-900">Return Surplus Material</h3>
-                    <p className="text-sm text-slate-500 mt-1">
-                      Return unused raw material to Stores for SC <span className="font-semibold text-slate-800">{selectedSc.scNumber}</span> ({selectedSc.productName})
-                    </p>
-                  </div>
-
-                  <div className="p-6 space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Remarks (Optional)</label>
-                      <textarea
-                        value={returnRemarks}
-                        onChange={(e) => setReturnRemarks(e.target.value)}
-                        placeholder="Reason for return..."
-                        rows={2}
-                        className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary resize-none shadow-sm"
-                      />
-                    </div>
-
-                    <div className="border border-slate-200 rounded-lg overflow-hidden">
-                      <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                          <tr>
-                            <th className="px-4 py-3 font-semibold text-slate-700">Material</th>
-                            <th className="px-4 py-3 font-semibold text-slate-700 text-right">Return Qty</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {accounting.items.map(item => {
-                            const maxReturn = item.wip;
-                            if (maxReturn <= 0) return null;
-
-                            return (
-                              <tr key={item.rmItemId} className="hover:bg-slate-50/50">
-                                <td className="px-4 py-3">
-                                  <p className="font-medium text-slate-900">{item.material}</p>
-                                  <p className="text-xs text-slate-500">Max Available (WIP): <span className="font-semibold text-indigo-600">{maxReturn}</span></p>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    max={maxReturn}
-                                    step="0.001"
-                                    placeholder="0.000"
-                                    value={returnItems[item.rmItemId] || ''}
-                                    onChange={(e) => setReturnItems({ ...returnItems, [item.rmItemId]: e.target.value })}
-                                    className="w-28 px-3 py-1.5 text-right bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary ml-auto block shadow-sm"
-                                  />
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3 bg-slate-50/50">
-                    <button
-                      type="button"
-                      onClick={() => setActiveAction(null)}
-                      className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-lg bg-white transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleReturnSurplus}
-                      disabled={submitting}
-                      className="px-5 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm"
-                    >
-                      {submitting ? 'Submitting...' : 'Initiate Return'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : activeAction === 'CONSUME' ? (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => { setActiveAction(null); setConsumeItemId(null); }}
-                    className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-lg border border-slate-200 shadow-sm transition-all hover:bg-slate-50"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span>Back to Material Balance</span>
-                  </button>
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                    Log Consumption
-                  </span>
-                </div>
-
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="px-6 py-5 border-b border-slate-200 bg-slate-50/50">
-                    <h3 className="text-xl font-bold text-slate-900">Record Material Consumption</h3>
-                    <p className="text-sm text-slate-500 mt-1">
-                      Log RM used for production on SC <span className="font-semibold text-slate-800">{selectedSc.scNumber}</span>
-                    </p>
-                  </div>
-
-                  <div className="p-6 space-y-5">
-                    {(() => {
-                      const item = accounting.items.find(i => i.rmItemId === consumeItemId);
-                      if (!item) return null;
-                      return (
-                        <>
-                          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                            <p className="font-semibold text-slate-900">{item.material}</p>
-                            <p className="text-sm text-slate-500 mt-0.5">Available WIP: <span className="font-bold text-indigo-600">{item.wip}</span></p>
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Quantity Consumed</label>
-                            <input
-                              type="number"
-                              min="0"
-                              max={item.wip}
-                              step="0.001"
-                              value={consumeQty}
-                              onChange={(e) => setConsumeQty(e.target.value)}
-                              placeholder="0.000"
-                              className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-                            />
-                          </div>
-                        </>
-                      );
-                    })()}
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Remarks (Optional)</label>
-                      <textarea
-                        value={consumeRemarks}
-                        onChange={(e) => setConsumeRemarks(e.target.value)}
-                        placeholder="Details of consumption or scrap..."
-                        rows={2}
-                        className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary resize-none shadow-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3 bg-slate-50/50">
-                    <button
-                      type="button"
-                      onClick={() => { setActiveAction(null); setConsumeItemId(null); }}
-                      className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-lg bg-white transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleConsume}
-                      disabled={submitting}
-                      className="px-5 py-2 bg-amber-600 text-white text-sm font-semibold rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors shadow-sm"
-                    >
-                      {submitting ? 'Recording...' : 'Record Consumption'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-                  <h3 className="font-semibold text-slate-900">Material Balance Panel</h3>
-                  <button onClick={() => loadAccounting(selectedSc.id)} className="text-slate-400 hover:text-slate-600">
-                    <RefreshCcw className="w-4 h-4" />
-                  </button>
-                </div>
-                
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm whitespace-nowrap">
-                    <thead>
-                      <tr className="text-slate-500 border-b border-slate-200 bg-white">
-                        <th className="px-6 py-3 font-medium">Material</th>
-                        <th className="px-6 py-3 font-medium text-right bg-slate-50">Issued</th>
-                        <th className="px-6 py-3 font-medium text-right bg-slate-50">Received</th>
-                        <th className="px-6 py-3 font-medium text-right bg-amber-50">Consumed</th>
-                        <th className="px-6 py-3 font-medium text-right bg-indigo-50">Returned</th>
-                        <th className="px-6 py-3 font-medium text-right bg-indigo-50 text-indigo-700">WIP (Available)</th>
-                        <th className="px-6 py-3 font-medium text-right bg-red-50 text-red-600">Unaccounted</th>
-                        <th className="px-6 py-3 font-medium text-center">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {accounting.items.map(item => (
-                        <tr key={item.rmItemId} className="hover:bg-slate-50/50">
-                          <td className="px-6 py-4">
-                            <p className="font-medium text-slate-900">{item.material}</p>
-                            <p className="text-xs text-slate-500">{item.grade} • Req: {item.required}</p>
-                          </td>
-                          <td className="px-6 py-4 text-right font-medium text-slate-700 bg-slate-50/50">{item.issued}</td>
-                          <td className="px-6 py-4 text-right font-medium text-slate-700 bg-slate-50/50">{item.received}</td>
-                          <td className="px-6 py-4 text-right font-medium text-amber-700 bg-amber-50/30">{item.consumed}</td>
-                          <td className="px-6 py-4 text-right font-medium text-indigo-600 bg-indigo-50/30">
-                            {item.returned}
-                            {item.pendingReturned > 0 && (
-                              <span className="block text-xs text-indigo-400">+{item.pendingReturned} pending</span>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 text-right font-bold text-indigo-700 bg-indigo-50/50">{item.wip}</td>
-                          <td className="px-6 py-4 text-right font-bold text-red-600 bg-red-50/30">{item.unaccounted}</td>
-                          <td className="px-6 py-4 text-center">
-                            <button
-                              onClick={() => {
-                                setConsumeItemId(item.rmItemId);
-                                setConsumeQty('');
-                                setConsumeRemarks('');
-                                setActiveAction('CONSUME');
-                              }}
-                              disabled={item.wip <= 0}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                              <Scissors className="w-3.5 h-3.5" />
-                              Consume
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {accounting.items.length === 0 && (
-                        <tr>
-                          <td colSpan={8} className="px-6 py-8 text-center text-slate-500">
-                            No materials mapped for this SC yet.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+            </>
+          ) : (
+            <div className="bg-white border border-slate-200 rounded-xl p-16 text-center text-slate-400">
+              <Boxes className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+              <h3 className="text-base font-semibold text-slate-800">Select a Component</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Choose an active Sales Order Component from the left panel to inspect its complete material consumption report.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Log Daily Consumption Modal */}
+      {showConsumeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <PlaySquare className="w-5 h-5 text-indigo-600" />
+                <h3 className="font-bold text-slate-900 text-base">Log Production Consumption</h3>
+              </div>
+              <button
+                onClick={() => setShowConsumeModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleRecordConsumption} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Component: {selectedSc?.scNumber}
+                </label>
+                <div className="text-xs text-slate-500 mb-2">{selectedSc?.productName}</div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Raw Material Item *
+                </label>
+                <select
+                  value={consumeItemId}
+                  onChange={(e) => setConsumeItemId(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500"
+                >
+                  {accounting?.items.map((item) => (
+                    <option key={item.rmItemId} value={item.rmItemId}>
+                      {item.material} - (WIP Balance: {item.wip})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Quantity Consumed in Shift *
+                </label>
+                <input
+                  type="number"
+                  step="0.001"
+                  min="0.001"
+                  value={consumeQty}
+                  onChange={(e) => setConsumeQty(e.target.value)}
+                  placeholder="e.g. 10"
+                  required
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Shift / Operator Remarks
+                </label>
+                <input
+                  type="text"
+                  value={consumeRemarks}
+                  onChange={(e) => setConsumeRemarks(e.target.value)}
+                  placeholder="e.g. Shift 1 production run completed"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowConsumeModal(false)}
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingConsume}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs disabled:opacity-50"
+                >
+                  {submittingConsume ? 'Logging...' : 'Confirm Consumption'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-﻿import {
+import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
@@ -25,6 +25,7 @@ export enum RmRequestStatus {
   SUBMITTED = 'SUBMITTED',
   REVIEWED = 'REVIEWED',
   COMPLETED = 'COMPLETED',
+  REJECTED = 'REJECTED',
 }
 
 @Entity('rm_requests')

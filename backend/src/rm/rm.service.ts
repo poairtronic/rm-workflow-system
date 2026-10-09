@@ -313,6 +313,47 @@ export class RmService {
     }
   }
 
+  async rejectRm(rmId: string, remarks: string, actorId: string) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const rm = await queryRunner.manager.findOne(RmRequest, {
+        where: { id: rmId },
+        relations: { salesOrderComponent: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!rm) {
+        throw new NotFoundException(`RM Request with ID "${rmId}" not found.`);
+      }
+
+      if (rm.status !== RmRequestStatus.SUBMITTED && rm.status !== RmRequestStatus.REVIEWED) {
+        throw new BadRequestException(
+          `Only SUBMITTED or REVIEWED requests can be rejected. Current status: ${rm.status}`,
+        );
+      }
+
+      rm.status = RmRequestStatus.REJECTED;
+      rm.remarks = `${rm.remarks || ''} [Rejected by Stores: ${remarks}]`.trim();
+      if (rm.salesOrderComponent) {
+        rm.salesOrderComponent.status = ScStatus.REJECTED;
+        await queryRunner.manager.save(SalesOrderComponent, rm.salesOrderComponent);
+      }
+
+      await queryRunner.manager.save(RmRequest, rm);
+      await queryRunner.commitTransaction();
+
+      return this.findOne(rmId);
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   // --- NEW DRAFT ENDPOINTS ---
 
   async createDraftRm(dto: CreateDraftRmDto, user: any) {
@@ -375,8 +416,8 @@ export class RmService {
         });
 
         if (sc) {
-          if (sc.rmRequest && sc.rmRequest.status !== RmRequestStatus.DRAFT) {
-            throw new ConflictException(`SC ${scNumber} already has a non-DRAFT RM Request.`);
+          if (sc.rmRequest && sc.rmRequest.status !== RmRequestStatus.DRAFT && sc.rmRequest.status !== RmRequestStatus.REJECTED) {
+            throw new ConflictException(`SC ${scNumber} already has an active RM Request.`);
           }
         } else {
           sc = queryRunner.manager.create(SalesOrderComponent, {
@@ -399,6 +440,10 @@ export class RmService {
             createdById: user.userId,
             status: RmRequestStatus.DRAFT,
           });
+          rm = await queryRunner.manager.save(rm);
+        } else if (rm.status === RmRequestStatus.REJECTED) {
+          rm.status = RmRequestStatus.DRAFT;
+          await queryRunner.manager.delete(RmItem, { rmFormId: rm.id });
           rm = await queryRunner.manager.save(rm);
         } else if (rm.status !== RmRequestStatus.DRAFT) {
            throw new ConflictException(`SC ${scNumber} already has a non-DRAFT RM Request.`);
@@ -452,7 +497,7 @@ export class RmService {
       .leftJoinAndSelect('rm.items', 'items')
       .leftJoinAndSelect('rm.purchaseOrder', 'po')
       .where('rm.poId = :poId', { poId })
-      .andWhere('rm.status = :status', { status: RmRequestStatus.DRAFT });
+      .andWhere('rm.status IN (:...statuses)', { statuses: [RmRequestStatus.DRAFT, RmRequestStatus.REJECTED] });
       
     if (user.role !== UserRole.ADMIN) {
       qb.andWhere('rm.createdById = :userId', { userId: user.userId });
@@ -469,6 +514,8 @@ export class RmService {
          scId: rm.scId,
          scNumber: rm.salesOrderComponent!.scNumber,
          productName: rm.salesOrderComponent!.productName,
+         status: rm.status,
+         remarks: rm.remarks,
          items: rm.items.map(i => ({
            id: i.id,
            productId: i.mappedProductId,
@@ -493,7 +540,10 @@ export class RmService {
       const ownerCond = isOwner ? { createdById: user.userId } : {};
 
       const existingDrafts = await queryRunner.manager.find(RmRequest, {
-         where: { poId, status: RmRequestStatus.DRAFT, ...ownerCond },
+         where: [
+           { poId, status: RmRequestStatus.DRAFT, ...ownerCond },
+           { poId, status: RmRequestStatus.REJECTED, ...ownerCond },
+         ],
          relations: { salesOrderComponent: true, items: true }
       });
 
@@ -737,6 +787,7 @@ export class RmService {
           poNumber: po.poNumber,
           draftCount: 0,
           submittedCount: 0,
+          rejectedCount: 0,
           scs: [],
           updatedAt: po.updatedAt,
         });
@@ -745,6 +796,7 @@ export class RmService {
       const group = grouped.get(po.id);
       
       if (req.status === RmRequestStatus.DRAFT) group.draftCount++;
+      else if (req.status === RmRequestStatus.REJECTED) group.rejectedCount++;
       else group.submittedCount++;
 
       group.scs.push({
@@ -752,7 +804,15 @@ export class RmService {
         scNumber: req.salesOrderComponent!.scNumber,
         productName: req.salesOrderComponent!.productName,
         status: req.status,
-        itemCount: req.items.length
+        remarks: req.remarks,
+        itemCount: req.items?.length || 0,
+        items: (req.items || []).map((it) => ({
+          id: it.id,
+          material: it.material,
+          grade: it.grade,
+          quantity: it.quantity,
+          size: it.size,
+        })),
       });
 
       if (req.updatedAt > group.updatedAt) group.updatedAt = req.updatedAt;
