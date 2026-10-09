@@ -6,9 +6,14 @@ import { ROUTE_CONFIG } from '../../routeConfig';
 export function Sidebar() {
   const { currentUser, logout } = useAuth();
 
-  const navItems = ROUTE_CONFIG.filter(item => 
-    item.isSidebar && currentUser?.role && item.roles.includes(currentUser.role)
-  );
+  const navItems = ROUTE_CONFIG.filter(item => {
+    if (!item.isSidebar || !currentUser) return false;
+    if (currentUser.role === 'ADMIN') return true;
+    if (currentUser.effectiveModules && item.moduleKey) {
+      return currentUser.effectiveModules.includes(item.moduleKey);
+    }
+    return item.roles.includes(currentUser.role);
+  });
 
   // Group items by `group` property
   const groupedItems = navItems.reduce((acc, item) => {

@@ -8,9 +8,11 @@ import { AuthService } from './auth.service.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
 import { User } from '../users/entities/user.entity.js';
 import { Role } from '../roles/entities/role.entity.js';
+import { PermissionsModule } from '../permissions/permissions.module.js';
 
 @Module({
   imports: [
+    PermissionsModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     TypeOrmModule.forFeature([User, Role]),
     JwtModule.registerAsync({

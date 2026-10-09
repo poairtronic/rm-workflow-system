@@ -39,47 +39,48 @@ export interface RouteConfig {
   isSidebar: boolean;
   group?: string;
   isPrintable?: boolean;
+  moduleKey?: string;
 }
 
 export const ROUTE_CONFIG: RouteConfig[] = [
   // DESIGNER
-  { name: 'RM Creation', path: '/design/rm-creation', icon: FilePlus, roles: ['DESIGNER', 'ADMIN'], component: RmCreationWorkspace, isSidebar: true, group: 'RM WORKFLOW' },
-  { name: 'My Requisitions', path: '/design/my-requisitions', icon: FileText, roles: ['DESIGNER', 'ADMIN'], component: RmRequisitionWorkspace, isSidebar: true, group: 'RM WORKFLOW' },
+  { name: 'RM Creation', path: '/design/rm-creation', icon: FilePlus, roles: ['DESIGNER', 'ADMIN'], component: RmCreationWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'rm_creation' },
+  { name: 'My Requisitions', path: '/design/my-requisitions', icon: FileText, roles: ['DESIGNER', 'ADMIN'], component: RmRequisitionWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'rm_requisitions' },
 
   // STORES
-  { name: 'RM Issue', path: '/stores/rm-issue', icon: PackageSearch, roles: ['STORES', 'ADMIN'], component: StoresRmIssueWorkspace, isSidebar: true, group: 'RM WORKFLOW' },
-  { name: 'Extra Requests', path: '/stores/extra-requests', icon: FilePlus, roles: ['STORES', 'ADMIN'], component: StoresExtraRequestsWorkspace, isSidebar: true, group: 'RM WORKFLOW' },
-  { name: 'Return Verify', path: '/stores/return-verify', icon: PackageCheck, roles: ['STORES', 'ADMIN'], component: StoresReturnVerifyWorkspace, isSidebar: true, group: 'RM WORKFLOW' },
+  { name: 'RM Issue', path: '/stores/rm-issue', icon: PackageSearch, roles: ['STORES', 'ADMIN'], component: StoresRmIssueWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'rm_issue' },
+  { name: 'Extra Requests', path: '/stores/extra-requests', icon: FilePlus, roles: ['STORES', 'ADMIN'], component: StoresExtraRequestsWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'extra_requests' },
+  { name: 'Return Verify', path: '/stores/return-verify', icon: PackageCheck, roles: ['STORES', 'ADMIN'], component: StoresReturnVerifyWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'return_verify' },
   
-  { name: 'Stock Overview', path: '/inventory/stock', icon: Box, roles: ['STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'DESIGNER'], component: InventoryStockWorkspace, isSidebar: true, group: 'INVENTORY' },
-  { name: 'Stock Movement', path: '/inventory/movements', icon: PackageSearch, roles: ['STORES', 'ADMIN'], component: StockMovementWorkspace, isSidebar: true, group: 'INVENTORY' },
-  { name: 'Supplier Inward (GRN)', path: '/inventory/grn', icon: PackagePlus, roles: ['STORES', 'ADMIN'], component: SupplierInwardWorkspace, isSidebar: true, group: 'INVENTORY' },
-  { name: 'MSL Alerts', path: '/inventory/msl-alerts', icon: BellRing, roles: ['STORES', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: MslAlertsWorkspace, isSidebar: true, group: 'INVENTORY' },
+  { name: 'Stock Overview', path: '/inventory/stock', icon: Box, roles: ['STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'DESIGNER'], component: InventoryStockWorkspace, isSidebar: true, group: 'INVENTORY', moduleKey: 'stock_overview' },
+  { name: 'Stock Movement', path: '/inventory/movements', icon: PackageSearch, roles: ['STORES', 'ADMIN'], component: StockMovementWorkspace, isSidebar: true, group: 'INVENTORY', moduleKey: 'stock_movements' },
+  { name: 'Supplier Inward (GRN)', path: '/inventory/grn', icon: PackagePlus, roles: ['STORES', 'ADMIN'], component: SupplierInwardWorkspace, isSidebar: true, group: 'INVENTORY', moduleKey: 'supplier_inward' },
+  { name: 'MSL Alerts', path: '/inventory/msl-alerts', icon: BellRing, roles: ['STORES', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: MslAlertsWorkspace, isSidebar: true, group: 'INVENTORY', moduleKey: 'msl_alerts' },
   
-  { name: 'DC Type 1 (Process)', path: '/dispatch/delivery-challan/type-1', icon: Box, roles: ['STORES', 'ADMIN'], component: Type1DispatchWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN' },
-  { name: 'DC Type 2 (General)', path: '/dispatch/delivery-challan/type-2', icon: Box, roles: ['STORES', 'ADMIN'], component: Type2DispatchWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN' },
-  { name: 'DC Returns', path: '/dispatch/returns', icon: PackageCheck, roles: ['STORES', 'ADMIN'], component: DockReceiptWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN' },
+  { name: 'DC Type 1 (Process)', path: '/dispatch/delivery-challan/type-1', icon: Box, roles: ['STORES', 'ADMIN'], component: Type1DispatchWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN', moduleKey: 'dc_type1' },
+  { name: 'DC Type 2 (General)', path: '/dispatch/delivery-challan/type-2', icon: Box, roles: ['STORES', 'ADMIN'], component: Type2DispatchWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN', moduleKey: 'dc_type2' },
+  { name: 'DC Returns', path: '/dispatch/returns', icon: PackageCheck, roles: ['STORES', 'ADMIN'], component: DockReceiptWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN', moduleKey: 'dc_returns' },
 
   // PRODUCTION
-  { name: 'My RM', path: '/production/rm', icon: PackageSearch, roles: ['PRODUCTION', 'ADMIN'], component: ProductionRmWorkspace, isSidebar: true, group: 'RM WORKFLOW' },
-  { name: 'Consumption', path: '/production/consumption', icon: PlaySquare, roles: ['PRODUCTION', 'ADMIN'], component: ProductionConsumptionWorkspace, isSidebar: true, group: 'RM WORKFLOW' },
+  { name: 'My RM', path: '/production/rm', icon: PackageSearch, roles: ['PRODUCTION', 'ADMIN'], component: ProductionRmWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'production_rm' },
+  { name: 'Consumption', path: '/production/consumption', icon: PlaySquare, roles: ['PRODUCTION', 'ADMIN'], component: ProductionConsumptionWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'consumption' },
 
   // GOVERNANCE
-  { name: 'SC Traceability', path: '/governance/traceability', icon: ShieldCheck, roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: TraceabilityWorkspace, isSidebar: true, group: 'GOVERNANCE' },
-  { name: 'PO Traceability', path: '/governance/po-traceability', icon: Network, roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: PoTraceabilityWorkspace, isSidebar: true, group: 'GOVERNANCE' },
-  { name: 'Vendor SLAs', path: '/governance/vendor-slas', icon: Shield, roles: ['SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: VendorSlaWorkspace, isSidebar: true, group: 'GOVERNANCE' },
-  { name: 'Vendor Analytics', path: '/governance/vendor-analytics', icon: BarChart3, roles: ['SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: VendorDashboardWorkspace, isSidebar: true, group: 'GOVERNANCE' },
+  { name: 'SC Traceability', path: '/governance/traceability', icon: ShieldCheck, roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: TraceabilityWorkspace, isSidebar: true, group: 'GOVERNANCE', moduleKey: 'sc_traceability' },
+  { name: 'PO Traceability', path: '/governance/po-traceability', icon: Network, roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: PoTraceabilityWorkspace, isSidebar: true, group: 'GOVERNANCE', moduleKey: 'po_traceability' },
+  { name: 'Vendor SLAs', path: '/governance/vendor-slas', icon: Shield, roles: ['SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: VendorSlaWorkspace, isSidebar: true, group: 'GOVERNANCE', moduleKey: 'vendor_slas' },
+  { name: 'Vendor Analytics', path: '/governance/vendor-analytics', icon: BarChart3, roles: ['SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: VendorDashboardWorkspace, isSidebar: true, group: 'GOVERNANCE', moduleKey: 'vendor_analytics' },
   
   // MASTERS
-  { name: 'Users', path: '/masters/users', icon: Users, roles: ['ADMIN'], component: UserMasterWorkspace, isSidebar: true, group: 'MASTERS' },
-  { name: 'Products', path: '/masters/products', icon: Database, roles: ['ADMIN'], component: ProductsMasterWorkspace, isSidebar: true, group: 'MASTERS' },
-  { name: 'Warehouses and Bins', path: '/masters/bins', icon: Box, roles: ['ADMIN'], component: WarehousesAndBinsWorkspace, isSidebar: true, group: 'MASTERS' },
-  { name: 'Vendors', path: '/masters/vendors', icon: Database, roles: ['ADMIN', 'GENERAL_MANAGER'], component: VendorMasterWorkspace, isSidebar: true, group: 'MASTERS' },
-  { name: 'Process Master', path: '/governance/process-master', icon: Settings, roles: ['ADMIN'], component: ProcessMasterWorkspace, isSidebar: true, group: 'MASTERS' },
+  { name: 'Users', path: '/masters/users', icon: Users, roles: ['ADMIN'], component: UserMasterWorkspace, isSidebar: true, group: 'MASTERS', moduleKey: 'users_master' },
+  { name: 'Products', path: '/masters/products', icon: Database, roles: ['ADMIN'], component: ProductsMasterWorkspace, isSidebar: true, group: 'MASTERS', moduleKey: 'products_master' },
+  { name: 'Warehouses and Bins', path: '/masters/bins', icon: Box, roles: ['ADMIN'], component: WarehousesAndBinsWorkspace, isSidebar: true, group: 'MASTERS', moduleKey: 'warehouses_master' },
+  { name: 'Vendors', path: '/masters/vendors', icon: Database, roles: ['ADMIN', 'GENERAL_MANAGER'], component: VendorMasterWorkspace, isSidebar: true, group: 'MASTERS', moduleKey: 'vendors_master' },
+  { name: 'Process Master', path: '/governance/process-master', icon: Settings, roles: ['ADMIN'], component: ProcessMasterWorkspace, isSidebar: true, group: 'MASTERS', moduleKey: 'process_master' },
 
   // OVERVIEW (Management & Admin)
-  { name: 'Overview', path: '/overview', icon: BarChart3, roles: ['SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: OverviewPage, isSidebar: true },
-  { name: 'Enterprise Reports', path: '/reports/generation', icon: FileText, roles: ['SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: ReportGeneratorWorkspace, isSidebar: true },
+  { name: 'Overview', path: '/overview', icon: BarChart3, roles: ['SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: OverviewPage, isSidebar: true, moduleKey: 'overview' },
+  { name: 'Enterprise Reports', path: '/reports/generation', icon: FileText, roles: ['SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: ReportGeneratorWorkspace, isSidebar: true, moduleKey: 'enterprise_reports' },
 
   // PRINTABLE (Not in Sidebar)
   { name: 'DC Print', path: '/dispatch/delivery-challan/:id/print', roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: DeliveryChallanPrintView, isSidebar: false, isPrintable: true },

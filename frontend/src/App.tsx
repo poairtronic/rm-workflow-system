@@ -51,7 +51,7 @@ function App() {
                   <Route 
                     key={route.path}
                     path={route.path} 
-                    element={<ProtectedRoute allowedRoles={route.roles}><route.component /></ProtectedRoute>} 
+                    element={<ProtectedRoute allowedRoles={route.roles} moduleKey={route.moduleKey}><route.component /></ProtectedRoute>} 
                   />
                 ))}
               </Route>
@@ -61,7 +61,7 @@ function App() {
                   <Route 
                     key={route.path}
                     path={route.path} 
-                    element={<ProtectedRoute allowedRoles={route.roles}><route.component /></ProtectedRoute>} 
+                    element={<ProtectedRoute allowedRoles={route.roles} moduleKey={route.moduleKey}><route.component /></ProtectedRoute>} 
                   />
                 ))}
               </Route>

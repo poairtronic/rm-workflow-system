@@ -6,10 +6,11 @@ import type { ReactNode } from 'react';
 
 interface ProtectedRouteProps {
   allowedRoles?: UserRole[];
+  moduleKey?: string;
   children?: ReactNode;
 }
 
-export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) {
+export function ProtectedRoute({ allowedRoles, moduleKey, children }: ProtectedRouteProps) {
   const { isAuthenticated, currentUser, isLoading } = useAuth();
   const location = useLocation();
 
@@ -25,7 +26,15 @@ export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) 
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
-  if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(currentUser.role)) {
+  if (currentUser.role === 'ADMIN') {
+    return children ? <>{children}</> : <Outlet />;
+  }
+
+  if (moduleKey && currentUser.effectiveModules) {
+    if (!currentUser.effectiveModules.includes(moduleKey)) {
+      return <Navigate to="/unauthorized" replace />;
+    }
+  } else if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(currentUser.role)) {
     return <Navigate to="/unauthorized" replace />;
   }
 

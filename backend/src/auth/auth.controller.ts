@@ -15,14 +15,34 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { LoginDto } from './dto/login.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 
+import { PermissionsService } from '../permissions/permissions.service.js';
+
 @Controller('api/auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly permissionsService: PermissionsService,
+  ) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+    const result = await this.authService.login(loginDto);
+    let effectiveModules: string[] = [];
+    try {
+      const perms = await this.permissionsService.getUserPermissions(result.user.userId);
+      effectiveModules = perms.effectiveModules;
+    } catch {
+      // Fallback
+    }
+    return {
+      ...result,
+      user: {
+        ...result.user,
+        id: result.user.userId,
+        effectiveModules,
+      },
+    };
   }
 
   @Get('roles')
@@ -49,10 +69,23 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  getProfile(@Req() req: { user: any }) {
+  async getProfile(@Req() req: { user: any }) {
+    const userId = req.user?.sub || req.user?.userId;
+    let effectiveModules: string[] = [];
+    try {
+      const perms = await this.permissionsService.getUserPermissions(userId);
+      effectiveModules = perms.effectiveModules;
+    } catch {
+      // Fallback
+    }
+
     return {
       status: 'authenticated',
-      user: req.user,
+      user: {
+        ...req.user,
+        id: userId,
+        effectiveModules,
+      },
     };
   }
 

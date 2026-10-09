@@ -19,8 +19,10 @@ import {
   Button,
 } from '../components/ui';
 import type { ColumnDef } from '../components/ui';
-import { Plus, Shield, Mail, Calendar, ArrowLeft, KeyRound } from 'lucide-react';
+import { Plus, Shield, Mail, Calendar, ArrowLeft, KeyRound, SlidersHorizontal } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { UserAccessDrawer } from '../components/access-control/UserAccessDrawer';
+import { RolePermissionMatrixModal } from '../components/access-control/RolePermissionMatrixModal';
 
 const SYSTEM_ROLES: { value: UserRoleType; label: string; desc: string }[] = [
   { value: 'ADMIN', label: 'Admin', desc: 'Full administrative access and user management' },
@@ -56,6 +58,12 @@ export function UserMasterWorkspace() {
 
   // Reset Password Confirmation State
   const [resetPasswordTarget, setResetPasswordTarget] = useState<UserMasterDto | null>(null);
+
+  // Access Control Drawer State
+  const [accessDrawerTarget, setAccessDrawerTarget] = useState<UserMasterDto | null>(null);
+
+  // Role Permission Matrix Modal State
+  const [isRoleMatrixOpen, setIsRoleMatrixOpen] = useState(false);
 
   // Fetch Users
   const {
@@ -269,6 +277,21 @@ export function UserMasterWorkspace() {
       },
     },
     {
+      key: 'accessControl',
+      header: 'Access Permissions',
+      render: (u) => (
+        <button
+          type="button"
+          onClick={() => setAccessDrawerTarget(u)}
+          className="text-xs px-2.5 py-1.5 rounded-md font-semibold bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-colors flex items-center gap-1.5 shadow-2xs"
+          title="Configure module visibility and permissions for this user"
+        >
+          <Shield className="w-3.5 h-3.5 text-blue-600" />
+          <span>Manage Access</span>
+        </button>
+      ),
+    },
+    {
       key: 'createdAt',
       header: 'Member Since / Last Login',
       sortable: true,
@@ -414,13 +437,23 @@ export function UserMasterWorkspace() {
             title="Users Master & Access Control"
             subtitle="Manage employee accounts, assign system roles, configure departments, and control active access."
             actionSlot={
-              <Button
-                onClick={() => setIsCreateOpen(true)}
-                className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <Plus className="w-4 h-4" />
-                <span>New User</span>
-              </Button>
+              <div className="flex items-center gap-2.5">
+                <Button
+                  variant="secondary"
+                  onClick={() => setIsRoleMatrixOpen(true)}
+                  className="flex items-center space-x-1.5 border-slate-300 hover:bg-slate-50 text-slate-700"
+                >
+                  <SlidersHorizontal className="w-4 h-4 text-blue-600" />
+                  <span>Role Access Matrix</span>
+                </Button>
+                <Button
+                  onClick={() => setIsCreateOpen(true)}
+                  className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>New User</span>
+                </Button>
+              </div>
             }
           />
 
@@ -522,6 +555,19 @@ export function UserMasterWorkspace() {
         }
         confirmText="Reset Password"
         isDanger={true}
+      />
+
+      {/* User Access Control SlideOver Drawer */}
+      <UserAccessDrawer
+        user={accessDrawerTarget}
+        isOpen={!!accessDrawerTarget}
+        onClose={() => setAccessDrawerTarget(null)}
+      />
+
+      {/* Role Permission Matrix Modal */}
+      <RolePermissionMatrixModal
+        isOpen={isRoleMatrixOpen}
+        onClose={() => setIsRoleMatrixOpen(false)}
       />
     </div>
   );

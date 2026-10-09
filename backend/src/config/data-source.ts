@@ -67,9 +67,15 @@ import { VendorProcessCapability } from '../vendor/entities/vendor-process-capab
 import { VendorSla } from '../vendor/entities/vendor-sla.entity.js';
 import { DeliveryChallan } from '../delivery-challan/entities/delivery-challan.entity.js';
 import { DeliveryChallanItem } from '../delivery-challan/entities/delivery-challan-item.entity.js';
+import { SystemModule } from '../permissions/entities/system-module.entity.js';
+import { RoleModulePermission } from '../permissions/entities/role-module-permission.entity.js';
+import { UserModulePermission } from '../permissions/entities/user-module-permission.entity.js';
 export const ALL_ENTITIES = [
   Role,
   User,
+  SystemModule,
+  RoleModulePermission,
+  UserModulePermission,
   Customer,
   PurchaseOrder,
   SalesOrderComponent,
