@@ -47,6 +47,30 @@ export class VendorSla {
   @Column({ type: 'text', nullable: true })
   notes?: string | null;
 
+  @Column({ name: 'lead_time_multiplier', type: 'numeric', precision: 4, scale: 2, default: 1.00, transformer: {
+    to: (val?: number) => val,
+    from: (val: string | number) => val != null ? Number(val) : 1.00
+  }})
+  leadTimeMultiplier?: number;
+
+  @Column({ name: 'tolerance_buffer_days', type: 'integer', default: 1 })
+  toleranceBufferDays?: number;
+
+  @Column({ name: 'alert_72h', type: 'boolean', default: false })
+  alert72h?: boolean;
+
+  @Column({ name: 'alert_48h', type: 'boolean', default: false })
+  alert48h?: boolean;
+
+  @Column({ name: 'alert_24h', type: 'boolean', default: true })
+  alert24h?: boolean;
+
+  @Column({ name: 'email_alerts_enabled', type: 'boolean', default: true })
+  emailAlertsEnabled?: boolean;
+
+  @Column({ name: 'sms_alerts_enabled', type: 'boolean', default: false })
+  smsAlertsEnabled?: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

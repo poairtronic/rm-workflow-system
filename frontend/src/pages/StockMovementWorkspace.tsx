@@ -380,7 +380,7 @@ export function StockMovementWorkspace() {
                       ? 'Select a product first...'
                       : binOptions.length === 0
                       ? 'No bins available'
-                      : 'Select bin location...'
+                      : 'Select warehouse location...'
                   }
                 />
               </FormField>

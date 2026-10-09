@@ -31,7 +31,7 @@ export function Sidebar() {
       <nav className="flex-1 p-4 overflow-y-auto">
         {Object.entries(groupedItems).map(([group, items]) => (
           <div key={group} className="mb-6">
-            {group !== 'GENERAL' && (
+            {group !== 'GENERAL' && group !== 'OVERVIEW' && (
               <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-3">
                 {group}
               </h3>

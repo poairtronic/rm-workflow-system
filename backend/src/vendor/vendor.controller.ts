@@ -10,6 +10,7 @@ import {
   UseGuards,
   ParseUUIDPipe,
   ValidationPipe,
+  Req,
 } from '@nestjs/common';
 import { VendorService } from './vendor.service.js';
 import {
@@ -19,6 +20,8 @@ import {
 import {
   VendorSlaService,
   ExpectedReturnCalculationResult,
+  VendorComparisonResult,
+  VendorComplianceResult,
 } from './vendor-sla.service.js';
 import { CreateVendorDto } from './dto/create-vendor.dto.js';
 import { UpdateVendorDto } from './dto/update-vendor.dto.js';
@@ -27,6 +30,7 @@ import { AssignVendorCapabilityDto } from './dto/assign-vendor-capability.dto.js
 import { UpdateVendorCapabilityDto } from './dto/update-vendor-capability.dto.js';
 import { CreateVendorSlaDto } from './dto/create-vendor-sla.dto.js';
 import { UpdateVendorSlaDto } from './dto/update-vendor-sla.dto.js';
+import { RecordSlaOverrideDto } from './dto/record-sla-override.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
@@ -34,6 +38,7 @@ import { UserRole } from '../auth/enums/role.enum.js';
 import { Vendor } from './entities/vendor.entity.js';
 import { VendorProcessCapability } from './entities/vendor-process-capability.entity.js';
 import { VendorSla } from './entities/vendor-sla.entity.js';
+import { VendorSlaOverride } from './entities/vendor-sla-override.entity.js';
 
 @Controller('api/vendors')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -112,12 +117,59 @@ export class VendorController {
   }
 
   /**
+   * Compare all approved vendors providing a specific manufacturing process.
+   * Placed before /:id to prevent route hijacking.
+   */
+  @Get('compare/by-process/:processId')
+  compareVendors(
+    @Param('processId', ParseUUIDPipe) processId: string,
+  ): Promise<VendorComparisonResult[]> {
+    return this.slaService.compareVendorsForProcess(processId);
+  }
+
+  /**
+   * Record an SLA Exception Override.
+   * Placed before /:id to prevent route hijacking.
+   */
+  @Post('slas/:slaId/override')
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER, UserRole.SENIOR_MANAGER)
+  recordOverride(
+    @Param('slaId', ParseUUIDPipe) slaId: string,
+    @Body() dto: RecordSlaOverrideDto,
+    @Req() req: any,
+  ): Promise<VendorSlaOverride> {
+    const userId = req.user?.userId || req.user?.id;
+    return this.slaService.recordOverride(slaId, userId, dto);
+  }
+
+  /**
+   * Retrieve exception overrides logged for an SLA.
+   * Placed before /:id to prevent route hijacking.
+   */
+  @Get('slas/:slaId/overrides')
+  getOverrides(
+    @Param('slaId', ParseUUIDPipe) slaId: string,
+  ): Promise<VendorSlaOverride[]> {
+    return this.slaService.getOverrides(slaId);
+  }
+
+  /**
    * Retrieve a single vendor by UUID.
    * Read access permitted for all authenticated users.
    */
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string): Promise<Vendor> {
     return this.vendorService.findOne(id);
+  }
+
+  /**
+   * Retrieve 6-month historical SLA compliance trend for a vendor.
+   */
+  @Get(':id/compliance')
+  getVendorCompliance(
+    @Param('id', ParseUUIDPipe) vendorId: string,
+  ): Promise<VendorComplianceResult> {
+    return this.slaService.getVendorCompliance(vendorId);
   }
 
   /**

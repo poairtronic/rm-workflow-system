@@ -34,5 +34,11 @@ export class DashboardsController {
   async getManagementDashboard() {
     return this.dashboardsService.getManagementDashboard();
   }
+
+  @Get('overview')
+  @Roles(UserRole.DESIGNER, UserRole.STORES, UserRole.PRODUCTION, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER, UserRole.ADMIN)
+  async getUnifiedOverview() {
+    return this.dashboardsService.getUnifiedOverview();
+  }
 }
 

@@ -15,6 +15,7 @@ export const vendorMasterApi = {
     return api.get<VendorMasterDto[]>(`/api/vendors${qs}`);
   },
   getById: (id: string) => api.get<VendorMasterDto>(`/api/vendors/${id}`),
+  getCapabilities: (id: string) => api.get<any[]>(`/api/vendors/${id}/capabilities`),
   create: (data: CreateVendorMasterDto) => api.post<VendorMasterDto>('/api/vendors', data),
   update: (id: string, data: UpdateVendorMasterDto) => api.patch<VendorMasterDto>(`/api/vendors/${id}`, data),
   toggleActive: (id: string) => api.patch<VendorMasterDto>(`/api/vendors/${id}/toggle-active`),

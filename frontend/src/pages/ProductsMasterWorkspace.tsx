@@ -524,7 +524,7 @@ export function ProductsMasterWorkspace() {
       },
       {
         key: 'storageBin',
-        header: 'Bin Location',
+        header: 'Warehouse Location',
         render: (row) => {
           const storage = productStorageMap.get(row.id);
           if (!storage || storage.binLabels.length === 0) {

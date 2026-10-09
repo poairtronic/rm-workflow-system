@@ -14,3 +14,33 @@
     font-family: var(--font-sans);
   }
 }
+
+/* Eliminate browser and SVG focus rectangle outlines on all Recharts elements */
+div.recharts-wrapper,
+div.recharts-wrapper:focus,
+div.recharts-wrapper:active,
+div.recharts-wrapper:focus-visible,
+div.recharts-wrapper *,
+div.recharts-wrapper *:focus,
+div.recharts-wrapper *:active,
+div.recharts-wrapper *:focus-visible,
+.recharts-surface,
+.recharts-surface:focus,
+.recharts-layer,
+.recharts-layer:focus,
+.recharts-sector,
+.recharts-sector:focus,
+.recharts-bar-rectangle,
+.recharts-bar-rectangle:focus,
+.recharts-tooltip-cursor,
+[tabindex]:focus,
+[tabindex]:focus-visible,
+[role="region"]:focus,
+[role="region"]:focus-visible {
+  outline: none !important;
+  outline-color: transparent !important;
+  outline-style: none !important;
+  outline-width: 0 !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}

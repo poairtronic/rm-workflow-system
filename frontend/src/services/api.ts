@@ -214,7 +214,14 @@ export const productionProcessApi = {
   },
 };
 
-import type { VendorSlaDto, CreateVendorSlaDto, SlaOverrideDto, ComplianceDataPoint } from '../types/vendor-sla.dto';
+import type {
+  VendorSlaDto,
+  CreateVendorSlaDto,
+  SlaOverrideDto,
+  VendorComplianceResult,
+  VendorComparisonResult,
+  VendorSlaOverrideItem,
+} from '../types/vendor-sla.dto';
 
 export const vendorSlaApi = {
   getAll: async () => {
@@ -225,17 +232,30 @@ export const vendorSlaApi = {
       vendorId: sla.vendorId,
       processName: sla.process?.name || '',
       processId: sla.processId,
-      standardTatDays: sla.slaDays, // Map from backend slaDays
+      standardTatDays: sla.slaDays,
+      leadTimeMultiplier: Number(sla.leadTimeMultiplier) || 1.0,
+      toleranceBufferDays: sla.toleranceBufferDays || 1,
       isActive: sla.isActive,
+      alert24h: sla.alert24h,
+      alert48h: sla.alert48h,
+      alert72h: sla.alert72h,
+      emailAlertsEnabled: sla.emailAlertsEnabled,
+      smsAlertsEnabled: sla.smsAlertsEnabled,
     })) as VendorSlaDto[];
   },
   create: async (data: CreateVendorSlaDto) => {
-    // Backend expects CreateVendorSlaDto with processId, slaDays, effectiveDate, etc.
     const backendPayload = {
       processId: data.processId,
-      slaDays: data.standardTatDays, // Map to backend
+      slaDays: data.standardTatDays,
       effectiveDate: new Date().toISOString(),
       isActive: true,
+      leadTimeMultiplier: data.leadTimeMultiplier || 1.0,
+      toleranceBufferDays: data.toleranceBufferDays || 1,
+      alert24h: data.alert24h !== undefined ? data.alert24h : true,
+      alert48h: !!data.alert48h,
+      alert72h: !!data.alert72h,
+      emailAlertsEnabled: data.emailAlertsEnabled !== undefined ? data.emailAlertsEnabled : true,
+      smsAlertsEnabled: !!data.smsAlertsEnabled,
     };
     const sla = await api.post<any>(`/api/vendors/${data.vendorId}/slas`, backendPayload);
     return {
@@ -245,11 +265,32 @@ export const vendorSlaApi = {
       processName: sla.process?.name || '',
       processId: sla.processId,
       standardTatDays: sla.slaDays,
+      leadTimeMultiplier: Number(sla.leadTimeMultiplier) || 1.0,
+      toleranceBufferDays: sla.toleranceBufferDays || 1,
       isActive: sla.isActive,
+      alert24h: sla.alert24h,
+      alert48h: sla.alert48h,
+      alert72h: sla.alert72h,
+      emailAlertsEnabled: sla.emailAlertsEnabled,
+      smsAlertsEnabled: sla.smsAlertsEnabled,
     } as VendorSlaDto;
   },
-  overrideSla: (slaId: string, data: SlaOverrideDto) => api.post<{ success: boolean }>(`/api/vendor-slas/${slaId}/override`, data),
-  getCompliance: (vendorId: string) => api.get<ComplianceDataPoint[]>(`/api/vendor-slas/compliance/${vendorId}`)
+  updateSla: async (slaId: string, data: Partial<CreateVendorSlaDto & { isActive: boolean }>) => {
+    const payload: any = {};
+    if (data.standardTatDays !== undefined) payload.slaDays = data.standardTatDays;
+    if (data.leadTimeMultiplier !== undefined) payload.leadTimeMultiplier = data.leadTimeMultiplier;
+    if (data.toleranceBufferDays !== undefined) payload.toleranceBufferDays = data.toleranceBufferDays;
+    if (data.isActive !== undefined) payload.isActive = data.isActive;
+    return api.patch<any>(`/api/vendors/slas/${slaId}`, payload);
+  },
+  overrideSla: (slaId: string, data: SlaOverrideDto) =>
+    api.post<VendorSlaOverrideItem>(`/api/vendors/slas/${slaId}/override`, data),
+  getOverrides: (slaId: string) =>
+    api.get<VendorSlaOverrideItem[]>(`/api/vendors/slas/${slaId}/overrides`),
+  getCompliance: (vendorId: string) =>
+    api.get<VendorComplianceResult>(`/api/vendors/${vendorId}/compliance`),
+  compareByProcess: (processId: string) =>
+    api.get<VendorComparisonResult[]>(`/api/vendors/compare/by-process/${processId}`),
 };
 
 import type { DeliveryChallanDto } from '../types/delivery-challan.dto';

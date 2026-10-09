@@ -65,6 +65,7 @@ import { ProductionProcess } from '../production-process/entities/production-pro
 import { Vendor } from '../vendor/entities/vendor.entity.js';
 import { VendorProcessCapability } from '../vendor/entities/vendor-process-capability.entity.js';
 import { VendorSla } from '../vendor/entities/vendor-sla.entity.js';
+import { VendorSlaOverride } from '../vendor/entities/vendor-sla-override.entity.js';
 import { DeliveryChallan } from '../delivery-challan/entities/delivery-challan.entity.js';
 import { DeliveryChallanItem } from '../delivery-challan/entities/delivery-challan-item.entity.js';
 import { SystemModule } from '../permissions/entities/system-module.entity.js';
@@ -116,6 +117,7 @@ export const ALL_ENTITIES = [
   Vendor,
   VendorProcessCapability,
   VendorSla,
+  VendorSlaOverride,
   DeliveryChallan,
   DeliveryChallanItem,
 ];

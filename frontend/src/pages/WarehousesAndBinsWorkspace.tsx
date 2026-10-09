@@ -69,9 +69,9 @@ export function WarehousesAndBinsWorkspace() {
   return (
     <div className="p-6 space-y-6">
       <PageHeader
-        title="Warehouses & Bins Master"
-        subtitle="Manage the storage hierarchy: Warehouses, Locations, Racks, and Bins."
-        breadcrumbs={<span>Masters / Warehouses & Bins</span>}
+        title="Warehouses & Storage Units Master"
+        subtitle="Manage the storage hierarchy: Warehouses, Locations, Racks, and Storage Units."
+        breadcrumbs={<span>Masters / Warehouses & Storage Units</span>}
         actionSlot={
           <div className="flex items-center space-x-3">
             <Button
@@ -89,7 +89,7 @@ export function WarehousesAndBinsWorkspace() {
               <FolderPlus className="w-4 h-4 mr-1.5" /> Add Warehouse
             </Button>
             <Button onClick={() => handleOpenAddBin()}>
-              <Plus className="w-4 h-4 mr-1.5" /> Add Bin
+              <Plus className="w-4 h-4 mr-1.5" /> Add Storage Unit
             </Button>
           </div>
         }
@@ -109,7 +109,7 @@ export function WarehousesAndBinsWorkspace() {
           <div className="bg-white rounded-xl border border-slate-200 p-12 text-center shadow-xs">
             <EmptyState
               title="No warehouses configured"
-              description="Create your first warehouse facility to start organizing storage locations, racks, and bins."
+              description="Create your first warehouse facility to start organizing storage locations, racks, and storage units."
             />
             <div className="mt-6 flex justify-center">
               <Button onClick={() => setIsAddWarehouseOpen(true)}>
@@ -122,7 +122,7 @@ export function WarehousesAndBinsWorkspace() {
             <div className="flex items-center justify-between text-xs text-slate-500 font-medium px-1">
               <span className="flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                Select any location card to view its racks and bins displayed across rows
+                Select any location card to view its racks and storage units displayed across rows
               </span>
               <span>{warehouses.length} Warehouse{warehouses.length !== 1 ? 's' : ''} Active</span>
             </div>
@@ -321,7 +321,7 @@ function WarehouseMasterCard({
                         Storage Location
                       </span>
                       <div className="flex items-center gap-1 font-semibold text-blue-600 group-hover:translate-x-0.5 transition-transform">
-                        <span>{isSelected ? 'Selected (Active)' : 'View Racks & Bins'}</span>
+                        <span>{isSelected ? 'Selected (Active)' : 'View Racks & Storage Units'}</span>
                         <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isSelected ? 'rotate-90' : ''}`} />
                       </div>
                     </div>
@@ -434,7 +434,7 @@ function RacksAndBinsRowView({
           <div>
             <div className="flex items-center space-x-2">
               <h4 className="font-bold text-slate-900 text-lg">
-                Racks & Bins in {location.name}
+                Storage Hierarchy in {location.name}
               </h4>
               <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
                 {location.code}
@@ -444,7 +444,7 @@ function RacksAndBinsRowView({
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Arranged in responsive rows • Hover over any bin to scale and inspect details
+              Arranged in responsive rows • Hover over any storage unit to scale and inspect details
             </p>
           </div>
         </div>
@@ -496,7 +496,7 @@ function RacksAndBinsRowView({
           <Layers className="w-8 h-8 text-slate-400 mx-auto mb-2" />
           <h5 className="font-bold text-slate-800 text-sm">No storage racks in this location yet</h5>
           <p className="text-xs text-slate-500 mt-1 mb-4">
-            Create your first storage rack or shelving bay to begin placing bins.
+            Create your first storage rack or shelving bay to begin placing storage units.
           </p>
           <Button size="sm" onClick={() => setIsAddRackOpen(true)}>
             <Plus className="w-3.5 h-3.5 mr-1" /> Create First Rack
@@ -589,13 +589,13 @@ function RackBoxCard({
           </span>
         </div>
         <div className="flex items-center justify-between text-xs text-slate-500 mt-2">
-          <span>{bins.length} Bin{bins.length !== 1 ? 's' : ''} Allocated</span>
+          <span>{bins.length} Unit{bins.length !== 1 ? 's' : ''} Allocated</span>
           <button
             type="button"
             onClick={() => onOpenAddBin({ warehouseId, locationId, rackId: rack.id })}
             className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5" /> New Bin
+            <Plus className="w-3.5 h-3.5" /> New Unit
           </button>
         </div>
       </div>
@@ -612,7 +612,7 @@ function RackBoxCard({
             className="p-3.5 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 hover:bg-blue-50/30 hover:border-blue-500 text-center cursor-pointer text-xs text-slate-500 hover:text-blue-600 transition-colors"
           >
             <Plus className="w-4 h-4 mx-auto mb-1 text-slate-400" />
-            <span>Empty rack — Add first bin</span>
+            <span>Empty rack — Add first unit</span>
           </div>
         ) : (
           <div className="space-y-2">
@@ -620,7 +620,7 @@ function RackBoxCard({
               <div
                 key={bin.id}
                 className="group/bin flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white transition-all duration-200 ease-out hover:scale-[1.03] hover:-translate-y-0.5 hover:shadow-sm hover:border-blue-500 hover:ring-2 hover:ring-blue-100 cursor-pointer select-none"
-                title={`Storage Bin: ${bin.code}`}
+                title={`Storage Unit: ${bin.code}`}
               >
                 <div className="flex items-center space-x-2.5 min-w-0">
                   <div className="w-7 h-7 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0 group-hover/bin:bg-blue-600 group-hover/bin:text-white transition-all duration-200">
@@ -651,7 +651,7 @@ function RackBoxCard({
               className="flex items-center justify-center gap-1.5 p-2 rounded-lg border border-dashed border-slate-300 bg-white hover:bg-blue-50/40 hover:border-blue-500 text-slate-400 hover:text-blue-600 transition-all duration-200 hover:scale-[1.02] cursor-pointer text-xs font-medium select-none"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Add Bin to {rack.code}</span>
+              <span>Add Unit to {rack.code}</span>
             </div>
           </div>
         )}

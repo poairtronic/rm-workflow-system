@@ -4,7 +4,9 @@ import { AuthModule } from '../auth/auth.module.js';
 import { Vendor } from './entities/vendor.entity.js';
 import { VendorProcessCapability } from './entities/vendor-process-capability.entity.js';
 import { VendorSla } from './entities/vendor-sla.entity.js';
+import { VendorSlaOverride } from './entities/vendor-sla-override.entity.js';
 import { ProductionProcess } from '../production-process/entities/production-process.entity.js';
+import { DeliveryChallan } from '../delivery-challan/entities/delivery-challan.entity.js';
 import { VendorController } from './vendor.controller.js';
 import { VendorService } from './vendor.service.js';
 import { VendorCapabilityService } from './vendor-capability.service.js';
@@ -16,7 +18,9 @@ import { VendorSlaService } from './vendor-sla.service.js';
       Vendor,
       VendorProcessCapability,
       VendorSla,
+      VendorSlaOverride,
       ProductionProcess,
+      DeliveryChallan,
     ]),
     AuthModule,
   ],

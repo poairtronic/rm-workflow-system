@@ -31,4 +31,33 @@ export class CreateVendorSlaDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @Type(() => Number)
+  @IsOptional()
+  leadTimeMultiplier?: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @IsOptional()
+  toleranceBufferDays?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  alert72h?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  alert48h?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  alert24h?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  emailAlertsEnabled?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  smsAlertsEnabled?: boolean;
 }

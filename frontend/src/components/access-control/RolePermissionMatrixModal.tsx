@@ -110,7 +110,7 @@ export function RolePermissionMatrixModal({ isOpen, onClose }: RolePermissionMat
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative bg-white rounded-2xl shadow-2xl max-w-5xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header */}
         <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-blue-50/50 via-white to-indigo-50/40 flex items-center justify-between">
@@ -134,7 +134,7 @@ export function RolePermissionMatrixModal({ isOpen, onClose }: RolePermissionMat
         </div>
 
         {/* Role Tabs */}
-        <div className="border-b border-slate-200 bg-slate-50/60 px-6 pt-3 flex items-center gap-1.5 overflow-x-auto">
+        <div className="bg-slate-100/50 px-6 py-4 flex items-center gap-2.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {roles.map((r) => {
             const count = matrixState[r.id]?.size || 0;
             const isActive = r.id === activeRoleTab;
@@ -142,16 +142,16 @@ export function RolePermissionMatrixModal({ isOpen, onClose }: RolePermissionMat
               <button
                 key={r.id}
                 onClick={() => setActiveRoleTab(r.id)}
-                className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 ${
+                className={`shrink-0 flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all border ${
                   isActive
-                    ? 'border-blue-600 text-blue-700 bg-white shadow-xs'
-                    : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'border-blue-200 bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                 }`}
               >
                 <span>{r.name}</span>
                 <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                    isActive ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-600'
+                  className={`text-xs px-2 py-0.5 rounded-full ${
+                    isActive ? 'bg-blue-100/80 text-blue-800' : 'bg-slate-200 text-slate-600'
                   }`}
                 >
                   {count} modules
@@ -170,8 +170,8 @@ export function RolePermissionMatrixModal({ isOpen, onClose }: RolePermissionMat
             </div>
           ) : activeRole ? (
             <div className="space-y-6">
-              <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-3">
-                <div className="text-xs text-slate-600">
+              <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-4">
+                <div className="text-sm text-slate-600">
                   Configuring default access for <strong className="text-slate-900">{activeRole.name}</strong> role.
                   {activeRole.name === 'ADMIN' && (
                     <span className="ml-2 text-amber-700 font-semibold">(Administrators always retain full access)</span>
@@ -181,7 +181,7 @@ export function RolePermissionMatrixModal({ isOpen, onClose }: RolePermissionMat
                   <button
                     type="button"
                     onClick={() => handleSelectAllForRole(activeRole.id)}
-                    className="text-xs text-blue-600 hover:text-blue-800 font-semibold px-2 py-1 rounded hover:bg-blue-50"
+                    className="text-sm text-blue-600 hover:text-blue-800 font-semibold px-3 py-1.5 rounded-md hover:bg-blue-50 transition-colors"
                   >
                     Select All
                   </button>
@@ -189,7 +189,7 @@ export function RolePermissionMatrixModal({ isOpen, onClose }: RolePermissionMat
                   <button
                     type="button"
                     onClick={() => handleClearAllForRole(activeRole.id)}
-                    className="text-xs text-rose-600 hover:text-rose-800 font-semibold px-2 py-1 rounded hover:bg-rose-50"
+                    className="text-sm text-rose-600 hover:text-rose-800 font-semibold px-3 py-1.5 rounded-md hover:bg-rose-50 transition-colors"
                   >
                     Clear All
                   </button>
@@ -198,9 +198,9 @@ export function RolePermissionMatrixModal({ isOpen, onClose }: RolePermissionMat
 
               {Object.entries(groupedModules).map(([group, groupItems]) => (
                 <div key={group} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
-                  <div className="bg-slate-50/80 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">{group}</span>
-                    <span className="text-[11px] text-slate-400 font-medium">{groupItems.length} modules</span>
+                  <div className="bg-slate-50/80 px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-700 uppercase tracking-wider">{group}</span>
+                    <span className="text-xs text-slate-500 font-medium">{groupItems.length} modules</span>
                   </div>
                   <div className="divide-y divide-slate-100">
                     {groupItems.map((mod) => {
@@ -208,18 +208,18 @@ export function RolePermissionMatrixModal({ isOpen, onClose }: RolePermissionMat
                       return (
                         <label
                           key={mod.moduleKey}
-                          className="flex items-center justify-between px-4 py-3 hover:bg-slate-50/70 cursor-pointer transition-colors"
+                          className="flex items-center justify-between px-5 py-4 hover:bg-slate-50/70 cursor-pointer transition-colors"
                         >
                           <div className="pr-4">
-                            <span className="font-semibold text-sm text-slate-900">{mod.name}</span>
-                            <p className="text-xs text-slate-500 mt-0.5">{mod.description || mod.routePath}</p>
+                            <span className="font-semibold text-base text-slate-900">{mod.name}</span>
+                            <p className="text-sm text-slate-500 mt-1">{mod.description || mod.routePath}</p>
                           </div>
                           <input
                             type="checkbox"
                             checked={isAllowed}
                             onChange={() => togglePermission(activeRole.id, mod.moduleKey)}
                             disabled={activeRole.name === 'ADMIN' && mod.moduleKey === 'users_master'}
-                            className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                            className="w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer transition-all"
                           />
                         </label>
                       );
