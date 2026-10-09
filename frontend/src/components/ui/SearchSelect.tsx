@@ -131,9 +131,11 @@ export function SearchSelect({
         onClick={() => setIsOpen(!isOpen)}
         onKeyDown={handleKeyDown}
         className={cn(
-          "relative w-full cursor-default rounded-md border bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm",
-          error ? "border-red-300 focus:border-red-500 focus:ring-red-500" : "border-gray-300",
-          disabled ? "bg-gray-50 text-gray-500 cursor-not-allowed" : "cursor-pointer"
+          "relative w-full rounded-lg border bg-white py-2 pl-3.5 pr-10 text-left shadow-xs transition-colors duration-150 sm:text-sm focus:outline-none focus:ring-2 focus:ring-offset-0",
+          error
+            ? "border-red-300 text-red-900 focus:border-red-500 focus:ring-red-200"
+            : "border-slate-300 hover:border-slate-400 focus:border-blue-600 focus:ring-blue-100",
+          disabled ? "bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200" : "cursor-pointer text-slate-900"
         )}
       >
         <span className="block truncate">
@@ -141,29 +143,29 @@ export function SearchSelect({
             <span>
               {selectedOption.primary}
               {selectedOption.secondary && (
-                <span className="text-gray-500 ml-2 text-xs">— {selectedOption.secondary}</span>
+                <span className="text-slate-500 ml-2 text-xs font-normal">— {selectedOption.secondary}</span>
               )}
             </span>
           ) : (
-            <span className="text-gray-400">{placeholder}</span>
+            <span className="text-slate-400">{placeholder}</span>
           )}
         </span>
-        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
           {isLoading && !isOpen ? (
-            <Loader2 className="h-4 w-4 text-gray-400 animate-spin" aria-hidden="true" />
+            <Loader2 className="h-4 w-4 text-slate-400 animate-spin" aria-hidden="true" />
           ) : (
-            <ChevronsUpDown className="h-4 w-4 text-gray-400" aria-hidden="true" />
+            <ChevronsUpDown className="h-4 w-4 text-slate-400" aria-hidden="true" />
           )}
         </span>
       </button>
 
       {isOpen && (
-        <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-          <div className="sticky top-0 z-20 bg-white px-2 pb-2">
+        <div className="absolute z-30 mt-1.5 max-h-60 w-full overflow-auto rounded-xl bg-white p-1 text-sm shadow-xl ring-1 ring-slate-200 focus:outline-none">
+          <div className="sticky top-0 z-20 bg-white p-1 pb-2">
             <input
               type="text"
               ref={inputRef}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-1.5 px-3 border text-gray-900"
+              className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-xs focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
               placeholder="Type to filter..."
               value={searchTerm}
               onChange={(e) => {
@@ -174,17 +176,17 @@ export function SearchSelect({
             />
           </div>
           
-          <ul ref={listboxRef} role="listbox" className="mt-1">
+          <ul ref={listboxRef} role="listbox" className="mt-1 space-y-0.5">
             {isLoading && (
-              <li className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-500 flex items-center justify-center">
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <li className="relative cursor-default select-none py-2.5 pl-3 pr-9 text-slate-500 flex items-center justify-center text-xs">
+                <Loader2 className="w-4 h-4 mr-2 animate-spin text-blue-600" />
                 Loading...
               </li>
             )}
             
             {!isLoading && filteredOptions.length === 0 ? (
-              <li className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-500">
-                No results found
+              <li className="relative cursor-default select-none py-3 text-center text-xs text-slate-500">
+                No matching options found
               </li>
             ) : (
               !isLoading && filteredOptions.map((option, index) => {
@@ -201,8 +203,8 @@ export function SearchSelect({
                     }}
                     onMouseEnter={() => setActiveIndex(index)}
                     className={cn(
-                      "relative cursor-pointer select-none py-2 pl-3 pr-9",
-                      isActive ? "bg-primary text-white" : "text-gray-900"
+                      "relative cursor-pointer select-none py-2 pl-3 pr-9 rounded-lg transition-colors text-sm",
+                      isActive ? "bg-blue-600 text-white" : isSelected ? "bg-blue-50 text-blue-900 font-medium" : "text-slate-800 hover:bg-slate-50"
                     )}
                   >
                     <div className="flex flex-col">
@@ -210,7 +212,7 @@ export function SearchSelect({
                         {option.primary}
                       </span>
                       {option.secondary && (
-                        <span className={cn("block text-xs truncate", isActive ? "text-primary-100" : "text-gray-500")}>
+                        <span className={cn("block text-xs truncate mt-0.5", isActive ? "text-blue-100" : "text-slate-500")}>
                           {option.secondary}
                         </span>
                       )}
@@ -219,8 +221,8 @@ export function SearchSelect({
                     {isSelected && (
                       <span
                         className={cn(
-                          "absolute inset-y-0 right-0 flex items-center pr-4",
-                          isActive ? "text-white" : "text-primary"
+                          "absolute inset-y-0 right-0 flex items-center pr-3",
+                          isActive ? "text-white" : "text-blue-600"
                         )}
                       >
                         <Check className="h-4 w-4" aria-hidden="true" />

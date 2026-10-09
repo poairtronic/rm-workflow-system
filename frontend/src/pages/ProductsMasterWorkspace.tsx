@@ -297,246 +297,275 @@ export function ProductsMasterWorkspace() {
   return (
     <div className="p-6 space-y-6">
       {isModalOpen ? (
-        <div className="max-w-3xl mx-auto w-full pb-12">
+        <div className="max-w-4xl mx-auto w-full pb-12">
           <div className="mb-6 flex items-center justify-between">
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-lg border border-slate-200 shadow-sm transition-all hover:bg-slate-50"
+              className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-lg border border-slate-200 shadow-xs transition-all hover:bg-slate-50 cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Back to Products List</span>
             </button>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-              {editingProduct ? 'Edit Mode' : 'New Product'}
+            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+              {editingProduct ? 'Editing Existing Product' : 'Creating New Product'}
             </span>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="px-6 py-5 border-b border-slate-200 bg-slate-50/50 flex items-center space-x-2">
-              <Database className="w-5 h-5 text-primary" />
-              <h2 className="text-xl font-bold text-slate-900">
-                {editingProduct ? 'Edit Product & MSL' : 'Create New Product'}
-              </h2>
+          <div className="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
+            <div className="px-6 py-5 border-b border-slate-200 bg-slate-50/70 flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+                <Database className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  {editingProduct ? 'Edit Product & MSL' : 'Create New Product'}
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Configure product identification, category mapping, and stock alert thresholds.
+                </p>
+              </div>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-4 p-6">
-          {formErrors.submit && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-center space-x-2 text-sm text-red-700">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{formErrors.submit}</span>
-            </div>
-          )}
+            <form onSubmit={handleSave} className="space-y-6 p-6">
+              {formErrors.submit && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2 text-sm text-red-700">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{formErrors.submit}</span>
+                </div>
+              )}
 
-          {/* Product Code */}
-          <FormField
-            label="Product Code"
-            id="product-code"
-            required
-            error={formErrors.code}
-            hint="Unique identifier (automatically converted to UPPERCASE)."
-          >
-            <TextInput
-              id="product-code"
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="e.g. EN31-ROD-100"
-              error={!!formErrors.code}
-              required
-            />
-          </FormField>
-
-          {/* Product Name */}
-          <FormField
-            label="Product Name"
-            id="product-name"
-            required
-            error={formErrors.name}
-            hint="Full descriptive product name."
-          >
-            <TextInput
-              id="product-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. EN31 Round Bar Ø100mm"
-              error={!!formErrors.name}
-              required
-            />
-          </FormField>
-
-          {/* Category */}
-          <FormField
-            label="Category"
-            required
-            error={formErrors.category}
-            hint={
-              isCustomCategory
-                ? 'Enter a new category name.'
-                : 'Select existing category or type a new one.'
-            }
-          >
-            {isCustomCategory ? (
-              <div className="space-y-1">
-                <TextInput
-                  value={customCategory}
-                  onChange={(e) => setCustomCategory(e.target.value)}
-                  placeholder="New Category Name (e.g. Raw Material)"
-                  error={!!formErrors.category}
-                />
-                <button
-                  type="button"
-                  onClick={() => setIsCustomCategory(false)}
-                  className="text-xs text-primary hover:underline"
-                >
-                  ← Select existing category
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                <SearchSelect
-                  value={categoryId}
-                  onChange={(id) => {
-                    setCategoryId(id);
-                    setFamilyId(''); // reset family on category change
-                  }}
-                  options={categoryOptions}
-                  placeholder="Choose Category..."
-                  error={!!formErrors.category}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsCustomCategory(true);
-                    setIsCustomFamily(true);
-                  }}
-                  className="text-xs text-primary hover:underline"
-                >
-                  + Type new category
-                </button>
-              </div>
-            )}
-          </FormField>
-
-          {/* Product Family */}
-          <FormField
-            label="Product Family"
-            required
-            error={formErrors.family}
-            hint={
-              isCustomFamily
-                ? 'Enter a new product family name.'
-                : 'Select existing product family or type a new one.'
-            }
-          >
-            {isCustomFamily ? (
-              <div className="space-y-1">
-                <TextInput
-                  value={customFamily}
-                  onChange={(e) => setCustomFamily(e.target.value)}
-                  placeholder="New Family Name (e.g. Alloy Steel)"
-                  error={!!formErrors.family}
-                />
-                {!isCustomCategory && (
-                  <button
-                    type="button"
-                    onClick={() => setIsCustomFamily(false)}
-                    className="text-xs text-primary hover:underline"
+              {/* Basic Information Section */}
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+                  Product Identification
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* Product Code */}
+                  <FormField
+                    label="Product Code"
+                    id="product-code"
+                    required
+                    error={formErrors.code}
+                    hint="Unique identifier (auto-converted to UPPERCASE)."
                   >
-                    ← Select existing family
-                  </button>
-                )}
+                    <TextInput
+                      id="product-code"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.toUpperCase())}
+                      placeholder="e.g. EN31-ROD-100"
+                      error={!!formErrors.code}
+                      required
+                    />
+                  </FormField>
+
+                  {/* Product Name */}
+                  <FormField
+                    label="Product Name"
+                    id="product-name"
+                    required
+                    error={formErrors.name}
+                    hint="Descriptive name of the raw material or component."
+                  >
+                    <TextInput
+                      id="product-name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="e.g. EN31 Round Bar Ø100mm"
+                      error={!!formErrors.name}
+                      required
+                    />
+                  </FormField>
+                </div>
               </div>
-            ) : (
-              <div className="space-y-1">
-                <SearchSelect
-                  value={familyId}
-                  onChange={(id) => setFamilyId(id)}
-                  options={familyOptions}
-                  placeholder={
-                    categoryId
-                      ? 'Choose Family under Category...'
-                      : 'Choose Family...'
-                  }
-                  error={!!formErrors.family}
+
+              {/* Categorization Section */}
+              <div className="pt-4 border-t border-slate-100">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+                  Category & Classification
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* Category */}
+                  <FormField
+                    label="Category"
+                    required
+                    error={formErrors.category}
+                    hint={
+                      isCustomCategory
+                        ? 'Enter a new category name.'
+                        : 'Select existing category or type a new one.'
+                    }
+                  >
+                    {isCustomCategory ? (
+                      <div className="space-y-1.5">
+                        <TextInput
+                          value={customCategory}
+                          onChange={(e) => setCustomCategory(e.target.value)}
+                          placeholder="New Category Name (e.g. Raw Material)"
+                          error={!!formErrors.category}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setIsCustomCategory(false)}
+                          className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                        >
+                          ← Select existing category
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <SearchSelect
+                          value={categoryId}
+                          onChange={(id) => {
+                            setCategoryId(id);
+                            setFamilyId(''); // reset family on category change
+                          }}
+                          options={categoryOptions}
+                          placeholder="Choose Category..."
+                          error={!!formErrors.category}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCustomCategory(true);
+                            setIsCustomFamily(true);
+                          }}
+                          className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                        >
+                          + Type new category
+                        </button>
+                      </div>
+                    )}
+                  </FormField>
+
+                  {/* Product Family */}
+                  <FormField
+                    label="Product Family"
+                    required
+                    error={formErrors.family}
+                    hint={
+                      isCustomFamily
+                        ? 'Enter a new product family name.'
+                        : 'Select existing product family or type a new one.'
+                    }
+                  >
+                    {isCustomFamily ? (
+                      <div className="space-y-1.5">
+                        <TextInput
+                          value={customFamily}
+                          onChange={(e) => setCustomFamily(e.target.value)}
+                          placeholder="New Family Name (e.g. Alloy Steel)"
+                          error={!!formErrors.family}
+                        />
+                        {!isCustomCategory && (
+                          <button
+                            type="button"
+                            onClick={() => setIsCustomFamily(false)}
+                            className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                          >
+                            ← Select existing family
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <SearchSelect
+                          value={familyId}
+                          onChange={(id) => setFamilyId(id)}
+                          options={familyOptions}
+                          placeholder={
+                            categoryId
+                              ? 'Choose Family under Category...'
+                              : 'Choose Family...'
+                          }
+                          error={!!formErrors.family}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setIsCustomFamily(true)}
+                          className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                        >
+                          + Type new family
+                        </button>
+                      </div>
+                    )}
+                  </FormField>
+                </div>
+              </div>
+
+              {/* Inventory Thresholds Section */}
+              <div className="pt-4 border-t border-slate-100">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+                  Inventory & Stock Thresholds
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* UOM */}
+                  <FormField label="Unit of Measurement (UOM)" required>
+                    <Select
+                      value={uom}
+                      onChange={(e) => setUom(e.target.value)}
+                    >
+                      {UOM_OPTIONS.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormField>
+
+                  {/* Minimum Stock Level (MSL) */}
+                  <FormField
+                    label="Minimum Stock Level (MSL)"
+                    error={formErrors.msl}
+                    hint="0 = not monitored for low-stock alerts"
+                  >
+                    <NumberInput
+                      value={msl}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setMsl(val === '' ? '' : Number(val));
+                      }}
+                      min={0}
+                      unit={uom}
+                      placeholder="0"
+                      error={!!formErrors.msl}
+                    />
+                  </FormField>
+                </div>
+              </div>
+
+              {/* Active status */}
+              <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-200">
+                <Checkbox
+                  id="product-is-active"
+                  label="Active Product Status"
+                  description="Inactive products cannot be selected in new RM requisitions or Delivery Challan dispatches."
+                  checked={isActive}
+                  onChange={(e) => setIsActive(e.target.checked)}
                 />
-                <button
-                  type="button"
-                  onClick={() => setIsCustomFamily(true)}
-                  className="text-xs text-primary hover:underline"
-                >
-                  + Type new family
-                </button>
               </div>
-            )}
-          </FormField>
 
-          <div className="grid grid-cols-2 gap-4">
-            {/* UOM */}
-            <FormField label="Unit of Measurement (UOM)" required>
-              <Select
-                value={uom}
-                onChange={(e) => setUom(e.target.value)}
-              >
-                {UOM_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
-
-            {/* Minimum Stock Level (MSL) */}
-            <FormField
-              label="Minimum Stock Level (MSL)"
-              error={formErrors.msl}
-              hint="0 or empty = not monitored for alerts"
-            >
-              <NumberInput
-                value={msl}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setMsl(val === '' ? '' : Number(val));
-                }}
-                min={0}
-                unit={uom}
-                placeholder="0"
-                error={!!formErrors.msl}
-              />
-            </FormField>
+              {/* Form Actions */}
+              <div className="mt-8 pt-5 border-t border-slate-200 flex justify-end space-x-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setIsModalOpen(false)}
+                  disabled={isSaving}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSaving}>
+                  {isSaving
+                    ? 'Saving...'
+                    : editingProduct
+                    ? 'Update Product'
+                    : 'Create Product'}
+                </Button>
+              </div>
+            </form>
           </div>
-
-          {/* Active status */}
-          <div className="pt-2">
-            <Checkbox
-              id="product-is-active"
-              label="Active Product"
-              description="Inactive products cannot be selected in new RM requests or Delivery Challans."
-              checked={isActive}
-              onChange={(e) => setIsActive(e.target.checked)}
-            />
-          </div>
-
-          {/* Form Actions */}
-          <div className="mt-6 pt-4 border-t border-slate-200 flex justify-end space-x-3">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setIsModalOpen(false)}
-              disabled={isSaving}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSaving}>
-              {isSaving
-                ? 'Saving...'
-                : editingProduct
-                ? 'Update Product'
-                : 'Create Product'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </div>
   ) : (
     <>
       <PageHeader
