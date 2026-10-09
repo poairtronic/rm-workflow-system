@@ -141,7 +141,7 @@ export function ProcessCreationWizard({ isOpen, onClose, onSubmit, isPending, av
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Base UOM</label>
                   <select 
-                    {...register('baseUom')} disabled title="Not saved yet"
+                    {...register('baseUom')}
                     className="w-full h-10 px-3.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 transition-shadow"
                   >
                     <option value="NOS">Numbers (NOS)</option>
@@ -161,7 +161,7 @@ export function ProcessCreationWizard({ isOpen, onClose, onSubmit, isPending, av
                     <label className="block text-sm font-medium text-slate-700 mb-1">Expected Cycle Time (ms)</label>
                     <input 
                       type="number"
-                      {...register('expectedCycleTimeMs', { valueAsNumber: true })} disabled title="Not saved yet"
+                      {...register('expectedCycleTimeMs', { valueAsNumber: true })}
                       placeholder="e.g., 3600000"
                       className="w-full h-10 px-3.5 bg-white border border-slate-200 rounded-lg text-sm tabular-nums text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600 transition-shadow"
                     />

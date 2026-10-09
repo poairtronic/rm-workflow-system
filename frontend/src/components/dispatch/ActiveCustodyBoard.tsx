@@ -62,6 +62,7 @@ export function ActiveCustodyBoard({ challans, onSelect }: ActiveCustodyBoardPro
             <tr>
               <th className="px-6 py-3">DC Number</th>
               <th className="px-6 py-3">Vendor / Destination</th>
+              <th className="px-6 py-3">Items & Materials</th>
               <th className="px-6 py-3">Issue Date</th>
               <th className="px-6 py-3">Target Return</th>
               <th className="px-6 py-3">SLA Status</th>
@@ -74,12 +75,40 @@ export function ActiveCustodyBoard({ challans, onSelect }: ActiveCustodyBoardPro
               const SlaIcon = sla.icon;
               return (
                 <tr key={dc.id} className="hover:bg-slate-50 transition-colors h-14">
-                  <td className="px-6 py-2 font-medium text-slate-900">{dc.dcNumber}</td>
-                  <td className="px-6 py-2 text-slate-600">{(dc as any).vendor?.name || dc.vendorName || dc.destinationEntity || dc.vendorId || 'N/A'}</td>
-                  <td className="px-6 py-2 tabular-nums text-slate-600">
+                  <td className="px-6 py-2 font-medium text-slate-900 font-mono text-xs">{dc.dcNumber || dc.challanNumber}</td>
+                  <td className="px-6 py-2 text-slate-700 font-medium">{(dc as any).vendor?.name || dc.vendorName || dc.destinationEntity || dc.vendorId || 'N/A'}</td>
+                  <td className="px-6 py-2 text-slate-600 max-w-xs">
+                    {dc.items && dc.items.length > 0 ? (
+                      <div className="flex flex-col gap-0.5">
+                        {dc.items.slice(0, 2).map((item: any, idx: number) => (
+                          <div key={idx} className="flex items-center gap-1.5 text-xs truncate">
+                            <span className="font-semibold text-slate-800">
+                              {item.product?.code || item.product?.name || 'Material'}
+                            </span>
+                            <span className="text-slate-500 text-[11px]">
+                              ({item.quantityDispatched ?? item.quantity} {item.product?.uom || 'qty'})
+                            </span>
+                            {item.sc?.scNumber && (
+                              <span className="text-[10px] bg-blue-50 text-blue-700 px-1 py-0.2 rounded border border-blue-200 font-mono font-medium">
+                                {item.sc.scNumber}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                        {dc.items.length > 2 && (
+                          <span className="text-[10px] text-slate-400 italic">
+                            +{dc.items.length - 2} more item{dc.items.length - 2 > 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400 italic">No line items</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-2 tabular-nums text-slate-600 text-xs">
                     {dc.dispatchDate ? new Date(dc.dispatchDate).toLocaleDateString() : 'N/A'}
                   </td>
-                  <td className="px-6 py-2 tabular-nums text-slate-600">
+                  <td className="px-6 py-2 tabular-nums text-slate-600 text-xs">
                     {dc.expectedReturnDate ? new Date(dc.expectedReturnDate).toLocaleDateString() : 'N/A'}
                   </td>
                   <td className="px-6 py-2">
@@ -91,7 +120,7 @@ export function ActiveCustodyBoard({ challans, onSelect }: ActiveCustodyBoardPro
                   <td className="px-6 py-2 text-right">
                     <button
                       onClick={() => onSelect(dc)}
-                      className="inline-flex items-center justify-center px-3 py-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-50 hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-slate-200"
+                      className="inline-flex items-center justify-center px-3 py-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-50 hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-slate-200 shadow-sm"
                     >
                       Process Return
                     </button>
@@ -102,8 +131,8 @@ export function ActiveCustodyBoard({ challans, onSelect }: ActiveCustodyBoardPro
             
             {activeChallans.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-sm text-slate-500">
-                  No active delivery challans in custody.
+                <td colSpan={7} className="px-6 py-8 text-center text-sm text-slate-500">
+                  No active delivery challans match your criteria.
                 </td>
               </tr>
             )}

@@ -63,10 +63,12 @@ export function SearchSelect({
   // Filter options if not async
   const filteredOptions = onSearch 
     ? options 
-    : options.filter(opt => 
-        (opt.primary || "").toLowerCase().includes(debouncedSearch.toLowerCase()) || 
-        (opt.secondary && opt.secondary.toLowerCase().includes(debouncedSearch.toLowerCase()))
-      );
+    : options.filter(opt => {
+        if (!debouncedSearch.trim()) return true;
+        const target = `${opt.primary || ''} ${opt.secondary || ''}`.toLowerCase();
+        const searchTerms = debouncedSearch.trim().toLowerCase().split(/\s+/);
+        return searchTerms.every(term => target.includes(term));
+      });
 
   const selectedOption = options.find(opt => opt.id === value);
 

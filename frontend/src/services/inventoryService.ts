@@ -25,7 +25,7 @@ export interface StockBalance {
 export interface StockTransaction {
   id: string;
   productId: string;
-  product?: { name: string; code: string };
+  product?: { name: string; code: string; uom?: string };
   inventoryItemId?: string;
   sourceBinId?: string;
   sourceBin?: { code: string };

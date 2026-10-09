@@ -195,7 +195,7 @@ export function InventoryStockWorkspace() {
         const isSubtraction = r.transactionType === 'STOCK_OUT' || r.transactionType === 'STORES_ISSUE' || r.transactionType === 'DC_DISPATCH' || r.transactionType === 'PRODUCTION_CONSUMPTION' || (r.transactionType === 'ADJUSTMENT' && r.adjustmentDirection === 'DECREASE');
         const color = isAddition ? 'text-green-600' : isSubtraction ? 'text-red-600' : 'text-gray-900';
         const sign = isAddition ? '+' : isSubtraction ? '-' : '';
-        return <span className={`font-medium ${color}`}>{sign}{r.quantity}</span>;
+        return <span className={`font-medium ${color}`}>{sign}{r.quantity} {r.product?.uom || ''}</span>;
       }
     },
     { key: 'lotBatchNumber', header: 'Lot/Batch', render: (r) => r.lotBatchNumber || 'N/A' },

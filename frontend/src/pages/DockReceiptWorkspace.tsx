@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, FormProvider } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { Search, PackageCheck, Loader2, Lock, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Search, PackageCheck, Loader2, Lock, AlertTriangle, ArrowLeft, X, RotateCcw } from 'lucide-react';
 import { deliveryChallanApi } from '../services/api';
 import type { DeliveryChallanDto } from '../types/delivery-challan.dto';
 import type { ProcessDcReturnDto } from '../types/dc-return.dto';
 import { ActiveCustodyBoard } from '../components/dispatch/ActiveCustodyBoard';
 import { ReconciliationGrid } from '../components/dispatch/ReconciliationGrid';
+import { MultiSelectFilter } from '../components/ui';
 
 // Status badge
 function StatusBadge({ status }: { status: string }) {
@@ -32,11 +33,76 @@ export function DockReceiptWorkspace() {
   const [closureNotes, setClosureNotes] = useState('');
   const [isClosureConfirmed, setIsClosureConfirmed] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
 
   const { data: challans = [] } = useQuery({
     queryKey: ['delivery-challans'],
     queryFn: () => deliveryChallanApi.getAll(),
   });
+
+  const vendorOptions = useMemo(() => {
+    const map = new Map<string, { label: string; count: number }>();
+    (challans as any[]).forEach((dc) => {
+      const vId = dc.vendor?.id || dc.vendorId;
+      const vName = dc.vendor?.name || dc.vendorName || dc.vendor?.code || 'Unknown Vendor';
+      if (vId) {
+        const existing = map.get(vId) || { label: vName, count: 0 };
+        existing.count += 1;
+        map.set(vId, existing);
+      }
+    });
+    return Array.from(map.entries())
+      .map(([id, data]) => ({
+        id,
+        label: data.label,
+        count: data.count,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [challans]);
+
+  const filteredChallans = useMemo(() => {
+    return (challans as any[]).filter((dc) => {
+      // 1. Multi-select Vendor filter
+      if (selectedVendors.length > 0) {
+        const vId = dc.vendor?.id || dc.vendorId;
+        const vName = (dc.vendor?.name || dc.vendorName || '').toLowerCase();
+        const matchesVendor =
+          selectedVendors.includes(vId) ||
+          selectedVendors.some((sv) => vName.includes(sv.toLowerCase()));
+        if (!matchesVendor) return false;
+      }
+
+      // 2. Universal Search Term filter
+      const q = searchTerm.trim().toLowerCase();
+      if (!q) return true;
+
+      // Header matches
+      if ((dc.challanNumber || '').toLowerCase().includes(q)) return true;
+      if ((dc.dcNumber || '').toLowerCase().includes(q)) return true;
+      if ((dc.vendor?.name || '').toLowerCase().includes(q)) return true;
+      if ((dc.vendor?.code || '').toLowerCase().includes(q)) return true;
+      if ((dc.vendorName || '').toLowerCase().includes(q)) return true;
+      if ((dc.destinationEntity || '').toLowerCase().includes(q)) return true;
+      if ((dc.sc?.scNumber || '').toLowerCase().includes(q)) return true;
+      if ((dc.sc?.purchaseOrder?.poNumber || '').toLowerCase().includes(q)) return true;
+      if ((dc.notes || '').toLowerCase().includes(q)) return true;
+
+      // Line items matches
+      if (dc.items && Array.isArray(dc.items)) {
+        for (const item of dc.items) {
+          if ((item.product?.name || '').toLowerCase().includes(q)) return true;
+          if ((item.product?.code || '').toLowerCase().includes(q)) return true;
+          if ((item.sc?.scNumber || '').toLowerCase().includes(q)) return true;
+          if ((item.sc?.purchaseOrder?.poNumber || '').toLowerCase().includes(q)) return true;
+          if ((item.bin?.code || '').toLowerCase().includes(q)) return true;
+          if ((item.batchNumber || '').toLowerCase().includes(q)) return true;
+          if ((item.description || '').toLowerCase().includes(q)) return true;
+        }
+      }
+
+      return false;
+    });
+  }, [challans, selectedVendors, searchTerm]);
 
   const methods = useForm<ProcessDcReturnDto>({
     defaultValues: { items: [] }
@@ -128,30 +194,91 @@ export function DockReceiptWorkspace() {
       </div>
 
       {!selectedDc && (
-        <div className="mb-6 relative max-w-2xl">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Scan or enter DC Number (e.g., DC-1791190289098)..."
-            className="w-full h-12 pl-12 pr-4 rounded-lg bg-white border border-slate-200 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                const found = (challans as any[]).find((dc: any) => dc.challanNumber === searchTerm || dc.dcNumber === searchTerm);
-                if (found) {
-                  handleSelectDc(found);
-                } else {
-                  toast.error('DC not found or already closed');
-                }
-              }
-            }}
-          />
+        <div className="mb-6 space-y-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search across Product, SC #, PO #, Vendor, DC #, Batch, or Notes..."
+                className="w-full h-11 pl-10 pr-9 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    if (filteredChallans.length === 1) {
+                      handleSelectDc(filteredChallans[0]);
+                    } else {
+                      const found = (challans as any[]).find(
+                        (dc: any) =>
+                          dc.challanNumber?.toLowerCase() === searchTerm.toLowerCase() ||
+                          dc.dcNumber?.toLowerCase() === searchTerm.toLowerCase()
+                      );
+                      if (found) {
+                        handleSelectDc(found);
+                      } else if (filteredChallans.length > 0) {
+                        handleSelectDc(filteredChallans[0]);
+                      } else {
+                        toast.error('DC not found or already closed');
+                      }
+                    }
+                  }
+                }}
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <MultiSelectFilter
+                label="Vendors"
+                options={vendorOptions}
+                selectedValues={selectedVendors}
+                onChange={setSelectedVendors}
+                placeholder="Filter by Vendor..."
+                className="w-full sm:w-auto"
+              />
+
+              {(selectedVendors.length > 0 || searchTerm) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedVendors([]);
+                    setSearchTerm('');
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+                  title="Reset all filters"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Clear</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between text-xs text-slate-500 px-1">
+            <span>
+              Showing <span className="font-semibold text-slate-800">{filteredChallans.length}</span> of{' '}
+              <span className="font-semibold text-slate-800">{(challans as any[]).length}</span> delivery challans
+            </span>
+            {selectedVendors.length > 0 && (
+              <span className="text-primary font-medium">
+                {selectedVendors.length} vendor{selectedVendors.length > 1 ? 's' : ''} filtered
+              </span>
+            )}
+          </div>
         </div>
       )}
 
       {!selectedDc ? (
-        <ActiveCustodyBoard challans={challans as any[]} onSelect={handleSelectDc} />
+        <ActiveCustodyBoard challans={filteredChallans} onSelect={handleSelectDc} />
       ) : activeDcView === 'CLOSURE' ? (
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="flex items-center justify-between">

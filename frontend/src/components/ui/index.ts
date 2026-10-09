@@ -11,3 +11,4 @@ export * from './FormControls';
 export * from './SearchSelect';
 export * from './ComingSoon';
 export * from './Button';
+export * from './MultiSelectFilter';

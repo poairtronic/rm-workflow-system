@@ -13,6 +13,7 @@ import {
   FormField,
   SearchSelect,
   NumberInput,
+  Select,
   Textarea,
   Button,
   TextInput,
@@ -27,6 +28,8 @@ import { useQueryClient } from '@tanstack/react-query';
 
 export type StockMovementMode = 'STOCK_IN' | 'STOCK_OUT' | 'ADJUST';
 
+export const UOM_OPTIONS = ['MM', 'KG', 'NOS', 'MTR', 'PC', 'SQM', 'LTR'] as const;
+
 export function StockMovementWorkspace() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -40,6 +43,7 @@ export function StockMovementWorkspace() {
   const [productId, setProductId] = useState<string>(urlProductId);
   const [binId, setBinId] = useState<string>(urlBinId);
   const [quantity, setQuantity] = useState<string>('');
+  const [selectedUom, setSelectedUom] = useState<string>('KG');
   const [direction, setDirection] = useState<'INCREASE' | 'DECREASE'>('INCREASE');
   const [reason, setReason] = useState<string>('');
   const [remarks, setRemarks] = useState<string>('');
@@ -133,8 +137,17 @@ export function StockMovementWorkspace() {
     };
   }, [productId]);
 
+  useEffect(() => {
+    if (productId && products.length > 0) {
+      const prod = products.find(p => p.id === productId);
+      if (prod?.uom) {
+        setSelectedUom(prod.uom.toUpperCase());
+      }
+    }
+  }, [productId, products]);
+
   const selectedProduct = products.find(p => p.id === productId);
-  const uom = selectedProduct?.uom || 'KG';
+  const uom = selectedUom;
 
   // Compute available balance in selected bin
   const selectedBinBalance = productBalances.find(b => b.binId === binId);
@@ -192,6 +205,10 @@ export function StockMovementWorkspace() {
 
     setIsSubmitting(true);
     try {
+      if (selectedProduct && selectedProduct.uom?.toUpperCase() !== selectedUom) {
+        masterDataService.updateProduct(productId, { uom: selectedUom }).catch(() => {});
+      }
+
       const parsedCost = cost ? parseFloat(cost) : undefined;
       const apiPayload = {
         productId,
@@ -329,6 +346,10 @@ export function StockMovementWorkspace() {
                     setProductId(id);
                     setBinId('');
                     setQuantity('');
+                    const prod = products.find(p => p.id === id);
+                    if (prod?.uom) {
+                      setSelectedUom(prod.uom.toUpperCase());
+                    }
                   }}
                   options={productOptions}
                   isLoading={isLoadingMaster}
@@ -416,15 +437,32 @@ export function StockMovementWorkspace() {
                     : undefined
                 }
               >
-                <NumberInput
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  min="0.001"
-                  step="any"
-                  unit={uom}
-                  placeholder="0.000"
-                  error={isQtyExceeded}
-                />
+                <div className="flex gap-2.5">
+                  <div className="flex-1">
+                    <NumberInput
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                      min="0.001"
+                      step="any"
+                      placeholder="0.000"
+                      error={isQtyExceeded}
+                    />
+                  </div>
+                  <div className="w-28 shrink-0">
+                    <Select
+                      value={selectedUom}
+                      onChange={(e) => setSelectedUom(e.target.value)}
+                      title="Unit of Measurement (UOM)"
+                      className="font-semibold text-slate-800"
+                    >
+                      {UOM_OPTIONS.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                </div>
               </FormField>
             </div>
 

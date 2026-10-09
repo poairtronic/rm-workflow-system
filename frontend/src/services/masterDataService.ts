@@ -98,8 +98,8 @@ function buildQuery(params?: MasterFilterParams): string {
   if (params.parentId) q.append('parentId', params.parentId);
   if (params.page) q.append('page', String(params.page));
   if (params.pageSize) {
-    // Clamp pageSize to 100 to prevent 400 Bad Request if large number requested
-    const safePageSize = Math.min(Math.max(1, params.pageSize), 100);
+    // Clamp pageSize to 1000 to match backend master filter DTO limit
+    const safePageSize = Math.min(Math.max(1, params.pageSize), 1000);
     q.append('pageSize', String(safePageSize));
   }
   const queryString = q.toString();

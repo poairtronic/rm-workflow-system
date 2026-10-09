@@ -88,15 +88,14 @@ export function Type2DispatchView() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Notes <span className="text-xs text-slate-400 font-normal">(Optional)</span>
+                </label>
                 <textarea
-                  {...register('notes', { required: 'Purpose is required' })}
-                  placeholder="E.g., R&D Testing, Machine Maintenance..."
+                  {...register('notes')}
+                  placeholder="E.g., R&D Testing, Machine Maintenance (Optional)..."
                   className="w-full min-h-[80px] p-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
                 />
-                {errors.notes && (
-                  <p className="mt-1 text-xs text-red-500">{errors.notes.message as string}</p>
-                )}
               </div>
             </div>
 

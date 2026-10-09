@@ -19,11 +19,13 @@ import type {
   Product,
   Category,
   Family,
+  Warehouse,
   Location,
   Rack,
   Bin,
 } from '../services/masterDataService';
 import { api } from '../services/api';
+import { MultiSelectFilter } from '../components/ui';
 import {
   Plus,
   Database,
@@ -37,12 +39,13 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
-const UOM_OPTIONS = ['KG', 'NOS', 'SQM', 'MTR', 'LTR'] as const;
+const UOM_OPTIONS = ['MM', 'KG', 'NOS', 'MTR', 'PC', 'SQM', 'LTR'] as const;
 
 export function ProductsMasterWorkspace() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [families, setFamilies] = useState<Family[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [racks, setRacks] = useState<Rack[]>([]);
   const [bins, setBins] = useState<Bin[]>([]);
@@ -50,13 +53,14 @@ export function ProductsMasterWorkspace() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Multi-Filter State
+  // Multi-Filter State (Checkboxes for Multi-Select)
   const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [familyFilter, setFamilyFilter] = useState('');
-  const [locationFilter, setLocationFilter] = useState('');
-  const [rackFilter, setRackFilter] = useState('');
-  const [binFilter, setBinFilter] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedFamilies, setSelectedFamilies] = useState<string[]>([]);
+  const [selectedWarehouses, setSelectedWarehouses] = useState<string[]>([]);
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [selectedRacks, setSelectedRacks] = useState<string[]>([]);
+  const [selectedBins, setSelectedBins] = useState<string[]>([]);
   const [uomFilter, setUomFilter] = useState('');
   const [mslFilter, setMslFilter] = useState(''); // '' | 'MONITORED' | 'UNMONITORED'
   const [statusFilter, setStatusFilter] = useState(''); // '' | 'ACTIVE' | 'INACTIVE'
@@ -86,11 +90,12 @@ export function ProductsMasterWorkspace() {
     try {
       setIsLoading(true);
       setError(null);
-      const [prodRes, catRes, famRes, locRes, rackRes, binRes, bal1, bal2, bal3, bal4] =
+      const [prodRes, catRes, famRes, whRes, locRes, rackRes, binRes, bal1, bal2, bal3, bal4] =
         await Promise.all([
-          masterDataService.getProducts({ pageSize: 100 }),
+          masterDataService.getProducts({ pageSize: 1000 }),
           masterDataService.getCategories({ pageSize: 100 }),
           masterDataService.getFamilies({ pageSize: 100 }),
+          masterDataService.getWarehouses({ pageSize: 100 }).catch(() => ({ data: [] })),
           masterDataService.getLocations({ pageSize: 100 }).catch(() => ({ data: [] })),
           masterDataService.getRacks({ pageSize: 100 }).catch(() => ({ data: [] })),
           masterDataService.getBins({ pageSize: 100 }).catch(() => ({ data: [] })),
@@ -102,6 +107,7 @@ export function ProductsMasterWorkspace() {
       setProducts(prodRes.data || []);
       setCategories(catRes.data || []);
       setFamilies(famRes.data || []);
+      setWarehouses(whRes.data || []);
       setLocations(locRes.data || []);
       setRacks(rackRes.data || []);
       setBins(binRes.data || []);
@@ -268,9 +274,16 @@ export function ProductsMasterWorkspace() {
   const productStorageMap = useMemo(() => {
     const binMap = new Map(bins.map((b) => [b.id, b]));
     const rackMap = new Map(racks.map((r) => [r.id, r]));
+    const locMap = new Map(locations.map((l) => [l.id, l]));
     const map = new Map<
       string,
-      { binIds: Set<string>; rackIds: Set<string>; locationIds: Set<string>; binLabels: string[] }
+      {
+        binIds: Set<string>;
+        rackIds: Set<string>;
+        locationIds: Set<string>;
+        warehouseIds: Set<string>;
+        binLabels: string[];
+      }
     >();
 
     for (const bal of balances) {
@@ -280,6 +293,7 @@ export function ProductsMasterWorkspace() {
           binIds: new Set(),
           rackIds: new Set(),
           locationIds: new Set(),
+          warehouseIds: new Set(),
           binLabels: [],
         });
       }
@@ -295,31 +309,57 @@ export function ProductsMasterWorkspace() {
           const rack = rackMap.get(bin.rackId);
           if (rack?.locationId) {
             entry.locationIds.add(rack.locationId);
+            const loc = locMap.get(rack.locationId);
+            if (loc?.warehouseId) {
+              entry.warehouseIds.add(loc.warehouseId);
+            }
           }
         }
         if (bin.rack?.locationId) {
           entry.locationIds.add(bin.rack.locationId);
+          const loc = locMap.get(bin.rack.locationId) || bin.rack.location;
+          if (loc?.warehouseId) {
+            entry.warehouseIds.add(loc.warehouseId);
+          }
         }
       }
     }
     return map;
-  }, [balances, bins, racks]);
+  }, [balances, bins, racks, locations]);
 
-  // Cascading options for Rack and Bin filters
-  const availableRacks = useMemo(() => {
-    if (!locationFilter) return racks;
-    return racks.filter((r) => r.locationId === locationFilter);
-  }, [racks, locationFilter]);
+  // Cascading options based on selected parent filters
+  const filteredLocationOptions = useMemo(() => {
+    if (selectedWarehouses.length === 0) return locations;
+    return locations.filter((loc) => selectedWarehouses.includes(loc.warehouseId));
+  }, [locations, selectedWarehouses]);
 
-  const availableBins = useMemo(() => {
-    if (rackFilter) {
-      return bins.filter((b) => b.rackId === rackFilter);
+  const filteredRackOptions = useMemo(() => {
+    let result = racks;
+    if (selectedWarehouses.length > 0) {
+      const allowedLocIds = new Set(
+        locations.filter((l) => selectedWarehouses.includes(l.warehouseId)).map((l) => l.id)
+      );
+      result = result.filter((r) => allowedLocIds.has(r.locationId));
     }
-    if (locationFilter) {
-      return bins.filter((b) => b.rack?.locationId === locationFilter);
+    if (selectedLocations.length > 0) {
+      result = result.filter((r) => selectedLocations.includes(r.locationId));
     }
-    return bins;
-  }, [bins, rackFilter, locationFilter]);
+    return result;
+  }, [racks, locations, selectedWarehouses, selectedLocations]);
+
+  const filteredBinOptions = useMemo(() => {
+    let result = bins;
+    if (selectedRacks.length > 0) {
+      return result.filter((b) => selectedRacks.includes(b.rackId));
+    }
+    if (selectedLocations.length > 0) {
+      const allowedRackIds = new Set(
+        racks.filter((r) => selectedLocations.includes(r.locationId)).map((r) => r.id)
+      );
+      return result.filter((b) => allowedRackIds.has(b.rackId));
+    }
+    return result;
+  }, [bins, racks, selectedRacks, selectedLocations]);
 
   // Multi-Filter Computation
   const filteredProducts = useMemo(() => {
@@ -334,42 +374,56 @@ export function ProductsMasterWorkspace() {
         const uomMatch = (p.uom || '').toLowerCase().includes(q);
         if (!codeMatch && !nameMatch && !catMatch && !famMatch && !uomMatch) return false;
       }
-      // 2. Category Filter
-      if (categoryFilter) {
+      // 2. Category Filter (multi-select)
+      if (selectedCategories.length > 0) {
         const pCatId = p.family?.categoryId || p.family?.category?.id;
-        if (pCatId !== categoryFilter) return false;
+        if (!pCatId || !selectedCategories.includes(pCatId)) return false;
       }
-      // 3. Product Family Filter
-      if (familyFilter && p.familyId !== familyFilter && p.family?.id !== familyFilter) {
-        return false;
+      // 3. Product Family Filter (multi-select)
+      if (selectedFamilies.length > 0) {
+        const famId = p.familyId || p.family?.id;
+        if (!famId || !selectedFamilies.includes(famId)) return false;
       }
-      // 4. Storage Location Filter
-      if (locationFilter) {
+      // 4. Warehouse Filter (multi-select)
+      if (selectedWarehouses.length > 0) {
         const storage = productStorageMap.get(p.id);
-        if (!storage || !storage.locationIds.has(locationFilter)) return false;
+        if (!storage || !selectedWarehouses.some((whId) => storage.warehouseIds.has(whId))) {
+          return false;
+        }
       }
-      // 5. Rack Filter
-      if (rackFilter) {
+      // 5. Storage Location Filter (multi-select)
+      if (selectedLocations.length > 0) {
         const storage = productStorageMap.get(p.id);
-        if (!storage || !storage.rackIds.has(rackFilter)) return false;
+        if (!storage || !selectedLocations.some((locId) => storage.locationIds.has(locId))) {
+          return false;
+        }
       }
-      // 6. Bin Filter
-      if (binFilter) {
+      // 6. Rack Filter (multi-select)
+      if (selectedRacks.length > 0) {
         const storage = productStorageMap.get(p.id);
-        if (!storage || !storage.binIds.has(binFilter)) return false;
+        if (!storage || !selectedRacks.some((rackId) => storage.rackIds.has(rackId))) {
+          return false;
+        }
       }
-      // 7. UOM Filter
+      // 7. Bin Filter (multi-select)
+      if (selectedBins.length > 0) {
+        const storage = productStorageMap.get(p.id);
+        if (!storage || !selectedBins.some((binId) => storage.binIds.has(binId))) {
+          return false;
+        }
+      }
+      // 8. UOM Filter
       if (uomFilter && p.uom !== uomFilter) {
         return false;
       }
-      // 8. MSL Filter
+      // 9. MSL Filter
       if (mslFilter === 'MONITORED' && (!p.minimumInventory || Number(p.minimumInventory) <= 0)) {
         return false;
       }
       if (mslFilter === 'UNMONITORED' && p.minimumInventory && Number(p.minimumInventory) > 0) {
         return false;
       }
-      // 9. Active Status Filter
+      // 10. Active Status Filter
       if (statusFilter === 'ACTIVE' && !p.isActive) return false;
       if (statusFilter === 'INACTIVE' && p.isActive) return false;
 
@@ -378,11 +432,12 @@ export function ProductsMasterWorkspace() {
   }, [
     products,
     searchQuery,
-    categoryFilter,
-    familyFilter,
-    locationFilter,
-    rackFilter,
-    binFilter,
+    selectedCategories,
+    selectedFamilies,
+    selectedWarehouses,
+    selectedLocations,
+    selectedRacks,
+    selectedBins,
     uomFilter,
     mslFilter,
     statusFilter,
@@ -392,22 +447,24 @@ export function ProductsMasterWorkspace() {
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (searchQuery.trim()) count++;
-    if (categoryFilter) count++;
-    if (familyFilter) count++;
-    if (locationFilter) count++;
-    if (rackFilter) count++;
-    if (binFilter) count++;
+    if (selectedCategories.length > 0) count++;
+    if (selectedFamilies.length > 0) count++;
+    if (selectedWarehouses.length > 0) count++;
+    if (selectedLocations.length > 0) count++;
+    if (selectedRacks.length > 0) count++;
+    if (selectedBins.length > 0) count++;
     if (uomFilter) count++;
     if (mslFilter) count++;
     if (statusFilter) count++;
     return count;
   }, [
     searchQuery,
-    categoryFilter,
-    familyFilter,
-    locationFilter,
-    rackFilter,
-    binFilter,
+    selectedCategories,
+    selectedFamilies,
+    selectedWarehouses,
+    selectedLocations,
+    selectedRacks,
+    selectedBins,
     uomFilter,
     mslFilter,
     statusFilter,
@@ -415,11 +472,12 @@ export function ProductsMasterWorkspace() {
 
   const handleClearFilters = () => {
     setSearchQuery('');
-    setCategoryFilter('');
-    setFamilyFilter('');
-    setLocationFilter('');
-    setRackFilter('');
-    setBinFilter('');
+    setSelectedCategories([]);
+    setSelectedFamilies([]);
+    setSelectedWarehouses([]);
+    setSelectedLocations([]);
+    setSelectedRacks([]);
+    setSelectedBins([]);
     setUomFilter('');
     setMslFilter('');
     setStatusFilter('');
@@ -858,88 +916,59 @@ export function ProductsMasterWorkspace() {
             <span>Filters:</span>
           </div>
 
-          {/* Category Filter */}
-          <select
-            value={categoryFilter}
-            onChange={(e) => {
-              setCategoryFilter(e.target.value);
-              setFamilyFilter('');
-            }}
-            className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
-          >
-            <option value="">All Categories ({categories.length})</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          {/* Category Multi-Filter */}
+          <MultiSelectFilter
+            label="Category"
+            placeholder="All Categories"
+            options={categories.map((c) => ({ id: c.id, label: c.name }))}
+            selectedValues={selectedCategories}
+            onChange={setSelectedCategories}
+          />
 
-          {/* Product Family Filter */}
-          <select
-            value={familyFilter}
-            onChange={(e) => setFamilyFilter(e.target.value)}
-            className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
-          >
-            <option value="">All Families ({families.length})</option>
-            {(categoryFilter
-              ? families.filter((f) => f.categoryId === categoryFilter)
-              : families
-            ).map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
+          {/* Product Family Multi-Filter */}
+          <MultiSelectFilter
+            label="Family"
+            placeholder="All Families"
+            options={families.map((f) => ({ id: f.id, label: f.name, subtext: f.category?.name }))}
+            selectedValues={selectedFamilies}
+            onChange={setSelectedFamilies}
+          />
 
-          {/* Storage Location Filter */}
-          <select
-            value={locationFilter}
-            onChange={(e) => {
-              setLocationFilter(e.target.value);
-              setRackFilter('');
-              setBinFilter('');
-            }}
-            className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
-          >
-            <option value="">All Locations ({locations.length})</option>
-            {locations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.name}
-              </option>
-            ))}
-          </select>
+          {/* Warehouse Facility Multi-Filter */}
+          <MultiSelectFilter
+            label="Warehouse"
+            placeholder="All Warehouses"
+            options={warehouses.map((w) => ({ id: w.id, label: w.name, subtext: w.code }))}
+            selectedValues={selectedWarehouses}
+            onChange={setSelectedWarehouses}
+          />
 
-          {/* Storage Rack Filter */}
-          <select
-            value={rackFilter}
-            onChange={(e) => {
-              setRackFilter(e.target.value);
-              setBinFilter('');
-            }}
-            className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
-          >
-            <option value="">All Racks ({availableRacks.length})</option>
-            {availableRacks.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name} ({r.code})
-              </option>
-            ))}
-          </select>
+          {/* Storage Location Multi-Filter */}
+          <MultiSelectFilter
+            label="Location"
+            placeholder="All Locations"
+            options={filteredLocationOptions.map((l) => ({ id: l.id, label: l.name, subtext: l.code }))}
+            selectedValues={selectedLocations}
+            onChange={setSelectedLocations}
+          />
 
-          {/* Storage Bin Filter */}
-          <select
-            value={binFilter}
-            onChange={(e) => setBinFilter(e.target.value)}
-            className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
-          >
-            <option value="">All Bins ({availableBins.length})</option>
-            {availableBins.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.code}
-              </option>
-            ))}
-          </select>
+          {/* Storage Rack Multi-Filter */}
+          <MultiSelectFilter
+            label="Rack"
+            placeholder="All Racks"
+            options={filteredRackOptions.map((r) => ({ id: r.id, label: r.name, subtext: r.code }))}
+            selectedValues={selectedRacks}
+            onChange={setSelectedRacks}
+          />
+
+          {/* Storage Bin Multi-Filter */}
+          <MultiSelectFilter
+            label="Bin"
+            placeholder="All Bins"
+            options={filteredBinOptions.map((b) => ({ id: b.id, label: b.code, subtext: b.name }))}
+            selectedValues={selectedBins}
+            onChange={setSelectedBins}
+          />
 
           {/* UOM Filter */}
           <select

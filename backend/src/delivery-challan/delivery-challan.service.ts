@@ -355,7 +355,20 @@ export class DeliveryChallanService {
 
     return this.challanRepo.find({
       where,
-      relations: { items: { product: true, bin: true }, vendor: true },
+      relations: {
+        items: {
+          product: true,
+          bin: true,
+          sc: {
+            purchaseOrder: true,
+          },
+          process: true,
+        },
+        vendor: true,
+        sc: {
+          purchaseOrder: true,
+        },
+      },
       order: { createdAt: 'DESC' },
     });
   }

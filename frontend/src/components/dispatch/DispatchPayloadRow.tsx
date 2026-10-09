@@ -1,14 +1,25 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api, unwrapList } from '../../services/api';
+import { masterDataService } from '../../services/masterDataService';
 
 export function DispatchPayloadRow({ blockIndex, index, remove, canRemove }: { blockIndex: number, index: number, remove: (i: number) => void, canRemove: boolean }) {
   const { register, control, setValue } = useFormContext();
   
   const { data: products } = useQuery({ queryKey: ['products'], queryFn: async () => unwrapList(await api.get<any[]>('/api/products')) });
   
+  // All system bins for fallback and custom rack selection
+  const { data: allBins = [] } = useQuery({
+    queryKey: ['all-bins-master'],
+    queryFn: async () => {
+      const res = await masterDataService.getBins({ pageSize: 1000, isActive: true });
+      return res.data || [];
+    },
+    staleTime: 60000,
+  });
+
   const scId = useWatch({ control, name: `scBlocks.${blockIndex}.scId` });
   const { data: selectedSc } = useQuery({
     queryKey: ['sc', scId],
@@ -35,20 +46,114 @@ export function DispatchPayloadRow({ blockIndex, index, remove, canRemove }: { b
     enabled: !!productId
   });
 
-  useEffect(() => {
-    // Reset bin when product changes
-    setValue(`scBlocks.${blockIndex}.items.${index}.binId`, '');
-    setValue(`scBlocks.${blockIndex}.items.${index}.quantity`, 0);
-  }, [productId, setValue, blockIndex, index]);
+  // State for typable bin / rack input
+  const [binInputText, setBinInputText] = useState('');
 
-  const selectedBalance = balances.find(b => b.binId === binId);
-  const availableQty = selectedBalance ? selectedBalance.currentQuantity : 0;
+  // Auto-fill bin/rack when product and balances change
+  useEffect(() => {
+    if (!productId) {
+      setBinInputText('');
+      setValue(`scBlocks.${blockIndex}.items.${index}.binId`, '');
+      setValue(`scBlocks.${blockIndex}.items.${index}.quantity`, 0);
+      return;
+    }
+
+    if (balances && balances.length > 0) {
+      // Find the first bin with positive quantity, or first balance
+      const best = balances.find((b: any) => Number(b.currentQuantity) > 0) || balances[0];
+      if (best) {
+        const binObj = allBins.find((ab: any) => ab.id === best.binId);
+        const rackLabel = binObj?.rack?.name || binObj?.rack?.code || '';
+        const display = rackLabel ? `${rackLabel} / ${best.binCode}` : best.binCode;
+        setBinInputText(display);
+        setValue(`scBlocks.${blockIndex}.items.${index}.binId`, best.binId);
+      }
+    } else if (allBins.length > 0 && !binId) {
+      // Default to first warehouse bin if no balances exist
+      const defaultBin = allBins[0];
+      const rackLabel = defaultBin.rack?.name || defaultBin.rack?.code || '';
+      const display = rackLabel ? `${rackLabel} / ${defaultBin.code}` : defaultBin.code;
+      setBinInputText(display);
+      setValue(`scBlocks.${blockIndex}.items.${index}.binId`, defaultBin.id);
+    }
+  }, [productId, balances, allBins, setValue, blockIndex, index]);
+
+  // Synchronize text when binId is set externally
+  useEffect(() => {
+    if (binId && !binInputText) {
+      const fromBal = balances.find((b: any) => b.binId === binId);
+      if (fromBal) {
+        const binObj = allBins.find((ab: any) => ab.id === binId);
+        const rackLabel = binObj?.rack?.name || binObj?.rack?.code || '';
+        setBinInputText(rackLabel ? `${rackLabel} / ${fromBal.binCode}` : fromBal.binCode);
+      } else {
+        const fromAll = allBins.find((ab: any) => ab.id === binId);
+        if (fromAll) {
+          const rackLabel = fromAll.rack?.name || fromAll.rack?.code || '';
+          setBinInputText(rackLabel ? `${rackLabel} / ${fromAll.code}` : fromAll.code);
+        }
+      }
+    }
+  }, [binId, balances, allBins, binInputText]);
+
+  // Handle user typing or picking another rack/bin
+  const handleBinInputChange = (text: string) => {
+    setBinInputText(text);
+    const lower = text.trim().toLowerCase();
+    if (!lower) {
+      setValue(`scBlocks.${blockIndex}.items.${index}.binId`, '');
+      return;
+    }
+
+    // 1. Try to match from balances first
+    const matchBal = balances.find((b: any) => {
+      const bCode = (b.binCode || '').toLowerCase();
+      const rName = (b.rackName || '').toLowerCase();
+      return (
+        bCode === lower ||
+        rName === lower ||
+        `${rName} / ${bCode}`.toLowerCase() === lower ||
+        bCode.includes(lower) ||
+        rName.includes(lower)
+      );
+    });
+    if (matchBal) {
+      setValue(`scBlocks.${blockIndex}.items.${index}.binId`, matchBal.binId);
+      return;
+    }
+
+    // 2. Try to match from allBins
+    const matchAll = allBins.find((ab: any) => {
+      const bCode = (ab.code || '').toLowerCase();
+      const bName = (ab.name || '').toLowerCase();
+      const rName = (ab.rack?.name || '').toLowerCase();
+      const rCode = (ab.rack?.code || '').toLowerCase();
+      return (
+        bCode === lower ||
+        bName === lower ||
+        rName === lower ||
+        rCode === lower ||
+        `${rName} / ${bCode}`.toLowerCase() === lower ||
+        rName.includes(lower) ||
+        rCode.includes(lower) ||
+        bCode.includes(lower) ||
+        bName.includes(lower)
+      );
+    });
+    if (matchAll) {
+      setValue(`scBlocks.${blockIndex}.items.${index}.binId`, matchAll.id);
+    }
+  };
+
+  const selectedBalance = balances.find((b: any) => b.binId === binId);
+  const availableQty = selectedBalance ? Number(selectedBalance.currentQuantity) : 0;
   
   // Dynamic UOM based on product
-  const product = products?.find(p => p.id === productId);
+  const product = products?.find((p: any) => p.id === productId);
   const uom = product?.uom || 'NOS';
   
   const isQtyInvalid = dispatchQty > availableQty || dispatchQty <= 0;
+  const datalistId = `bin-options-${blockIndex}-${index}`;
 
   return (
     <tr className="h-14">
@@ -62,22 +167,53 @@ export function DispatchPayloadRow({ blockIndex, index, remove, canRemove }: { b
         </select>
       </td>
       <td className="px-3 py-2">
-        <select
-          {...register(`scBlocks.${blockIndex}.items.${index}.binId` as const, { required: 'Required' })}
-          className="w-full h-8 px-2 rounded-md bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
-          disabled={!productId || balances.length === 0}
-        >
-          <option value="">Select Bin...</option>
-          {balances.map(b => (
-            <option key={b.binId} value={b.binId}>{b.binCode} ({b.currentQuantity} {uom})</option>
-          ))}
-        </select>
+        <div className="relative">
+          <input
+            type="text"
+            list={datalistId}
+            value={binInputText}
+            onChange={(e) => handleBinInputChange(e.target.value)}
+            disabled={!productId}
+            placeholder={!productId ? 'Select product first...' : 'Rack / Bin (e.g. Rack 3)...'}
+            className="w-full h-8 px-2 rounded-md bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
+          />
+          <input
+            type="hidden"
+            {...register(`scBlocks.${blockIndex}.items.${index}.binId` as const, { required: 'Bin/Rack is required' })}
+          />
+          <datalist id={datalistId}>
+            {balances.map((b: any) => {
+              const binObj = allBins.find((ab: any) => ab.id === b.binId);
+              const rackStr = binObj?.rack?.name || binObj?.rack?.code || '';
+              return (
+                <option
+                  key={b.binId}
+                  value={rackStr ? `${rackStr} / ${b.binCode}` : b.binCode}
+                  label={`★ Stock: ${b.currentQuantity} ${uom}`}
+                />
+              );
+            })}
+            {allBins
+              .filter((ab: any) => !balances.some((b: any) => b.binId === ab.id))
+              .slice(0, 50)
+              .map((ab: any) => {
+                const rackStr = ab.rack?.name || ab.rack?.code || '';
+                return (
+                  <option
+                    key={ab.id}
+                    value={rackStr ? `${rackStr} / ${ab.code}` : ab.code}
+                    label={ab.name || 'Warehouse Bin'}
+                  />
+                );
+              })}
+          </datalist>
+        </div>
       </td>
       <td className="px-3 py-2">
         <input
-          {...register(`scBlocks.${blockIndex}.items.${index}.batchNumber` as const, { required: 'Required' })}
+          {...register(`scBlocks.${blockIndex}.items.${index}.batchNumber` as const)}
           className="w-full h-8 px-2 rounded-md bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
-          placeholder="e.g. HT-992"
+          placeholder="e.g. HT-992 (Optional)"
         />
       </td>
       <td className="px-3 py-2">
