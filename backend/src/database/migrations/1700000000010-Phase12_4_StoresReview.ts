@@ -111,6 +111,9 @@ export class Phase12_4_StoresReview1700000000010 implements MigrationInterface {
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_rm_items_mapped_product_id') THEN
           ALTER TABLE "rm_items" ADD CONSTRAINT "FK_rm_items_mapped_product_id" FOREIGN KEY ("mapped_product_id") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE NO ACTION;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UQ_po_sc_number') THEN
+          ALTER TABLE "sales_order_components" ADD CONSTRAINT "UQ_po_sc_number" UNIQUE ("po_id", "sc_number");
+        END IF;
       END $$;
     `);
   }

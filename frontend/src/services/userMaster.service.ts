@@ -17,5 +17,7 @@ export const userMasterApi = {
     api.patch<UserMasterDto>(`/api/users/${id}/role`, { role }),
   activate: (id: string) => api.patch<{ success: boolean; message: string }>(`/api/users/${id}/activate`),
   deactivate: (id: string) => api.patch<{ success: boolean; message: string }>(`/api/users/${id}/deactivate`),
+  resetPassword: (id: string, newPassword?: string) =>
+    api.post<{ success: boolean; message: string }>(`/api/users/${id}/reset-password`, { newPassword }),
 };
 

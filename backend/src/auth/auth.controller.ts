@@ -13,6 +13,7 @@ import { AuthService } from './auth.service.js';
 import { UserRole } from './enums/role.enum.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { LoginDto } from './dto/login.dto.js';
+import { ChangePasswordDto } from './dto/change-password.dto.js';
 
 @Controller('api/auth')
 export class AuthController {
@@ -53,5 +54,19 @@ export class AuthController {
       status: 'authenticated',
       user: req.user,
     };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  changePassword(
+    @Body() dto: ChangePasswordDto,
+    @Req() req: { user: any },
+  ) {
+    const currentUserId = req?.user?.userId || req?.user?.sub || req?.user?.id;
+    return this.authService.changePassword(
+      currentUserId,
+      dto.currentPassword,
+      dto.newPassword,
+    );
   }
 }

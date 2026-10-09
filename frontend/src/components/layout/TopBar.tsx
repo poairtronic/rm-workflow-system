@@ -1,11 +1,14 @@
-import { Search, LogOut } from 'lucide-react';
+import { useState } from 'react';
+import { Search, LogOut, KeyRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { NotificationBell } from '../notifications/NotificationBell';
+import { ChangePasswordModal } from '../auth/ChangePasswordModal';
 
 export function TopBar() {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   const handleNavigateTarget = (targetEntity?: string | null, _targetId?: string | null) => {
     if (!targetEntity) return;
@@ -79,6 +82,13 @@ export function TopBar() {
                 <span className="text-sm font-medium text-slate-900">{currentUser.name || 'User'}</span>
               </div>
               <button 
+                onClick={() => setIsChangePasswordOpen(true)}
+                className="p-1.5 rounded-md text-slate-500 hover:text-primary hover:bg-slate-100 transition-colors"
+                title="Change Password"
+              >
+                <KeyRound className="w-4 h-4" />
+              </button>
+              <button 
                 onClick={logout}
                 className="p-1.5 rounded-md text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
                 title="Log out"
@@ -89,6 +99,11 @@ export function TopBar() {
           )}
         </div>
       </div>
+
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+      />
     </header>
   );
 }

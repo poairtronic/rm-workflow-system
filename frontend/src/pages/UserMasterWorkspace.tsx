@@ -19,7 +19,7 @@ import {
   Button,
 } from '../components/ui';
 import type { ColumnDef } from '../components/ui';
-import { Plus, Shield, Mail, Calendar, ArrowLeft } from 'lucide-react';
+import { Plus, Shield, Mail, Calendar, ArrowLeft, KeyRound } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const SYSTEM_ROLES: { value: UserRoleType; label: string; desc: string }[] = [
@@ -53,6 +53,9 @@ export function UserMasterWorkspace() {
     user: UserMasterDto;
     newRole: UserRoleType;
   } | null>(null);
+
+  // Reset Password Confirmation State
+  const [resetPasswordTarget, setResetPasswordTarget] = useState<UserMasterDto | null>(null);
 
   // Fetch Users
   const {
@@ -107,6 +110,19 @@ export function UserMasterWorkspace() {
     onError: (err: any) => {
       toast.error(err?.message || 'Failed to update user role');
       setRoleChangeTarget(null);
+    },
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: (id: string) => userMasterApi.resetPassword(id),
+    onSuccess: (res) => {
+      toast.success(res.message || 'Password reset successfully');
+      queryClient.invalidateQueries({ queryKey: ['users-master'] });
+      setResetPasswordTarget(null);
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to reset password');
+      setResetPasswordTarget(null);
     },
   });
 
@@ -234,6 +250,18 @@ export function UserMasterWorkspace() {
                 }`}
               >
                 {u.isActive ? 'Deactivate' : 'Activate'}
+              </button>
+            )}
+
+            {currentUser?.role === 'ADMIN' && (
+              <button
+                type="button"
+                onClick={() => setResetPasswordTarget(u)}
+                className="text-xs px-2 py-1 rounded font-medium border border-amber-200 text-amber-700 hover:bg-amber-50 transition-colors flex items-center gap-1"
+                title="Reset password to system default"
+              >
+                <KeyRound className="w-3 h-3" />
+                <span>Reset PWD</span>
               </button>
             )}
           </div>
@@ -474,6 +502,26 @@ export function UserMasterWorkspace() {
           </span>
         }
         confirmText="Change Role"
+      />
+
+      {/* Confirm Password Reset Dialog */}
+      <ConfirmDialog
+        isOpen={!!resetPasswordTarget}
+        onClose={() => setResetPasswordTarget(null)}
+        onConfirm={() => {
+          if (resetPasswordTarget) {
+            resetPasswordMutation.mutate(resetPasswordTarget.id);
+          }
+        }}
+        title="Reset User Password"
+        message={
+          <span>
+            Reset password for <strong className="text-gray-900">{resetPasswordTarget?.name}</strong> (
+            {resetPasswordTarget?.email}) to the default system password?
+          </span>
+        }
+        confirmText="Reset Password"
+        isDanger={true}
       />
     </div>
   );

@@ -150,6 +150,8 @@ export const authApi = {
     return { token: res.accessToken, user: res.user };
   },
   getMe: () => api.get<{ status: string; user: any }>('/api/auth/me'),
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    api.post<{ success: boolean; message: string }>('/api/auth/change-password', data),
 };
 
 export const productionProcessApi = {

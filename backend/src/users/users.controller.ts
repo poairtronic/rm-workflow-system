@@ -75,4 +75,10 @@ export class UsersController {
     const currentUserId = req?.user?.userId || req?.user?.sub || req?.user?.id;
     return this.usersService.deactivate(id, currentUserId);
   }
+
+  @Post(':id/reset-password')
+  @Roles(UserRole.ADMIN)
+  resetPassword(@Param('id') id: string, @Body() body?: { newPassword?: string }) {
+    return this.usersService.resetPassword(id, body?.newPassword);
+  }
 }

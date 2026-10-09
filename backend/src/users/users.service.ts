@@ -230,4 +230,21 @@ export class UsersService {
     await this.userRepository.save(user);
     return { success: true, message: `User ${id} activated` };
   }
+
+  async resetPassword(id: string, newPassword?: string) {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    const passwordToSet =
+      newPassword || process.env.SEED_DEFAULT_PASSWORD || 'airtronic123A@';
+    user.passwordHash = await bcrypt.hash(passwordToSet, 10);
+    await this.userRepository.save(user);
+
+    return {
+      success: true,
+      message: `Password for user ${user.email} reset successfully`,
+    };
+  }
 }

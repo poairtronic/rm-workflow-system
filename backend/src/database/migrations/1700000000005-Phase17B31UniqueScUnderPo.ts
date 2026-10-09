@@ -8,7 +8,8 @@ export class Phase17B31UniqueScUnderPo1700000000005 implements MigrationInterfac
     await queryRunner.query(`
       DO $$ 
       BEGIN 
-        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UQ_po_sc_number') THEN 
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'sales_order_components') AND
+           NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UQ_po_sc_number') THEN 
           ALTER TABLE "sales_order_components" ADD CONSTRAINT "UQ_po_sc_number" UNIQUE ("po_id", "sc_number"); 
         END IF; 
       END $$;
