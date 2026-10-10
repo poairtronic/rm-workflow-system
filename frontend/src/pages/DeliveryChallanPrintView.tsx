@@ -63,8 +63,8 @@ export function DeliveryChallanPrintView() {
     dc.groups.forEach((g: any) => {
       (g.items || []).forEach((item: any) => {
         displayItems.push({
-          partNo: item.productCode || item.productName || '—',
-          productName: item.productName || item.productCode || '—',
+          partNo: item.partNumber || item.productCode || item.productName || '—',
+          productName: item.partName || item.productName || item.productCode || '—',
           qty: Number(item.quantityDispatched ?? 0),
           uom: item.uom || (item.productName?.toUpperCase().includes('BAR') || item.productName?.toUpperCase().includes('ROD') ? 'MM' : 'NOS'),
         });
@@ -73,8 +73,8 @@ export function DeliveryChallanPrintView() {
   } else if (dc.lineItems && dc.lineItems.length > 0) {
     dc.lineItems.forEach((item: any) => {
       displayItems.push({
-        partNo: item.productCode || item.productName || '—',
-        productName: item.productName || item.productCode || '—',
+        partNo: item.partNumber || item.productCode || item.productName || '—',
+        productName: item.partName || item.productName || item.productCode || '—',
         qty: Number(item.quantityDispatched ?? item.quantity ?? 0),
         uom: item.uom || (item.productName?.toUpperCase().includes('BAR') || item.productName?.toUpperCase().includes('ROD') ? 'MM' : 'NOS'),
       });
@@ -82,8 +82,8 @@ export function DeliveryChallanPrintView() {
   } else if (dc.items && dc.items.length > 0) {
     dc.items.forEach((item: any) => {
       displayItems.push({
-        partNo: item.materialCode || item.productCode || item.productName || '—',
-        productName: item.productName || item.materialCode || '—',
+        partNo: item.partNumber || item.materialCode || item.productCode || item.productName || '—',
+        productName: item.partName || item.productName || item.materialCode || '—',
         qty: Number(item.quantityDispatched ?? item.quantity ?? 0),
         uom: item.uom || (item.productName?.toUpperCase().includes('BAR') || item.productName?.toUpperCase().includes('ROD') ? 'MM' : 'NOS'),
       });

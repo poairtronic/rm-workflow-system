@@ -9,9 +9,10 @@ interface ProductSelectProps {
   className?: string;
   disabled?: boolean;
   placeholder?: string;
+  initialProduct?: { id: string; name: string; code?: string };
 }
 
-export function ProductSelect({ value, onChange, error, className, disabled, placeholder = 'Select Product...' }: ProductSelectProps) {
+export function ProductSelect({ value, onChange, error, className, disabled, placeholder = 'Select Product...', initialProduct }: ProductSelectProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -37,6 +38,15 @@ export function ProductSelect({ value, onChange, error, className, disabled, pla
     secondary: p.code,
     data: p,
   }));
+
+  if (initialProduct && value === initialProduct.id && !options.find(o => o.id === initialProduct.id)) {
+    options.unshift({
+      id: initialProduct.id,
+      primary: initialProduct.name,
+      secondary: initialProduct.code,
+      data: initialProduct as any,
+    });
+  }
 
   return (
     <SearchSelect

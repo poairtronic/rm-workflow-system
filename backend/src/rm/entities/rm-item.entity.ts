@@ -1,4 +1,4 @@
-﻿import {
+import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
@@ -117,6 +117,12 @@ export class RmItem {
 
   @Column({ name: 'weight_unit', length: 20, default: 'KG' })
   weightUnit!: string;
+
+  @Column({ name: 'part_number', length: 100, nullable: true })
+  partNumber?: string;
+
+  @Column({ name: 'part_name', length: 255, nullable: true })
+  partName?: string;
 
   @Column({ type: 'text', nullable: true })
   remarks?: string;

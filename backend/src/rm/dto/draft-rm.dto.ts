@@ -25,6 +25,21 @@ export class DraftRmItemDto {
   @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0.001)
   quantity!: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  partNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(255)
+  partName?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(255)
+  remarks?: string;
 }
 
 export class DraftRmScDto {
@@ -37,6 +52,11 @@ export class DraftRmScDto {
   @IsNotEmpty()
   @MaxLength(150)
   productName!: string;
+
+  @IsNumber()
+  @Min(1)
+  @IsOptional()
+  targetQuantity?: number;
 
   @IsArray()
   @ValidateNested({ each: true })

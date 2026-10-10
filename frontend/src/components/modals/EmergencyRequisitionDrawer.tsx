@@ -25,10 +25,6 @@ export function EmergencyRequisitionDrawer({ isOpen, onClose, item }: EmergencyR
     }
   }, [item, isOpen]);
 
-  if (!isOpen || !item) return null;
-
-  const isCritical = item.severity === 'CRITICAL';
-
   const mutation = useMutation({
     mutationFn: (payload: any) => mslApi.generateEmergencyPO(payload),
     onSuccess: () => {
@@ -45,6 +41,10 @@ export function EmergencyRequisitionDrawer({ isOpen, onClose, item }: EmergencyR
       toast.error(error.message || 'Failed to generate emergency PO.');
     }
   });
+
+  if (!isOpen || !item) return null;
+
+  const isCritical = item.severity === 'CRITICAL';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

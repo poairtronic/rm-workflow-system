@@ -428,6 +428,7 @@ export class RmService {
             poId: po.id,
             scNumber,
             productName: scDto.productName,
+            targetQuantity: scDto.targetQuantity || 1,
             status: ScStatus.DRAFT,
           });
           sc = await queryRunner.manager.save(sc);
@@ -475,6 +476,9 @@ export class RmService {
             grade: itemDto.spec.trim(),
             size: itemDto.spec.trim(),
             quantity: QuantityCalculator.roundDecimal(itemDto.quantity),
+            partNumber: itemDto.partNumber?.trim() || undefined,
+            partName: itemDto.partName?.trim() || itemDto.remarks?.trim() || undefined,
+            remarks: itemDto.remarks?.trim() || itemDto.partName?.trim() || undefined,
           });
           await queryRunner.manager.save(item);
         }
@@ -538,6 +542,7 @@ export class RmService {
          scId: rm.scId,
          scNumber: rm.salesOrderComponent?.scNumber || '',
          productName: rm.salesOrderComponent?.productName || '',
+         targetQuantity: rm.salesOrderComponent?.targetQuantity || 1,
          status: rm.status,
          remarks: rm.remarks,
          items: (rm.items || []).map(i => ({
@@ -545,7 +550,10 @@ export class RmService {
            productId: i.mappedProductId,
            spec: i.grade,
            quantity: i.quantity,
-           material: i.material
+           material: i.material,
+           partNumber: i.partNumber || '',
+           partName: i.partName || i.remarks || '',
+           remarks: i.remarks || i.partName || ''
          }))
        }))
     };
@@ -611,6 +619,7 @@ export class RmService {
                }
                draft = sc.rmRequest;
                sc.productName = scDto.productName;
+               sc.targetQuantity = scDto.targetQuantity || 1;
                await queryRunner.manager.save(sc);
                await queryRunner.manager.delete(RmItem, { rmFormId: draft.id });
             }
@@ -619,6 +628,7 @@ export class RmService {
               poId: po.id,
               scNumber,
               productName: scDto.productName,
+              targetQuantity: scDto.targetQuantity || 1,
               status: ScStatus.DRAFT,
             });
             sc = await queryRunner.manager.save(sc);
@@ -657,6 +667,9 @@ export class RmService {
             grade: itemDto.spec.trim(),
             size: itemDto.spec.trim(),
             quantity: QuantityCalculator.roundDecimal(itemDto.quantity),
+            partNumber: itemDto.partNumber?.trim() || undefined,
+            partName: itemDto.partName?.trim() || itemDto.remarks?.trim() || undefined,
+            remarks: itemDto.remarks?.trim() || itemDto.partName?.trim() || undefined,
           });
           await queryRunner.manager.save(item);
         }

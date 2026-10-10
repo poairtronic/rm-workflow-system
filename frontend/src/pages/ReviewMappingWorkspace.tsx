@@ -429,11 +429,12 @@ export function ReviewMappingWorkspace({
                     {/* Mapped Inventory Product Selector */}
                     <div className="lg:col-span-4 space-y-2">
                       <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                        Mapped Inventory Product <span className="text-red-500">*</span>
+                        Mapped Inventory Product
                       </label>
 
                       <ProductSelect
                         value={item.mappedProductId}
+                        initialProduct={{ id: item.mappedProductId, name: item.mappedProductName || item.material }}
                         onChange={(prodId, prodObj) => handleProductChange(idx, prodId, prodObj)}
                         placeholder="Search product catalog..."
                         disabled={reviewSuccess || submitting}

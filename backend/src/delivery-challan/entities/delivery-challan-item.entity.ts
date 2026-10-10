@@ -37,6 +37,12 @@ export class DeliveryChallanItem {
   @JoinColumn({ name: 'process_id', foreignKeyConstraintName: 'FK_dci_process_id' })
   process?: any;
 
+  @Column({ name: 'part_number', type: 'varchar', length: 100, nullable: true })
+  partNumber?: string;
+
+  @Column({ name: 'part_name', type: 'varchar', length: 255, nullable: true })
+  partName?: string;
+
   @Column({ type: 'text', nullable: true })
   description?: string;
 
@@ -50,19 +56,19 @@ export class DeliveryChallanItem {
   @JoinColumn({ name: 'challan_id' })
   challan: Relation<DeliveryChallan>;
 
-  @Column({ name: 'product_id', type: 'uuid' })
-  productId: string;
+  @Column({ name: 'product_id', type: 'uuid', nullable: true })
+  productId?: string;
 
-  @ManyToOne(() => Product)
+  @ManyToOne(() => Product, { nullable: true })
   @JoinColumn({ name: 'product_id' })
-  product: Product;
+  product?: Product;
 
-  @Column({ name: 'bin_id', type: 'uuid' })
-  binId: string;
+  @Column({ name: 'bin_id', type: 'uuid', nullable: true })
+  binId?: string;
 
-  @ManyToOne(() => Bin)
+  @ManyToOne(() => Bin, { nullable: true })
   @JoinColumn({ name: 'bin_id' })
-  bin: Bin;
+  bin?: Bin;
 
   @Column({ name: 'quantity_dispatched', type: 'numeric', precision: 12, scale: 3 })
   quantityDispatched: number;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { useFormContext, useWatch } from 'react-hook-form';
+import { useFormContext } from 'react-hook-form';
 import { Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api, unwrapList } from '../../services/api';
@@ -10,13 +10,15 @@ export function DispatchPayloadRow({
   index,
   remove,
   canRemove,
+  isType1,
 }: {
   blockIndex: number;
   index: number;
   remove: (i: number) => void;
   canRemove: boolean;
+  isType1?: boolean;
 }) {
-  const { register, control, setValue } = useFormContext();
+  const { register, setValue, watch } = useFormContext();
 
   const { data: products } = useQuery({
     queryKey: ['products'],
@@ -43,16 +45,13 @@ export function DispatchPayloadRow({
     staleTime: 60000,
   });
 
-  const scId = useWatch({ control, name: `scBlocks.${blockIndex}.scId` });
-  const { data: selectedSc } = useQuery({
-    queryKey: ['sc', scId],
-    queryFn: async () => {
-      if (!scId) return null;
-      const res = await api.get<any>(`/api/sc/${scId}`);
-      return res.data?.data || res.data;
-    },
-    enabled: !!scId,
+  const scBlocks = watch('scBlocks');
+  const scId = scBlocks?.[blockIndex]?.scId;
+  const { data: scList } = useQuery({
+    queryKey: ['sc'],
+    queryFn: async () => unwrapList(await api.get<any[]>('/api/sc')),
   });
+  const selectedSc = scList?.find((sc: any) => sc.id === scId);
 
   const scProductIds =
     selectedSc?.rmRequest?.items
@@ -80,9 +79,9 @@ export function DispatchPayloadRow({
     });
   }, [availableProducts]);
 
-  const productId = useWatch({ control, name: `scBlocks.${blockIndex}.items.${index}.productId` });
-  const binId = useWatch({ control, name: `scBlocks.${blockIndex}.items.${index}.binId` });
-  const dispatchQty = useWatch({ control, name: `scBlocks.${blockIndex}.items.${index}.quantity` });
+  const productId = watch(`scBlocks.${blockIndex}.items.${index}.productId`);
+  const binId = watch(`scBlocks.${blockIndex}.items.${index}.binId`);
+  const dispatchQty = watch(`scBlocks.${blockIndex}.items.${index}.quantity`);
 
   // Query real stock balances for selected product
   const { data: balances = [] } = useQuery({
@@ -123,6 +122,39 @@ export function DispatchPayloadRow({
       setValue(`scBlocks.${blockIndex}.items.${index}.binId`, '');
     }
   }, [productId, positiveBalances, binId, setValue, blockIndex, index, uom]);
+
+  // Find matching SC item to get Part Number and Part Name
+  const currentScItem = useMemo(() => {
+    if (!productId || !selectedSc?.rmRequest?.items) return null;
+    return selectedSc.rmRequest.items.find(
+      (i: any) =>
+        (i.mappedProductId || i.mapped_product_id || i.productId || i.product_id) === productId
+    );
+  }, [productId, selectedSc]);
+
+  // Sync partNumber and partName into form state
+  useEffect(() => {
+    if (currentScItem) {
+      setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, currentScItem.partNumber || '');
+      setValue(`scBlocks.${blockIndex}.items.${index}.partName`, currentScItem.partName || currentScItem.material || '');
+    } else {
+      setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, '');
+      setValue(`scBlocks.${blockIndex}.items.${index}.partName`, '');
+    }
+  }, [currentScItem, setValue, blockIndex, index]);
+
+  const getProductDisplayLabel = (p: any) => {
+    const scItem = selectedSc?.rmRequest?.items?.find(
+      (i: any) =>
+        (i.mappedProductId || i.mapped_product_id || i.productId || i.product_id) === p.id
+    );
+    if (scItem && (scItem.partNumber || scItem.partName)) {
+      const pNum = scItem.partNumber ? `[${scItem.partNumber}] ` : '';
+      const pName = scItem.partName ? `${scItem.partName} - ` : '';
+      return `${pNum}${pName}${p.code ? `[${p.code}] ` : ''}${p.name}`;
+    }
+    return `${p.code ? `[${p.code}] ` : ''}${p.name}`;
+  };
 
   // Find currently selected bin and its rack
   const selectedBin = allBins.find((ab: any) => ab.id === binId);
@@ -190,24 +222,42 @@ export function DispatchPayloadRow({
 
   return (
     <tr className="h-14">
-      {/* 1. Material */}
+      {/* 1. Material / Part Name */}
       <td className="px-3 py-2">
-        <select
-          {...register(`scBlocks.${blockIndex}.items.${index}.productId` as const, {
-            required: 'Product is required',
-          })}
-          className="w-full h-8 px-2 rounded-md bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
-        >
-          <option value="">Select Product...</option>
-          {sortedProducts.map((p: any) => (
-            <option key={p.id} value={p.id}>
-              {p.code} - {p.name}
-            </option>
-          ))}
-        </select>
+        {isType1 ? (
+          <div className="w-full h-8 px-2 rounded-md bg-slate-50 border border-slate-200 text-xs text-slate-700 flex items-center font-medium">
+            {selectedSc ? `${selectedSc.scNumber} - ${selectedSc.productName}` : 'Select SC first'}
+          </div>
+        ) : (
+          <>
+            <select
+              {...register(`scBlocks.${blockIndex}.items.${index}.productId` as const, {
+                required: 'Product is required',
+              })}
+              className="w-full h-8 px-2 rounded-md bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
+            >
+              <option value="">Select Product...</option>
+              {sortedProducts.map((p: any) => (
+                <option key={p.id} value={p.id}>
+                  {getProductDisplayLabel(p)}
+                </option>
+              ))}
+            </select>
+            {currentScItem && (currentScItem.partNumber || currentScItem.partName) && (
+              <div className="flex items-center gap-1.5 mt-1 px-1.5 py-0.5 rounded bg-indigo-50 border border-indigo-100 text-[10px] font-mono text-indigo-900">
+                <span className="font-bold">{currentScItem.partNumber || 'PRD'}</span>
+                <span>•</span>
+                <span className="truncate max-w-[180px] font-sans font-medium text-slate-700">{currentScItem.partName || currentScItem.material}</span>
+              </div>
+            )}
+          </>
+        )}
+        <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.partNumber` as const)} />
+        <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.partName` as const)} />
       </td>
 
       {/* 2. Rack (Dedicated distinct field) */}
+      {!isType1 && (
       <td className="px-3 py-2">
         <select
           value={selectedRackId || ''}
@@ -234,8 +284,10 @@ export function DispatchPayloadRow({
           </optgroup>
         </select>
       </td>
+      )}
 
       {/* 3. Bin (Dedicated distinct field) */}
+      {!isType1 && (
       <td className="px-3 py-2">
         <select
           value={binId || ''}
@@ -279,10 +331,11 @@ export function DispatchPayloadRow({
         <input
           type="hidden"
           {...register(`scBlocks.${blockIndex}.items.${index}.binId` as const, {
-            required: 'Bin is required',
+            required: !isType1 ? 'Bin is required' : false,
           })}
         />
       </td>
+      )}
 
       {/* 4. Batch / Heat No */}
       <td className="px-3 py-2">
@@ -313,17 +366,17 @@ export function DispatchPayloadRow({
               validate: (v) => {
                 const num = Number(v);
                 if (num <= 0) return 'Quantity must be > 0';
-                if (num > availableQty) return `Exceeds available stock (${availableQty})`;
+                if (!isType1 && num > availableQty) return `Exceeds available stock (${availableQty})`;
                 return true;
               },
             })}
             className={`w-full h-8 px-2 rounded-md bg-white border text-xs text-slate-900 text-right tabular-nums focus:outline-none focus:ring-1 focus:border-transparent ${
-              isQtyInvalid && binId
+              isQtyInvalid && binId && !isType1
                 ? 'border-red-300 focus:ring-red-500'
                 : 'border-slate-200 focus:ring-primary'
             }`}
           />
-          {productId && (
+          {productId && !isType1 && (
             <span
               className={`text-[10px] font-semibold mt-0.5 block ${
                 availableQty > 0 ? 'text-slate-500' : 'text-red-500'

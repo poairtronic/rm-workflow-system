@@ -20,9 +20,6 @@ export enum MaterialIssueType {
 }
 
 @Entity('material_issues')
-@Index('idx_material_issue_initial', ['scId'], {
-  where: "issue_type = 'INITIAL_ISSUE'",
-})
 export class MaterialIssue {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

@@ -73,7 +73,7 @@ export const workflowService = {
   closeSc: (id: string, remarks?: string) => api.post<SC>(`/api/sc/${id}/close`, { remarks }),
 
   // RM
-  createDraftRm: (data: { poNumber: string; customerId?: string; scs: { scNumber: string; productName: string; items: { productId: string; spec: string; quantity: number }[] }[] }) =>
+  createDraftRm: (data: { poNumber: string; customerId?: string; scs: { scNumber: string; productName: string; targetQuantity?: number; items: { productId: string; partNumber?: string; partName?: string; spec: string; quantity: number; remarks?: string; }[] }[] }) =>
     api.post<any>('/api/rm/draft', data),
   getDraftRmByPo: (poId: string) => api.get<any[]>(`/api/rm/po/${poId}/draft`),
   updateDraftRm: (poId: string, data: any) => api.put<any>(`/api/rm/po/${poId}/draft`, data),
@@ -95,7 +95,7 @@ export const workflowService = {
     api.post<any>(`/api/rm/${id}/reject`, { remarks }),
 
   // Material Issue (Stores)
-  createIssue: (scId: string, items: { rmItemId: string; binId: string; quantityIssued: number; heatNumber?: string; batchNumber?: string }[], remarks?: string, additionalRequestId?: string) =>
+  createIssue: (scId: string, items: { rmItemId: string; binId?: string; quantityIssued: number; heatNumber?: string; batchNumber?: string }[], remarks?: string, additionalRequestId?: string) =>
     api.post<MaterialIssue>('/api/material-issues', { scId, items, remarks, additionalRequestId }),
   getIssueList: (scId?: string) => api.get<MaterialIssue[]>(`/api/material-issues${scId ? `?scId=${scId}` : ''}`),
 

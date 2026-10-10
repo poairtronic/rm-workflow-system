@@ -225,7 +225,7 @@ export function StoresRmIssueWorkspace() {
                           <h4 className="font-bold text-lg text-slate-900">{sc.scNumber}</h4>
                           <p className="text-sm text-slate-500">Product: {sc.productName}</p>
                         </div>
-                        <div>{renderStatusBadge(sc.status)}</div>
+                        <div>{renderStatusBadge(sc.scStatus === 'PARTIALLY_ISSUED' ? sc.scStatus : sc.status)}</div>
                       </div>
                       
                       <div className="text-sm text-slate-600 mb-6">
@@ -259,7 +259,7 @@ export function StoresRmIssueWorkspace() {
                           <span className="text-xs text-red-600 font-medium italic">Requisition Rejected by Stores</span>
                         ) : (
                           <div className="flex items-center space-x-3">
-                            <button
+                            <button 
                               onClick={() => setSelectedScForReview({
                                 scId: sc.scId,
                                 scNumber: sc.scNumber,
@@ -273,13 +273,15 @@ export function StoresRmIssueWorkspace() {
                               <FileText className="w-4 h-4" />
                               <span>View Mapping</span>
                             </button>
-                            <button 
-                              onClick={() => handleOpenIssueModal(sc.scId, sc.scNumber)}
-                              className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-medium rounded-lg transition-colors shadow-sm cursor-pointer"
-                            >
-                              <PackagePlus className="w-4 h-4" />
-                              <span>Issue Material</span>
-                            </button>
+                            {sc.scStatus !== 'ISSUED' && sc.scStatus !== 'IN_PRODUCTION' && sc.scStatus !== 'COMPLETED' && (
+                              <button 
+                                onClick={() => handleOpenIssueModal(sc.scId, sc.scNumber)}
+                                className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-medium rounded-lg transition-colors shadow-sm cursor-pointer"
+                              >
+                                <PackagePlus className="w-4 h-4" />
+                                <span>Issue Material</span>
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>

@@ -83,6 +83,8 @@ export interface PrintableLineItem {
   productId: string;
   productCode: string | null;
   productName: string;
+  partNumber?: string | null;
+  partName?: string | null;
   binId: string;
   binCode: string;
   binName: string;

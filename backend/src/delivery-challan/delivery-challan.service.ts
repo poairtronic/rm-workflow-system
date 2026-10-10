@@ -11,6 +11,8 @@ import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import { StockTransaction, TransactionType } from '../inventory/entities/stock-transaction.entity.js';
 import { Vendor } from '../vendor/entities/vendor.entity.js';
 import { CommunicationService } from '../notifications/communication.service.js';
+import { RmItem } from '../rm/entities/rm-item.entity.js';
+import { SalesOrderComponent } from '../sc/entities/sc.entity.js';
 import { PrintableDeliveryChallanDto, PrintableCompanyInfo } from './dto/printable-delivery-challan.dto.js';
 
 
@@ -154,40 +156,55 @@ export class DeliveryChallanService {
       const stockTxRepo = queryRunner.manager.getRepository(StockTransaction);
 
       for (const itemDto of dto.items) {
-        // Lock source bin
-        const stockBalance = await stockBalanceRepo.createQueryBuilder('sb')
-          .setLock('pessimistic_write')
-          .where('sb.productId = :productId', { productId: itemDto.productId })
-          .andWhere('sb.binId = :binId', { binId: itemDto.binId })
-          .getOne();
+        const quantityToDispatch = Number(itemDto.quantityDispatched ?? 0);
+        if (itemDto.productId && itemDto.binId) {
+          // Lock source bin
+          const stockBalance = await stockBalanceRepo.createQueryBuilder('sb')
+            .setLock('pessimistic_write')
+            .where('sb.productId = :productId', { productId: itemDto.productId })
+            .andWhere('sb.binId = :binId', { binId: itemDto.binId })
+            .getOne();
 
-        if (!stockBalance) {
-          throw new BadRequestException(`Stock balance not found for product ${itemDto.productId} in bin ${itemDto.binId}`);
+          if (!stockBalance) {
+            throw new BadRequestException(`Stock balance not found for product ${itemDto.productId} in bin ${itemDto.binId}`);
+          }
+
+          const currentQty = Number(stockBalance.currentQuantity);
+
+          if (currentQty < quantityToDispatch) {
+            throw new BadRequestException(`Insufficient stock for product ${itemDto.productId} in bin ${itemDto.binId}`);
+          }
+
+          // Deduct quantity
+          stockBalance.currentQuantity = currentQty - quantityToDispatch;
+          await stockBalanceRepo.save(stockBalance);
+
+          // Write transaction
+          const stockTx = stockTxRepo.create({
+            productId: itemDto.productId,
+            sourceBinId: itemDto.binId,
+            transactionType: TransactionType.DC_DISPATCH,
+            quantity: quantityToDispatch,
+            referenceType: 'DELIVERY_CHALLAN_TYPE_1',
+            referenceId: savedChallan.id,
+            createdById: userId,
+            remarks: `Dispatched via Delivery Challan ${challanNumber}`,
+          });
+          await stockTxRepo.save(stockTx);
         }
 
-        const quantityToDispatch = Number(itemDto.quantityDispatched);
-        const currentQty = Number(stockBalance.currentQuantity);
-
-        if (currentQty < quantityToDispatch) {
-          throw new BadRequestException(`Insufficient stock for product ${itemDto.productId} in bin ${itemDto.binId}`);
+        // Resolve partNumber and partName from DTO or SC RM Item
+        let partNumber = itemDto.partNumber;
+        let partName = itemDto.partName;
+        if ((!partNumber || !partName) && itemDto.scId) {
+          const sc = await queryRunner.manager.findOne(SalesOrderComponent, {
+            where: { id: itemDto.scId },
+          });
+          if (sc) {
+            if (!partNumber) partNumber = sc.scNumber;
+            if (!partName) partName = sc.productName;
+          }
         }
-
-        // Deduct quantity
-        stockBalance.currentQuantity = currentQty - quantityToDispatch;
-        await stockBalanceRepo.save(stockBalance);
-
-        // Write transaction
-        const stockTx = stockTxRepo.create({
-          productId: itemDto.productId,
-          sourceBinId: itemDto.binId,
-          transactionType: TransactionType.DC_DISPATCH,
-          quantity: quantityToDispatch,
-          referenceType: 'DELIVERY_CHALLAN_TYPE_1',
-          referenceId: savedChallan.id,
-          createdById: userId,
-          remarks: `Dispatched via Delivery Challan ${challanNumber}`,
-        });
-        await stockTxRepo.save(stockTx);
 
         // Create DC item
         const dcItem = queryRunner.manager.create(DeliveryChallanItem, {
@@ -198,6 +215,8 @@ export class DeliveryChallanService {
           processId: itemDto.processId,
           batchNumber: itemDto.batchNumber,
           description: itemDto.description,
+          partNumber: partNumber ?? undefined,
+          partName: partName ?? undefined,
           quantityDispatched: quantityToDispatch,
           quantityReturned: 0,
         });
@@ -317,15 +336,31 @@ export class DeliveryChallanService {
         });
         await stockTxRepo.save(stockTx);
 
+        // Resolve partNumber and partName from DTO or SC RM Item
+        let partNumber = itemDto.partNumber;
+        let partName = itemDto.partName;
+        const targetScId = itemDto.scId || dto.scId;
+        if ((!partNumber || !partName) && targetScId) {
+          const sc = await queryRunner.manager.findOne(SalesOrderComponent, {
+            where: { id: targetScId },
+          });
+          if (sc) {
+            if (!partNumber) partNumber = sc.scNumber;
+            if (!partName) partName = sc.productName;
+          }
+        }
+
         // Create DC item
         const dcItem = queryRunner.manager.create(DeliveryChallanItem, {
           challanId: savedChallan.id,
           productId: itemDto.productId,
           binId: itemDto.binId,
-          scId: itemDto.scId || dto.scId,
+          scId: targetScId,
           processId: itemDto.processId || dto.processId,
           batchNumber: itemDto.batchNumber,
           description: itemDto.description,
+          partNumber: partNumber ?? undefined,
+          partName: partName ?? undefined,
           quantityDispatched: quantityToDispatch,
           quantityReturned: 0,
         });
@@ -546,11 +581,15 @@ export class DeliveryChallanService {
     const lineItems: PrintableDeliveryChallanDto['lineItems'] = enrichedItems.map((item: any) => {
       const dispatched = Number(item.quantityDispatched ?? 0);
       const returned = Number(item.quantityReturned ?? 0);
+      const resolvedPartNo = item.partNumber || item.product?.code || '—';
+      const resolvedPartName = item.partName || item.product?.name || item.productId;
       return {
         id: item.id,
         productId: item.productId,
-        productCode: item.product?.code ?? null,
-        productName: item.product?.name ?? item.productId,
+        productCode: resolvedPartNo,
+        productName: resolvedPartName,
+        partNumber: resolvedPartNo,
+        partName: resolvedPartName,
         binId: item.binId,
         binCode: item.bin?.code ?? '',
         binName: item.bin?.name ?? '',
@@ -652,7 +691,7 @@ export class DeliveryChallanService {
       challanId: item.challanId,
       challanNumber: item.challan.challanNumber,
       productId: item.productId,
-      productName: item.product.name,
+      productName: item.product?.name ?? 'Unknown',
       binId: item.binId,
       quantityDispatched: Number(item.quantityDispatched),
       quantityReturned: Number(item.quantityReturned),

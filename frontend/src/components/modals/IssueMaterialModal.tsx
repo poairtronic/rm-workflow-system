@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, X, Plus, Trash2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, X, AlertCircle } from 'lucide-react';
 import { workflowService } from '../../services/workflowService';
 import { inventoryService } from '../../services/inventoryService';
-import type { ProductBinBalance } from '../../services/inventoryService';
 
 interface IssueMaterialModalProps {
   isOpen: boolean;
@@ -11,14 +10,6 @@ interface IssueMaterialModalProps {
   scId: string;
   scNumber: string;
   additionalRequestId?: string;
-}
-
-interface IssueLine {
-  id: string;
-  binId: string;
-  quantityIssued: number | '';
-  heatNumber: string;
-  batchNumber: string;
 }
 
 interface ItemData {
@@ -30,8 +21,10 @@ interface ItemData {
   required: number;
   issued: number;
   remaining: number;
-  balances: ProductBinBalance[];
-  lines: IssueLine[];
+  totalAvailable: number;
+  issueQty: number | '';
+  selectedBinId?: string;
+  availableBins?: { binId: string; binCode: string; currentQuantity: number }[];
 }
 
 export function IssueMaterialModal({ isOpen, onClose, onSuccess, scId, scNumber, additionalRequestId }: IssueMaterialModalProps) {
@@ -95,10 +88,18 @@ export function IssueMaterialModal({ isOpen, onClose, onSuccess, scId, scNumber,
           issued = 0;
         }
         
-        let balances: ProductBinBalance[] = [];
+        let totalAvailable = 0;
+        let availableBins: { binId: string; binCode: string; currentQuantity: number }[] = [];
         if (rmItem.mappedProductId) {
-          balances = await inventoryService.getBalancesByProduct(rmItem.mappedProductId);
-          balances = balances.filter((b: any) => b.currentQuantity > 0);
+          const balances = await inventoryService.getBalancesByProduct(rmItem.mappedProductId);
+          availableBins = (balances || [])
+            .filter((b: any) => Number(b.currentQuantity) > 0)
+            .map((b: any) => ({
+              binId: b.binId,
+              binCode: b.bin?.code || b.binCode || 'BIN',
+              currentQuantity: Number(b.currentQuantity),
+            }));
+          totalAvailable = availableBins.reduce((sum, b) => sum + b.currentQuantity, 0);
         }
 
         itemsData.push({
@@ -110,8 +111,10 @@ export function IssueMaterialModal({ isOpen, onClose, onSuccess, scId, scNumber,
           required: requiredQty,
           issued,
           remaining,
-          balances,
-          lines: []
+          totalAvailable,
+          issueQty: remaining > 0 ? remaining : '',
+          availableBins,
+          selectedBinId: availableBins.length === 1 ? availableBins[0].binId : '',
         });
       }
 
@@ -124,35 +127,15 @@ export function IssueMaterialModal({ isOpen, onClose, onSuccess, scId, scNumber,
     }
   };
 
-  const addLine = (itemIdx: number) => {
+  const updateItemQty = (itemIdx: number, value: any) => {
     const newItems = [...items];
-    const item = newItems[itemIdx];
-    
-    const currentLinesTotal = item.lines.reduce((sum, l) => sum + (Number(l.quantityIssued) || 0), 0);
-    const toFill = Math.max(0, item.remaining - currentLinesTotal);
-
-    newItems[itemIdx].lines.push({
-      id: Math.random().toString(),
-      binId: '',
-      quantityIssued: toFill > 0 ? toFill : '',
-      heatNumber: '',
-      batchNumber: ''
-    });
+    newItems[itemIdx].issueQty = value;
     setItems(newItems);
   };
 
-  const updateLine = (itemIdx: number, lineIdx: number, field: keyof IssueLine, value: any) => {
+  const updateItemBin = (itemIdx: number, binId: string) => {
     const newItems = [...items];
-    newItems[itemIdx].lines[lineIdx] = {
-      ...newItems[itemIdx].lines[lineIdx],
-      [field]: value
-    };
-    setItems(newItems);
-  };
-
-  const removeLine = (itemIdx: number, lineIdx: number) => {
-    const newItems = [...items];
-    newItems[itemIdx].lines.splice(lineIdx, 1);
+    newItems[itemIdx].selectedBinId = binId;
     setItems(newItems);
   };
 
@@ -162,21 +145,21 @@ export function IssueMaterialModal({ isOpen, onClose, onSuccess, scId, scNumber,
     const payloadItems: any[] = [];
     
     for (const item of items) {
-      for (const line of item.lines) {
-        if (line.binId && line.quantityIssued && Number(line.quantityIssued) > 0) {
-          payloadItems.push({
-            rmItemId: item.rmItemId,
-            binId: line.binId,
-            quantityIssued: Number(line.quantityIssued),
-            heatNumber: line.heatNumber || undefined,
-            batchNumber: line.batchNumber || undefined
-          });
+      if (item.issueQty && Number(item.issueQty) > 0) {
+        const itemPayload: any = {
+          rmItemId: item.rmItemId,
+          quantityIssued: Number(item.issueQty),
+        };
+        // Only include binId if explicitly selected; omit if empty string so backend auto-allocates
+        if (item.selectedBinId && item.selectedBinId.trim()) {
+          itemPayload.binId = item.selectedBinId.trim();
         }
+        payloadItems.push(itemPayload);
       }
     }
 
     if (payloadItems.length === 0) {
-      setError('Please add at least one item to issue.');
+      setError('Please specify quantity to issue for at least one item.');
       return;
     }
 
@@ -269,86 +252,54 @@ export function IssueMaterialModal({ isOpen, onClose, onSuccess, scId, scNumber,
                         <span className="text-slate-500 block">Remaining</span>
                         <span className="font-semibold text-green-600">{item.remaining}</span>
                       </div>
+                      <div>
+                        <span className="text-slate-500 block">In Stock</span>
+                        <span className={`font-semibold ${item.totalAvailable < item.remaining ? 'text-red-600' : 'text-slate-900'}`}>
+                          {item.totalAvailable}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
                   <div className="p-4">
-                    {item.balances.length === 0 && item.mappedProductId ? (
-                      <p className="text-sm text-amber-600">No stock available for this item.</p>
+                    {item.totalAvailable === 0 && item.mappedProductId ? (
+                      <p className="text-sm text-amber-600">No stock available for this item in warehouse.</p>
                     ) : item.mappedProductId ? (
-                      <div className="space-y-3">
-                        {item.lines.map((line, lineIdx) => (
-                          <div key={line.id} className="flex gap-3 items-start">
-                            <div className="flex-1">
-                              <label className="block text-xs font-medium text-slate-700 mb-1">Source Bin *</label>
-                              <select
-                                value={line.binId}
-                                onChange={(e) => updateLine(itemIdx, lineIdx, 'binId', e.target.value)}
-                                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                              >
-                                <option value="">Select Bin...</option>
-                                {item.balances.map(b => (
-                                  <option key={b.binId} value={b.binId}>
-                                    {b.binCode} ({b.warehouseName}) - Stock: {b.currentQuantity}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            
-                            <div className="w-32">
-                              <label className="block text-xs font-medium text-slate-700 mb-1">Quantity *</label>
-                              <input
-                                type="number"
-                                step="0.001"
-                                min="0.001"
-                                value={line.quantityIssued}
-                                onChange={(e) => updateLine(itemIdx, lineIdx, 'quantityIssued', e.target.value)}
-                                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                placeholder="Qty"
-                              />
-                            </div>
+                      <div className="flex flex-wrap items-end gap-4">
+                        <div className="w-48">
+                          <label className="block text-xs font-medium text-slate-700 mb-1">Issue Quantity *</label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            min="0"
+                            max={Math.min(item.remaining, item.totalAvailable)}
+                            value={item.issueQty}
+                            onChange={(e) => updateItemQty(itemIdx, e.target.value)}
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                            placeholder="Qty to issue"
+                          />
+                        </div>
 
-                            <div className="w-32">
-                              <label className="block text-xs font-medium text-slate-700 mb-1">Heat No.</label>
-                              <input
-                                type="text"
-                                value={line.heatNumber}
-                                onChange={(e) => updateLine(itemIdx, lineIdx, 'heatNumber', e.target.value)}
-                                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                placeholder="Optional"
-                              />
-                            </div>
-
-                            <div className="w-32">
-                              <label className="block text-xs font-medium text-slate-700 mb-1">Batch No.</label>
-                              <input
-                                type="text"
-                                value={line.batchNumber}
-                                onChange={(e) => updateLine(itemIdx, lineIdx, 'batchNumber', e.target.value)}
-                                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                placeholder="Optional"
-                              />
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => removeLine(itemIdx, lineIdx)}
-                              className="mt-6 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-
-                        {item.remaining > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => addLine(itemIdx)}
-                            className="flex items-center space-x-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 mt-2"
+                        <div className="w-64">
+                          <label className="block text-xs font-medium text-slate-700 mb-1">Source Bin</label>
+                          <select
+                            value={item.selectedBinId || ''}
+                            onChange={(e) => updateItemBin(itemIdx, e.target.value)}
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                           >
-                            <Plus className="w-4 h-4" />
-                            <span>Add Issue Line</span>
-                          </button>
+                            <option value="">Auto-allocate (Highest Stock)</option>
+                            {(item.availableBins || []).map((b) => (
+                              <option key={b.binId} value={b.binId}>
+                                {b.binCode} • Avail: {b.currentQuantity}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {item.issueQty && Number(item.issueQty) < item.remaining && (
+                          <div className="text-sm text-amber-600 italic mb-2">
+                            * Partial issue
+                          </div>
                         )}
                       </div>
                     ) : null}

@@ -1,11 +1,13 @@
 import { IsUUID, IsNumber, Min, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class DeliveryChallanItemDto {
+  @IsOptional()
   @IsUUID()
-  productId: string;
+  productId?: string;
 
+  @IsOptional()
   @IsUUID()
-  binId: string;
+  binId?: string;
 
   @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0.001)
@@ -17,6 +19,16 @@ export class DeliveryChallanItemDto {
   @IsOptional()
   @IsUUID()
   processId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  partNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  partName?: string;
 
   @IsOptional()
   @IsString()

@@ -85,8 +85,12 @@ export function Type1DispatchWizard() {
       items: data.scBlocks.flatMap((block: any) => 
         block.items.map((item: any) => ({
           ...item,
+          productId: item.productId || undefined,
+          binId: item.binId || undefined,
           scId: block.scId,
           processId: block.processId,
+          partNumber: item.partNumber || undefined,
+          partName: item.partName || undefined,
           quantityDispatched: Number(item.quantity)
         }))
       )

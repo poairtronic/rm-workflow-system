@@ -114,7 +114,9 @@ export class MaterialIssueService {
 
       // Deterministically sort items by binId and rmItemId to prevent lock-ordering deadlocks during concurrent issues
       const sortedItems = [...dto.items].sort((a, b) => {
-        if (a.binId !== b.binId) return a.binId.localeCompare(b.binId);
+        const binA = a.binId || '';
+        const binB = b.binId || '';
+        if (binA !== binB) return binA.localeCompare(binB);
         return a.rmItemId.localeCompare(b.rmItemId);
       });
 
@@ -152,16 +154,6 @@ export class MaterialIssueService {
         }
         affectedProductIds.add(rmItem.mappedProductId);
 
-        const bin = await queryRunner.manager.findOne(Bin, {
-          where: { id: itemDto.binId },
-        });
-        if (!bin) {
-          throw new NotFoundException(`Bin "${itemDto.binId}" not found.`);
-        }
-        if (!bin.isActive) {
-          throw new BadRequestException(`Bin "${bin.code}" is inactive.`);
-        }
-
         const requestedQty = QuantityCalculator.roundDecimal(
           itemDto.quantityIssued,
         );
@@ -185,65 +177,86 @@ export class MaterialIssueService {
           }
         }
 
-        // Check bin stock balance targeting specifically the mapped product
-        let balance = await queryRunner.manager.findOne(StockBalance, {
-          where: { binId: itemDto.binId, productId: rmItem.mappedProductId },
-        });
+        let remainingToFulfill = requestedQty;
+        const binsToIssueFrom: { binId: string; qty: number }[] = [];
 
-        const availQty = balance
-          ? QuantityCalculator.roundDecimal(Number(balance.currentQuantity))
-          : 0;
+        if (itemDto.binId) {
+          binsToIssueFrom.push({ binId: itemDto.binId, qty: remainingToFulfill });
+        } else {
+          const balances = await queryRunner.manager.find(StockBalance, {
+            where: { productId: rmItem.mappedProductId },
+            order: { currentQuantity: 'DESC' },
+          });
 
-        QuantityCalculator.assertWithinLimit(
-          requestedQty,
-          availQty,
-          `Insufficient stock for Product in bin "${bin.code}". Available: ${availQty}, Required: ${requestedQty}`,
-        );
+          for (const b of balances) {
+            if (remainingToFulfill <= 0) break;
+            const availQty = Number(b.currentQuantity);
+            if (availQty <= 0) continue;
+            
+            const qtyToTake = Math.min(availQty, remainingToFulfill);
+            binsToIssueFrom.push({ binId: b.binId!, qty: qtyToTake });
+            remainingToFulfill = QuantityCalculator.roundDecimal(remainingToFulfill - qtyToTake);
+          }
 
-        // Atomic stock decrement matching product and bin
-        const updateResult = await queryRunner.manager.query(
-          `UPDATE stock_balances 
-           SET current_quantity = current_quantity - $1, updated_at = NOW() 
-           WHERE bin_id = $2 AND product_id = $3 AND current_quantity >= $1`,
-          [requestedQty, itemDto.binId, rmItem.mappedProductId],
-        );
-
-        if (updateResult[1] === 0) {
-          throw new BadRequestException(
-            `Insufficient stock in bin "${bin.code}". Concurrency conflict or no balance found.`,
-          );
+          if (remainingToFulfill > 0) {
+            throw new BadRequestException(`Insufficient total stock for RM Item "${rmItem.material}". Missing: ${remainingToFulfill}`);
+          }
         }
 
-        // Log immutable StockTransaction
-        const tx = queryRunner.manager.create(StockTransaction, {
-          transactionType: TransactionType.STORES_ISSUE,
-          productId: rmItem.mappedProductId,
-          sourceBinId: itemDto.binId,
-          quantity: requestedQty,
-          referenceType: 'MATERIAL_ISSUE',
-          referenceId: savedIssue.id,
-          remarks: itemDto.remarks || `Material issue for SC ${sc.scNumber}`,
-          createdById: actorId,
-        });
-        const savedTx = await queryRunner.manager.save(StockTransaction, tx);
+        for (const alloc of binsToIssueFrom) {
+          const allocQty = alloc.qty;
+          const bin = await queryRunner.manager.findOne(Bin, {
+            where: { id: alloc.binId },
+          });
+          if (!bin || !bin.isActive) {
+             throw new BadRequestException(`Bin "${alloc.binId}" is invalid or inactive.`);
+          }
 
-        // Update last_transaction_id on stock balance
-        await queryRunner.manager.query(
-          `UPDATE stock_balances SET last_transaction_id = $1 WHERE bin_id = $2 AND product_id = $3`,
-          [savedTx.id, itemDto.binId, rmItem.mappedProductId],
-        );
+          // Atomic stock decrement matching product and bin
+          const updateResult = await queryRunner.manager.query(
+            `UPDATE stock_balances 
+             SET current_quantity = current_quantity - $1, updated_at = NOW() 
+             WHERE bin_id = $2 AND product_id = $3 AND current_quantity >= $1`,
+            [allocQty, alloc.binId, rmItem.mappedProductId],
+          );
 
-        const issueItem = queryRunner.manager.create(MaterialIssueItem, {
-          materialIssueId: savedIssue.id,
-          rmItemId: itemDto.rmItemId,
-          quantityIssued: requestedQty,
-          heatNumber: itemDto.heatNumber,
-          batchNumber: itemDto.batchNumber || itemDto.lotBatchNumber,
-          remarks: itemDto.remarks,
-        });
-        issueItems.push(
-          await queryRunner.manager.save(MaterialIssueItem, issueItem),
-        );
+          if (updateResult[1] === 0) {
+            throw new BadRequestException(
+              `Insufficient stock in bin "${bin.code}". Concurrency conflict or no balance found.`,
+            );
+          }
+
+          // Log immutable StockTransaction
+          const tx = queryRunner.manager.create(StockTransaction, {
+            transactionType: TransactionType.STORES_ISSUE,
+            productId: rmItem.mappedProductId,
+            sourceBinId: alloc.binId,
+            quantity: allocQty,
+            referenceType: 'MATERIAL_ISSUE',
+            referenceId: savedIssue.id,
+            remarks: itemDto.remarks || `Material issue for SC ${sc.scNumber}`,
+            createdById: actorId,
+          });
+          const savedTx = await queryRunner.manager.save(StockTransaction, tx);
+
+          // Update last_transaction_id on stock balance
+          await queryRunner.manager.query(
+            `UPDATE stock_balances SET last_transaction_id = $1 WHERE bin_id = $2 AND product_id = $3`,
+            [savedTx.id, alloc.binId, rmItem.mappedProductId],
+          );
+
+          const issueItem = queryRunner.manager.create(MaterialIssueItem, {
+            materialIssueId: savedIssue.id,
+            rmItemId: itemDto.rmItemId,
+            quantityIssued: allocQty,
+            heatNumber: itemDto.heatNumber,
+            batchNumber: itemDto.batchNumber || itemDto.lotBatchNumber,
+            remarks: itemDto.remarks,
+          });
+          issueItems.push(
+            await queryRunner.manager.save(MaterialIssueItem, issueItem),
+          );
+        }
       }
 
       // Update statuses based on issue type
@@ -316,8 +329,7 @@ export class MaterialIssueService {
       await queryRunner.rollbackTransaction();
       if (
         error?.code === '23505' ||
-        (error?.message && error.message.includes('UNIQUE constraint failed')) ||
-        (error?.message && error.message.includes('idx_material_issue_initial'))
+        (error?.message && error.message.includes('UNIQUE constraint failed'))
       ) {
         throw new ConflictException(
           `Initial Material Issue for SC "${dto.scId}" has already been processed.`,

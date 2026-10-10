@@ -9,16 +9,19 @@ import {
   ValidateNested,
   IsOptional,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
+import { ValidateIf } from 'class-validator';
 
 export class MaterialIssueItemDto {
   @IsUUID('4')
   @IsNotEmpty()
   rmItemId!: string;
 
+  @IsOptional()
+  @Transform(({ value }) => (!value || value === '' ? undefined : value))
+  @ValidateIf((o) => !!o.binId)
   @IsUUID('4')
-  @IsNotEmpty()
-  binId!: string;
+  binId?: string;
 
   @IsNumber()
   @Min(0.001)

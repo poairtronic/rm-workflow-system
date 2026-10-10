@@ -3,7 +3,9 @@ import { Plus } from 'lucide-react';
 import { DispatchPayloadRow } from './DispatchPayloadRow';
 
 export function DispatchPayloadGrid({ blockIndex }: { blockIndex: number }) {
-  const { control, formState: { errors } } = useFormContext<any>();
+  const { control, formState: { errors }, watch } = useFormContext<any>();
+  const dcType = watch('type');
+  const isType1 = dcType === 'PRODUCTION_PROCESS_OUTWARD';
   
   const { fields, append, remove } = useFieldArray({
     control,
@@ -30,9 +32,9 @@ export function DispatchPayloadGrid({ blockIndex }: { blockIndex: number }) {
         <table className="w-full text-sm text-left whitespace-nowrap">
           <thead className="h-8 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             <tr>
-              <th className="px-3 py-2 w-1/4">Material</th>
-              <th className="px-3 py-2 w-36">Rack</th>
-              <th className="px-3 py-2 w-44">Bin</th>
+              <th className="px-3 py-2 w-1/4">{isType1 ? 'Part Name' : 'Material'}</th>
+              {!isType1 && <th className="px-3 py-2 w-36">Rack</th>}
+              {!isType1 && <th className="px-3 py-2 w-44">Bin</th>}
               <th className="px-3 py-2 w-1/6">Batch / Heat No.</th>
               <th className="px-3 py-2 w-1/4">Description (Opt)</th>
               <th className="px-3 py-2 text-right w-28">Quantity</th>
@@ -41,13 +43,14 @@ export function DispatchPayloadGrid({ blockIndex }: { blockIndex: number }) {
           </thead>
           <tbody className="divide-y divide-slate-100 bg-white">
             {fields.map((item, index) => (
-              <DispatchPayloadRow 
-                key={item.id} 
-                blockIndex={blockIndex}
-                index={index} 
-                remove={remove} 
-                canRemove={fields.length > 1} 
-              />
+                <DispatchPayloadRow 
+                  key={item.id} 
+                  blockIndex={blockIndex}
+                  index={index} 
+                  remove={remove} 
+                  canRemove={fields.length > 1}
+                  isType1={isType1}
+                />
             ))}
           </tbody>
         </table>

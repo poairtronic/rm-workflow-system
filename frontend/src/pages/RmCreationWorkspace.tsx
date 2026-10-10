@@ -12,17 +12,48 @@ type CreationMode = 'BY_PO' | 'BY_SC' | 'STANDALONE';
 interface RMItemForm {
   id: string; // internal ui id
   productId: string;
+  partName: string;
+  partNumber: string;
   spec: string;
   quantity: number;
+  remarks: string;
 }
 
 interface SCCardForm {
   id: string; // internal ui id
   scNumber: string;
   productName: string;
+  targetQuantity: number;
   items: RMItemForm[];
   error?: string;
 }
+
+const getNextPartNumber = (cards: SCCardForm[], extraOffset = 0): string => {
+  let maxNum = 0;
+  for (const c of cards) {
+    for (const it of c.items) {
+      if (it.partNumber) {
+        const match = it.partNumber.match(/PRD\s*0*(\d+)/i);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > maxNum) maxNum = num;
+        }
+      }
+    }
+  }
+  const nextVal = maxNum + 1 + extraOffset;
+  return `PRD ${String(nextVal).padStart(3, '0')}`;
+};
+
+const createDefaultItem = (existingCards: SCCardForm[] = [], extraOffset = 0): RMItemForm => ({
+  id: crypto.randomUUID(),
+  productId: '',
+  partName: '',
+  partNumber: getNextPartNumber(existingCards, extraOffset),
+  spec: '',
+  quantity: 1,
+  remarks: '',
+});
 
 export function RmCreationWorkspace() {
   const searchParams = new URLSearchParams(window.location.search);
@@ -107,11 +138,15 @@ export function RmCreationWorkspace() {
           id: sc.scId || crypto.randomUUID(),
           scNumber: sc.scNumber || '',
           productName: sc.productName || '',
-          items: (sc.items || []).map((item: any) => ({
+          targetQuantity: Number(sc.targetQuantity) || 1,
+          items: (sc.items || []).map((item: any, iIdx: number) => ({
             id: item.id || crypto.randomUUID(),
             productId: item.productId || '',
+            partNumber: item.partNumber || `PRD ${String(iIdx + 1).padStart(3, '0')}`,
+            partName: item.partName || item.remarks || '',
             spec: item.spec || '',
             quantity: Number(item.quantity) || 1,
+            remarks: item.remarks || item.partName || '',
           })),
         }));
         
@@ -147,7 +182,8 @@ export function RmCreationWorkspace() {
           id: crypto.randomUUID(),
           scNumber: `SHOP-JOB-${randomSuffix}`,
           productName: 'Ad-Hoc Shopfloor Fabrication / Repair',
-          items: [{ id: crypto.randomUUID(), productId: '', spec: '', quantity: 1 }],
+          targetQuantity: 1,
+          items: [createDefaultItem([])],
         },
       ]);
     } else if (newMode === 'BY_SC') {
@@ -163,7 +199,8 @@ export function RmCreationWorkspace() {
             id: crypto.randomUUID(),
             scNumber: '',
             productName: '',
-            items: [{ id: crypto.randomUUID(), productId: '', spec: '', quantity: 1 }],
+            targetQuantity: 1,
+            items: [createDefaultItem([])],
           },
         ]);
       }
@@ -181,7 +218,8 @@ export function RmCreationWorkspace() {
           id: foundSc.id,
           scNumber: foundSc.scNumber,
           productName: foundSc.productName,
-          items: [{ id: crypto.randomUUID(), productId: '', spec: '', quantity: 1 }],
+          targetQuantity: foundSc.targetQuantity || 1,
+          items: [createDefaultItem([])],
         },
       ]);
     }
@@ -194,7 +232,8 @@ export function RmCreationWorkspace() {
         id: crypto.randomUUID(),
         scNumber: '',
         productName: '',
-        items: [{ id: crypto.randomUUID(), productId: '', spec: '', quantity: 1 }],
+        targetQuantity: 1,
+        items: [createDefaultItem(scCards)],
       },
     ]);
   };
@@ -224,7 +263,7 @@ export function RmCreationWorkspace() {
         if (card.id === scId) {
           return {
             ...card,
-            items: [...card.items, { id: crypto.randomUUID(), productId: '', spec: '', quantity: 1 }],
+            items: [...card.items, createDefaultItem(scCards)],
           };
         }
         return card;
@@ -257,7 +296,14 @@ export function RmCreationWorkspace() {
             ...card,
             items: card.items.map((item) => {
               if (item.id === itemId) {
-                return { ...item, [field]: value };
+                const updated = { ...item, [field]: value };
+                if (field === 'partName') {
+                  updated.remarks = value;
+                  if (!updated.partNumber?.trim()) {
+                    updated.partNumber = getNextPartNumber(scCards);
+                  }
+                }
+                return updated;
               }
               return item;
             }),
@@ -299,6 +345,10 @@ export function RmCreationWorkspace() {
             cardError = 'All items must have a spec/grade specification.';
             break;
           }
+          if (!item.partName?.trim() && !item.remarks?.trim()) {
+            cardError = 'All items must have a Part Name specified.';
+            break;
+          }
           if (productIds.has(item.productId)) {
             cardError = 'Duplicate RM products are not allowed in the same SC.';
             break;
@@ -328,10 +378,14 @@ export function RmCreationWorkspace() {
         scs: scCards.map((card) => ({
           scNumber: card.scNumber.trim(),
           productName: card.productName.trim(),
-          items: card.items.map((item) => ({
+          targetQuantity: Number(card.targetQuantity) || 1,
+          items: card.items.map((item, itemIdx) => ({
             productId: item.productId,
+            partNumber: item.partNumber?.trim() || `PRD ${String(itemIdx + 1).padStart(3, '0')}`,
+            partName: item.partName?.trim() || item.remarks?.trim() || undefined,
             spec: item.spec.trim(),
             quantity: Number(item.quantity),
+            remarks: item.remarks?.trim() || item.partName?.trim() || undefined,
           })),
         })),
       };
@@ -606,7 +660,7 @@ export function RmCreationWorkspace() {
         {scCards.map((card, idx) => (
           <div key={card.id} className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
             <div className="bg-slate-50/80 px-6 py-4 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
                     {mode === 'STANDALONE' ? 'Job Code / Part Tag *' : `SC Number #${idx + 1} *`}
@@ -628,6 +682,18 @@ export function RmCreationWorkspace() {
                     value={card.productName}
                     onChange={(e) => handleUpdateScCard(card.id, 'productName', e.target.value)}
                     placeholder="e.g. Precision Bush / Rotor Shaft"
+                    className="w-full px-3 py-1.5 text-sm font-semibold border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
+                    Target Qty *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={card.targetQuantity}
+                    onChange={(e) => handleUpdateScCard(card.id, 'targetQuantity', Number(e.target.value))}
                     className="w-full px-3 py-1.5 text-sm font-semibold border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                   />
                 </div>
@@ -665,6 +731,8 @@ export function RmCreationWorkspace() {
                   <thead>
                     <tr className="text-slate-500 border-b border-slate-200 text-xs uppercase tracking-wide">
                       <th className="pb-3 font-semibold">RM Product Master *</th>
+                      <th className="pb-3 font-semibold">Part Name *</th>
+                      <th className="pb-3 font-semibold w-44">Part Number (Auto) *</th>
                       <th className="pb-3 font-semibold">Spec / Grade *</th>
                       <th className="pb-3 font-semibold w-40">Required Qty *</th>
                       <th className="pb-3 font-semibold w-16 text-center">Actions</th>
@@ -686,6 +754,25 @@ export function RmCreationWorkspace() {
                               </option>
                             ))}
                           </select>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <input
+                            type="text"
+                            value={item.partName ?? item.remarks ?? ''}
+                            onChange={(e) => handleUpdateItem(card.id, item.id, 'partName', e.target.value)}
+                            placeholder="e.g. APG DIA 14"
+                            className="w-full px-3 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white"
+                          />
+                        </td>
+                        <td className="py-3 pr-4 w-44">
+                          <input
+                            type="text"
+                            value={item.partNumber || ''}
+                            onChange={(e) => handleUpdateItem(card.id, item.id, 'partNumber', e.target.value)}
+                            placeholder="e.g. PRD 001"
+                            className="w-full px-3 py-1.5 border border-indigo-200 bg-indigo-50/40 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-mono font-bold text-indigo-950 placeholder:text-indigo-300"
+                            title="Auto-generated sequential Part Number (editable)"
+                          />
                         </td>
                         <td className="py-3 pr-4">
                           <input
