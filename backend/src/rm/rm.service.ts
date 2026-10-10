@@ -321,13 +321,17 @@ export class RmService {
     try {
       const rm = await queryRunner.manager.findOne(RmRequest, {
         where: { id: rmId },
-        relations: { salesOrderComponent: true },
         lock: { mode: 'pessimistic_write' },
       });
 
       if (!rm) {
         throw new NotFoundException(`RM Request with ID "${rmId}" not found.`);
       }
+
+      rm.salesOrderComponent =
+        (await queryRunner.manager.findOne(SalesOrderComponent, {
+          where: { id: rm.scId },
+        })) || undefined;
 
       if (rm.status !== RmRequestStatus.SUBMITTED && rm.status !== RmRequestStatus.REVIEWED) {
         throw new BadRequestException(
@@ -496,11 +500,11 @@ export class RmService {
       .leftJoinAndSelect('rm.salesOrderComponent', 'sc')
       .leftJoinAndSelect('rm.items', 'items')
       .leftJoinAndSelect('rm.purchaseOrder', 'po')
-      .where('rm.poId = :poId', { poId })
+      .where('rm.po_id = :poId', { poId })
       .andWhere('rm.status IN (:...statuses)', { statuses: [RmRequestStatus.DRAFT, RmRequestStatus.REJECTED] });
       
     if (user.role !== UserRole.ADMIN) {
-      qb.andWhere('rm.createdById = :userId', { userId: user.userId });
+      qb.andWhere('rm.created_by_id = :userId', { userId: user.userId });
     }
 
     const drafts = await qb.getMany();
@@ -565,7 +569,10 @@ export class RmService {
         if (draft) {
           sc = draft.salesOrderComponent!;
           sc.productName = scDto.productName;
+          sc.status = ScStatus.DRAFT;
+          draft.status = RmRequestStatus.DRAFT;
           await queryRunner.manager.save(sc);
+          await queryRunner.manager.save(draft);
           await queryRunner.manager.delete(RmItem, { rmFormId: draft.id });
         } else {
           console.log(`[DEBUG] updateDraftRm finding SC ${scNumber} for PO ${po.id}`);
