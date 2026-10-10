@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, FormProvider, Controller, useFieldArray } from 'react-hook-form';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { Loader2, Lock, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Lock, Plus, Trash2, Printer, CheckCircle2 } from 'lucide-react';
 import { deliveryChallanApi, api, unwrapList } from '../../services/api';
 import { DispatchPayloadGrid } from './DispatchPayloadGrid';
 import { SearchSelect } from '../ui/SearchSelect';
@@ -54,12 +54,15 @@ export function Type1DispatchWizard() {
     }
   }, [vendorId, firstProcessId, slaList, setValue]);
 
+  const [generatedDc, setGeneratedDc] = useState<any | null>(null);
+
   const createDcMutation = useMutation({
     mutationFn: (data: any) => deliveryChallanApi.create(data),
-    onSuccess: (res) => {
+    onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ['delivery-challans'] });
-      toast.success(`Delivery Challan ${res.dcNumber || 'created'} locked successfully!`);
-      setTimeout(() => window.location.reload(), 1500);
+      const dcNum = res.challanNumber || res.dcNumber || 'DC';
+      toast.success(`Delivery Challan ${dcNum} locked successfully!`);
+      setGeneratedDc(res);
     },
     onError: (error: any) => {
       const status = error.response?.status;
@@ -93,6 +96,43 @@ export function Type1DispatchWizard() {
 
   return (
     <div className="w-full max-w-5xl mx-auto pb-12">
+      {/* Post-Generation Success Card with Print Action */}
+      {generatedDc && (
+        <div className="mb-8 p-6 bg-blue-50 border border-blue-200 rounded-xl shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-6 h-6 text-blue-600 mt-0.5 shrink-0" />
+              <div>
+                <h3 className="text-sm font-bold text-blue-950">
+                  Delivery Challan Generated: <span className="font-mono text-blue-700">{generatedDc.challanNumber || generatedDc.dcNumber}</span>
+                </h3>
+                <p className="text-xs text-blue-800 mt-1">
+                  External processing dispatch is authorized and stock has been deducted.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setGeneratedDc(null)}
+                className="px-4 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100 rounded-lg border border-blue-200 bg-white transition-colors cursor-pointer"
+              >
+                Create Another DC
+              </button>
+              <button
+                type="button"
+                onClick={() => window.open(`/dispatch/delivery-challan/${generatedDc.id}/print`, '_blank')}
+                className="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 shadow-xs transition-colors cursor-pointer"
+              >
+                <Printer className="w-4 h-4" />
+                Print Supplier DC
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <FormProvider {...methods}>
         <form id="dc-wizard-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           

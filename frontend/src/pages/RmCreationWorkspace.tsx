@@ -89,23 +89,24 @@ export function RmCreationWorkspace() {
 
   const loadExistingDraft = async (poId: string) => {
     setLoading(true);
+    setError(null);
     try {
       const res = await workflowService.getDraftRmByPo(poId);
-      const data = (res as any).data ?? res;
+      const data = (res as any)?.data ?? res;
       
       if (data && data.poNumber) {
         setPoNumber(data.poNumber);
         
         // Check for rejection notices
-        const rejectedSc = data.scs.find((s: any) => s.status === 'REJECTED' && s.remarks);
+        const rejectedSc = data.scs?.find((s: any) => s.status === 'REJECTED' && s.remarks);
         if (rejectedSc) {
           setRejectionNotice(rejectedSc.remarks);
         }
 
-        const loadedCards = data.scs.map((sc: any) => ({
+        const loadedCards = (data.scs || []).map((sc: any) => ({
           id: sc.scId || crypto.randomUUID(),
-          scNumber: sc.scNumber,
-          productName: sc.productName,
+          scNumber: sc.scNumber || '',
+          productName: sc.productName || '',
           items: (sc.items || []).map((item: any) => ({
             id: item.id || crypto.randomUUID(),
             productId: item.productId || '',
@@ -114,12 +115,14 @@ export function RmCreationWorkspace() {
           })),
         }));
         
-        setScCards(loadedCards);
-        loadedCards.forEach((c: any) => {
-          c.items.forEach((it: any) => {
-            if (it.productId) loadBalances(it.productId);
+        if (loadedCards.length > 0) {
+          setScCards(loadedCards);
+          loadedCards.forEach((c: any) => {
+            c.items.forEach((it: any) => {
+              if (it.productId) loadBalances(it.productId);
+            });
           });
-        });
+        }
       }
     } catch (err: any) {
       console.error(err);
@@ -460,7 +463,7 @@ export function RmCreationWorkspace() {
       {/* Rejection Notice Banner */}
       {rejectionNotice && (
         <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl flex items-start space-x-3 text-red-800">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-600" />
+          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-red-600" />
           <div className="flex-1">
             <h4 className="font-bold text-sm text-red-900">Rejection Notice from Stores</h4>
             <p className="text-sm mt-0.5">{rejectionNotice}</p>
@@ -476,12 +479,12 @@ export function RmCreationWorkspace() {
         <div className="p-5 bg-indigo-50 border border-indigo-200 rounded-xl shadow-xs">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h4 className="text-base font-bold text-slate-900">Confirm Requisition Submission to Stores</h4>
+              <h4 className="text-[16px] font-bold text-slate-900">Confirm Requisition Submission to Stores</h4>
               <p className="text-sm text-slate-600 mt-0.5">
                 You are about to submit RM requisitions for Reference <strong>{poNumber}</strong> with {scCards.length} Style Code / Component card{scCards.length !== 1 ? 's' : ''}. Stores department will immediately receive this in their RM Issue queue.
               </p>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setShowSubmitConfirm(false)}
@@ -505,14 +508,14 @@ export function RmCreationWorkspace() {
 
       {error && (
         <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-xl flex items-center space-x-2">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          <AlertCircle className="w-5 h-5 shrink-0" />
           <span className="text-sm font-medium">{error}</span>
         </div>
       )}
 
       {success && (
         <div className="p-4 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl flex items-center space-x-2">
-          <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-emerald-600" />
+          <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
           <span className="text-sm font-medium">{success}</span>
         </div>
       )}
@@ -642,7 +645,7 @@ export function RmCreationWorkspace() {
             
             {card.error && (
               <div className="px-6 py-2 bg-red-50 text-red-600 text-xs font-semibold border-b border-red-100 flex items-center space-x-1">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{card.error}</span>
               </div>
             )}

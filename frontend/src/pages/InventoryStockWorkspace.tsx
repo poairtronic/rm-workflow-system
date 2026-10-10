@@ -148,17 +148,43 @@ export function InventoryStockWorkspace() {
     }
   }, [activeTab, txPage, txTypeFilter]);
 
-  // Cascading options
-  const filteredFamilyOptions = families.filter((f) => selectedCategories.length === 0 || selectedCategories.includes(f.categoryId));
-  const filteredLocationOptions = locations.filter((l) => selectedWarehouses.length === 0 || selectedWarehouses.includes(l.warehouseId));
-  const filteredRackOptions = racks.filter((r) => selectedLocations.length === 0 || selectedLocations.includes(r.locationId));
-  const filteredBinOptions = bins.filter((b) => selectedRacks.length === 0 || selectedRacks.includes(b.rackId));
-
   // Build maps for fast lookup
   const binMap = new Map(bins.map(b => [b.id, b]));
   const rackMap = new Map(racks.map(r => [r.id, r]));
   const locMap = new Map(locations.map(l => [l.id, l]));
   const famMap = new Map(families.map(f => [f.id, f]));
+
+  // Cascading options
+  const filteredFamilyOptions = families.filter((f) => selectedCategories.length === 0 || selectedCategories.includes(f.categoryId));
+  const filteredLocationOptions = locations.filter((l) => selectedWarehouses.length === 0 || selectedWarehouses.includes(l.warehouseId));
+  
+  // All racks in selected locations/warehouses
+  const filteredRackOptions = racks.filter((r) => {
+    if (selectedLocations.length > 0 && !selectedLocations.includes(r.locationId)) return false;
+    if (selectedWarehouses.length > 0) {
+      const loc = locMap.get(r.locationId);
+      if (!loc || !selectedWarehouses.includes(loc.warehouseId)) return false;
+    }
+    return true;
+  });
+
+  // Only standalone bins (located in Bin/Box storage areas), filtered by rack/location if selected
+  const filteredBinOptions = bins.filter((b) => {
+    const rack = rackMap.get(b.rackId);
+    const loc = rack ? locMap.get(rack.locationId) : null;
+    const isStandaloneBinArea = loc && (
+      loc.code === 'LOC-BINS' ||
+      loc.code === 'LOC-BOXES' ||
+      loc.name.toLowerCase().includes('bin') ||
+      loc.name.toLowerCase().includes('box')
+    );
+    if (!isStandaloneBinArea) return false;
+
+    if (selectedRacks.length > 0 && !selectedRacks.includes(b.rackId)) return false;
+    if (selectedLocations.length > 0 && rack && !selectedLocations.includes(rack.locationId)) return false;
+    if (selectedWarehouses.length > 0 && loc && !selectedWarehouses.includes(loc.warehouseId)) return false;
+    return true;
+  });
 
   const filteredBalances = React.useMemo(() => {
     return balances.filter(b => {

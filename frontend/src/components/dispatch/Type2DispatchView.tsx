@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { ClipboardList, ArrowLeft, Send, Loader2 } from 'lucide-react';
+import { ClipboardList, ArrowLeft, Send, Loader2, Printer, CheckCircle2 } from 'lucide-react';
 import { deliveryChallanApi, api, unwrapList } from '../../services/api';
 import { masterDataService } from '../../services/masterDataService';
 import { DispatchPayloadGrid } from './DispatchPayloadGrid';
@@ -67,15 +67,18 @@ export function Type2DispatchView() {
 
   const isFormValid = isValid && items.length > 0;
 
+  const [generatedDc, setGeneratedDc] = useState<any | null>(null);
+
   const createDcMutation = useMutation({
     mutationFn: (data: any) => deliveryChallanApi.create(data),
-    onSuccess: (res) => {
+    onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ['delivery-challans'] });
-      toast.success(`Delivery Challan ${res.dcNumber || 'created'} generated successfully!`, {
+      const dcNum = res.challanNumber || res.dcNumber || 'DC';
+      toast.success(`Delivery Challan ${dcNum} generated successfully!`, {
         style: { background: '#DCFCE7', color: '#15803D' }
       });
       setIsReviewing(false);
-      setTimeout(() => window.location.reload(), 1500);
+      setGeneratedDc(res);
     },
     onError: () => {
       toast.error('Failed to generate DC', { style: { background: '#FEF2F2', color: '#B91C1C' } });
@@ -97,6 +100,43 @@ export function Type2DispatchView() {
 
   return (
     <div className="w-full max-w-5xl mx-auto pb-16">
+      {/* Post-Generation Success Card with Print Action */}
+      {generatedDc && (
+        <div className="mb-8 p-6 bg-emerald-50 border border-emerald-200 rounded-xl shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600 mt-0.5 shrink-0" />
+              <div>
+                <h3 className="text-sm font-bold text-emerald-950">
+                  Delivery Challan Generated: <span className="font-mono text-emerald-700">{generatedDc.challanNumber || generatedDc.dcNumber}</span>
+                </h3>
+                <p className="text-xs text-emerald-800 mt-1">
+                  General inventory dispatch is recorded and inventory stock balances have been updated.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setGeneratedDc(null)}
+                className="px-4 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 rounded-lg border border-emerald-200 bg-white transition-colors cursor-pointer"
+              >
+                Create Another DC
+              </button>
+              <button
+                type="button"
+                onClick={() => window.open(`/dispatch/delivery-challan/${generatedDc.id}/print`, '_blank')}
+                className="inline-flex items-center gap-2 px-5 py-2 bg-emerald-700 text-white text-xs font-bold rounded-lg hover:bg-emerald-800 shadow-xs transition-colors cursor-pointer"
+              >
+                <Printer className="w-4 h-4" />
+                Print Supplier DC
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <FormProvider {...methods}>
         {!isReviewing ? (
           <form>
@@ -131,7 +171,7 @@ export function Type2DispatchView() {
                 <textarea
                   {...register('notes')}
                   placeholder="E.g., R&D Testing, Machine Maintenance (Optional)..."
-                  className="w-full min-h-[80px] p-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
+                  className="w-full min-h-20 p-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
                 />
               </div>
             </div>

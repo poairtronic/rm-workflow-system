@@ -270,11 +270,13 @@ export function ProductsMasterWorkspace() {
     }
   };
 
+  // Quick lookup maps
+  const binMap = useMemo(() => new Map(bins.map((b) => [b.id, b])), [bins]);
+  const rackMap = useMemo(() => new Map(racks.map((r) => [r.id, r])), [racks]);
+  const locMap = useMemo(() => new Map(locations.map((l) => [l.id, l])), [locations]);
+
   // Product Storage Mapping from stock_balances
   const productStorageMap = useMemo(() => {
-    const binMap = new Map(bins.map((b) => [b.id, b]));
-    const rackMap = new Map(racks.map((r) => [r.id, r]));
-    const locMap = new Map(locations.map((l) => [l.id, l]));
     const map = new Map<
       string,
       {
@@ -369,7 +371,18 @@ export function ProductsMasterWorkspace() {
   }, [racks, locations, selectedWarehouses, selectedLocations]);
 
   const filteredBinOptions = useMemo(() => {
-    let result = bins;
+    // Only standalone bins located in bin/box storage areas
+    let result = bins.filter((b) => {
+      const rack = rackMap.get(b.rackId);
+      const loc = rack ? locMap.get(rack.locationId) : null;
+      return loc && (
+        loc.code === 'LOC-BINS' ||
+        loc.code === 'LOC-BOXES' ||
+        loc.name.toLowerCase().includes('bin') ||
+        loc.name.toLowerCase().includes('box')
+      );
+    });
+
     if (selectedRacks.length > 0) {
       return result.filter((b) => selectedRacks.includes(b.rackId));
     }
@@ -380,7 +393,7 @@ export function ProductsMasterWorkspace() {
       return result.filter((b) => allowedRackIds.has(b.rackId));
     }
     return result;
-  }, [bins, racks, selectedRacks, selectedLocations]);
+  }, [bins, racks, rackMap, locMap, selectedRacks, selectedLocations]);
 
   // Multi-Filter Computation
   const filteredProducts = useMemo(() => {
@@ -552,7 +565,7 @@ export function ProductsMasterWorkspace() {
             return <span className="text-xs text-slate-400 italic">Unassigned</span>;
           }
           return (
-            <div className="flex flex-wrap items-center gap-1 max-w-[160px]">
+            <div className="flex flex-wrap items-center gap-1 max-w-40">
               {storage.binLabels.slice(0, 2).map((bCode) => (
                 <span
                   key={bCode}

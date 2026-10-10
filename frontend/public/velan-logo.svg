@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" width="100" height="80">
+  <!-- Top chevron curve -->
+  <path d="M 12 11 L 12 34 C 24 38, 38 52, 50 52 C 62 52, 76 38, 88 34 L 88 11 C 76 11, 62 25, 50 34 C 38 25, 24 11, 12 11 Z" fill="#374151" />
+  <!-- Bottom-left arch leg -->
+  <path d="M 12 43 C 24 43, 33 55, 33 68 L 33 77 C 33 79, 31 80, 28 80 L 17 80 C 14 80, 12 79, 12 77 Z" fill="#374151" />
+  <!-- Bottom-right arch leg -->
+  <path d="M 88 43 C 76 43, 67 55, 67 68 L 67 77 C 67 79, 69 80, 72 80 L 83 80 C 86 80, 88 79, 88 77 Z" fill="#374151" />
+</svg>
+

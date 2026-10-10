@@ -496,6 +496,7 @@ export class RmService {
   }
 
   async getDraftRmByPo(poId: string, user: any) {
+    // 1. Try to find draft or rejected RMs first
     const qb = this.rmRepo.createQueryBuilder('rm')
       .leftJoinAndSelect('rm.salesOrderComponent', 'sc')
       .leftJoinAndSelect('rm.items', 'items')
@@ -507,20 +508,39 @@ export class RmService {
       qb.andWhere('rm.created_by_id = :userId', { userId: user.userId });
     }
 
-    const drafts = await qb.getMany();
-    if (!drafts.length) return null;
-    
-    const po = drafts[0].purchaseOrder!;
+    let records = await qb.getMany();
+
+    // 2. If no draft or rejected RM found, check if ANY RM exists for this PO (e.g. SUBMITTED, REVIEWED)
+    if (!records.length) {
+      const allRmQb = this.rmRepo.createQueryBuilder('rm')
+        .leftJoinAndSelect('rm.salesOrderComponent', 'sc')
+        .leftJoinAndSelect('rm.items', 'items')
+        .leftJoinAndSelect('rm.purchaseOrder', 'po')
+        .where('rm.po_id = :poId', { poId });
+
+      if (user.role !== UserRole.ADMIN) {
+        allRmQb.andWhere('rm.created_by_id = :userId', { userId: user.userId });
+      }
+      records = await allRmQb.getMany();
+    }
+
+    // 3. Fallback: check if the PO exists directly
+    const po = (records.length > 0 && records[0].purchaseOrder)
+      ? records[0].purchaseOrder
+      : await this.dataSource.getRepository(PurchaseOrder).findOne({ where: { id: poId } });
+
+    if (!po && !records.length) return null;
+
     return {
-       poId: po.id,
-       poNumber: po.poNumber,
-       scs: drafts.map(rm => ({
+       poId: po ? po.id : poId,
+       poNumber: po ? po.poNumber : '',
+       scs: records.map(rm => ({
          scId: rm.scId,
-         scNumber: rm.salesOrderComponent!.scNumber,
-         productName: rm.salesOrderComponent!.productName,
+         scNumber: rm.salesOrderComponent?.scNumber || '',
+         productName: rm.salesOrderComponent?.productName || '',
          status: rm.status,
          remarks: rm.remarks,
-         items: rm.items.map(i => ({
+         items: (rm.items || []).map(i => ({
            id: i.id,
            productId: i.mappedProductId,
            spec: i.grade,

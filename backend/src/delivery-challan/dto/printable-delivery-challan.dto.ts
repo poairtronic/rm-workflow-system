@@ -12,6 +12,8 @@ export interface PrintableCompanyInfo {
   name: string;
   address: string;
   gstin: string | null;
+  state?: string | null;
+  stateCode?: string | null;
   phone: string | null;
   email: string | null;
   website: string | null;
@@ -87,6 +89,7 @@ export interface PrintableLineItem {
   quantityDispatched: number;
   quantityReturned: number;
   quantityOutstanding: number;
+  uom?: string;
   scNumber?: string;
   poNumber?: string;
   processName?: string;
@@ -118,6 +121,7 @@ export interface PrintableGroupItem {
   batchNumber?: string;
   description?: string;
   quantityDispatched: number;
+  uom?: string;
 }
 
 export interface PrintableGroup {

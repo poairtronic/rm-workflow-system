@@ -43,6 +43,18 @@ class ApiClient {
     throw new Error(errorMsg);
   }
 
+  private async parseResponseBody<T>(response: Response): Promise<T> {
+    const text = await response.text();
+    if (!text || !text.trim()) {
+      return null as any;
+    }
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text as any;
+    }
+  }
+
   async get<T>(endpoint: string, responseType: 'json' | 'blob' = 'json'): Promise<T> {
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: 'GET',
@@ -54,7 +66,7 @@ class ApiClient {
     if (responseType === 'blob') {
       return response.blob() as any;
     }
-    return response.json();
+    return this.parseResponseBody<T>(response);
   }
 
   async post<T>(endpoint: string, body?: any): Promise<T> {
@@ -66,7 +78,7 @@ class ApiClient {
     if (!response.ok) {
       await this.handleError(response, endpoint, 'POST');
     }
-    return response.json();
+    return this.parseResponseBody<T>(response);
   }
 
   async put<T>(endpoint: string, body?: any): Promise<T> {
@@ -78,7 +90,7 @@ class ApiClient {
     if (!response.ok) {
       await this.handleError(response, endpoint, 'PUT');
     }
-    return response.json();
+    return this.parseResponseBody<T>(response);
   }
 
   async patch<T>(endpoint: string, body?: any): Promise<T> {
@@ -90,7 +102,7 @@ class ApiClient {
     if (!response.ok) {
       await this.handleError(response, endpoint, 'PATCH');
     }
-    return response.json();
+    return this.parseResponseBody<T>(response);
   }
 
   async delete<T>(endpoint: string): Promise<T> {
@@ -101,7 +113,7 @@ class ApiClient {
     if (!response.ok) {
       await this.handleError(response, endpoint, 'DELETE');
     }
-    return response.json();
+    return this.parseResponseBody<T>(response);
   }
 
   async upload<T>(endpoint: string, formData: FormData): Promise<T> {
@@ -326,13 +338,20 @@ export const deliveryChallanApi = {
     
     return api.post<DeliveryChallanDto>(endpoint, backendPayload);
   },
-  processReturn: (id: string, data: ProcessDcReturnDto) => {
+  processReturn: (id: string, data: ProcessDcReturnDto | any) => {
+    const rawItems = Array.isArray(data?.items) ? data.items : [];
     const backendPayload = {
-      actualReceiptDate: new Date().toISOString(),
-      items: data.items.map(i => ({
-        itemId: i.itemId,
-        quantityToReturn: i.receivedQuantity
-      }))
+      actualReceiptDate: data?.actualReceiptDate || new Date().toISOString(),
+      verificationRemarks: data?.verificationRemarks || '',
+      items: rawItems.map((i: any) => {
+        const rawQty = i.quantityToReturn !== undefined && i.quantityToReturn !== null
+          ? i.quantityToReturn
+          : i.receivedQuantity;
+        return {
+          itemId: i.itemId,
+          quantityToReturn: Number(rawQty),
+        };
+      })
     };
     return api.post<DeliveryChallanDto>(`/api/delivery-challans/${id}/return`, backendPayload);
   },

@@ -19,12 +19,12 @@ import { IssueMaterialModal } from '../components/modals/IssueMaterialModal';
 import { useAuth } from '../contexts/AuthContext';
 
 const REASON_OPTIONS = [
-  { value: 'TOOL_BREAKAGE', label: 'Tool Breakage / Machine Failure' },
-  { value: 'MATERIAL_DEFECT', label: 'Raw Material Defect / Porosity' },
-  { value: 'DESIGN_CHANGE', label: 'Engineering / Design Modification' },
-  { value: 'SAMPLE_PREPARATION', label: 'First Article / Sample Setup' },
-  { value: 'REWORK_SCRAP', label: 'Machining Setup Scrap / Rework' },
-  { value: 'ADDITIONAL_REQUIREMENT', label: 'Customer Order Scope Increase' },
+  { value: 'TOOL_WEAR_SCRAP', label: 'Tool Breakage / Machine Failure' },
+  { value: 'DAMAGE', label: 'Raw Material Defect / Porosity / Damage' },
+  { value: 'ADDITIONAL_REQUIREMENT', label: 'Engineering / Design Modification' },
+  { value: 'WASTAGE', label: 'First Article / Sample Setup / Wastage' },
+  { value: 'MANUFACTURING_ERROR', label: 'Machining Setup Scrap / Rework' },
+  { value: 'OTHER', label: 'Other' },
 ];
 
 export function StoresExtraRequestsWorkspace() {
@@ -39,7 +39,7 @@ export function StoresExtraRequestsWorkspace() {
   const [availableRmItems, setAvailableRmItems] = useState<any[]>([]);
   const [selectedRmItemId, setSelectedRmItemId] = useState<string>('');
   const [extraQuantity, setExtraQuantity] = useState<string>('');
-  const [extraReason, setExtraReason] = useState<string>('REWORK_SCRAP');
+  const [extraReason, setExtraReason] = useState<string>('MANUFACTURING_ERROR');
   const [extraRemarks, setExtraRemarks] = useState<string>('');
   const [submittingForm, setSubmittingForm] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(true);
@@ -116,16 +116,12 @@ export function StoresExtraRequestsWorkspace() {
       return;
     }
 
-    const selectedItem = availableRmItems.find(i => i.id === selectedRmItemId);
-    const materialName = selectedItem ? `${selectedItem.material} (${selectedItem.grade || selectedItem.size || 'Standard'})` : 'Material';
-
     setSubmittingForm(true);
     try {
       await workflowService.createAdditionalRequest(
         selectedScId,
         [{
           rmItemId: selectedRmItemId || undefined,
-          material: materialName,
           quantity: qty,
           remarks: extraRemarks.trim() || undefined
         }],
@@ -366,7 +362,7 @@ export function StoresExtraRequestsWorkspace() {
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
         <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
-            <h3 className="font-bold text-slate-900 text-base">Extra Material Requests Status Ledger</h3>
+            <h3 className="font-bold text-slate-900 text-[16px]">Extra Material Requests Status Ledger</h3>
             <p className="text-xs text-slate-500 mt-0.5">
               Live tracking of all additional raw material requests with real-time approval and issue statuses.
             </p>
@@ -410,7 +406,7 @@ export function StoresExtraRequestsWorkspace() {
         ) : filteredRequests.length === 0 ? (
           <div className="text-center py-16">
             <Boxes className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-            <h4 className="text-base font-semibold text-slate-800">No Extra Requests Found</h4>
+            <h4 className="text-[16px] font-semibold text-slate-800">No Extra Requests Found</h4>
             <p className="text-xs text-slate-500 mt-1">
               {searchQuery || statusFilter !== 'ALL'
                 ? 'No requests match your current search and filter criteria.'

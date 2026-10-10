@@ -14,6 +14,7 @@ export class ReturnDeliveryChallanItemDto {
   @IsUUID()
   itemId: string;
 
+  @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0.001)
   quantityToReturn: number;

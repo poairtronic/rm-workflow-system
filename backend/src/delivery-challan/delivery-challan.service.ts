@@ -10,9 +10,8 @@ import { VendorSla } from '../vendor/entities/vendor-sla.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import { StockTransaction, TransactionType } from '../inventory/entities/stock-transaction.entity.js';
 import { Vendor } from '../vendor/entities/vendor.entity.js';
-import { v4 as uuidv4 } from 'uuid';
 import { CommunicationService } from '../notifications/communication.service.js';
-import { PrintableDeliveryChallanDto } from './dto/printable-delivery-challan.dto.js';
+import { PrintableDeliveryChallanDto, PrintableCompanyInfo } from './dto/printable-delivery-challan.dto.js';
 
 
 @Injectable()
@@ -27,6 +26,39 @@ export class DeliveryChallanService {
     private readonly dataSource: DataSource,
     @Optional() private readonly communicationService?: CommunicationService,
   ) {}
+
+  /**
+   * Generates supplier DC number format: SDC/2627/0001 (prefix SDC / 2-digit financial year / 4-digit sequential)
+   */
+  private async generateNextChallanNumber(queryRunner: QueryRunner, dispatchDate?: Date): Promise<string> {
+    const d = dispatchDate && !isNaN(dispatchDate.getTime()) ? dispatchDate : new Date();
+    const currentYear = d.getFullYear() % 100;
+    const currentMonth = d.getMonth() + 1; // 1-12
+    const startYear = currentMonth >= 4 ? currentYear : currentYear - 1;
+    const endYear = startYear + 1;
+    const fyStr = `${startYear.toString().padStart(2, '0')}${endYear.toString().padStart(2, '0')}`;
+    const prefix = `SDC/${fyStr}/`;
+
+    // Query latest challan number matching this prefix to increment
+    const latestChallan = await queryRunner.manager
+      .getRepository(DeliveryChallan)
+      .createQueryBuilder('dc')
+      .setLock('pessimistic_write')
+      .where('dc.challanNumber LIKE :prefix', { prefix: `${prefix}%` })
+      .orderBy('dc.challanNumber', 'DESC')
+      .getOne();
+
+    let seq = 1;
+    if (latestChallan && latestChallan.challanNumber) {
+      const parts = latestChallan.challanNumber.split('/');
+      const lastSeq = parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(lastSeq)) {
+        seq = lastSeq + 1;
+      }
+    }
+
+    return `${prefix}${seq.toString().padStart(4, '0')}`;
+  }
 
   async createType1Challan(dto: CreateDeliveryChallanDto, userId: string): Promise<DeliveryChallan> {
     if (dto.type !== DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD) {
@@ -92,8 +124,8 @@ export class DeliveryChallanService {
         }
       }
 
-      // Generate Challan Number
-      const challanNumber = `DC-${Date.now()}`;
+      // Generate Challan Number: SDC/2627/0001
+      const challanNumber = await this.generateNextChallanNumber(queryRunner, dispatchDate);
 
       // 3. Create Delivery Challan
       const uniqueScIds = new Set(dto.items.map(item => item.scId).filter(Boolean));
@@ -229,7 +261,7 @@ export class DeliveryChallanService {
         throw new BadRequestException('Vendor not found or inactive');
       }
 
-      const challanNumber = `DC-${Date.now()}`;
+      const challanNumber = await this.generateNextChallanNumber(queryRunner, dispatchDate);
       const challan = queryRunner.manager.create(DeliveryChallan, {
         challanNumber,
         type: dto.type,
@@ -459,13 +491,15 @@ export class DeliveryChallanService {
 
     const posArray = Array.from(posSet.values());
 
-    // ─── Company Info (from environment / static config) ─────────────────────
-    const companyInfo: PrintableDeliveryChallanDto['company'] = {
-      name: process.env.COMPANY_NAME || 'RMRIT Manufacturing Pvt. Ltd.',
-      address: process.env.COMPANY_ADDRESS || 'Plot No. 12, Industrial Area, Sector 5, India',
-      gstin: process.env.COMPANY_GSTIN ?? null,
-      phone: process.env.COMPANY_PHONE ?? null,
-      email: process.env.COMPANY_EMAIL ?? null,
+    // ─── Company Info (Velan Metrology India Private Limited default) ───────────
+    const companyInfo: PrintableCompanyInfo = {
+      name: process.env.COMPANY_NAME || 'VELAN METROLOGY INDIA PRIVATE LIMITED',
+      address: process.env.COMPANY_ADDRESS || 'NO 146/87 A&B, Jayaram Nagar Main Road ,\nVanagaram , Chennai - 600095',
+      gstin: process.env.COMPANY_GSTIN || '33AAICV7596H1ZR',
+      state: 'Tamil Nadu',
+      stateCode: '33',
+      phone: process.env.COMPANY_PHONE || '9600703283',
+      email: process.env.COMPANY_EMAIL || 'velanmetrology@gmail.com',
       website: process.env.COMPANY_WEBSITE ?? null,
     };
 
@@ -523,6 +557,7 @@ export class DeliveryChallanService {
         quantityDispatched: dispatched,
         quantityReturned: returned,
         quantityOutstanding: Math.max(0, dispatched - returned),
+        uom: item.product?.uom || (item.product?.name?.toUpperCase().includes('BAR') || item.product?.name?.toUpperCase().includes('ROD') ? 'MM' : 'NOS'),
         scNumber: item.sc?.scNumber ?? sc?.scNumber,
         poNumber: item.sc?.purchaseOrder?.poNumber ?? (sc as any)?.purchaseOrder?.poNumber,
         processName: item.process?.name ?? productionProcess?.name,
@@ -559,6 +594,7 @@ export class DeliveryChallanService {
           batchNumber: item.batchNumber,
           description: item.description,
           quantityDispatched: item.quantityDispatched,
+          uom: item.uom,
         });
         group.groupTotal += item.quantityDispatched;
       }
@@ -682,13 +718,17 @@ export class DeliveryChallanService {
         }
 
         // 2. Atomic Inventory Stock Restoration & Ledger Logging
-        const balance = await stockRepo.findOne({
+        let balance = await stockRepo.findOne({
           where: { productId: challanItem.productId, binId: challanItem.binId },
           lock: { mode: 'pessimistic_write' },
         });
 
         if (!balance) {
-          throw new NotFoundException(`Stock balance for product ${challanItem.productId} in bin ${challanItem.binId} not found`);
+          balance = stockRepo.create({
+            productId: challanItem.productId,
+            binId: challanItem.binId,
+            currentQuantity: 0,
+          });
         }
 
         balance.currentQuantity = Number(balance.currentQuantity) + dtoItem.quantityToReturn;

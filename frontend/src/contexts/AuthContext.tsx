@@ -35,12 +35,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initializeAuth = async () => {
       const storedToken = localStorage.getItem('rm_access_token');
+      console.log('INIT AUTH: storedToken =', !!storedToken);
       if (storedToken) {
         try {
           const res = await authApi.getMe();
+          console.log('INIT AUTH: getMe success:', res.user?.role);
           setCurrentUser(res.user);
           setToken(storedToken);
         } catch (e: any) {
+          console.log('INIT AUTH: getMe error:', e?.message || e);
           localStorage.removeItem('rm_access_token');
           setCurrentUser(null);
           setToken(null);
@@ -56,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initializeAuth();
 
     const handleUnauthorized = () => {
+      console.log('HANDLE UNAUTHORIZED TRIGGERED!');
       toast.error('Session expired');
       localStorage.removeItem('rm_access_token');
       setCurrentUser(null);

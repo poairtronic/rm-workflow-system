@@ -187,6 +187,7 @@ export function DockReceiptWorkspace() {
         items: data.items.map((i: any) => ({
           itemId: i.itemId,
           quantityToReturn: Number(i.receivedQuantity),
+          receivedQuantity: Number(i.receivedQuantity),
         })),
       };
       return deliveryChallanApi.processReturn(selectedDc.id, payload as any);
@@ -196,8 +197,15 @@ export function DockReceiptWorkspace() {
       toast.success('Return reconciliation processed successfully');
       setSelectedDc(null);
     },
-    onError: () => {
-      toast.error('Failed to process return. Check variances.');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message;
+      if (Array.isArray(msg)) {
+        toast.error(msg.join(', '));
+      } else if (typeof msg === 'string') {
+        toast.error(msg);
+      } else {
+        toast.error('Failed to process return. Check variances.');
+      }
     }
   });
 

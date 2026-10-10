@@ -9,7 +9,7 @@ import {
   IsOptional,
   IsEnum,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { AdditionalReason } from '../entities/additional-request.entity.js';
 
 export class AdditionalRequestItemDto {
@@ -30,6 +30,10 @@ export class AdditionalRequestItemDto {
   @IsOptional()
   @IsString()
   remarks?: string;
+
+  @IsOptional()
+  @IsString()
+  material?: string;
 }
 
 export class CreateAdditionalRequestDto {
@@ -37,6 +41,17 @@ export class CreateAdditionalRequestDto {
   @IsNotEmpty()
   scId!: string;
 
+  @Transform(({ value }) => {
+    if (!value) return AdditionalReason.ADDITIONAL_REQUIREMENT;
+    const mapping: Record<string, AdditionalReason> = {
+      'DESIGN_CHANGE': AdditionalReason.ADDITIONAL_REQUIREMENT,
+      'TOOL_BREAKAGE': AdditionalReason.TOOL_WEAR_SCRAP,
+      'MATERIAL_DEFECT': AdditionalReason.DAMAGE,
+      'SAMPLE_PREPARATION': AdditionalReason.WASTAGE,
+      'REWORK_SCRAP': AdditionalReason.MANUFACTURING_ERROR,
+    };
+    return mapping[value] || value;
+  })
   @IsEnum(AdditionalReason)
   @IsOptional()
   reason?: AdditionalReason;

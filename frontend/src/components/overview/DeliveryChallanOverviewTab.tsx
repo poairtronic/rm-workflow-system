@@ -1,6 +1,6 @@
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, Truck, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { ArrowUpRight, Truck, CheckCircle2, AlertCircle, Clock, Printer } from 'lucide-react';
 import type { OverviewDeliveryChallanDto } from '../../types/overview.dto';
 
 interface DeliveryChallanOverviewTabProps {
@@ -175,6 +175,7 @@ export function DeliveryChallanOverviewTab({ data }: DeliveryChallanOverviewTabP
                 <th className="py-2.5 px-4 text-right">Net Pending</th>
                 <th className="py-2.5 px-4 text-center">Status</th>
                 <th className="py-2.5 px-4 text-right">Dispatch Date</th>
+                <th className="py-2.5 px-4 text-center">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -215,6 +216,17 @@ export function DeliveryChallanOverviewTab({ data }: DeliveryChallanOverviewTabP
                     </td>
                     <td className="py-2.5 px-4 text-right text-slate-500">
                       {new Date(dc.dispatch_date).toLocaleDateString()}
+                    </td>
+                    <td className="py-2.5 px-4 text-center">
+                      <button
+                        type="button"
+                        onClick={() => window.open(`/dispatch/delivery-challan/${dc.id}/print`, '_blank')}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 transition-colors cursor-pointer"
+                        title="Print Supplier DC"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        Print
+                      </button>
                     </td>
                   </tr>
                 );

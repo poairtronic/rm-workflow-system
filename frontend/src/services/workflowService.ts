@@ -114,7 +114,7 @@ export const workflowService = {
   getReturns: (status?: string) => api.get<any[]>(`/api/production/returns${status ? `?status=${status}` : ''}`),
 
   // Additional Request
-  createAdditionalRequest: (scId: string, items: { rmItemId?: string; material: string; quantity: number, remarks?: string }[], reason?: string, remarks?: string) =>
+  createAdditionalRequest: (scId: string, items: { rmItemId?: string; quantity: number, remarks?: string }[], reason?: string, remarks?: string) =>
     api.post<any>('/api/additional-requests', { scId, items, reason, remarks }),
   getAdditionalRequests: (scId?: string) =>
     api.get<any[]>(`/api/additional-requests${scId ? `?scId=${scId}` : ''}`),

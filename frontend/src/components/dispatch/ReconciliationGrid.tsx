@@ -75,6 +75,7 @@ export function ReconciliationGrid({ dc }: { dc: any }) {
                         type="number" step="0.001"
                         {...register(`items.${index}.receivedQuantity` as const, { 
                           required: 'Required',
+                          valueAsNumber: true,
                           min: 0.001,
                           max: { value: remaining, message: 'Exceeds remaining' },
                           onChange: (e) => {
