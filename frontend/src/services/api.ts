@@ -369,6 +369,8 @@ export const deliveryChallanApi = {
   },
   close: (id: string, data: CloseDcDto) => api.patch<DeliveryChallanDto>(`/api/delivery-challans/${id}/close`, data),
   getPrintable: (id: string) => api.get<any>(`/api/delivery-challans/${id}/printable`),
+  getNextType2ItemSequence: () =>
+    api.get<{ nextSequence: number; formattedCode: string }>('/api/delivery-challans/next-type2-item-sequence'),
 };
 
 import type { ConsolidatedTraceabilityDto } from '../types/traceability.dto';

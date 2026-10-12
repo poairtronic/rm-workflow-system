@@ -130,27 +130,71 @@ export function DockReceiptWorkspace() {
       const q = searchTerm.trim().toLowerCase();
       if (!q) return true;
 
-      // Header matches
-      if ((dc.challanNumber || '').toLowerCase().includes(q)) return true;
-      if ((dc.dcNumber || '').toLowerCase().includes(q)) return true;
-      if ((dc.vendor?.name || '').toLowerCase().includes(q)) return true;
-      if ((dc.vendor?.code || '').toLowerCase().includes(q)) return true;
-      if ((dc.vendorName || '').toLowerCase().includes(q)) return true;
-      if ((dc.destinationEntity || '').toLowerCase().includes(q)) return true;
-      if ((dc.sc?.scNumber || '').toLowerCase().includes(q)) return true;
-      if ((dc.sc?.purchaseOrder?.poNumber || '').toLowerCase().includes(q)) return true;
-      if ((dc.notes || '').toLowerCase().includes(q)) return true;
+      const tokens = q.split(/\s+/).filter(Boolean);
+      const matchField = (fieldVal?: string | null) => {
+        if (!fieldVal) return false;
+        const val = fieldVal.toLowerCase();
+        if (val.includes(q)) return true;
+        return tokens.some((t) => {
+          if (val.includes(t)) return true;
+          if (t.endsWith('ing') && t.length > 4 && val.includes(t.slice(0, -3))) return true;
+          if (t.endsWith('ed') && t.length > 4 && val.includes(t.slice(0, -2))) return true;
+          if (t === 'heating' && (val.includes('heat') || val.includes('ht'))) return true;
+          if (t === 'ht' && val.includes('heat')) return true;
+          return false;
+        });
+      };
 
-      // Line items matches
+      // Header matches (DC #, Vendor, Notes, Process, SC, PO)
+      if (matchField(dc.challanNumber)) return true;
+      if (matchField(dc.dcNumber)) return true;
+      if (matchField(dc.vendor?.name)) return true;
+      if (matchField(dc.vendor?.code)) return true;
+      if (matchField(dc.vendorName)) return true;
+      if (matchField(dc.destinationEntity)) return true;
+      if (matchField(dc.sc?.scNumber)) return true;
+      if (matchField(dc.sc?.productName)) return true;
+      if (matchField(dc.sc?.purchaseOrder?.poNumber)) return true;
+      if (matchField(dc.notes)) return true;
+      if (matchField(dc.processName)) return true;
+      if (matchField(dc.process?.name)) return true;
+      if (matchField(dc.process?.nomenclature)) return true;
+
+      // Line items matches (Part Number, Part Name, Product Name/Code, Process, Batch, Description)
       if (dc.items && Array.isArray(dc.items)) {
         for (const item of dc.items) {
-          if ((item.product?.name || '').toLowerCase().includes(q)) return true;
-          if ((item.product?.code || '').toLowerCase().includes(q)) return true;
-          if ((item.sc?.scNumber || '').toLowerCase().includes(q)) return true;
-          if ((item.sc?.purchaseOrder?.poNumber || '').toLowerCase().includes(q)) return true;
-          if ((item.bin?.code || '').toLowerCase().includes(q)) return true;
-          if ((item.batchNumber || '').toLowerCase().includes(q)) return true;
-          if ((item.description || '').toLowerCase().includes(q)) return true;
+          if (matchField(item.partNumber || item.part_number)) return true;
+          if (matchField(item.partName || item.part_name)) return true;
+          if (matchField(item.product?.name)) return true;
+          if (matchField(item.product?.code)) return true;
+          if (matchField(item.productName)) return true;
+          if (matchField(item.process?.name)) return true;
+          if (matchField(item.process?.nomenclature)) return true;
+          if (matchField(item.processName)) return true;
+          if (matchField(item.sc?.scNumber)) return true;
+          if (matchField(item.sc?.productName)) return true;
+          if (matchField(item.sc?.purchaseOrder?.poNumber)) return true;
+          if (matchField(item.bin?.code)) return true;
+          if (matchField(item.batchNumber)) return true;
+          if (matchField(item.description)) return true;
+        }
+      }
+
+      // Grouped line items matches (Type 1 grouped DC structures)
+      if (dc.groups && Array.isArray(dc.groups)) {
+        for (const group of dc.groups) {
+          if (matchField(group.process?.name)) return true;
+          if (matchField(group.process?.nomenclature)) return true;
+          if (matchField(group.processName)) return true;
+          if (group.items && Array.isArray(group.items)) {
+            for (const item of group.items) {
+              if (matchField(item.partNumber || item.part_number)) return true;
+              if (matchField(item.partName || item.part_name)) return true;
+              if (matchField(item.productName)) return true;
+              if (matchField(item.productCode)) return true;
+              if (matchField(item.description)) return true;
+            }
+          }
         }
       }
 
@@ -292,7 +336,7 @@ export function DockReceiptWorkspace() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search across Product, SC #, PO #, Vendor, DC #, Batch, or Notes..."
+                placeholder="Search by Part #, Product Name, Vendor, Process Type (e.g. Heating), DC #, SC #..."
                 className="w-full h-11 pl-10 pr-9 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {

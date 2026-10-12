@@ -1,5 +1,7 @@
 import { useFieldArray, useFormContext } from 'react-hook-form';
 import { Plus } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { deliveryChallanApi } from '../../services/api';
 import { DispatchPayloadRow } from './DispatchPayloadRow';
 
 export function DispatchPayloadGrid({ blockIndex }: { blockIndex: number }) {
@@ -7,6 +9,15 @@ export function DispatchPayloadGrid({ blockIndex }: { blockIndex: number }) {
   const dcType = watch('type');
   const isType1 = dcType === 'PRODUCTION_PROCESS_OUTWARD';
   
+  const { data: seqData } = useQuery({
+    queryKey: ['next-type2-item-sequence'],
+    queryFn: () => deliveryChallanApi.getNextType2ItemSequence(),
+    enabled: !isType1,
+    staleTime: 5000,
+  });
+
+  const baseSeq = seqData?.nextSequence ?? 1;
+
   const { fields, append, remove } = useFieldArray({
     control,
     name: `scBlocks.${blockIndex}.items`
@@ -28,7 +39,7 @@ export function DispatchPayloadGrid({ blockIndex }: { blockIndex: number }) {
           onClick={() => append({ 
             scItemId: '', 
             productId: '', 
-            partNumber: !isType1 ? `DC2-${String(fields.length + 1).padStart(3, '0')}` : '', 
+            partNumber: !isType1 ? `DC2-${String(baseSeq + fields.length).padStart(3, '0')}` : '', 
             partName: '', 
             binId: '', 
             batchNumber: '', 
@@ -55,6 +66,7 @@ export function DispatchPayloadGrid({ blockIndex }: { blockIndex: number }) {
             remove={remove} 
             canRemove={fields.length > 1}
             isType1={isType1}
+            baseSeq={baseSeq}
           />
         ))}
         {(errors as any).scBlocks?.[blockIndex]?.items && (

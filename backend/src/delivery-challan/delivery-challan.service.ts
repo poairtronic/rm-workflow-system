@@ -1,6 +1,6 @@
 import { Injectable, Logger, BadRequestException, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, QueryRunner, LessThan, In } from 'typeorm';
+import { Repository, DataSource, QueryRunner, LessThan, In, EntityManager } from 'typeorm';
 import { DeliveryChallan, DeliveryChallanType, DeliveryChallanStatus } from './entities/delivery-challan.entity.js';
 import { DeliveryChallanItem } from './entities/delivery-challan-item.entity.js';
 import { DcMovement, DcMovementStatus } from './entities/dc-movement.entity.js';
@@ -315,6 +315,8 @@ export class DeliveryChallanService {
       const stockBalanceRepo = queryRunner.manager.getRepository(StockBalance);
       const stockTxRepo = queryRunner.manager.getRepository(StockTransaction);
 
+      let nextSeq = await this.getNextType2ItemSequence(queryRunner.manager);
+
       for (const itemDto of dto.items) {
         const quantityToDispatch = Number(itemDto.quantityDispatched);
 
@@ -353,11 +355,11 @@ export class DeliveryChallanService {
         await stockTxRepo.save(stockTx);
 
         // Resolve partNumber and partName from DTO or auto-generate for Type 2
-        let partNumber = itemDto.partNumber;
-        let partName = itemDto.partName;
-        if (!partNumber) {
-          const itemIndex = dto.items.indexOf(itemDto);
-          partNumber = `DC2-${String(itemIndex + 1).padStart(3, '0')}`;
+        let partNumber = itemDto.partNumber?.trim();
+        let partName = itemDto.partName?.trim();
+        if (!partNumber || partNumber.startsWith('DC2-')) {
+          partNumber = `DC2-${String(nextSeq).padStart(3, '0')}`;
+          nextSeq++;
         }
 
         // Create DC item with Type 2 stock conversion mapping
@@ -1045,6 +1047,7 @@ export class DeliveryChallanService {
         uom: m.dispatchedProduct?.uom || 'NOS',
         location: m.process?.name ? `Process: ${m.process.name}` : 'WIP Process Stage',
         status: m.status,
+        notes: challan?.notes || '',
       });
 
       // Inward entry (if returnedQty > 0)
@@ -1073,6 +1076,7 @@ export class DeliveryChallanService {
           uom: m.returnedProduct?.uom || m.dispatchedProduct?.uom || 'NOS',
           location: 'Production Receipt',
           status: m.status,
+          notes: challan?.notes || '',
         });
       }
     }
@@ -1109,6 +1113,7 @@ export class DeliveryChallanService {
         uom: item.product?.uom || 'NOS',
         location: item.bin?.code ? `Bin: ${item.bin.code}` : 'Warehouse Outward',
         status: challan?.status || 'DISPATCHED',
+        notes: challan?.notes || '',
       });
 
       // Inward entry (if returnedQty > 0)
@@ -1138,11 +1143,42 @@ export class DeliveryChallanService {
           uom: retProd?.uom || 'NOS',
           location: item.outputBin?.code ? `Bin: ${item.outputBin.code}` : item.bin?.code ? `Bin: ${item.bin.code}` : 'Warehouse Inward',
           status: challan?.status || 'RETURNED',
+          notes: challan?.notes || '',
         });
       }
     }
 
     return results.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+
+  /**
+   * Calculates the next continuous global sequential number for Type 2 DC items.
+   * Scans all existing DC2-xxx part numbers in delivery_challan_items and returns (max + 1).
+   */
+  async getNextType2ItemSequence(manager?: EntityManager): Promise<number> {
+    const repo = manager
+      ? manager.getRepository(DeliveryChallanItem)
+      : this.dataSource.getRepository(DeliveryChallanItem);
+
+    const items = await repo
+      .createQueryBuilder('item')
+      .select('item.partNumber', 'partNumber')
+      .where("item.partNumber LIKE 'DC2-%'")
+      .getRawMany();
+
+    let maxSeq = 0;
+    for (const it of items) {
+      if (!it.partNumber) continue;
+      const match = it.partNumber.replace(/\s+/g, '').match(/^DC2-(\d+)$/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxSeq) {
+          maxSeq = num;
+        }
+      }
+    }
+
+    return maxSeq + 1;
   }
 
   /**

@@ -68,6 +68,16 @@ export class DeliveryChallanController {
     return this.deliveryChallanService.findAll({ scId, processId, vendorId, type, isOverdue: isOverdueBool, status });
   }
 
+  @Get('next-type2-item-sequence')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION, UserRole.GENERAL_MANAGER)
+  async getNextType2ItemSequence() {
+    const nextSequence = await this.deliveryChallanService.getNextType2ItemSequence();
+    return {
+      nextSequence,
+      formattedCode: `DC2-${String(nextSequence).padStart(3, '0')}`,
+    };
+  }
+
   @Get(':id/printable')
   @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION)
   async getPrintable(@Param('id', ParseUUIDPipe) id: string) {

@@ -11,12 +11,14 @@ export function DispatchPayloadRow({
   remove,
   canRemove,
   isType1,
+  baseSeq = 1,
 }: {
   blockIndex: number;
   index: number;
   remove: (i: number) => void;
   canRemove: boolean;
   isType1?: boolean;
+  baseSeq?: number;
 }) {
   const { register, setValue, watch } = useFormContext();
 
@@ -188,11 +190,9 @@ export function DispatchPayloadRow({
     }
 
     if (!isType1) {
-      const defaultPartNo = `DC2-${String(index + 1).padStart(3, '0')}`;
-      const existingPartNo = watch(`scBlocks.${blockIndex}.items.${index}.partNumber`);
-      if (!existingPartNo) {
-        setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, defaultPartNo, { shouldValidate: true });
-      }
+      const currentSeq = (baseSeq || 1) + index;
+      const defaultPartNo = `DC2-${String(currentSeq).padStart(3, '0')}`;
+      setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, defaultPartNo, { shouldValidate: true });
       return;
     }
 
@@ -200,7 +200,7 @@ export function DispatchPayloadRow({
       setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, currentScItem.partNumber || '');
       setValue(`scBlocks.${blockIndex}.items.${index}.partName`, currentScItem.partName || currentScItem.material || '');
     }
-  }, [isType1, selectedSc, scRmItems, scItemId, currentScItem, setValue, blockIndex, index]);
+  }, [isType1, selectedSc, scRmItems, scItemId, currentScItem, setValue, blockIndex, index, baseSeq]);
 
   const getProductDisplayLabel = (p: any) => {
     const scItem = selectedSc?.rmRequest?.items?.find(
@@ -277,9 +277,12 @@ export function DispatchPayloadRow({
   const isQtyInvalid =
     !isType1 && productId && (dispatchQty > availableQty || dispatchQty <= 0 || availableQty === 0);
 
+  const currentSeq = (baseSeq || 1) + index;
+  const defaultPartNo = `DC2-${String(currentSeq).padStart(3, '0')}`;
+
   const partNumberVal =
     watch(`scBlocks.${blockIndex}.items.${index}.partNumber`) ||
-    (!isType1 ? `DC2-${String(index + 1).padStart(3, '0')}` : '');
+    (!isType1 ? defaultPartNo : '');
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs space-y-4 hover:border-slate-300 transition-all">

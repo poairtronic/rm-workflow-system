@@ -44,28 +44,34 @@ export function DcMovementsWorkspaceView() {
       const q = searchTerm.trim().toLowerCase();
       if (!q) return true;
 
-      const dcNo = (m.challanNumber || '').toLowerCase();
-      const vendor = (m.vendorName || '').toLowerCase();
-      const vendorCode = (m.vendorCode || '').toLowerCase();
-      const scNo = (m.scNumber || '').toLowerCase();
-      const partNo = (m.partNumber || '').toLowerCase();
-      const partName = (m.partName || '').toLowerCase();
-      const prodName = (m.productName || '').toLowerCase();
-      const prodCode = (m.productCode || '').toLowerCase();
-      const loc = (m.location || '').toLowerCase();
-      const status = (m.status || '').toLowerCase();
+      const tokens = q.split(/\s+/).filter(Boolean);
+      const matchField = (fieldVal?: string | null) => {
+        if (!fieldVal) return false;
+        const val = fieldVal.toLowerCase();
+        if (val.includes(q)) return true;
+        return tokens.some((t) => {
+          if (val.includes(t)) return true;
+          if (t.endsWith('ing') && t.length > 4 && val.includes(t.slice(0, -3))) return true;
+          if (t.endsWith('ed') && t.length > 4 && val.includes(t.slice(0, -2))) return true;
+          if (t === 'heating' && (val.includes('heat') || val.includes('ht'))) return true;
+          if (t === 'ht' && val.includes('heat')) return true;
+          return false;
+        });
+      };
 
       return (
-        dcNo.includes(q) ||
-        vendor.includes(q) ||
-        vendorCode.includes(q) ||
-        scNo.includes(q) ||
-        partNo.includes(q) ||
-        partName.includes(q) ||
-        prodName.includes(q) ||
-        prodCode.includes(q) ||
-        loc.includes(q) ||
-        status.includes(q)
+        matchField(m.challanNumber) ||
+        matchField(m.vendorName) ||
+        matchField(m.vendorCode) ||
+        matchField(m.scNumber) ||
+        matchField(m.partNumber) ||
+        matchField(m.partName) ||
+        matchField(m.productName) ||
+        matchField(m.productCode) ||
+        matchField(m.processName) ||
+        matchField(m.notes) ||
+        matchField(m.location) ||
+        matchField(m.status)
       );
     });
   }, [rawMovements, typeFilter, directionFilter, searchTerm]);
@@ -272,7 +278,7 @@ export function DcMovementsWorkspaceView() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search DC movements by DC #, Vendor, SC #, Part #, Product Name, Code, Bin..."
+              placeholder="Search by Part #, Product Name, Vendor, Process Type (e.g. Heating), DC #, Bin..."
               className="w-full pl-9 pr-9 h-10 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:bg-white transition-all font-medium"
             />
             {searchTerm && (
