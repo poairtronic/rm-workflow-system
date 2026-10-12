@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useFormContext } from 'react-hook-form';
-import { Trash2 } from 'lucide-react';
+import { Trash2, ArrowRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api, unwrapList } from '../../services/api';
 import { masterDataService } from '../../services/masterDataService';
@@ -244,7 +244,6 @@ export function DispatchPayloadRow({
     const stockBinIds = new Set(positiveBalances.map((b: any) => b.binId));
     let pool = allBins.filter((ab: any) => !stockBinIds.has(ab.id));
     if (selectedRackId) {
-      // If a rack is selected, prioritize bins from that rack
       const inRack = pool.filter((ab: any) => ab.rackId === selectedRackId);
       if (inRack.length > 0) pool = inRack;
     }
@@ -258,7 +257,6 @@ export function DispatchPayloadRow({
       return;
     }
     const binsInRack = allBins.filter((ab: any) => ab.rackId === targetRackId);
-    // Prefer bin in this rack with positive stock
     const stockBin = positiveBalances.find((pb: any) =>
       binsInRack.some((b: any) => b.id === pb.binId),
     );
@@ -279,306 +277,413 @@ export function DispatchPayloadRow({
   const isQtyInvalid =
     !isType1 && productId && (dispatchQty > availableQty || dispatchQty <= 0 || availableQty === 0);
 
+  const partNumberVal =
+    watch(`scBlocks.${blockIndex}.items.${index}.partNumber`) ||
+    (!isType1 ? `DC2-${String(index + 1).padStart(3, '0')}` : '');
+
   return (
-    <tr className="h-14">
-      {/* 1. Material / Part Name */}
-      <td className="px-3 py-2">
-        {isType1 ? (
-          <div>
-            {!selectedSc ? (
-              <div className="w-full h-8 px-2 rounded-md bg-slate-50 border border-slate-200 text-xs text-slate-400 flex items-center font-medium">
-                Select SC Code first...
-              </div>
-            ) : (
-              <select
-                value={scItemId || ''}
-                onChange={(e) => handleType1ItemSelect(e.target.value)}
-                className="w-full h-8 px-2 rounded-md bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium cursor-pointer"
-              >
-                {scRmItems.length > 0 && (
-                  <optgroup label={`SC Products / Materials (${scRmItems.length})`}>
-                    {scRmItems.map((it: any) => (
-                      <option key={it.id} value={it.id}>
-                        {it.material || it.partName || 'Item'} {it.grade ? `(${it.grade})` : ''} • Qty: {Number(it.quantity)}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                <optgroup label="Component Assembly">
-                  <option value="sc_assembly">
-                    ★ {selectedSc.scNumber} - {selectedSc.productName} (Target: {Number(selectedSc.targetQuantity || 1)})
-                  </option>
-                </optgroup>
-              </select>
-            )}
-            {selectedSc && scItemId && scItemId !== 'sc_assembly' && (() => {
-              const activeIt = scRmItems.find((it: any) => it.id === scItemId);
-              if (!activeIt) return null;
-              return (
-                <div className="flex items-center gap-1.5 mt-1 px-1.5 py-0.5 rounded bg-blue-50 border border-blue-100 text-[10px] text-blue-900">
-                  <span className="font-semibold">{activeIt.materialType || 'MATERIAL'}</span>
-                  {activeIt.grade && (
-                    <>
-                      <span>•</span>
-                      <span>Grade: {activeIt.grade}</span>
-                    </>
-                  )}
-                  {activeIt.size && (
-                    <>
-                      <span>•</span>
-                      <span>Size: {activeIt.size}</span>
-                    </>
-                  )}
-                </div>
-              );
-            })()}
-            <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.scItemId` as const)} />
-            <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.partNumber` as const)} />
-            <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.partName` as const)} />
-          </div>
-        ) : (
-          <select
-            {...register(`scBlocks.${blockIndex}.items.${index}.productId` as const, {
-              required: 'Product is required',
-            })}
-            className="w-full h-8 px-2 rounded-md bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
-          >
-            <option value="">Select Internal RM...</option>
-            {sortedProducts.map((p: any) => (
-              <option key={p.id} value={p.id}>
-                {getProductDisplayLabel(p)}
-              </option>
-            ))}
-          </select>
-        )}
-      </td>
+    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs space-y-4 hover:border-slate-300 transition-all">
+      {/* Item Header Bar: S.No., Badge, and Action */}
+      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="flex items-center gap-2.5">
+          <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-md font-mono font-bold text-xs bg-slate-900 text-white shadow-2xs">
+            S.No. {String(index + 1).padStart(2, '0')}
+          </span>
 
-      {/* 1b. Type 2 Auto-Generated DC Part Number */}
-      {!isType1 && (
-        <td className="px-3 py-2 text-center">
-          <input
-            type="text"
-            readOnly
-            value={watch(`scBlocks.${blockIndex}.items.${index}.partNumber`) || `DC2-${String(index + 1).padStart(3, '0')}`}
-            {...register(`scBlocks.${blockIndex}.items.${index}.partNumber` as const)}
-            className="w-24 h-8 px-2 rounded-md bg-slate-100 border border-slate-200 text-xs font-mono font-bold text-blue-700 text-center select-none cursor-default shadow-xs"
-            title="Auto-generated DC Part Number printed for Vendor"
-          />
-        </td>
-      )}
-
-      {/* 1c. Type 2 Custom DC Material Name for Vendor */}
-      {!isType1 && (
-        <td className="px-3 py-2">
-          <input
-            type="text"
-            placeholder="e.g. Aluminium Housing"
-            {...register(`scBlocks.${blockIndex}.items.${index}.partName` as const, {
-              required: !isType1 ? 'DC Material Name is required' : false,
-            })}
-            className="w-44 h-8 px-2.5 rounded-md bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium shadow-xs"
-            title="Material name printed on the Delivery Challan for vendor"
-          />
-        </td>
-      )}
-
-      {/* 2. Rack (Dedicated distinct field) */}
-      {!isType1 && (
-      <td className="px-3 py-2">
-        <select
-          value={selectedRackId || ''}
-          onChange={(e) => handleRackChange(e.target.value)}
-          disabled={!productId}
-          className="w-full h-8 px-2 rounded-md bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
-        >
-          <option value="">{selectedRackName ? selectedRackName : '—'}</option>
-          {racksWithStock.length > 0 && (
-            <optgroup label="Racks with Available Stock">
-              {racksWithStock.map((r: any) => (
-                <option key={r.id} value={r.id}>
-                  ★ {r.name || r.code}
-                </option>
-              ))}
-            </optgroup>
-          )}
-          <optgroup label="All Warehouse Racks">
-            {allRacks.map((r: any) => (
-              <option key={r.id} value={r.id}>
-                {r.name || r.code}
-              </option>
-            ))}
-          </optgroup>
-        </select>
-      </td>
-      )}
-
-      {/* 3. Bin (Dedicated distinct field) */}
-      {!isType1 && (
-      <td className="px-3 py-2">
-        <select
-          value={binId || ''}
-          onChange={(e) => handleBinChange(e.target.value)}
-          disabled={!productId}
-          className={`w-full h-8 px-2 rounded-md bg-white border text-xs text-slate-900 focus:outline-none focus:ring-1 focus:border-transparent font-medium ${
-            !binId && productId ? 'border-amber-300' : 'border-slate-200 focus:ring-primary'
-          }`}
-        >
-          <option value="">
-            {!productId
-              ? 'Select product...'
-              : positiveBalances.length === 0
-              ? 'No bins with stock'
-              : 'Select Bin...'}
-          </option>
-          {positiveBalances.length > 0 && (
-            <optgroup label="Bins with Available Stock">
-              {positiveBalances.map((b: any) => {
-                const binObj = allBins.find((ab: any) => ab.id === b.binId);
-                const rLabel = binObj?.rack?.name || binObj?.rack?.code;
-                return (
-                  <option key={b.binId} value={b.binId}>
-                    {b.binCode} • Avail: {b.currentQuantity} {uom}
-                    {rLabel ? ` (${rLabel})` : ''}
-                  </option>
-                );
-              })}
-            </optgroup>
-          )}
-          {otherBins.length > 0 && (
-            <optgroup label="Other Warehouse Bins (0 Stock)">
-              {otherBins.slice(0, 30).map((ab: any) => (
-                <option key={ab.id} value={ab.id}>
-                  {ab.code} • 0 {uom} ({ab.rack?.name || 'Rack'})
-                </option>
-              ))}
-            </optgroup>
-          )}
-        </select>
-        <input
-          type="hidden"
-          {...register(`scBlocks.${blockIndex}.items.${index}.binId` as const, {
-            required: !isType1 ? 'Bin is required' : false,
-          })}
-        />
-      </td>
-      )}
-
-      {/* 4. Quantity & Available Balance (Input / Dispatched) */}
-      <td className="px-3 py-2 text-right">
-        <div className="flex flex-col">
-          <input
-            type="number"
-            step="0.001"
-            min="0.001"
-            onFocus={(e) => e.target.select()}
-            {...register(`scBlocks.${blockIndex}.items.${index}.quantity` as const, {
-              required: 'Quantity is required',
-              valueAsNumber: true,
-              validate: (v) => {
-                const num = Number(v);
-                if (isNaN(num) || num <= 0) return 'Quantity must be > 0';
-                if (!isType1 && num > availableQty) return `Exceeds available stock (${availableQty})`;
-                return true;
-              },
-              onChange: (e) => {
-                if (!isType1) {
-                  const val = e.target.value;
-                  const currentExpected = watch(`scBlocks.${blockIndex}.items.${index}.expectedOutputQuantity`);
-                  if (!currentExpected || currentExpected === '' || Number(currentExpected) === 0) {
-                    setValue(`scBlocks.${blockIndex}.items.${index}.expectedOutputQuantity`, val ? Number(val) : ('' as any), { shouldValidate: true });
-                  }
-                }
-              },
-            })}
-            className={`w-full h-8 px-2 rounded-md bg-white border text-xs text-slate-900 text-right tabular-nums focus:outline-none focus:ring-1 focus:border-transparent ${
-              isQtyInvalid && binId && !isType1
-                ? 'border-red-300 focus:ring-red-500'
-                : 'border-slate-200 focus:ring-primary'
-            }`}
-          />
-          {productId && !isType1 && (
-            <span
-              className={`text-[10px] font-semibold mt-0.5 block ${
-                availableQty > 0 ? 'text-slate-500' : 'text-red-500'
-              }`}
-            >
-              Avail: {availableQty} {uom}
+          {!isType1 && partNumberVal && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
+              Part No: {partNumberVal}
             </span>
           )}
+
+          <span className="text-xs text-slate-500 font-medium">
+            {isType1 ? 'Production Process Component' : 'Stock Conversion Item'}
+          </span>
         </div>
-      </td>
 
-      {/* 5. Converted Output Product (Type 2 Stock Conversion) */}
-      {!isType1 && (
-        <td className="px-3 py-2">
-          <select
-            {...register(`scBlocks.${blockIndex}.items.${index}.outputProductId` as const, {
-              required: !isType1 ? 'Output product is required' : false,
-            })}
-            className="w-full h-8 px-2 rounded-md bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
-          >
-            <option value="">Select Converted Output Product...</option>
-            {sortedProducts.map((p: any) => (
-              <option key={p.id} value={p.id}>
-                {getProductDisplayLabel(p)}
-              </option>
-            ))}
-          </select>
-        </td>
-      )}
-
-      {/* 6. Expected Output Quantity (Type 2 Stock Conversion) */}
-      {!isType1 && (
-        <td className="px-3 py-2 text-right">
-          <input
-            type="number"
-            step="0.001"
-            min="0.001"
-            placeholder="Expected qty..."
-            {...register(`scBlocks.${blockIndex}.items.${index}.expectedOutputQuantity` as const, {
-              required: !isType1 ? 'Expected output qty is required' : false,
-              valueAsNumber: true,
-              validate: (v) => {
-                if (isType1) return true;
-                const num = Number(v);
-                return (!isNaN(num) && num > 0) || 'Expected qty must be > 0';
-              },
-            })}
-            className="w-full h-8 px-2 rounded-md bg-white border border-slate-200 text-xs text-slate-900 text-right tabular-nums focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
-          />
-        </td>
-      )}
-
-      {/* 7. Batch / Heat No */}
-      <td className="px-3 py-2">
-        <input
-          {...register(`scBlocks.${blockIndex}.items.${index}.batchNumber` as const)}
-          className="w-full h-8 px-2 rounded-md bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
-          placeholder="e.g. HT-992 (Optional)"
-        />
-      </td>
-
-      {/* 8. Description */}
-      <td className="px-3 py-2">
-        <input
-          {...register(`scBlocks.${blockIndex}.items.${index}.description` as const)}
-          className="w-full h-8 px-2 rounded-md bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
-          placeholder="Optional notes..."
-        />
-      </td>
-
-      {/* 9. Action */}
-      <td className="px-3 py-2 text-center">
         <button
           type="button"
           onClick={() => remove(index)}
           disabled={!canRemove}
-          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Remove item"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Remove this item"
         >
           <Trash2 className="w-3.5 h-3.5" />
+          <span>Remove</span>
         </button>
-      </td>
-    </tr>
+      </div>
+
+      {isType1 ? (
+        /* ================= TYPE 1: PRODUCTION PROCESS (MULTI-LINE) ================= */
+        <div className="space-y-3.5">
+          {/* Line 1: Part Selection & Quantity */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-start">
+            <div className="md:col-span-8">
+              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                SC Item / Component Part Name *
+              </label>
+              {!selectedSc ? (
+                <div className="w-full h-9 px-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-400 flex items-center font-medium">
+                  Select SC Code first...
+                </div>
+              ) : (
+                <select
+                  value={scItemId || ''}
+                  onChange={(e) => handleType1ItemSelect(e.target.value)}
+                  className="w-full h-9 px-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium cursor-pointer"
+                >
+                  {scRmItems.length > 0 && (
+                    <optgroup label={`SC Products / Materials (${scRmItems.length})`}>
+                      {scRmItems.map((it: any) => (
+                        <option key={it.id} value={it.id}>
+                          {it.material || it.partName || 'Item'} {it.grade ? `(${it.grade})` : ''} • Qty: {Number(it.quantity)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  <optgroup label="Component Assembly">
+                    <option value="sc_assembly">
+                      ★ {selectedSc.scNumber} - {selectedSc.productName} (Target: {Number(selectedSc.targetQuantity || 1)})
+                    </option>
+                  </optgroup>
+                </select>
+              )}
+              {selectedSc && scItemId && scItemId !== 'sc_assembly' && (() => {
+                const activeIt = scRmItems.find((it: any) => it.id === scItemId);
+                if (!activeIt) return null;
+                return (
+                  <div className="flex items-center gap-2 mt-1.5 px-2 py-1 rounded bg-blue-50 border border-blue-100 text-[11px] text-blue-900">
+                    <span className="font-semibold">{activeIt.materialType || 'MATERIAL'}</span>
+                    {activeIt.grade && (
+                      <>
+                        <span>•</span>
+                        <span>Grade: {activeIt.grade}</span>
+                      </>
+                    )}
+                    {activeIt.size && (
+                      <>
+                        <span>•</span>
+                        <span>Size: {activeIt.size}</span>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
+              <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.scItemId` as const)} />
+              <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.partNumber` as const)} />
+              <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.partName` as const)} />
+            </div>
+
+            <div className="md:col-span-4">
+              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Dispatched Quantity *
+              </label>
+              <input
+                type="number"
+                step="0.001"
+                min="0.001"
+                onFocus={(e) => e.target.select()}
+                {...register(`scBlocks.${blockIndex}.items.${index}.quantity` as const, {
+                  required: 'Quantity is required',
+                  valueAsNumber: true,
+                  validate: (v) => {
+                    const num = Number(v);
+                    return (!isNaN(num) && num > 0) || 'Quantity must be > 0';
+                  },
+                })}
+                className="w-full h-9 px-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 font-semibold tabular-nums focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+
+          {/* Line 2: Batch & Description (Entered in next line) */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-start pt-2 border-t border-slate-100">
+            <div className="md:col-span-4">
+              <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                Batch / Heat No. (Optional)
+              </label>
+              <input
+                {...register(`scBlocks.${blockIndex}.items.${index}.batchNumber` as const)}
+                className="w-full h-9 px-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
+                placeholder="e.g. HT-992"
+              />
+            </div>
+
+            <div className="md:col-span-8">
+              <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                Description / Line Item Notes (Printed under this item on DC)
+              </label>
+              <input
+                {...register(`scBlocks.${blockIndex}.items.${index}.description` as const)}
+                className="w-full h-9 px-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
+                placeholder="Specific instructions or description printed directly below this line item..."
+              />
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ================= TYPE 2: STOCK CONVERSION (MULTI-LINE) ================= */
+        <div className="space-y-4">
+          {/* Line 1: Outward RM Material & Custom Vendor Identity */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3.5 items-start">
+            {/* 1a. Internal RM Stock */}
+            <div className="md:col-span-5">
+              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Internal RM Stock (Search) *
+              </label>
+              <select
+                {...register(`scBlocks.${blockIndex}.items.${index}.productId` as const, {
+                  required: 'Product is required',
+                })}
+                className="w-full h-9 px-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
+              >
+                <option value="">Select Internal RM Stock...</option>
+                {sortedProducts.map((p: any) => (
+                  <option key={p.id} value={p.id}>
+                    {getProductDisplayLabel(p)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 1b. Auto Part No. */}
+            <div className="md:col-span-2">
+              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Part No. (Auto)
+              </label>
+              <input
+                type="text"
+                readOnly
+                value={partNumberVal}
+                {...register(`scBlocks.${blockIndex}.items.${index}.partNumber` as const)}
+                className="w-full h-9 px-2.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-mono font-bold text-blue-700 text-center select-none cursor-default shadow-2xs"
+                title="Auto-generated DC Part Number printed for Vendor"
+              />
+            </div>
+
+            {/* 1c. DC Material Name (Vendor) */}
+            <div className="md:col-span-3">
+              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                DC Material Name (For Vendor) *
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Aluminium Housing"
+                {...register(`scBlocks.${blockIndex}.items.${index}.partName` as const, {
+                  required: !isType1 ? 'DC Material Name is required' : false,
+                })}
+                className="w-full h-9 px-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
+                title="Material name printed on the Delivery Challan for vendor"
+              />
+            </div>
+
+            {/* 1d. Dispatched Qty */}
+            <div className="md:col-span-2">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                  Dispatched Qty *
+                </label>
+                {productId && (
+                  <span
+                    className={`text-[10px] font-bold ${
+                      availableQty > 0 ? 'text-emerald-600' : 'text-rose-600'
+                    }`}
+                  >
+                    Avail: {availableQty} {uom}
+                  </span>
+                )}
+              </div>
+              <input
+                type="number"
+                step="0.001"
+                min="0.001"
+                onFocus={(e) => e.target.select()}
+                {...register(`scBlocks.${blockIndex}.items.${index}.quantity` as const, {
+                  required: 'Quantity is required',
+                  valueAsNumber: true,
+                  validate: (v) => {
+                    const num = Number(v);
+                    if (isNaN(num) || num <= 0) return 'Quantity must be > 0';
+                    if (!isType1 && num > availableQty) return `Exceeds available stock (${availableQty})`;
+                    return true;
+                  },
+                  onChange: (e) => {
+                    const val = e.target.value;
+                    const currentExpected = watch(`scBlocks.${blockIndex}.items.${index}.expectedOutputQuantity`);
+                    if (!currentExpected || currentExpected === '' || Number(currentExpected) === 0) {
+                      setValue(`scBlocks.${blockIndex}.items.${index}.expectedOutputQuantity`, val ? Number(val) : ('' as any), { shouldValidate: true });
+                    }
+                  },
+                })}
+                className={`w-full h-9 px-3 rounded-lg bg-white border text-xs text-slate-900 font-semibold tabular-nums focus:outline-none focus:ring-1 focus:border-transparent ${
+                  isQtyInvalid && binId
+                    ? 'border-rose-300 focus:ring-rose-500'
+                    : 'border-slate-200 focus:ring-primary'
+                }`}
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+
+          {/* Line 2: Warehouse Bin Location & Converted Return Product */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3.5 items-start bg-slate-50/80 p-3 rounded-xl border border-slate-200/80">
+            {/* 2a. Source Rack */}
+            <div className="md:col-span-3">
+              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                Source Rack
+              </label>
+              <select
+                value={selectedRackId || ''}
+                onChange={(e) => handleRackChange(e.target.value)}
+                disabled={!productId}
+                className="w-full h-9 px-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
+              >
+                <option value="">{selectedRackName ? selectedRackName : '— Select Rack —'}</option>
+                {racksWithStock.length > 0 && (
+                  <optgroup label="Racks with Available Stock">
+                    {racksWithStock.map((r: any) => (
+                      <option key={r.id} value={r.id}>
+                        ★ {r.name || r.code}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <optgroup label="All Warehouse Racks">
+                  {allRacks.map((r: any) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name || r.code}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+
+            {/* 2b. Source Bin */}
+            <div className="md:col-span-3">
+              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                Source Bin *
+              </label>
+              <select
+                value={binId || ''}
+                onChange={(e) => handleBinChange(e.target.value)}
+                disabled={!productId}
+                className={`w-full h-9 px-3 rounded-lg bg-white border text-xs text-slate-900 focus:outline-none focus:ring-1 focus:border-transparent font-medium ${
+                  !binId && productId ? 'border-amber-300' : 'border-slate-200 focus:ring-primary'
+                }`}
+              >
+                <option value="">
+                  {!productId
+                    ? 'Select product...'
+                    : positiveBalances.length === 0
+                    ? 'No bins with stock'
+                    : 'Select Bin...'}
+                </option>
+                {positiveBalances.length > 0 && (
+                  <optgroup label="Bins with Available Stock">
+                    {positiveBalances.map((b: any) => {
+                      const binObj = allBins.find((ab: any) => ab.id === b.binId);
+                      const rLabel = binObj?.rack?.name || binObj?.rack?.code;
+                      return (
+                        <option key={b.binId} value={b.binId}>
+                          {b.binCode} • Avail: {b.currentQuantity} {uom}
+                          {rLabel ? ` (${rLabel})` : ''}
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                )}
+                {otherBins.length > 0 && (
+                  <optgroup label="Other Warehouse Bins (0 Stock)">
+                    {otherBins.slice(0, 30).map((ab: any) => (
+                      <option key={ab.id} value={ab.id}>
+                        {ab.code} • 0 {uom} ({ab.rack?.name || 'Rack'})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+              <input
+                type="hidden"
+                {...register(`scBlocks.${blockIndex}.items.${index}.binId` as const, {
+                  required: !isType1 ? 'Bin is required' : false,
+                })}
+              />
+            </div>
+
+            {/* 2c. Converted Output Material */}
+            <div className="md:col-span-4">
+              <div className="flex items-center gap-1 mb-1.5">
+                <ArrowRight className="w-3.5 h-3.5 text-emerald-600" />
+                <label className="block text-[11px] font-bold text-emerald-800 uppercase tracking-wider">
+                  Converted Output Material (In) *
+                </label>
+              </div>
+              <select
+                {...register(`scBlocks.${blockIndex}.items.${index}.outputProductId` as const, {
+                  required: !isType1 ? 'Output product is required' : false,
+                })}
+                className="w-full h-9 px-3 rounded-lg bg-white border border-emerald-300 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
+              >
+                <option value="">Select Converted Output Material...</option>
+                {sortedProducts.map((p: any) => (
+                  <option key={p.id} value={p.id}>
+                    {getProductDisplayLabel(p)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 2d. Expected Inward Qty */}
+            <div className="md:col-span-2">
+              <label className="block text-[11px] font-bold text-emerald-800 uppercase tracking-wider mb-1.5">
+                Expected Inward Qty *
+              </label>
+              <input
+                type="number"
+                step="0.001"
+                min="0.001"
+                placeholder="0.00"
+                {...register(`scBlocks.${blockIndex}.items.${index}.expectedOutputQuantity` as const, {
+                  required: !isType1 ? 'Expected output qty is required' : false,
+                  valueAsNumber: true,
+                  validate: (v) => {
+                    if (isType1) return true;
+                    const num = Number(v);
+                    return (!isNaN(num) && num > 0) || 'Expected qty must be > 0';
+                  },
+                })}
+                className="w-full h-9 px-3 rounded-lg bg-white border border-emerald-300 text-xs text-slate-900 text-right font-semibold tabular-nums focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+          </div>
+
+          {/* Line 3: Tracking & Notes (Entered in next line) */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-start pt-1">
+            <div className="md:col-span-4">
+              <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                Batch / Heat No. (Optional)
+              </label>
+              <input
+                {...register(`scBlocks.${blockIndex}.items.${index}.batchNumber` as const)}
+                className="w-full h-9 px-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
+                placeholder="e.g. HT-992"
+              />
+            </div>
+
+            <div className="md:col-span-8">
+              <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                Description / Line Item Notes (Printed under this item on DC)
+              </label>
+              <input
+                {...register(`scBlocks.${blockIndex}.items.${index}.description` as const)}
+                className="w-full h-9 px-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
+                placeholder="Specific instructions or description printed directly below this line item..."
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

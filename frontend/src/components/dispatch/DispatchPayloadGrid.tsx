@@ -13,10 +13,15 @@ export function DispatchPayloadGrid({ blockIndex }: { blockIndex: number }) {
   });
 
   return (
-    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mt-6">
+    <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-4 mt-6">
       <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200">
         <div>
-          <h3 className="text-sm font-semibold text-slate-800">Items Payload</h3>
+          <h3 className="text-sm font-bold text-slate-800">Items Payload</h3>
+          <p className="text-xs text-slate-500">
+            {isType1
+              ? 'Specify the production process items and quantities being dispatched to the vendor.'
+              : 'Specify internal RM warehouse items dispatched and their converted return items.'}
+          </p>
         </div>
         <button
           type="button"
@@ -34,45 +39,26 @@ export function DispatchPayloadGrid({ blockIndex }: { blockIndex: number }) {
             uom: 'NOS', 
             description: '' 
           })}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-50 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4 text-primary" />
           Add Item
         </button>
       </div>
 
-      <div className="overflow-x-auto w-full">
-        <table className="w-full text-sm text-left whitespace-nowrap">
-          <thead className="h-8 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-            <tr>
-              <th className="px-3 py-2 w-56">{isType1 ? 'Part Name' : 'Internal RM Stock (Search)'}</th>
-              {!isType1 && <th className="px-3 py-2 w-28 text-center">Part No. (Auto)</th>}
-              {!isType1 && <th className="px-3 py-2 w-48">DC Material Name</th>}
-              {!isType1 && <th className="px-3 py-2 w-32">Source Rack</th>}
-              {!isType1 && <th className="px-3 py-2 w-36">Source Bin</th>}
-              <th className="px-3 py-2 text-right w-24">{isType1 ? 'Quantity' : 'Dispatched Qty'}</th>
-              {!isType1 && <th className="px-3 py-2 w-56">Converted Output Material (In)</th>}
-              {!isType1 && <th className="px-3 py-2 text-right w-24">Expected Inward Qty</th>}
-              <th className="px-3 py-2 w-32">Batch / Heat No.</th>
-              <th className="px-3 py-2 w-36">Description (Opt)</th>
-              <th className="px-3 py-2 text-center w-12">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 bg-white">
-            {fields.map((item, index) => (
-                <DispatchPayloadRow 
-                  key={item.id} 
-                  blockIndex={blockIndex}
-                  index={index} 
-                  remove={remove} 
-                  canRemove={fields.length > 1}
-                  isType1={isType1}
-                />
-            ))}
-          </tbody>
-        </table>
+      <div className="space-y-4">
+        {fields.map((item, index) => (
+          <DispatchPayloadRow 
+            key={item.id} 
+            blockIndex={blockIndex}
+            index={index} 
+            remove={remove} 
+            canRemove={fields.length > 1}
+            isType1={isType1}
+          />
+        ))}
         {(errors as any).scBlocks?.[blockIndex]?.items && (
-          <p className="mt-2 text-sm text-red-500 font-medium">Please ensure all row fields are correctly filled.</p>
+          <p className="mt-2 text-sm text-red-500 font-medium">Please ensure all item fields are correctly filled.</p>
         )}
       </div>
     </div>
