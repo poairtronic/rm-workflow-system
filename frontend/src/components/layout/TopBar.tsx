@@ -44,6 +44,7 @@ export function TopBar() {
       case 'PURCHASE_ORDER':
         navigate('/traceability/po');
         break;
+      case 'SIZE_CARD':
       case 'STYLE_CODE':
       case 'SC':
         navigate('/traceability/sc');

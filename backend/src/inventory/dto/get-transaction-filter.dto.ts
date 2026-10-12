@@ -21,6 +21,10 @@ export class GetTransactionFilterDto {
   @IsOptional()
   @IsString()
   binId?: string;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
   @IsOptional()
   @IsEnum(TransactionType)
   transactionType?: TransactionType;

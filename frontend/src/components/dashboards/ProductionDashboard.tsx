@@ -23,7 +23,7 @@ export const ProductionDashboard: React.FC = () => {
       </Card>
       <Card title="Active Batches" className="border-l-4 border-l-blue-500">
         <div className="text-4xl font-bold text-blue-600">{data?.activeBatches || 0}</div>
-        <p className="text-sm text-gray-500 mt-2">Style Codes currently in production</p>
+        <p className="text-sm text-gray-500 mt-2">Size Cards currently in production</p>
       </Card>
       <Card title="Extra Requests" className="border-l-4 border-l-yellow-500">
         <div className="text-4xl font-bold text-yellow-600">{data?.additionalRequested || 0}</div>

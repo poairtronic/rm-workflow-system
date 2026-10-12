@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   PageHeader,
@@ -14,26 +14,33 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   SlidersHorizontal,
+  Truck,
+  X,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { MultiSelectFilter } from '../components/ui/MultiSelectFilter';
 import { masterDataService } from '../services/masterDataService';
 import type { Product, Category, Family, Warehouse, Location, Rack, Bin } from '../services/masterDataService';
 import { Filter, Search, RefreshCw } from 'lucide-react';
+import { DcMovementsWorkspaceView } from '../components/dispatch/DcMovementsWorkspaceView';
 const UOM_OPTIONS = ['NOS', 'KGS', 'MTRS', 'LTRS', 'BOX', 'PACK', 'SET', 'ROLL'];
-
-
 
 export function InventoryStockWorkspace() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const urlTab = (searchParams.get('tab') || '').toUpperCase();
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'LEDGER'>(
-    urlTab === 'MOVEMENTS' || urlTab === 'LEDGER' ? 'LEDGER' : 'OVERVIEW'
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'LEDGER' | 'DC_MOVEMENTS'>(
+    urlTab === 'DC_MOVEMENTS' || urlTab === 'DC'
+      ? 'DC_MOVEMENTS'
+      : urlTab === 'MOVEMENTS' || urlTab === 'LEDGER'
+      ? 'LEDGER'
+      : 'OVERVIEW'
   );
 
   useEffect(() => {
-    if (urlTab === 'MOVEMENTS' || urlTab === 'LEDGER') {
+    if (urlTab === 'DC_MOVEMENTS' || urlTab === 'DC') {
+      setActiveTab('DC_MOVEMENTS');
+    } else if (urlTab === 'MOVEMENTS' || urlTab === 'LEDGER') {
       setActiveTab('LEDGER');
     } else if (urlTab === 'OVERVIEW') {
       setActiveTab('OVERVIEW');
@@ -77,6 +84,7 @@ export function InventoryStockWorkspace() {
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
   const [txPage, setTxPage] = useState(1);
   const [txTypeFilter, setTxTypeFilter] = useState('');
+  const [txSearch, setTxSearch] = useState('');
 
   const loadData = async () => {
     setIsBalancesLoading(true);
@@ -111,8 +119,9 @@ export function InventoryStockWorkspace() {
     try {
       const res = await inventoryService.getAllTransactions({
         page: txPage,
-        pageSize: 50,
-        transactionType: txTypeFilter || undefined
+        pageSize: 100,
+        transactionType: txTypeFilter || undefined,
+        search: txSearch.trim() || undefined,
       });
       setTransactions(res.data);
     } catch {
@@ -139,14 +148,38 @@ export function InventoryStockWorkspace() {
     }
   };
 
-  
+  const filteredTransactions = useMemo(() => {
+    const q = txSearch.trim().toLowerCase();
+    if (!q) return transactions;
+    return transactions.filter((t: any) => {
+      const pName = (t.product?.name || '').toLowerCase();
+      const pCode = (t.product?.code || '').toLowerCase();
+      const sBin = (t.sourceBin?.code || '').toLowerCase();
+      const dBin = (t.destinationBin?.code || '').toLowerCase();
+      const batch = (t.lotBatchNumber || '').toLowerCase();
+      const reason = (t.reason || '').toLowerCase();
+      const remarks = (t.remarks || '').toLowerCase();
+      const by = (t.createdBy?.name || '').toLowerCase();
+      return (
+        pName.includes(q) ||
+        pCode.includes(q) ||
+        sBin.includes(q) ||
+        dBin.includes(q) ||
+        batch.includes(q) ||
+        reason.includes(q) ||
+        remarks.includes(q) ||
+        by.includes(q)
+      );
+    });
+  }, [transactions, txSearch]);
+
   useEffect(() => {
     if (activeTab === 'OVERVIEW') {
       if (balances.length === 0) loadData();
-    } else {
+    } else if (activeTab === 'LEDGER') {
       fetchTransactions();
     }
-  }, [activeTab, txPage, txTypeFilter]);
+  }, [activeTab, txPage, txTypeFilter, txSearch]);
 
   // Build maps for fast lookup
   const binMap = new Map(bins.map(b => [b.id, b]));
@@ -412,7 +445,7 @@ export function InventoryStockWorkspace() {
               }
             `}
           >
-            Overview
+            Stock Overview
           </button>
           <button
             onClick={() => setActiveTab('LEDGER')}
@@ -424,7 +457,20 @@ export function InventoryStockWorkspace() {
               }
             `}
           >
-            Movements
+            Normal Stock Movements
+          </button>
+          <button
+            onClick={() => setActiveTab('DC_MOVEMENTS')}
+            className={`
+              whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2
+              ${activeTab === 'DC_MOVEMENTS'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }
+            `}
+          >
+            <Truck className="w-4 h-4" />
+            DC Movements (Type 1 & Type 2)
           </button>
         </nav>
       </div>
@@ -552,35 +598,78 @@ export function InventoryStockWorkspace() {
       )}
 
       {activeTab === 'LEDGER' && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-slate-900">Physical Stock Movements & Transactions</h3>
-            <select
-              value={txTypeFilter}
-              onChange={(e) => {
-                setTxTypeFilter(e.target.value);
-                setTxPage(1);
-              }}
-              className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
-            >
-              <option value="">All Movement Types</option>
-              <option value="STOCK_IN">Stock In</option>
-              <option value="STOCK_OUT">Stock Out</option>
-              <option value="TRANSFER">Bin Transfer</option>
-              <option value="ADJUSTMENT">Adjustment</option>
-              <option value="STORES_ISSUE">Stores RM Issue</option>
-              <option value="RETURN">Surplus Return</option>
-              <option value="PRODUCTION_CONSUMPTION">Production Consumption</option>
-            </select>
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            {/* Real-Time Search Bar */}
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={txSearch}
+                onChange={(e) => {
+                  setTxSearch(e.target.value);
+                  setTxPage(1);
+                }}
+                placeholder="Search normal stock movements (product name/code, bin, batch, reason, user)..."
+                className="w-full pl-9 pr-9 h-10 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:bg-white transition-all font-medium"
+              />
+              {txSearch && (
+                <button
+                  type="button"
+                  onClick={() => setTxSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Filter and Refresh */}
+            <div className="flex items-center gap-2">
+              <select
+                value={txTypeFilter}
+                onChange={(e) => {
+                  setTxTypeFilter(e.target.value);
+                  setTxPage(1);
+                }}
+                className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer font-medium"
+              >
+                <option value="">All Movement Types</option>
+                <option value="STOCK_IN">Stock In</option>
+                <option value="STOCK_OUT">Stock Out</option>
+                <option value="TRANSFER">Bin Transfer</option>
+                <option value="ADJUSTMENT">Adjustment</option>
+                <option value="STORES_ISSUE">Stores RM Issue (RM to Production)</option>
+                <option value="RETURN">Surplus Return (Production to Stores)</option>
+                <option value="PRODUCTION_CONSUMPTION">Production Consumption</option>
+                <option value="DC_DISPATCH">DC Outward (Dispatch - Type 2)</option>
+                <option value="DC_RETURN">DC Inward (Return - Type 2)</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={fetchTransactions}
+                disabled={isTransactionsLoading}
+                className="h-10 px-3 flex items-center justify-center border border-slate-300 bg-white hover:bg-slate-50 rounded-lg text-slate-600 transition-colors shadow-sm"
+                title="Refresh transactions"
+              >
+                <RefreshCw className={`w-4 h-4 ${isTransactionsLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
           </div>
+
           <DataTable
-            data={transactions}
+            data={filteredTransactions}
             columns={txColumns}
             isLoading={isTransactionsLoading}
             pagination
             defaultPageSize={20}
           />
         </div>
+      )}
+
+      {activeTab === 'DC_MOVEMENTS' && (
+        <DcMovementsWorkspaceView />
       )}
 
 

@@ -978,6 +978,174 @@ export class DeliveryChallanService {
   }
 
   /**
+   * Retrieves all DC movements across both Type 1 (Process / Subcontracting)
+   * and Type 2 (General Inventory Stock Conversion).
+   */
+  async getAllDcMovements(): Promise<any[]> {
+    // 1. Fetch Type 1 movements from dc_movements table
+    const type1Movements = await this.dcMovementRepo.find({
+      relations: {
+        challan: { vendor: true },
+        process: true,
+        sc: true,
+        dispatchedProduct: true,
+        returnedProduct: true,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    // 2. Fetch Type 2 DC items from delivery_challan_items table
+    const type2Items = await this.dataSource.getRepository(DeliveryChallanItem).find({
+      where: {
+        challan: {
+          type: DeliveryChallanType.GENERAL_INVENTORY_OUTWARD,
+        },
+      },
+      relations: {
+        challan: { vendor: true },
+        product: true,
+        outputProduct: true,
+        bin: true,
+        outputBin: true,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    const results: any[] = [];
+
+    // Map Type 1 items
+    for (const m of type1Movements) {
+      const dispQty = Number(m.dispatchedQty || 0);
+      const retQty = Number(m.returnedQty || 0);
+      const challan = m.challan;
+      const vendor = challan?.vendor;
+
+      // Outward entry (always exists)
+      results.push({
+        id: `t1-out-${m.id}`,
+        movementId: m.id,
+        challanId: m.challanId,
+        challanNumber: challan?.challanNumber || '—',
+        challanType: DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD,
+        challanTypeLabel: 'Type 1 (Process)',
+        direction: 'OUTWARD',
+        date: m.createdAt,
+        vendorId: vendor?.id || challan?.vendorId,
+        vendorName: vendor?.name || '—',
+        vendorCode: vendor?.code || '',
+        scNumber: m.sc?.scNumber || '—',
+        processName: m.process?.name || 'Subcontract Process',
+        partNumber: m.sc?.scNumber || '—',
+        partName: m.sc?.productName || m.dispatchedProduct?.name || '—',
+        productId: m.dispatchedProductId,
+        productCode: m.dispatchedProduct?.code || '',
+        productName: m.dispatchedProduct?.name || '—',
+        quantity: -dispQty,
+        rawQuantity: dispQty,
+        uom: m.dispatchedProduct?.uom || 'NOS',
+        location: m.process?.name ? `Process: ${m.process.name}` : 'WIP Process Stage',
+        status: m.status,
+      });
+
+      // Inward entry (if returnedQty > 0)
+      if (retQty > 0) {
+        results.push({
+          id: `t1-in-${m.id}`,
+          movementId: m.id,
+          challanId: m.challanId,
+          challanNumber: challan?.challanNumber || '—',
+          challanType: DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD,
+          challanTypeLabel: 'Type 1 (Process)',
+          direction: 'INWARD',
+          date: m.updatedAt || m.createdAt,
+          vendorId: vendor?.id || challan?.vendorId,
+          vendorName: vendor?.name || '—',
+          vendorCode: vendor?.code || '',
+          scNumber: m.sc?.scNumber || '—',
+          processName: m.process?.name || 'Subcontract Process',
+          partNumber: m.sc?.scNumber || '—',
+          partName: m.sc?.productName || m.returnedProduct?.name || m.dispatchedProduct?.name || '—',
+          productId: m.returnedProductId || m.dispatchedProductId,
+          productCode: m.returnedProduct?.code || m.dispatchedProduct?.code || '',
+          productName: m.returnedProduct?.name || m.dispatchedProduct?.name || '—',
+          quantity: retQty,
+          rawQuantity: retQty,
+          uom: m.returnedProduct?.uom || m.dispatchedProduct?.uom || 'NOS',
+          location: 'Production Receipt',
+          status: m.status,
+        });
+      }
+    }
+
+    // Map Type 2 items
+    for (const item of type2Items) {
+      const dispQty = Number(item.quantityDispatched || 0);
+      const retQty = Number(item.quantityReturned || 0);
+      const challan = item.challan;
+      const vendor = challan?.vendor;
+
+      // Outward entry (always exists)
+      results.push({
+        id: `t2-out-${item.id}`,
+        movementId: item.id,
+        challanId: item.challanId,
+        challanNumber: challan?.challanNumber || '—',
+        challanType: DeliveryChallanType.GENERAL_INVENTORY_OUTWARD,
+        challanTypeLabel: 'Type 2 (Stock Conversion)',
+        direction: 'OUTWARD',
+        date: item.createdAt || challan?.dispatchDate || challan?.createdAt,
+        vendorId: vendor?.id || challan?.vendorId,
+        vendorName: vendor?.name || '—',
+        vendorCode: vendor?.code || '',
+        scNumber: '—',
+        processName: 'Stock Conversion',
+        partNumber: item.partNumber || 'DC2-001',
+        partName: item.partName || item.product?.name || '—',
+        productId: item.productId,
+        productCode: item.product?.code || '',
+        productName: item.product?.name || '—',
+        quantity: -dispQty,
+        rawQuantity: dispQty,
+        uom: item.product?.uom || 'NOS',
+        location: item.bin?.code ? `Bin: ${item.bin.code}` : 'Warehouse Outward',
+        status: challan?.status || 'DISPATCHED',
+      });
+
+      // Inward entry (if returnedQty > 0)
+      if (retQty > 0) {
+        const retProd = item.outputProduct || item.product;
+        results.push({
+          id: `t2-in-${item.id}`,
+          movementId: item.id,
+          challanId: item.challanId,
+          challanNumber: challan?.challanNumber || '—',
+          challanType: DeliveryChallanType.GENERAL_INVENTORY_OUTWARD,
+          challanTypeLabel: 'Type 2 (Stock Conversion)',
+          direction: 'INWARD',
+          date: challan?.actualReturnDate || item.updatedAt || item.createdAt,
+          vendorId: vendor?.id || challan?.vendorId,
+          vendorName: vendor?.name || '—',
+          vendorCode: vendor?.code || '',
+          scNumber: '—',
+          processName: 'Stock Conversion',
+          partNumber: item.partNumber || 'DC2-001',
+          partName: item.partName || retProd?.name || '—',
+          productId: retProd?.id || item.productId,
+          productCode: retProd?.code || '',
+          productName: retProd?.name || '—',
+          quantity: retQty,
+          rawQuantity: retQty,
+          uom: retProd?.uom || 'NOS',
+          location: item.outputBin?.code ? `Bin: ${item.outputBin.code}` : item.bin?.code ? `Bin: ${item.bin.code}` : 'Warehouse Inward',
+          status: challan?.status || 'RETURNED',
+        });
+      }
+    }
+
+    return results.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+
+  /**
    * Fire-and-forget DC lifecycle event notification.
    * Errors are swallowed to ensure they never roll back or fail the primary operation.
    */

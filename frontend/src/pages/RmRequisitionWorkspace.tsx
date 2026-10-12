@@ -261,7 +261,7 @@ export function RmRequisitionWorkspace() {
                   
                   <div className="flex items-center space-x-3">
                     <div className="text-right mr-2 text-xs">
-                      <div className="font-bold text-slate-900">{group.scs.length} Style Code(s)</div>
+                      <div className="font-bold text-slate-900">{group.scs.length} Size Card(s)</div>
                       <div className="text-slate-500">
                         {group.draftCount} Draft • {group.submittedCount} Under Review
                         {(group.rejectedCount ?? 0) > 0 && (

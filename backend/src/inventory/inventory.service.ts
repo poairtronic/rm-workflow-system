@@ -351,6 +351,7 @@ export class InventoryService {
       adjustmentDirection,
       startDate,
       endDate,
+      search,
       page = 1,
       pageSize = 10,
     } = filterDto || {};
@@ -364,6 +365,14 @@ export class InventoryService {
       .addSelect(['user.id', 'user.name', 'user.email'])
       .orderBy('tx.createdAt', 'DESC')
       .addOrderBy('tx.id', 'DESC');
+
+    if (search && search.trim()) {
+      const term = `%${search.trim().toLowerCase()}%`;
+      query.andWhere(
+        '(LOWER(product.name) LIKE :term OR LOWER(product.code) LIKE :term OR LOWER(sourceBin.code) LIKE :term OR LOWER(destinationBin.code) LIKE :term OR LOWER(tx.lotBatchNumber) LIKE :term OR LOWER(tx.reason) LIKE :term OR LOWER(tx.remarks) LIKE :term OR LOWER(user.name) LIKE :term)',
+        { term }
+      );
+    }
 
     if (productId) {
       query.andWhere('tx.productId = :productId', { productId });

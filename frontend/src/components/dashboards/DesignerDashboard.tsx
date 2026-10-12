@@ -27,7 +27,7 @@ export const DesignerDashboard: React.FC = () => {
       </Card>
       <Card title="Total Associated SCs" className="border-l-4 border-l-purple-500">
         <div className="text-4xl font-bold text-purple-600">{data?.totalSCAssociated || 0}</div>
-        <p className="text-sm text-gray-500 mt-2">Total active Style Codes</p>
+        <p className="text-sm text-gray-500 mt-2">Total active Size Cards</p>
       </Card>
     </div>
   );

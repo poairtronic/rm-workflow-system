@@ -37,6 +37,12 @@ export class DeliveryChallanController {
     return this.deliveryChallanService.getProductCustodyTotal(productId);
   }
 
+  @Get('all-movements')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION, UserRole.GENERAL_MANAGER)
+  async getAllMovements() {
+    return this.deliveryChallanService.getAllDcMovements();
+  }
+
   @Get('movements/:scId')
   @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION)
   async getScMovements(@Param('scId', ParseUUIDPipe) scId: string) {

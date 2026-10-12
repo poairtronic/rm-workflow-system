@@ -1,4 +1,4 @@
-import { LayoutDashboard, PackageSearch, PackagePlus, BellRing, Box, Shield, Settings, PackageCheck, ShieldCheck, Network, BarChart3, FileText, FilePlus, PlaySquare, Users, Database } from 'lucide-react';
+import { LayoutDashboard, PackageSearch, PackagePlus, BellRing, Box, Shield, Settings, PackageCheck, ShieldCheck, Network, BarChart3, FileText, FilePlus, PlaySquare, Users, Database, Truck } from 'lucide-react';
 import type { UserRole } from './contexts/AuthContext';
 
 import { MslAlertsWorkspace } from './pages/MslAlertsWorkspace';
@@ -7,6 +7,7 @@ import { VendorSlaWorkspace } from './pages/VendorSlaWorkspace';
 import { Type1DispatchWorkspace } from './pages/Type1DispatchWorkspace';
 import { Type2DispatchWorkspace } from './pages/Type2DispatchWorkspace';
 import { DockReceiptWorkspace } from './pages/DockReceiptWorkspace';
+import { DcMovementsWorkspace } from './pages/DcMovementsWorkspace';
 import { TraceabilityWorkspace } from './pages/TraceabilityWorkspace';
 import { PoTraceabilityWorkspace } from './pages/PoTraceabilityWorkspace';
 import { VendorDashboardWorkspace } from './pages/VendorDashboardWorkspace';
@@ -65,6 +66,7 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   { name: 'DC Type 1 (Process)', path: '/dispatch/delivery-challan/type-1', icon: Box, roles: ['STORES', 'ADMIN'], component: Type1DispatchWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN', moduleKey: 'dc_type1' },
   { name: 'DC Type 2 (General)', path: '/dispatch/delivery-challan/type-2', icon: Box, roles: ['STORES', 'ADMIN'], component: Type2DispatchWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN', moduleKey: 'dc_type2' },
   { name: 'DC Returns', path: '/dispatch/returns', icon: PackageCheck, roles: ['STORES', 'ADMIN'], component: DockReceiptWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN', moduleKey: 'dc_returns' },
+  { name: 'DC Movements', path: '/dispatch/movements', icon: Truck, roles: ['STORES', 'ADMIN', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER'], component: DcMovementsWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN', moduleKey: 'dc_movements' },
 
   // GOVERNANCE
   { name: 'SC Traceability', path: '/governance/traceability', icon: ShieldCheck, roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: TraceabilityWorkspace, isSidebar: true, group: 'GOVERNANCE', moduleKey: 'sc_traceability' },

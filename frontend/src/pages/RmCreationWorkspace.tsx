@@ -240,7 +240,7 @@ export function RmCreationWorkspace() {
 
   const handleRemoveScCard = (id: string) => {
     if (scCards.length <= 1) {
-      setError('At least one Style Code card is required.');
+      setError('At least one Size Card is required.');
       return;
     }
     setScCards(scCards.filter((card) => card.id !== id));
@@ -320,7 +320,7 @@ export function RmCreationWorkspace() {
       return false;
     }
     if (scCards.length === 0) {
-      setError('At least one Style Code / Job Card is required.');
+      setError('At least one Size Card / Job Card is required.');
       return false;
     }
 
@@ -444,7 +444,7 @@ export function RmCreationWorkspace() {
     <div className="p-8 max-w-7xl mx-auto space-y-6">
       <PageHeader
         title="RM Creation"
-        subtitle="Request raw material according to Purchase Order, Style Code, or as a standalone request."
+        subtitle="Request raw material according to Purchase Order (PO), Size Card (SC), or as a standalone request."
         actionSlot={
           <div className="flex items-center space-x-3">
             <button
@@ -497,7 +497,7 @@ export function RmCreationWorkspace() {
             }`}
           >
             <Layers className="w-4 h-4" />
-            <span>2. According to Style Code (SC)</span>
+            <span>2. According to Size Card (SC)</span>
           </button>
           <button
             type="button"
@@ -535,7 +535,7 @@ export function RmCreationWorkspace() {
             <div>
               <h4 className="text-[16px] font-bold text-slate-900">Confirm Requisition Submission to Stores</h4>
               <p className="text-sm text-slate-600 mt-0.5">
-                You are about to submit RM requisitions for Reference <strong>{poNumber}</strong> with {scCards.length} Style Code / Component card{scCards.length !== 1 ? 's' : ''}. Stores department will immediately receive this in their RM Issue queue.
+                You are about to submit RM requisitions for Reference <strong>{poNumber}</strong> with {scCards.length} Size Card / Component card{scCards.length !== 1 ? 's' : ''}. Stores department will immediately receive this in their RM Issue queue.
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -579,14 +579,14 @@ export function RmCreationWorkspace() {
         {mode === 'BY_SC' && !existingPoId && (
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-1">
-              Select Active Style Code (SC) *
+              Select Active Size Card (SC) *
             </label>
             <select
               value={selectedScId}
               onChange={(e) => handleSelectSc(e.target.value)}
               className="w-full max-w-xl px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm"
             >
-              <option value="">-- Choose an existing Style Code from database --</option>
+              <option value="">-- Choose an existing Size Card from database --</option>
               {availableScs.map((sc) => (
                 <option key={sc.id} value={sc.id}>
                   {sc.scNumber} - {sc.productName} ({sc.purchaseOrder?.poNumber || 'No PO'})
@@ -594,7 +594,7 @@ export function RmCreationWorkspace() {
               ))}
             </select>
             <p className="text-xs text-slate-500 mt-1">
-              Selecting an existing SC automatically loads the linked PO number and component details.
+              Selecting an existing Size Card automatically loads the linked Purchase Order (PO) number and component details.
             </p>
           </div>
         )}
@@ -622,12 +622,12 @@ export function RmCreationWorkspace() {
         </div>
       </div>
 
-      {/* Style Code Cards */}
+      {/* Size Card Cards */}
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-slate-900">
-              {mode === 'STANDALONE' ? 'Internal Job / Part Specification' : 'Style Codes (SCs)'}
+              {mode === 'STANDALONE' ? 'Internal Job / Part Specification' : 'Size Cards (SCs)'}
             </h2>
             <p className="text-xs text-slate-500">
               Define the manufactured component and the exact raw material items required from Stores.
@@ -639,20 +639,20 @@ export function RmCreationWorkspace() {
               className="flex items-center space-x-2 px-3.5 py-2 bg-slate-100 text-slate-700 font-medium rounded-lg hover:bg-slate-200 text-sm transition-colors"
             >
               <Plus className="w-4 h-4 text-slate-500" />
-              <span>Add Another SC Card</span>
+              <span>Add Another Size Card</span>
             </button>
           )}
         </div>
 
         {scCards.length === 0 && (
           <div className="text-center py-12 bg-slate-50 border border-slate-200 border-dashed rounded-xl">
-            <p className="text-slate-500 mb-4">No Style Codes selected or added yet.</p>
+            <p className="text-slate-500 mb-4">No Size Cards selected or added yet.</p>
             <button
               onClick={handleAddScCard}
               className="inline-flex items-center space-x-2 px-4 py-2 text-indigo-600 font-semibold hover:bg-indigo-50 rounded-lg text-sm"
             >
               <Plus className="w-4 h-4" />
-              <span>Add Style Code</span>
+              <span>Add Size Card</span>
             </button>
           </div>
         )}

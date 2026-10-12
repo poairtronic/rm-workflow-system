@@ -317,6 +317,9 @@ export const deliveryChallanApi = {
       vendorName: dc.vendor?.name || dc.vendorName,
     })) as DeliveryChallanDto[];
   },
+  getAllMovements: async () => {
+    return api.get<any[]>('/api/delivery-challans/all-movements');
+  },
   create: (data: any) => {
     const isType1 = data.type === 'PRODUCTION_PROCESS_OUTWARD';
     const endpoint = isType1 ? '/api/delivery-challans/type-1' : '/api/delivery-challans/type-2';

@@ -66,7 +66,7 @@ export class DynamicRoleUserModulePermissions1791550000000 implements MigrationI
                 ('dc_type2', 'DC Type 2 (General)', 'DELIVERY CHALLAN', '/dispatch/delivery-challan/type-2', 'General inventory outward challans', 130),
                 ('dc_returns', 'DC Returns', 'DELIVERY CHALLAN', '/dispatch/returns', 'Inward delivery challan receipt and returns', 140),
 
-                ('sc_traceability', 'SC Traceability', 'GOVERNANCE', '/governance/traceability', 'Style code end-to-end custody tracking', 150),
+                ('sc_traceability', 'SC Traceability', 'GOVERNANCE', '/governance/traceability', 'Size card end-to-end custody tracking', 150),
                 ('po_traceability', 'PO Traceability', 'GOVERNANCE', '/governance/po-traceability', 'Purchase order status and fulfillment audit', 160),
                 ('vendor_slas', 'Vendor SLAs', 'GOVERNANCE', '/governance/vendor-slas', 'Vendor performance and lead-time tracking', 170),
                 ('vendor_analytics', 'Vendor Analytics', 'GOVERNANCE', '/governance/vendor-analytics', 'Vendor scorecards and delivery metrics', 180),
