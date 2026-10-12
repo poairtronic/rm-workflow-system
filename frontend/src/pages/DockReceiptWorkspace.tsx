@@ -190,16 +190,25 @@ export function DockReceiptWorkspace() {
   const processReturnMutation = useMutation({
     mutationFn: (data: ProcessDcReturnDto) => {
       if (!selectedDc) throw new Error('No DC selected');
-      const payload = {
-        actualReceiptDate: new Date().toISOString(),
-        verificationRemarks: '',
-        items: data.items.map((i: any) => ({
+      const itemsToReturn = data.items
+        .filter((i: any) => Number(i.receivedQuantity) > 0)
+        .map((i: any) => ({
           itemId: i.itemId,
           quantityToReturn: Number(i.receivedQuantity),
           receivedQuantity: Number(i.receivedQuantity),
           returnedProductId: i.returnedProductId || undefined,
           destinationBinId: i.destinationBinId || undefined,
-        })),
+        }));
+
+      if (itemsToReturn.length === 0) {
+        toast.error('No items with remaining quantity to return.');
+        throw new Error('No items to return');
+      }
+
+      const payload = {
+        actualReceiptDate: new Date().toISOString(),
+        verificationRemarks: '',
+        items: itemsToReturn,
       };
       return deliveryChallanApi.processReturn(selectedDc.id, payload as any);
     },
@@ -250,7 +259,14 @@ export function DockReceiptWorkspace() {
 
   // DC lifecycle: allow Return/Close for active statuses (dispatched, open, partially returned)
   const isClosed = selectedDc?.status === 'CLOSED' || selectedDc?.status === 'RETURNED';
-  const canReturn = selectedDc && !isClosed;
+  const hasRemainingItems = (selectedDc?.items || []).some((item: any) => {
+    const isType1 = selectedDc?.type === 'PRODUCTION_PROCESS_OUTWARD';
+    const expected = !isType1 && item.expectedOutputQuantity
+      ? Number(item.expectedOutputQuantity)
+      : Number(item.quantityDispatched);
+    return expected > Number(item.quantityReturned || 0);
+  });
+  const canReturn = selectedDc && !isClosed && hasRemainingItems;
   const canClose = selectedDc && !isClosed;
 
   return (

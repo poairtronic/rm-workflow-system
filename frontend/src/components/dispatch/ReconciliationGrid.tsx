@@ -159,8 +159,8 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
                     {remaining}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {isClosed ? (
-                      <span className="text-xs text-slate-500 font-medium italic">Fully Inwarded</span>
+                    {isClosed || remaining <= 0 ? (
+                      <span className="text-xs font-semibold text-emerald-600">Fully Inwarded</span>
                     ) : (
                       <div className="flex flex-col items-end">
                         <input

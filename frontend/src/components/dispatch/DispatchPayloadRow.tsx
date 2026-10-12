@@ -480,6 +480,15 @@ export function DispatchPayloadRow({
                 if (!isType1 && num > availableQty) return `Exceeds available stock (${availableQty})`;
                 return true;
               },
+              onChange: (e) => {
+                if (!isType1) {
+                  const val = e.target.value;
+                  const currentExpected = watch(`scBlocks.${blockIndex}.items.${index}.expectedOutputQuantity`);
+                  if (!currentExpected || currentExpected === '' || Number(currentExpected) === 0) {
+                    setValue(`scBlocks.${blockIndex}.items.${index}.expectedOutputQuantity`, val ? Number(val) : ('' as any), { shouldValidate: true });
+                  }
+                }
+              },
             })}
             className={`w-full h-8 px-2 rounded-md bg-white border text-xs text-slate-900 text-right tabular-nums focus:outline-none focus:ring-1 focus:border-transparent ${
               isQtyInvalid && binId && !isType1

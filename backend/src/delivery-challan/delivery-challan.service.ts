@@ -767,7 +767,11 @@ export class DeliveryChallanService {
           throw new BadRequestException(`Item ${dtoItem.itemId} not found in challan`);
         }
 
-        const outstanding = Number(challanItem.quantityDispatched) - Number(challanItem.quantityReturned);
+        const targetExpected =
+          challan.type === DeliveryChallanType.GENERAL_INVENTORY_OUTWARD && challanItem.expectedOutputQuantity != null
+            ? Number(challanItem.expectedOutputQuantity)
+            : Number(challanItem.quantityDispatched);
+        const outstanding = Math.max(0, targetExpected - Number(challanItem.quantityReturned));
         if (dtoItem.quantityToReturn > outstanding) {
           throw new BadRequestException(`Cannot return more than outstanding quantity for item ${dtoItem.itemId}. Outstanding: ${outstanding}`);
         }
