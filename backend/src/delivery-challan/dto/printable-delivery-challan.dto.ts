@@ -117,6 +117,8 @@ export interface PrintableAuditInfo {
 // ─── Root Printable DTO ───────────────────────────────────────────────────────
 
 export interface PrintableGroupItem {
+  partNumber?: string | null;
+  partName?: string | null;
   productCode: string;
   productName: string;
   binCode: string;

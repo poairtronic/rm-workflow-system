@@ -647,6 +647,8 @@ export class DeliveryChallanService {
         }
         const group = groupsMap.get(groupKey);
         group.items.push({
+          partNumber: item.partNumber,
+          partName: item.partName,
           productCode: item.productCode,
           productName: item.productName,
           binCode: item.binCode,

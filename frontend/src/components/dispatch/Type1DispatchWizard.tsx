@@ -15,6 +15,7 @@ export function Type1DispatchWizard() {
       type: 'PRODUCTION_PROCESS_OUTWARD',
       vendorId: '',
       expectedReturnDate: '',
+      notes: 'HT AND RETURN',
       scBlocks: [
         {
           scId: '',
@@ -101,6 +102,7 @@ export function Type1DispatchWizard() {
       vendorId: data.vendorId,
       dispatchDate: new Date().toISOString(),
       expectedReturnDate: data.expectedReturnDate,
+      notes: data.notes?.trim() || undefined,
       items: data.scBlocks.flatMap((block: any) => 
         block.items.map((item: any) => ({
           ...item,
@@ -110,6 +112,8 @@ export function Type1DispatchWizard() {
           processId: block.processId,
           partNumber: item.partNumber || undefined,
           partName: item.partName || undefined,
+          description: item.description?.trim() || undefined,
+          batchNumber: item.batchNumber?.trim() || undefined,
           quantityDispatched: Number(item.quantity)
         }))
       )
@@ -208,6 +212,17 @@ export function Type1DispatchWizard() {
                 />
                 <p className="mt-1 text-[11px] text-slate-500">Universal SLA date. Auto-calculated based on first process SLA.</p>
               </div>
+            </div>
+
+            <div className="mt-5 pt-4 border-t border-slate-100">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Remarks</label>
+              <input
+                type="text"
+                {...register('notes')}
+                placeholder="Enter remarks (e.g. HT AND RETURN)..."
+                className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
+              <p className="mt-1 text-[11px] text-slate-500">Printed directly in the Remarks section on the physical Supplier DC.</p>
             </div>
           </div>
 

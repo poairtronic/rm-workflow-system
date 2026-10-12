@@ -81,6 +81,7 @@ export function DeliveryChallanPrintView() {
   let displayItems: Array<{
     partNo: string;
     productName: string;
+    description?: string;
     qty: number;
     uom: string;
   }> = [];
@@ -91,6 +92,7 @@ export function DeliveryChallanPrintView() {
         displayItems.push({
           partNo: item.partNumber || item.productCode || item.productName || '—',
           productName: item.partName || item.productName || item.productCode || '—',
+          description: item.description || '',
           qty: Number(item.quantityDispatched ?? 0),
           uom: item.uom || (item.productName?.toUpperCase().includes('BAR') || item.productName?.toUpperCase().includes('ROD') ? 'MM' : 'NOS'),
         });
@@ -101,6 +103,7 @@ export function DeliveryChallanPrintView() {
       displayItems.push({
         partNo: item.partNumber || item.productCode || item.productName || '—',
         productName: item.partName || item.productName || item.productCode || '—',
+        description: item.description || '',
         qty: Number(item.quantityDispatched ?? item.quantity ?? 0),
         uom: item.uom || (item.productName?.toUpperCase().includes('BAR') || item.productName?.toUpperCase().includes('ROD') ? 'MM' : 'NOS'),
       });
@@ -110,6 +113,7 @@ export function DeliveryChallanPrintView() {
       displayItems.push({
         partNo: item.partNumber || item.materialCode || item.productCode || item.productName || '—',
         productName: item.partName || item.productName || item.materialCode || '—',
+        description: item.description || '',
         qty: Number(item.quantityDispatched ?? item.quantity ?? 0),
         uom: item.uom || (item.productName?.toUpperCase().includes('BAR') || item.productName?.toUpperCase().includes('ROD') ? 'MM' : 'NOS'),
       });
@@ -296,15 +300,20 @@ export function DeliveryChallanPrintView() {
               </thead>
               <tbody style={{ height: 'calc(100% - 28px)' }}>
                 {displayItems.map((item, idx) => (
-                  <tr key={idx} className="text-[11px] align-top" style={{ height: '24px' }}>
+                  <tr key={idx} className="text-[11px] align-top">
                     <td className="py-1 px-2 border-r border-black text-center font-semibold text-slate-800">
                       {idx + 1}
                     </td>
                     <td className="py-1 px-3 border-r border-black font-bold text-slate-900 uppercase">
                       {item.partNo}
                     </td>
-                    <td className="py-1 px-3 border-r border-black font-semibold text-slate-800 uppercase">
-                      {item.productName}
+                    <td className="py-1 px-3 border-r border-black font-semibold text-slate-800">
+                      <div className="uppercase">{item.productName}</div>
+                      {item.description && (
+                        <div className="text-[10px] text-slate-600 font-normal normal-case leading-tight mt-0.5 whitespace-pre-wrap">
+                          {item.description}
+                        </div>
+                      )}
                     </td>
                     <td className="py-1 px-3 text-right font-bold text-slate-900 tabular-nums whitespace-nowrap">
                       {item.qty} {item.uom}
