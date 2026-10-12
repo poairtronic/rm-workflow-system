@@ -25,6 +25,15 @@ export function TopBar() {
     staleTime: 60000,
   });
 
+  const { data: rawMovements = [] } = useQuery({
+    queryKey: ['global-search-movements'],
+    queryFn: async () => {
+      const res = await deliveryChallanApi.getAllMovements();
+      return Array.isArray(res) ? res : (res as any)?.data || [];
+    },
+    staleTime: 60000,
+  });
+
   const { data: processes = [] } = useQuery({
     queryKey: ['global-search-processes'],
     queryFn: () => productionProcessApi.getAll(),
@@ -91,40 +100,87 @@ export function TopBar() {
       });
     };
 
-    // 1. Matched Delivery Challans
-    const matchedDcs = (challans as any[]).filter((dc) => {
-      if (matchField(dc.challanNumber || dc.dcNumber)) return true;
-      if (matchField(dc.vendorName || dc.vendor?.name)) return true;
-      if (matchField(dc.processName || dc.process?.name || dc.process?.nomenclature)) return true;
-      if (matchField(dc.notes)) return true;
-      if (matchField(dc.sc?.scNumber || dc.sc?.productName)) return true;
+    // 1. Matched Delivery Challans & Dispatch Movements
+    const matchedDcsMap = new Map<string, any>();
 
-      // Item level: Part Number, Product Name, Process
-      if (dc.items && Array.isArray(dc.items)) {
-        for (const item of dc.items) {
-          if (matchField(item.partNumber || item.part_number)) return true;
-          if (matchField(item.partName || item.part_name)) return true;
-          if (matchField(item.product?.name || item.productName)) return true;
-          if (matchField(item.product?.code || item.productCode)) return true;
-          if (matchField(item.processName || item.process?.name)) return true;
-          if (matchField(item.description)) return true;
+    // Search detailed movements (has Part #, Product Name, Vendor, Process, Notes)
+    for (const m of rawMovements as any[]) {
+      const isMatch =
+        matchField(m.challanNumber) ||
+        matchField(m.vendorName) ||
+        matchField(m.vendorCode) ||
+        matchField(m.partNumber) ||
+        matchField(m.partName) ||
+        matchField(m.productName) ||
+        matchField(m.productCode) ||
+        matchField(m.processName) ||
+        matchField(m.notes);
+
+      if (isMatch) {
+        const key = `${m.challanNumber || 'DC'}-${m.partNumber || ''}-${m.productName || ''}`;
+        if (!matchedDcsMap.has(key)) {
+          matchedDcsMap.set(key, {
+            id: m.id || key,
+            challanNumber: m.challanNumber,
+            vendorName: m.vendorName,
+            processName: m.processName,
+            partNumber: m.partNumber,
+            productName: m.productName,
+            notes: m.notes,
+          });
         }
       }
+    }
 
-      if (dc.groups && Array.isArray(dc.groups)) {
-        for (const group of dc.groups) {
-          if (matchField(group.processName || group.process?.name)) return true;
-          if (group.items && Array.isArray(group.items)) {
-            for (const item of group.items) {
-              if (matchField(item.partNumber || item.part_number)) return true;
-              if (matchField(item.partName || item.part_name)) return true;
-              if (matchField(item.productName)) return true;
-            }
+    // Also search full challans
+    for (const dc of challans as any[]) {
+      const isDcMatch =
+        matchField(dc.challanNumber || dc.dcNumber) ||
+        matchField(dc.vendorName || dc.vendor?.name) ||
+        matchField(dc.processName || dc.process?.name || dc.process?.nomenclature) ||
+        matchField(dc.notes) ||
+        matchField(dc.sc?.scNumber || dc.sc?.productName);
+
+      let itemPart = '';
+      let itemProduct = '';
+      let itemProcess = '';
+
+      if (dc.items && Array.isArray(dc.items)) {
+        for (const item of dc.items) {
+          if (
+            matchField(item.partNumber || item.part_number) ||
+            matchField(item.partName || item.part_name) ||
+            matchField(item.product?.name || item.productName) ||
+            matchField(item.product?.code || item.productCode) ||
+            matchField(item.processName || item.process?.name) ||
+            matchField(item.description)
+          ) {
+            itemPart = item.partNumber || item.part_number || '';
+            itemProduct = item.product?.name || item.productName || '';
+            itemProcess = item.processName || item.process?.name || '';
+            break;
           }
         }
       }
-      return false;
-    }).slice(0, 5);
+
+      if (isDcMatch || itemPart || itemProduct || itemProcess) {
+        const key = dc.challanNumber || dc.dcNumber || dc.id;
+        if (!matchedDcsMap.has(key)) {
+          const firstItem = dc.items?.[0] || dc.groups?.[0]?.items?.[0];
+          matchedDcsMap.set(key, {
+            id: dc.id,
+            challanNumber: dc.challanNumber || dc.dcNumber,
+            vendorName: dc.vendorName || dc.vendor?.name,
+            processName: itemProcess || dc.processName || dc.process?.name || dc.process?.nomenclature,
+            partNumber: itemPart || firstItem?.partNumber,
+            productName: itemProduct || firstItem?.productName || firstItem?.product?.name,
+            notes: dc.notes,
+          });
+        }
+      }
+    }
+
+    const matchedDcs = Array.from(matchedDcsMap.values()).slice(0, 6);
 
     // 2. Matched Processes
     const matchedProcesses = (processes as any[]).filter((proc) => {
@@ -164,7 +220,7 @@ export function TopBar() {
       products: matchedProducts,
       totalCount,
     };
-  }, [searchQuery, challans, processes, vendors, products]);
+  }, [searchQuery, challans, rawMovements, processes, vendors, products]);
 
   const handleNavigateTarget = (targetEntity?: string | null, _targetId?: string | null) => {
     if (!targetEntity) return;
@@ -277,8 +333,8 @@ export function TopBar() {
                           const dcNum = dc.challanNumber || dc.dcNumber || 'DC';
                           const vendorName = dc.vendorName || dc.vendor?.name || 'External Vendor';
                           const process = dc.processName || dc.process?.name || dc.notes || '';
-                          const firstItem = dc.items?.[0] || dc.groups?.[0]?.items?.[0];
-                          const part = firstItem?.partNumber || firstItem?.productName || '';
+                          const part = dc.partNumber || dc.items?.[0]?.partNumber || dc.items?.[0]?.part_number || '';
+                          const product = dc.productName || dc.items?.[0]?.productName || dc.items?.[0]?.product?.name || '';
 
                           return (
                             <button
@@ -292,9 +348,10 @@ export function TopBar() {
                                   <span className="font-mono font-bold text-xs text-blue-700">{dcNum}</span>
                                   <span className="text-xs font-semibold text-slate-800">{vendorName}</span>
                                 </div>
-                                <div className="text-[11px] text-slate-500 flex items-center gap-2">
-                                  {process && <span className="bg-amber-50 text-amber-800 px-1.5 py-0.2 rounded font-medium">{process}</span>}
-                                  {part && <span>Part: {part}</span>}
+                                <div className="text-[11px] text-slate-500 flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                                  {process && <span className="bg-amber-50 text-amber-800 border border-amber-200/60 px-1.5 py-0.2 rounded font-medium">{process}</span>}
+                                  {part && part !== '—' && <span className="font-mono bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded font-medium">Part: {part}</span>}
+                                  {product && <span className="text-slate-600">Product: {product}</span>}
                                 </div>
                               </div>
                               <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-600 transition-colors shrink-0 ml-2" />
