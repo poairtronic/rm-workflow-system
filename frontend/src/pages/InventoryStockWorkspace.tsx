@@ -470,7 +470,7 @@ export function InventoryStockWorkspace() {
             `}
           >
             <Truck className="w-4 h-4" />
-            DC Movements (Type 1 & Type 2)
+            DC Movement
           </button>
         </nav>
       </div>
