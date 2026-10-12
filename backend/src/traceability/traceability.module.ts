@@ -16,6 +16,7 @@ import { ProductionProcess } from '../production-process/entities/production-pro
 import { Vendor } from '../vendor/entities/vendor.entity.js';
 import { VendorSla } from '../vendor/entities/vendor-sla.entity.js';
 import { DeliveryChallanItem } from '../delivery-challan/entities/delivery-challan-item.entity.js';
+import { DcMovement } from '../delivery-challan/entities/dc-movement.entity.js';
 import { GeneralIssue } from '../general-issue/entities/general-issue.entity.js';
 import { Product } from '../inventory/entities/product.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
@@ -34,6 +35,7 @@ import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
       StockTransaction,
       DeliveryChallan,
       DeliveryChallanItem,
+      DcMovement,
       ProductionProcess,
       Vendor,
       VendorSla,

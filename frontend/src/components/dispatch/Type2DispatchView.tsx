@@ -91,7 +91,10 @@ export function Type2DispatchView() {
         ...data,
         items: data.scBlocks[0].items.map((item: any) => ({
           ...item,
-          quantityDispatched: Number(item.quantity)
+          quantityDispatched: Number(item.quantity),
+          outputProductId: item.outputProductId || undefined,
+          expectedOutputQuantity: item.expectedOutputQuantity ? Number(item.expectedOutputQuantity) : undefined,
+          outputBinId: item.outputBinId || undefined,
         }))
       };
       createDcMutation.mutate(payload);
@@ -240,20 +243,23 @@ export function Type2DispatchView() {
 
                 {/* Condensed Table */}
                 <div>
-                  <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wide mb-3">Payload Summary</h3>
+                  <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wide mb-3">Asymmetric Stock Conversion Summary</h3>
                   <div className="border border-slate-200 rounded-lg overflow-hidden">
                     <table className="w-full text-sm text-left whitespace-nowrap">
                       <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold uppercase text-slate-600">
                         <tr>
-                          <th className="px-4 py-2.5">Material</th>
-                          <th className="px-4 py-2.5">Rack</th>
-                          <th className="px-4 py-2.5">Bin</th>
-                          <th className="px-4 py-2.5 text-right">Quantity</th>
+                          <th className="px-4 py-2.5">Input Material (Out)</th>
+                          <th className="px-4 py-2.5">Source Rack</th>
+                          <th className="px-4 py-2.5">Source Bin</th>
+                          <th className="px-4 py-2.5 text-right">Dispatched Qty</th>
+                          <th className="px-4 py-2.5">Converted Material (In)</th>
+                          <th className="px-4 py-2.5 text-right">Expected Inward Qty</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {items.map((item: any, idx: number) => {
                           const prod = (products as any[])?.find((p: any) => p.id === item.productId);
+                          const outProd = (products as any[])?.find((p: any) => p.id === item.outputProductId);
                           const binObj = (allBins as any[])?.find((b: any) => b.id === item.binId);
                           const rackName = binObj?.rack?.name || binObj?.rack?.code || '—';
                           const binCode = binObj?.code || '—';
@@ -264,8 +270,14 @@ export function Type2DispatchView() {
                               </td>
                               <td className="px-4 py-2.5 text-slate-600 font-medium">{rackName}</td>
                               <td className="px-4 py-2.5 text-slate-600 font-medium">{binCode}</td>
-                              <td className="px-4 py-2.5 text-right tabular-nums font-semibold">
-                                {item.quantity} {prod?.uom || item.uom || 'NOS'}
+                              <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-rose-700">
+                                -{item.quantity} {prod?.uom || item.uom || 'NOS'}
+                              </td>
+                              <td className="px-4 py-2.5 font-medium text-slate-900">
+                                {outProd ? `${outProd.code} - ${outProd.name}` : (item.outputProductId || 'Same Product')}
+                              </td>
+                              <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-emerald-700">
+                                +{item.expectedOutputQuantity || item.quantity} {outProd?.uom || prod?.uom || 'NOS'}
                               </td>
                             </tr>
                           );
@@ -286,8 +298,8 @@ export function Type2DispatchView() {
                     />
                   </div>
                   <div className="text-sm">
-                    <span className="font-semibold text-blue-900 block">I confirm this general dispatch is authorized.</span>
-                    <span className="text-blue-700 text-xs">This action will permanently deduct stock from the selected bins and generate an immutable ledger entry.</span>
+                    <span className="font-semibold text-blue-900 block">I confirm this stock conversion dispatch is authorized.</span>
+                    <span className="text-blue-700 text-xs">This action will deduct input stock from the selected warehouse bins. Transformed output products will be credited into warehouse stock upon return inward.</span>
                   </div>
                 </label>
               </div>

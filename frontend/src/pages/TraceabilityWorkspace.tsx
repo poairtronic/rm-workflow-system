@@ -6,6 +6,7 @@ import { TraceabilitySearch } from '../components/traceability/TraceabilitySearc
 import { ScContextBanner } from '../components/traceability/ScContextBanner';
 import { LifecycleTimeline } from '../components/traceability/LifecycleTimeline';
 import { ZeroLossReconciliation } from '../components/traceability/ZeroLossReconciliation';
+import { DcMovementsLedger } from '../components/traceability/DcMovementsLedger';
 
 export function TraceabilityWorkspace() {
   const [scId, setScId] = useState<string | null>(null);
@@ -67,6 +68,9 @@ export function TraceabilityWorkspace() {
       {data && !isLoading && !isError && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
           <ScContextBanner masterData={data.masterData} />
+
+          {/* Subcontracting DC Movements WIP Ledger */}
+          <DcMovementsLedger movements={(data as any)?.dcMovements || []} />
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">

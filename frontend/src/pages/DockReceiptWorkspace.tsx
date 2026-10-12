@@ -167,14 +167,23 @@ export function DockReceiptWorkspace() {
     setActiveDcView('RECONCILE');
     setClosureNotes('');
     setIsClosureConfirmed(false);
+    const isType1 = dc.type === 'PRODUCTION_PROCESS_OUTWARD';
     methods.reset({
-      items: (dc.items || []).map((item: any) => ({
-        itemId: item.id,
-        receivedQuantity: Number(item.quantityDispatched) - Number(item.quantityReturned),
-        usableQuantity: Number(item.quantityDispatched) - Number(item.quantityReturned),
-        scrapQuantity: 0,
-        _isSplit: false,
-      }))
+      items: (dc.items || []).map((item: any) => {
+        const expected = !isType1 && item.expectedOutputQuantity
+          ? Number(item.expectedOutputQuantity)
+          : Number(item.quantityDispatched);
+        const remaining = Math.max(0, expected - Number(item.quantityReturned || 0));
+        return {
+          itemId: item.id,
+          returnedProductId: item.outputProductId || item.productId,
+          destinationBinId: item.outputBinId || item.binId || '',
+          receivedQuantity: remaining,
+          usableQuantity: remaining,
+          scrapQuantity: 0,
+          _isSplit: false,
+        };
+      })
     });
   };
 
@@ -188,6 +197,8 @@ export function DockReceiptWorkspace() {
           itemId: i.itemId,
           quantityToReturn: Number(i.receivedQuantity),
           receivedQuantity: Number(i.receivedQuantity),
+          returnedProductId: i.returnedProductId || undefined,
+          destinationBinId: i.destinationBinId || undefined,
         })),
       };
       return deliveryChallanApi.processReturn(selectedDc.id, payload as any);

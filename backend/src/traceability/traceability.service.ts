@@ -13,6 +13,7 @@ import { StockTransaction, TransactionType } from '../inventory/entities/stock-t
 import { Product } from '../inventory/entities/product.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import { DeliveryChallan, DeliveryChallanStatus } from '../delivery-challan/entities/delivery-challan.entity.js';
+import { DcMovement } from '../delivery-challan/entities/dc-movement.entity.js';
 import { ProductionProcess } from '../production-process/entities/production-process.entity.js';
 import { Vendor } from '../vendor/entities/vendor.entity.js';
 import { VendorSla } from '../vendor/entities/vendor-sla.entity.js';
@@ -49,6 +50,7 @@ import {
   ConsolidatedInventoryTransactionDto,
   ConsolidatedProcessStepDto,
   ConsolidatedDeliveryChallanDto,
+  ConsolidatedDcMovementDto,
   ConsolidatedVendorDto,
 } from './dto/consolidated-sc-traceability.dto.js';
 import {
@@ -116,6 +118,8 @@ export class TraceabilityService {
     private readonly productRepo: Repository<Product>,
     @InjectRepository(StockBalance)
     private readonly stockBalanceRepo: Repository<StockBalance>,
+    @InjectRepository(DcMovement)
+    private readonly dcMovementRepo: Repository<DcMovement>,
   ) {}
 
   /**
@@ -752,6 +756,17 @@ export class TraceabilityService {
     });
     const dcIds = deliveryChallans.map((d) => d.id);
 
+    // 7b. DC Movements (Separate WIP movement ledger for process challans)
+    const dcMovements = await this.dcMovementRepo.find({
+      where: { scId },
+      relations: {
+        challan: { vendor: true, process: true },
+        dispatchedProduct: true,
+        returnedProduct: true,
+      },
+      order: { createdAt: 'ASC' },
+    });
+
     // 8. General Issues linked to SC
     const generalIssues = await this.generalIssueRepo.find({
       where: { scId },
@@ -1007,13 +1022,29 @@ export class TraceabilityService {
         const balanceQuantity = QuantityCalculator.roundDecimal(Math.max(0, quantityDispatched - quantityReturned));
         return {
           id: item.id,
-          productId: item.productId,
+          productId: item.productId ?? undefined,
           productName: item.product?.name,
           quantityDispatched,
           quantityReturned,
           balanceQuantity,
         };
       }),
+    }));
+
+    const dcMovementsDto: ConsolidatedDcMovementDto[] = dcMovements.map((m) => ({
+      id: m.id,
+      challanId: m.challanId,
+      challanNumber: m.challan?.challanNumber,
+      processName: m.challan?.process?.name,
+      vendorName: m.challan?.vendor?.name,
+      dispatchedProductId: m.dispatchedProductId,
+      dispatchedProductName: m.dispatchedProduct?.name,
+      dispatchedQty: Number(m.dispatchedQty) || 0,
+      returnedProductId: m.returnedProductId || undefined,
+      returnedProductName: m.returnedProduct?.name,
+      returnedQty: Number(m.returnedQty) || 0,
+      status: m.status,
+      createdAt: new Date(m.createdAt).toISOString(),
     }));
 
     return {
@@ -1028,6 +1059,7 @@ export class TraceabilityService {
       inventoryTransactions: inventoryTransactionsDto,
       productionProcesses,
       deliveryChallans: deliveryChallansDto,
+      dcMovements: dcMovementsDto,
       vendors,
       finalRmUsage: {
         summary: finalRmUsageResponse.summary,
@@ -1400,7 +1432,7 @@ export class TraceabilityService {
               const balanceQuantity = QuantityCalculator.roundDecimal(Math.max(0, quantityDispatched - quantityReturned));
               return {
                 id: item.id,
-                productId: item.productId,
+                productId: item.productId ?? undefined,
                 productName: item.product?.name,
                 quantityDispatched,
                 quantityReturned,

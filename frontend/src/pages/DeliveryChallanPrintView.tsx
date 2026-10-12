@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Printer, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
@@ -14,8 +15,33 @@ export function DeliveryChallanPrintView() {
     enabled: !!id,
   });
 
+  // Remove browser print header/footer title (RMRIT) dynamically during print
+  useEffect(() => {
+    const originalTitle = document.title;
+    const handleBeforePrint = () => {
+      document.title = '';
+    };
+    const handleAfterPrint = () => {
+      document.title = originalTitle;
+    };
+
+    window.addEventListener('beforeprint', handleBeforePrint);
+    window.addEventListener('afterprint', handleAfterPrint);
+
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+      window.removeEventListener('afterprint', handleAfterPrint);
+      document.title = originalTitle;
+    };
+  }, []);
+
   const handlePrint = () => {
+    const originalTitle = document.title;
+    document.title = '';
     window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1000);
   };
 
   if (isLoading) {
@@ -36,7 +62,7 @@ export function DeliveryChallanPrintView() {
           <p className="text-sm text-red-700 mb-6">Could not load printable data for DC: {id}</p>
           <button 
             onClick={() => navigate(-1)}
-            className="px-6 h-10 bg-white border border-red-200 text-red-700 text-sm font-medium rounded-lg hover:bg-red-50 shadow-xs transition-colors"
+            className="px-6 h-10 bg-white border border-red-200 text-red-700 text-sm font-medium rounded-lg hover:bg-red-50 shadow-xs transition-colors cursor-pointer"
           >
             Go Back
           </button>
@@ -101,11 +127,67 @@ export function DeliveryChallanPrintView() {
   const dcNumber = challan.challanNumber || dc.dcNumber || 'SDC/2627/0001';
   const notes = challan.notes || dc.notes || 'HT AND RETURN';
 
+  // Format vendor address lines
+  const formatVendorAddress = (address?: string) => {
+    if (!address) {
+      return ['H-06,', 'INDUSTRIAL ESTATE', 'AMBATTUR', 'CHENNAI'];
+    }
+    if (address.includes('\n')) {
+      return address.split('\n').map(l => l.trim()).filter(Boolean);
+    }
+    if (address.includes(',')) {
+      return address.split(',').map(l => l.trim()).filter(Boolean);
+    }
+    if (address.includes('/')) {
+      return address.split('/').map(l => l.trim()).filter(Boolean);
+    }
+    return [address];
+  };
+
+  const addressLines = formatVendorAddress(vendor.address);
+
   return (
-    <div className="relative min-h-screen bg-slate-100 p-6 print:p-0 print:bg-white text-black font-sans">
+    <div className="relative min-h-screen bg-slate-200/80 py-8 print:py-0 print:bg-white text-black font-sans flex justify-center items-start">
+      {/* Print Specific CSS to enforce full A4, 0 margin (removes headers & footers like date/watermark/localhost) */}
+      <style>{`
+        @page {
+          size: A4 portrait;
+          margin: 0mm;
+        }
+        @media print {
+          html, body {
+            width: 210mm !important;
+            height: 297mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+            background: #ffffff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .dc-sheet-wrapper {
+            width: 210mm !important;
+            height: 297mm !important;
+            max-height: 297mm !important;
+            padding: 10mm 12mm !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
       
       {/* Floating Action Bar - Hidden during physical print */}
-      <div className="fixed bottom-8 right-8 flex items-center gap-3 print:hidden z-50">
+      <div className="no-print fixed bottom-8 right-8 flex items-center gap-3 z-50">
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 px-5 h-11 bg-white border border-slate-300 text-slate-700 rounded-lg shadow-md hover:bg-slate-50 transition-colors font-medium text-sm cursor-pointer"
@@ -122,16 +204,16 @@ export function DeliveryChallanPrintView() {
         </button>
       </div>
 
-      {/* A4 Sheet Container */}
-      <div className="w-full max-w-[210mm] min-h-[297mm] mx-auto bg-white p-8 shadow-md print:shadow-none print:p-4 print:max-w-none print:min-h-0 border border-slate-200 print:border-none flex flex-col justify-between">
+      {/* A4 Sheet Container: Exact 210mm x 297mm dimensions, locked to full page with 10mm/12mm padding */}
+      <div className="dc-sheet-wrapper w-[210mm] h-[297mm] max-h-[297mm] mx-auto bg-white p-[10mm_12mm] shadow-2xl print:shadow-none box-border flex flex-col justify-between overflow-hidden">
         
-        {/* Main Document Box */}
-        <div className="border border-black flex-1 flex flex-col">
+        {/* Main Document Outer Box: spans full available height */}
+        <div className="border border-black flex-1 flex flex-col h-full overflow-hidden">
           
           {/* Header Row: Logo & Company Name */}
           <div className="flex border-b border-black">
             {/* Logo Cell */}
-            <div className="w-28 p-2 border-r border-black flex items-center justify-center shrink-0">
+            <div className="w-32 p-2 border-r border-black flex items-center justify-center shrink-0">
               <VelanLogo width={74} height={58} color="#475569" />
             </div>
             
@@ -140,13 +222,15 @@ export function DeliveryChallanPrintView() {
               <h1 className="text-sm font-black tracking-wide uppercase text-slate-900">
                 {company.name || 'VELAN METROLOGY INDIA PRIVATE LIMITED'}
               </h1>
-              <p className="text-[11px] leading-tight text-slate-800 font-medium mt-1 whitespace-pre-line">
+              <p className="text-[11px] leading-tight text-slate-800 font-medium mt-1">
                 {company.address || 'NO 146/87 A&B, Jayaram Nagar Main Road ,\nVanagaram , Chennai - 600095'}
               </p>
-              <div className="text-[11px] leading-tight text-slate-800 font-medium mt-0.5 flex items-center justify-center gap-3">
-                {company.phone && <span>Phone: {company.phone}</span>}
-                {company.email && <span>Email: {company.email}</span>}
-              </div>
+              <p className="text-[11px] leading-tight text-slate-800 font-medium mt-1">
+                Phone: {company.phone || '9600703283'}
+              </p>
+              <p className="text-[11px] leading-tight text-slate-800 font-medium">
+                Email: {company.email || 'velanmetrology@gmail.com'}
+              </p>
             </div>
           </div>
 
@@ -163,20 +247,20 @@ export function DeliveryChallanPrintView() {
             <div className="p-3 border-r border-black flex flex-col justify-between leading-snug">
               <div>
                 <span className="font-bold underline uppercase block mb-1">Supplier Informations:</span>
-                <p className="font-extrabold text-slate-900 uppercase">{vendor.name || 'N/A'}</p>
-                {vendor.address ? (
-                  <p className="text-slate-800 whitespace-pre-line text-[11px] mt-0.5">{vendor.address}</p>
-                ) : (
-                  <p className="text-slate-500 italic text-[11px]">Industrial Estate / Ambattur / Chennai</p>
-                )}
+                <p className="font-extrabold text-slate-900 uppercase">{vendor.name || 'FLAMETECH (MADRAS) PVT.LTD'}</p>
+                <div className="text-slate-800 text-[11px] mt-0.5 uppercase space-y-0.5">
+                  {addressLines.map((line, idx) => (
+                    <div key={idx}>{line}</div>
+                  ))}
+                </div>
               </div>
-              <div className="mt-2 text-[11px] font-semibold text-slate-900">
-                Contact : {vendor.contactPerson ? `${vendor.contactPerson}` : ''} {vendor.phone ? `/ ${vendor.phone}` : ''}
+              <div className="mt-3 text-[11px] font-semibold text-slate-900">
+                Contact : {vendor.contactPerson ? `${vendor.contactPerson} ` : ''}{vendor.phone ? `/ ${vendor.phone}` : 'FLAMETECH / 9840092294'}
               </div>
             </div>
 
             {/* Right Box: DC No & Dates */}
-            <div className="flex flex-col">
+            <div className="flex flex-col justify-between">
               <div className="p-2 border-b border-black flex flex-col gap-1 text-[11px]">
                 <div className="flex justify-between items-center">
                   <span className="text-slate-700">Supplier DC No. :</span>
@@ -193,64 +277,62 @@ export function DeliveryChallanPrintView() {
                 <span className="font-medium text-slate-900">—</span>
               </div>
               
-              <div className="p-2 text-center text-[11px] font-bold uppercase tracking-wider text-slate-800 bg-slate-50/50 flex-1 flex items-center justify-center">
+              <div className="p-2 text-center text-[11px] font-bold uppercase tracking-wider text-slate-800 bg-white flex-1 flex items-center justify-center">
                 {processName || 'PROCESS TYPE'}
               </div>
             </div>
           </div>
 
-          {/* Items Table */}
-          <div className="flex-1 flex flex-col">
-            <table className="w-full border-collapse text-xs">
+          {/* Items Table: Expands to fill full page height, with NO horizontal lines between items */}
+          <div className="flex-1 flex flex-col min-h-0" style={{ display: 'flex', flexDirection: 'column', flex: '1 1 0%' }}>
+            <table className="w-full border-collapse table-fixed" style={{ height: '100%', width: '100%' }}>
               <thead>
-                <tr className="border-b border-black bg-slate-50/70 text-[11px] font-bold text-slate-900">
-                  <th className="py-1.5 px-3 border-r border-black text-center w-12">Sl</th>
-                  <th className="py-1.5 px-4 border-r border-black text-left w-64">Part No.</th>
-                  <th className="py-1.5 px-4 border-r border-black text-left">Product/Particulars</th>
-                  <th className="py-1.5 px-4 text-right w-28">Quantity</th>
+                <tr className="border-b border-black bg-white text-[11px] font-bold text-slate-900" style={{ height: '28px' }}>
+                  <th className="py-1 px-2 border-r border-black text-center" style={{ width: '42px' }}>Sl</th>
+                  <th className="py-1 px-3 border-r border-black text-left" style={{ width: '190px' }}>Part No.</th>
+                  <th className="py-1 px-3 border-r border-black text-left">Product/Particulars</th>
+                  <th className="py-1 px-3 text-right" style={{ width: '100px' }}>Quantity</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-black/10">
+              <tbody style={{ height: 'calc(100% - 28px)' }}>
                 {displayItems.map((item, idx) => (
-                  <tr key={idx} className="text-[11px]">
-                    <td className="py-2 px-3 border-r border-black text-center font-semibold text-slate-800 align-top">
+                  <tr key={idx} className="text-[11px] align-top" style={{ height: '24px' }}>
+                    <td className="py-1 px-2 border-r border-black text-center font-semibold text-slate-800">
                       {idx + 1}
                     </td>
-                    <td className="py-2 px-4 border-r border-black font-bold text-slate-900 align-top uppercase">
+                    <td className="py-1 px-3 border-r border-black font-bold text-slate-900 uppercase">
                       {item.partNo}
                     </td>
-                    <td className="py-2 px-4 border-r border-black font-semibold text-slate-800 align-top uppercase">
+                    <td className="py-1 px-3 border-r border-black font-semibold text-slate-800 uppercase">
                       {item.productName}
                     </td>
-                    <td className="py-2 px-4 text-right font-bold text-slate-900 tabular-nums align-top whitespace-nowrap">
+                    <td className="py-1 px-3 text-right font-bold text-slate-900 tabular-nums whitespace-nowrap">
                       {item.qty} {item.uom}
                     </td>
                   </tr>
                 ))}
 
-                {/* Empty rows filler if few items */}
-                {displayItems.length < 5 && Array.from({ length: 5 - displayItems.length }).map((_, fIdx) => (
-                  <tr key={`fill-${fIdx}`} className="h-8">
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td className="border-r border-black"></td>
-                    <td></td>
-                  </tr>
-                ))}
+                {/* Empty stretch row: Has vertical column borders continuing down all the way to Remarks, but NO horizontal line */}
+                <tr style={{ height: '100%' }}>
+                  <td className="border-r border-black"></td>
+                  <td className="border-r border-black"></td>
+                  <td className="border-r border-black"></td>
+                  <td></td>
+                </tr>
               </tbody>
             </table>
           </div>
 
-          {/* Footer Remarks & Signatures */}
-          <div className="border-t border-black p-3 text-xs flex flex-col justify-between min-h-27.5">
+          {/* Footer Remarks & Signatures: Fixed height at bottom of full page */}
+          <div className="border-t border-black p-3 text-xs flex flex-col justify-between shrink-0" style={{ minHeight: '120px' }}>
             {/* Remarks Line */}
-            <div className="mb-4">
+            <div className="mb-2">
               <span className="font-bold">Remarks : </span>
               <span className="font-semibold text-slate-900 uppercase">{notes}</span>
             </div>
 
             {/* Bottom Row: Company Tax Details & Authorized Signatory */}
-            <div className="flex justify-between items-end text-[11px] pt-3">
+            <div className="flex justify-between items-end text-[11px] pt-1">
               <div className="space-y-0.5">
                 <div>
                   <span className="text-slate-700">Company's State : </span>
@@ -263,7 +345,7 @@ export function DeliveryChallanPrintView() {
               </div>
 
               <div className="text-right">
-                <p className="font-bold uppercase text-slate-900 mb-8">
+                <p className="font-bold uppercase text-slate-900 mb-9">
                   For {company.name || 'VELAN METROLOGY INDIA PRIVATE LIMITED'}
                 </p>
                 <p className="font-medium text-slate-800 text-[10px]">

@@ -16,7 +16,11 @@ export interface CreateDeliveryChallanItemDto {
   batchNumber?: string;
   quantity?: number;
   quantityDispatched?: number;
+  outputProductId?: string;
+  expectedOutputQuantity?: number;
+  outputBinId?: string;
   uom?: string;
+  description?: string;
 }
 
 export interface CreateDeliveryChallanDto {

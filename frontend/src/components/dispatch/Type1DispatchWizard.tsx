@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useForm, FormProvider, Controller, useFieldArray } from 'react-hook-form';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -19,7 +19,7 @@ export function Type1DispatchWizard() {
         {
           scId: '',
           processId: '',
-          items: [{ productId: '', binId: '', batchNumber: '', quantity: 0, description: '' }]
+          items: [{ productId: '', binId: '', batchNumber: '', quantity: '' as any, description: '' }]
         }
       ]
     },
@@ -35,6 +35,25 @@ export function Type1DispatchWizard() {
     control,
     name: 'scBlocks'
   });
+
+  const { data: vendorList } = useQuery({ 
+    queryKey: ['vendors'], 
+    queryFn: async () => unwrapList(await api.get<any[]>('/api/vendors?isActive=true')) 
+  });
+
+  const sortedVendorList = useMemo(() => {
+    if (!vendorList) return [];
+    return (vendorList as any[])
+      .slice()
+      .sort((a, b) => {
+        const numA = parseInt((a.code || '').replace(/\D/g, ''), 10);
+        const numB = parseInt((b.code || '').replace(/\D/g, ''), 10);
+        if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+          return numA - numB;
+        }
+        return (a.name || '').localeCompare(b.name || '');
+      });
+  }, [vendorList]);
 
   const { data: scList } = useQuery({ queryKey: ['sc'], queryFn: async () => unwrapList(await api.get<any[]>('/api/sc')) });
   const { data: processList } = useQuery({ queryKey: ['processes'], queryFn: async () => unwrapList(await api.get<any[]>('/api/production-processes')) });
@@ -111,7 +130,7 @@ export function Type1DispatchWizard() {
                   Delivery Challan Generated: <span className="font-mono text-blue-700">{generatedDc.challanNumber || generatedDc.dcNumber}</span>
                 </h3>
                 <p className="text-xs text-blue-800 mt-1">
-                  External processing dispatch is authorized and stock has been deducted.
+                  External processing dispatch is authorized and tracked in the DC Movement WIP ledger (no warehouse stock deduction).
                 </p>
               </div>
             </div>
@@ -155,12 +174,27 @@ export function Type1DispatchWizard() {
                   render={({ field }) => (
                     <SearchSelect
                       value={field.value}
-                      onChange={field.onChange}
+                      onChange={(val) => {
+                        field.onChange(val);
+                        // If vendor has only one SLA process, auto-select it for convenience
+                        const vendorSlas = slaList?.filter((s: any) => s.vendorId === val) || [];
+                        if (vendorSlas.length === 1) {
+                          setValue('scBlocks.0.processId', vendorSlas[0].processId, { shouldValidate: true });
+                          if (vendorSlas[0].slaDays) {
+                            const date = new Date();
+                            date.setDate(date.getDate() + Number(vendorSlas[0].slaDays));
+                            setValue('expectedReturnDate', date.toISOString().split('T')[0], { shouldValidate: true });
+                          }
+                        }
+                      }}
                       placeholder="Select Vendor..."
-                      options={slaList?.map((s: any) => ({
-                        id: s.vendorId,
-                        primary: s.vendor?.name || 'Unknown Vendor'
-                      })) || []}
+                      options={
+                        sortedVendorList.map((v: any) => ({
+                          id: v.id,
+                          primary: v.name,
+                          secondary: v.code ? `[${v.code}] ${v.category || ''}`.trim() : (v.category || ''),
+                        }))
+                      }
                     />
                   )}
                 />
@@ -205,7 +239,16 @@ export function Type1DispatchWizard() {
                       render={({ field }) => (
                         <SearchSelect
                           value={field.value}
-                          onChange={field.onChange}
+                          onChange={(val) => {
+                            field.onChange(val);
+                            const chosenSc = scList?.find((sc: any) => sc.id === val);
+                            if (chosenSc?.targetQuantity) {
+                              const currentQty = methods.getValues(`scBlocks.${index}.items.0.quantity`);
+                              if (!currentQty || currentQty === 0) {
+                                setValue(`scBlocks.${index}.items.0.quantity`, Number(chosenSc.targetQuantity), { shouldValidate: true });
+                              }
+                            }
+                          }}
                           placeholder="Select SC Code..."
                           options={scList?.map((sc: any) => ({
                             id: sc.id,
@@ -224,16 +267,35 @@ export function Type1DispatchWizard() {
                       rules={{ required: 'Process is required' }}
                       render={({ field }) => {
                         const scId = watch(`scBlocks.${index}.scId`);
+                        const approvedProcessIds = new Set(
+                          slaList?.filter((s: any) => s.vendorId === vendorId).map((s: any) => s.processId) || []
+                        );
+                        const options = (processList || []).map((p: any) => {
+                          const isApproved = approvedProcessIds.has(p.id);
+                          return {
+                            id: p.id,
+                            primary: `${p.code} - ${p.name}${isApproved ? ' (Approved Vendor SLA)' : ''}`,
+                            isApproved
+                          };
+                        }).sort((a: any, b: any) => (b.isApproved ? 1 : 0) - (a.isApproved ? 1 : 0));
+
                         return (
                           <SearchSelect
                             value={field.value}
-                            onChange={field.onChange}
+                            onChange={(val) => {
+                              field.onChange(val);
+                              if (index === 0 && vendorId && slaList) {
+                                const sla = slaList.find((s: any) => s.vendorId === vendorId && s.processId === val);
+                                if (sla?.slaDays) {
+                                  const date = new Date();
+                                  date.setDate(date.getDate() + Number(sla.slaDays));
+                                  setValue('expectedReturnDate', date.toISOString().split('T')[0], { shouldValidate: true });
+                                }
+                              }
+                            }}
                             placeholder="Select Process..."
                             disabled={!scId || !vendorId}
-                            options={processList?.map((p: any) => ({
-                              id: p.id,
-                              primary: `${p.code} - ${p.name}`
-                            })) || []}
+                            options={options}
                           />
                         );
                       }}
@@ -249,7 +311,7 @@ export function Type1DispatchWizard() {
           <div className="flex justify-center pt-2">
             <button
               type="button"
-              onClick={() => appendBlock({ scId: '', processId: '', items: [{ productId: '', binId: '', batchNumber: '', quantity: 0, description: '' }] })}
+              onClick={() => appendBlock({ scId: '', processId: '', items: [{ productId: '', binId: '', batchNumber: '', quantity: '' as any, description: '' }] })}
               className="inline-flex items-center gap-2 px-6 py-2.5 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition-colors border border-slate-200"
             >
               <Plus className="w-4 h-4" />
@@ -258,7 +320,12 @@ export function Type1DispatchWizard() {
           </div>
 
           {/* Footer Action */}
-          <div className="pt-6 mt-6 border-t border-slate-200 flex justify-end">
+          <div className="pt-6 mt-6 border-t border-slate-200 flex items-center justify-end">
+            {!isValid && (
+              <span className="text-xs text-amber-600 mr-4 font-medium">
+                Please select Process, Return Date, and enter Quantity &gt; 0 to lock DC
+              </span>
+            )}
             <button
               type="submit"
               disabled={!isValid || createDcMutation.isPending}

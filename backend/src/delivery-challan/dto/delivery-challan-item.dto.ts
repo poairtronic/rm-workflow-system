@@ -12,6 +12,21 @@ export class DeliveryChallanItemDto {
   @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0.001)
   quantityDispatched: number;
+
+  // Type 2 Asymmetric Stock Conversion Fields
+  @IsOptional()
+  @IsUUID()
+  outputProductId?: string;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
+  expectedOutputQuantity?: number;
+
+  @IsOptional()
+  @IsUUID()
+  outputBinId?: string;
+
   @IsOptional()
   @IsUUID()
   scId?: string;

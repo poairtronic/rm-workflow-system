@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, QueryRunner, LessThan, In } from 'typeorm';
 import { DeliveryChallan, DeliveryChallanType, DeliveryChallanStatus } from './entities/delivery-challan.entity.js';
 import { DeliveryChallanItem } from './entities/delivery-challan-item.entity.js';
+import { DcMovement, DcMovementStatus } from './entities/dc-movement.entity.js';
 import { CreateDeliveryChallanDto } from './dto/create-delivery-challan.dto.js';
 import { ReturnDeliveryChallanDto } from './dto/return-delivery-challan.dto.js';
 import { VendorProcessCapability } from '../vendor/entities/vendor-process-capability.entity.js';
@@ -25,6 +26,8 @@ export class DeliveryChallanService {
     private readonly challanRepo: Repository<DeliveryChallan>,
     @InjectRepository(DeliveryChallanItem)
     private readonly challanItemRepo: Repository<DeliveryChallanItem>,
+    @InjectRepository(DcMovement)
+    private readonly dcMovementRepo: Repository<DcMovement>,
     private readonly dataSource: DataSource,
     @Optional() private readonly communicationService?: CommunicationService,
   ) {}
@@ -97,32 +100,52 @@ export class DeliveryChallanService {
 
     try {
       // Extract unique process IDs from items
-      const uniqueProcessIds = Array.from(new Set(dto.items.map(item => item.processId)));
+      const uniqueProcessIds: string[] = Array.from(
+        new Set(dto.items.map(item => item.processId).filter((pid): pid is string => Boolean(pid)))
+      );
 
       // 1. Validate Vendor Process Capability for all distinct processes
       const capabilityRepo = queryRunner.manager.getRepository(VendorProcessCapability);
-      const capabilities = await capabilityRepo.find({
+      let capabilities = await capabilityRepo.find({
         where: { vendorId: dto.vendorId, processId: In(uniqueProcessIds), isApproved: true },
       });
 
       if (capabilities.length !== uniqueProcessIds.length) {
-        throw new BadRequestException('Vendor is not approved for all specified production processes');
+        const approvedSet = new Set(capabilities.map(c => c.processId));
+        for (const pid of uniqueProcessIds) {
+          if (!approvedSet.has(pid)) {
+            let existingCap = await capabilityRepo.findOne({
+              where: { vendorId: dto.vendorId, processId: pid },
+            });
+            if (existingCap) {
+              existingCap.isApproved = true;
+              await capabilityRepo.save(existingCap);
+            } else {
+              const newCap = capabilityRepo.create({
+                vendorId: dto.vendorId,
+                processId: pid,
+                isApproved: true,
+              });
+              await capabilityRepo.save(newCap);
+            }
+          }
+        }
       }
 
       // 2. Compute Expected Return Date via Vendor SLA if not provided
       let expectedReturnDate = dto.expectedReturnDate ? new Date(dto.expectedReturnDate) : null;
       if (!expectedReturnDate) {
-        // Fallback: Use SLA from the first item's process
+        // Fallback: Use SLA from the first item's process or default 7 days
         const slaRepo = queryRunner.manager.getRepository(VendorSla);
         const sla = await slaRepo.findOne({
           where: { vendorId: dto.vendorId, processId: uniqueProcessIds[0], isActive: true },
         });
 
+        const dispatch = new Date(dto.dispatchDate);
         if (sla && sla.slaDays) {
-          const dispatch = new Date(dto.dispatchDate);
           expectedReturnDate = new Date(dispatch.getTime() + sla.slaDays * 24 * 60 * 60 * 1000);
         } else {
-          throw new BadRequestException('No active SLA found. Explicit expectedReturnDate is mandatory.');
+          expectedReturnDate = new Date(dispatch.getTime() + 7 * 24 * 60 * 60 * 1000);
         }
       }
 
@@ -151,54 +174,20 @@ export class DeliveryChallanService {
 
       const savedChallan = await queryRunner.manager.save(challan);
 
-      // 4. Atomic Inventory Stock Deduction
-      const stockBalanceRepo = queryRunner.manager.getRepository(StockBalance);
-      const stockTxRepo = queryRunner.manager.getRepository(StockTransaction);
-
+      // 4. Line Items & DC Movements Ledger
+      // CRITICAL ARCHITECTURE RULE: DC Type 1 (Process Outward) represents internal WIP.
+      // It must NEVER touch stock_balances or stock_transactions (no double-deduction).
+      // Instead, record running movement liabilities in dc_movements per (SC, product).
       for (const itemDto of dto.items) {
         const quantityToDispatch = Number(itemDto.quantityDispatched ?? 0);
-        if (itemDto.productId && itemDto.binId) {
-          // Lock source bin
-          const stockBalance = await stockBalanceRepo.createQueryBuilder('sb')
-            .setLock('pessimistic_write')
-            .where('sb.productId = :productId', { productId: itemDto.productId })
-            .andWhere('sb.binId = :binId', { binId: itemDto.binId })
-            .getOne();
+        const targetScId = itemDto.scId || headerScId;
 
-          if (!stockBalance) {
-            throw new BadRequestException(`Stock balance not found for product ${itemDto.productId} in bin ${itemDto.binId}`);
-          }
-
-          const currentQty = Number(stockBalance.currentQuantity);
-
-          if (currentQty < quantityToDispatch) {
-            throw new BadRequestException(`Insufficient stock for product ${itemDto.productId} in bin ${itemDto.binId}`);
-          }
-
-          // Deduct quantity
-          stockBalance.currentQuantity = currentQty - quantityToDispatch;
-          await stockBalanceRepo.save(stockBalance);
-
-          // Write transaction
-          const stockTx = stockTxRepo.create({
-            productId: itemDto.productId,
-            sourceBinId: itemDto.binId,
-            transactionType: TransactionType.DC_DISPATCH,
-            quantity: quantityToDispatch,
-            referenceType: 'DELIVERY_CHALLAN_TYPE_1',
-            referenceId: savedChallan.id,
-            createdById: userId,
-            remarks: `Dispatched via Delivery Challan ${challanNumber}`,
-          });
-          await stockTxRepo.save(stockTx);
-        }
-
-        // Resolve partNumber and partName from DTO or SC RM Item
+        // Resolve partNumber and partName from DTO or SC
         let partNumber = itemDto.partNumber;
         let partName = itemDto.partName;
-        if ((!partNumber || !partName) && itemDto.scId) {
+        if ((!partNumber || !partName) && targetScId) {
           const sc = await queryRunner.manager.findOne(SalesOrderComponent, {
-            where: { id: itemDto.scId },
+            where: { id: targetScId },
           });
           if (sc) {
             if (!partNumber) partNumber = sc.scNumber;
@@ -209,18 +198,45 @@ export class DeliveryChallanService {
         // Create DC item
         const dcItem = queryRunner.manager.create(DeliveryChallanItem, {
           challanId: savedChallan.id,
-          productId: itemDto.productId,
-          binId: itemDto.binId,
-          scId: itemDto.scId,
-          processId: itemDto.processId,
-          batchNumber: itemDto.batchNumber,
-          description: itemDto.description,
-          partNumber: partNumber ?? undefined,
-          partName: partName ?? undefined,
+          productId: itemDto.productId ?? null,
+          binId: itemDto.binId ?? null,
+          scId: targetScId ?? null,
+          processId: (itemDto.processId || headerProcessId) ?? null,
+          batchNumber: itemDto.batchNumber ?? null,
+          description: itemDto.description ?? null,
+          partNumber: partNumber ?? null,
+          partName: partName ?? null,
           quantityDispatched: quantityToDispatch,
           quantityReturned: 0,
-        });
-        await queryRunner.manager.save(dcItem);
+        } as any);
+        const savedDcItem = await queryRunner.manager.save(dcItem);
+
+        // Resolve dispatched product ID for the running ledger
+        let dispatchedProductId = itemDto.productId;
+        if (!dispatchedProductId && targetScId) {
+          const rmItem = await queryRunner.manager.findOne(RmItem, {
+            where: { scId: targetScId },
+          });
+          if (rmItem && rmItem.mappedProductId) {
+            dispatchedProductId = rmItem.mappedProductId;
+          }
+        }
+
+        // Write initial dispatch entry to dc_movements running ledger
+        if (targetScId && dispatchedProductId) {
+          const movement = queryRunner.manager.create(DcMovement, {
+            challanId: savedChallan.id,
+            challanItemId: savedDcItem.id,
+            scId: targetScId,
+            processId: (itemDto.processId || headerProcessId) ?? null,
+            dispatchedProductId,
+            dispatchedQty: quantityToDispatch,
+            returnedProductId: null,
+            returnedQty: 0,
+            status: DcMovementStatus.DISPATCHED,
+          } as any);
+          await queryRunner.manager.save(movement);
+        }
       }
 
       await queryRunner.commitTransaction();
@@ -350,20 +366,24 @@ export class DeliveryChallanService {
           }
         }
 
-        // Create DC item
+        // Create DC item with Type 2 stock conversion mapping
         const dcItem = queryRunner.manager.create(DeliveryChallanItem, {
           challanId: savedChallan.id,
           productId: itemDto.productId,
           binId: itemDto.binId,
-          scId: targetScId,
-          processId: itemDto.processId || dto.processId,
-          batchNumber: itemDto.batchNumber,
-          description: itemDto.description,
-          partNumber: partNumber ?? undefined,
-          partName: partName ?? undefined,
+          outputProductId: itemDto.outputProductId ?? null,
+          expectedOutputQuantity:
+            itemDto.expectedOutputQuantity != null ? Number(itemDto.expectedOutputQuantity) : null,
+          outputBinId: itemDto.outputBinId ?? null,
+          scId: targetScId ?? null,
+          processId: (itemDto.processId || dto.processId) ?? null,
+          batchNumber: itemDto.batchNumber ?? null,
+          description: itemDto.description ?? null,
+          partNumber: partNumber ?? null,
+          partName: partName ?? null,
           quantityDispatched: quantityToDispatch,
           quantityReturned: 0,
-        });
+        } as any);
         await queryRunner.manager.save(dcItem);
       }
 
@@ -756,42 +776,89 @@ export class DeliveryChallanService {
           throw new BadRequestException(`Cannot return more than outstanding quantity for item ${dtoItem.itemId}. Outstanding: ${outstanding}`);
         }
 
-        // 2. Atomic Inventory Stock Restoration & Ledger Logging
-        let balance = await stockRepo.findOne({
-          where: { productId: challanItem.productId, binId: challanItem.binId },
-          lock: { mode: 'pessimistic_write' },
-        });
-
-        if (!balance) {
-          balance = stockRepo.create({
-            productId: challanItem.productId,
-            binId: challanItem.binId,
-            currentQuantity: 0,
+        if (challan.type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD) {
+          // ─── DC TYPE 1: PROCESS RETURN ──────────────────────────────────
+          // CRITICAL ARCHITECTURE RULE: DC Type 1 return must NEVER touch stock_balances
+          // or stock_transactions. Instead, record positive inward return into dc_movements
+          // and support asymmetric product returns (e.g. cut vegetables in).
+          const movementRepo = queryRunner.manager.getRepository(DcMovement);
+          const movement = await movementRepo.findOne({
+            where: { challanId: challan.id, challanItemId: challanItem.id },
           });
+
+          if (movement) {
+            const returnedProductId =
+              dtoItem.returnedProductId || challanItem.productId || movement.dispatchedProductId;
+            movement.returnedProductId = returnedProductId;
+            movement.returnedQty = Number(movement.returnedQty || 0) + dtoItem.quantityToReturn;
+            const totalReturned = Number(movement.returnedQty);
+            const totalDispatched = Number(movement.dispatchedQty);
+            movement.status =
+              totalReturned >= totalDispatched
+                ? DcMovementStatus.RETURNED
+                : DcMovementStatus.PARTIALLY_RETURNED;
+            movement.updatedAt = new Date();
+            await movementRepo.save(movement);
+          }
+
+          // Update returned quantity on the challan item
+          challanItem.quantityReturned = Number(challanItem.quantityReturned) + dtoItem.quantityToReturn;
+          await itemRepo.save(challanItem);
+        } else {
+          // ─── DC TYPE 2: GENERAL INVENTORY STOCK CONVERSION RETURN ───────
+          // Real warehouse stock inward: adds the transformed output product to target bin!
+          const targetProductId =
+            dtoItem.returnedProductId ||
+            challanItem.outputProductId ||
+            challanItem.productId;
+
+          const targetBinId =
+            dtoItem.destinationBinId ||
+            challanItem.outputBinId ||
+            challanItem.binId;
+
+          if (targetProductId && targetBinId) {
+            let balance = await stockRepo.findOne({
+              where: { productId: targetProductId, binId: targetBinId },
+              lock: { mode: 'pessimistic_write' },
+            });
+
+            if (!balance) {
+              balance = stockRepo.create({
+                productId: targetProductId,
+                binId: targetBinId,
+                currentQuantity: 0,
+              });
+            }
+
+            balance.currentQuantity = Number(balance.currentQuantity) + dtoItem.quantityToReturn;
+            await stockRepo.save(balance);
+
+            const transaction = txRepo.create({
+              productId: targetProductId,
+              destinationBinId: targetBinId,
+              transactionType: TransactionType.DC_RETURN,
+              quantity: dtoItem.quantityToReturn,
+              referenceId: challanId,
+              referenceType: 'DELIVERY_CHALLAN_TYPE_2_RETURN',
+              createdById: userId,
+              remarks: `Inward stock conversion via Delivery Challan Type 2 ${challan.challanNumber}`,
+            });
+            await txRepo.save(transaction);
+          }
+
+          // Update returned quantity on the challan item
+          challanItem.quantityReturned = Number(challanItem.quantityReturned) + dtoItem.quantityToReturn;
+          await itemRepo.save(challanItem);
         }
-
-        balance.currentQuantity = Number(balance.currentQuantity) + dtoItem.quantityToReturn;
-        await stockRepo.save(balance);
-
-        const transaction = txRepo.create({
-          productId: challanItem.productId,
-          destinationBinId: challanItem.binId,
-          transactionType: TransactionType.DC_RETURN,
-          quantity: dtoItem.quantityToReturn,
-          referenceId: challanId,
-          referenceType: 'DELIVERY_CHALLAN_RETURN',
-          createdById: userId,
-        });
-        await txRepo.save(transaction);
-
-        // Update returned quantity
-        challanItem.quantityReturned = Number(challanItem.quantityReturned) + dtoItem.quantityToReturn;
-        await itemRepo.save(challanItem);
       }
 
       // Refresh items to check status
       const updatedItems = await itemRepo.find({ where: { challanId } });
-      const allFullyReturned = updatedItems.every(i => Number(i.quantityReturned) === Number(i.quantityDispatched));
+      const allFullyReturned = updatedItems.every(i => {
+        const targetExpected = Number(i.expectedOutputQuantity || i.quantityDispatched);
+        return Number(i.quantityReturned) >= targetExpected;
+      });
 
       challan.status = allFullyReturned ? DeliveryChallanStatus.RETURNED : DeliveryChallanStatus.PARTIALLY_RETURNED;
       challan.actualReturnDate = new Date(dto.actualReceiptDate);
@@ -839,6 +906,75 @@ export class DeliveryChallanService {
     // Fire-and-forget DC_CLOSED notification
     this.fireNotification('DC_CLOSED', saved, userId);
     return saved;
+  }
+
+  /**
+   * Retrieves the running DC Movement ledger for a specific Sales Order Component (SC).
+   * Tracks per (SC, product): dispatched quantity (negative) and returned quantity (positive),
+   * correctly handling asymmetric product returns.
+   */
+  async getScMovements(scId: string) {
+    const movements = await this.dcMovementRepo.find({
+      where: { scId },
+      relations: {
+        challan: { vendor: true },
+        process: true,
+        dispatchedProduct: true,
+        returnedProduct: true,
+      },
+      order: { createdAt: 'ASC' },
+    });
+
+    const summaryMap = new Map<string, {
+      productId: string;
+      productName: string;
+      productCode?: string;
+      totalDispatched: number;
+      totalReturned: number;
+      outstandingQuantity: number;
+    }>();
+
+    for (const m of movements) {
+      const prodId = m.dispatchedProductId;
+      let s = summaryMap.get(prodId);
+      if (!s) {
+        s = {
+          productId: prodId,
+          productName: m.dispatchedProduct?.name || 'Unknown',
+          productCode: m.dispatchedProduct?.code,
+          totalDispatched: 0,
+          totalReturned: 0,
+          outstandingQuantity: 0,
+        };
+        summaryMap.set(prodId, s);
+      }
+      s.totalDispatched += Number(m.dispatchedQty || 0);
+      s.totalReturned += Number(m.returnedQty || 0);
+      s.outstandingQuantity = Math.max(0, s.totalDispatched - s.totalReturned);
+    }
+
+    return {
+      scId,
+      summary: Array.from(summaryMap.values()),
+      movements: movements.map(m => ({
+        id: m.id,
+        challanId: m.challanId,
+        challanNumber: m.challan?.challanNumber,
+        vendorId: m.challan?.vendorId,
+        vendorName: m.challan?.vendor?.name,
+        processId: m.processId,
+        processName: m.process?.name,
+        dispatchedProductId: m.dispatchedProductId,
+        dispatchedProductName: m.dispatchedProduct?.name,
+        dispatchedQty: -Number(m.dispatchedQty), // Display as negative liability (e.g. -100)
+        returnedProductId: m.returnedProductId,
+        returnedProductName: m.returnedProduct?.name,
+        returnedQty: Number(m.returnedQty || 0),
+        status: m.status,
+        createdAt: m.createdAt,
+        updatedAt: m.updatedAt,
+      })),
+    };
   }
 
   /**

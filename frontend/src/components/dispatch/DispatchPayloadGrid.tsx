@@ -20,7 +20,7 @@ export function DispatchPayloadGrid({ blockIndex }: { blockIndex: number }) {
         </div>
         <button
           type="button"
-          onClick={() => append({ productId: '', binId: '', batchNumber: '', quantity: 0, uom: 'KG', description: '' })}
+          onClick={() => append({ scItemId: '', productId: '', binId: '', batchNumber: '', quantity: '' as any, outputProductId: '', expectedOutputQuantity: '' as any, outputBinId: '', uom: 'KG', description: '' })}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-50 transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -32,12 +32,14 @@ export function DispatchPayloadGrid({ blockIndex }: { blockIndex: number }) {
         <table className="w-full text-sm text-left whitespace-nowrap">
           <thead className="h-8 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             <tr>
-              <th className="px-3 py-2 w-1/4">{isType1 ? 'Part Name' : 'Material'}</th>
-              {!isType1 && <th className="px-3 py-2 w-36">Rack</th>}
-              {!isType1 && <th className="px-3 py-2 w-44">Bin</th>}
+              <th className="px-3 py-2 w-1/4">{isType1 ? 'Part Name' : 'Input Material (Out)'}</th>
+              {!isType1 && <th className="px-3 py-2 w-32">Source Rack</th>}
+              {!isType1 && <th className="px-3 py-2 w-36">Source Bin</th>}
+              <th className="px-3 py-2 text-right w-24">{isType1 ? 'Quantity' : 'Dispatched Qty'}</th>
+              {!isType1 && <th className="px-3 py-2 w-1/4">Converted Output Material (In)</th>}
+              {!isType1 && <th className="px-3 py-2 text-right w-24">Expected Inward Qty</th>}
               <th className="px-3 py-2 w-1/6">Batch / Heat No.</th>
               <th className="px-3 py-2 w-1/4">Description (Opt)</th>
-              <th className="px-3 py-2 text-right w-28">Quantity</th>
               <th className="px-3 py-2 text-center w-12">Action</th>
             </tr>
           </thead>

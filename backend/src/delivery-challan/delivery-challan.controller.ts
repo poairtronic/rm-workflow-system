@@ -37,6 +37,12 @@ export class DeliveryChallanController {
     return this.deliveryChallanService.getProductCustodyTotal(productId);
   }
 
+  @Get('movements/:scId')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION)
+  async getScMovements(@Param('scId', ParseUUIDPipe) scId: string) {
+    return this.deliveryChallanService.getScMovements(scId);
+  }
+
   @Get('overdue')
   @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER)
   async getOverdueChallans() {

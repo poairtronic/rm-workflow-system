@@ -2,13 +2,25 @@ import { useFieldArray, useFormContext, useWatch } from 'react-hook-form';
 import { AlertCircle, FileDigit } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api, unwrapList } from '../../services/api';
+import { masterDataService } from '../../services/masterDataService';
 
 export function ReconciliationGrid({ dc }: { dc: any }) {
   const { register, control, setValue } = useFormContext<any>();
   const { fields } = useFieldArray({ control, name: 'items' });
 
-  const { data: products } = useQuery({ queryKey: ['products'], queryFn: async () => unwrapList(await api.get<any[]>('/api/products')) });
+  const { data: products } = useQuery({ queryKey: ['products'], queryFn: async () => unwrapList(await api.get<any[]>('/api/products?pageSize=1000')) });
   
+  const { data: allBins = [] } = useQuery({
+    queryKey: ['all-bins-master'],
+    queryFn: async () => {
+      const res = await masterDataService.getBins({ pageSize: 1000, isActive: true });
+      return res.data || [];
+    },
+    staleTime: 60000,
+  });
+
+  const isType1 = dc.type === 'PRODUCTION_PROCESS_OUTWARD';
+
   // Watch all items to compute real-time variances
   const formItems = useWatch({ control, name: 'items' }) || [];
 
@@ -18,8 +30,13 @@ export function ReconciliationGrid({ dc }: { dc: any }) {
         <div>
           <h2 className="text-[15px] font-semibold text-slate-900 flex items-center gap-2">
             <FileDigit className="w-5 h-5 text-primary" />
-            Reconciliation Grid
+            Reconciliation & Inward Grid
           </h2>
+          <p className="text-xs text-slate-500 mt-1">
+            {isType1 
+              ? 'WIP Movement Return: Inward material back into production custody (does not affect warehouse stock).'
+              : 'General Stock Conversion Return: Inward converted material directly into warehouse stock in target bin.'}
+          </p>
         </div>
       </div>
 
@@ -27,8 +44,10 @@ export function ReconciliationGrid({ dc }: { dc: any }) {
         <table className="w-full text-sm text-left whitespace-nowrap">
           <thead className="bg-[#F8FAFC] border-y border-slate-200 text-[11px] font-semibold uppercase text-slate-500">
             <tr>
-              <th className="px-4 py-3">Material</th>
-              <th className="px-4 py-3 text-right">Dispatched</th>
+              <th className="px-4 py-3">Dispatched Item</th>
+              <th className="px-4 py-3">Inward Returned Product</th>
+              {!isType1 && <th className="px-4 py-3">Destination Bin</th>}
+              <th className="px-4 py-3 text-right">{isType1 ? 'Dispatched' : 'Target Expected'}</th>
               <th className="px-4 py-3 text-right">Already Returned</th>
               <th className="px-4 py-3 text-right">Remaining</th>
               <th className="px-4 py-3 text-right">Received Qty</th>
@@ -38,12 +57,15 @@ export function ReconciliationGrid({ dc }: { dc: any }) {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {fields.map((field, index) => {
-              const originalItem = dc.items.find((item: any) => item.id === (field as any).itemId) || dc.items[index];
-              const product = products?.find(p => p.id === originalItem?.productId);
+              const originalItem = dc.items?.find((item: any) => item.id === (field as any).itemId) || dc.items?.[index];
+              const dispProduct = products?.find((p: any) => p.id === originalItem?.productId);
               
-              const dispatchedQty = Number(originalItem?.quantityDispatched || 0);
+              const targetQty = !isType1 && originalItem?.expectedOutputQuantity
+                ? Number(originalItem.expectedOutputQuantity)
+                : Number(originalItem?.quantityDispatched || 0);
+
               const returnedQty = Number(originalItem?.quantityReturned || 0);
-              const remaining = dispatchedQty - returnedQty;
+              const remaining = Math.max(0, targetQty - returnedQty);
               
               const receivedQty = Number(formItems[index]?.receivedQuantity || 0);
               const variance = remaining - receivedQty;
@@ -56,12 +78,59 @@ export function ReconciliationGrid({ dc }: { dc: any }) {
 
               return (
                 <tr key={field.id} className="h-14 hover:bg-[#F8FAFC]">
+                  {/* Dispatched Product */}
                   <td className="px-4 py-3">
-                    <p className="font-medium text-slate-900">{product?.code || originalItem?.product?.code || originalItem?.productId}</p>
-                    <p className="text-xs text-slate-500">{product?.name || originalItem?.product?.name || ''}</p>
+                    <p className="font-medium text-slate-900">{dispProduct?.code || originalItem?.product?.code || originalItem?.productId}</p>
+                    <p className="text-xs text-slate-500">{dispProduct?.name || originalItem?.product?.name || ''}</p>
                   </td>
+
+                  {/* Returned / Converted Product */}
+                  <td className="px-4 py-3">
+                    <select
+                      {...register(`items.${index}.returnedProductId` as const)}
+                      className="w-48 h-9 px-2 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary font-medium"
+                    >
+                      {originalItem?.outputProductId && (
+                        <option value={originalItem.outputProductId}>
+                          ★ Target: {products?.find((p: any) => p.id === originalItem.outputProductId)?.name || 'Expected Product'}
+                        </option>
+                      )}
+                      {originalItem?.productId && (
+                        <option value={originalItem.productId}>
+                          Original: {dispProduct?.name || 'Same as Dispatched'}
+                        </option>
+                      )}
+                      <optgroup label="Other Master Products">
+                        {(products || []).slice(0, 50).map((p: any) => (
+                          <option key={p.id} value={p.id}>
+                            {p.code} – {p.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </td>
+
+                  {/* Destination Bin (Type 2 only) */}
+                  {!isType1 && (
+                    <td className="px-4 py-3">
+                      <select
+                        {...register(`items.${index}.destinationBinId` as const, {
+                          required: !isType1 ? 'Destination bin is required' : false,
+                        })}
+                        className="w-40 h-9 px-2 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary font-medium"
+                      >
+                        <option value="">Select Destination Bin...</option>
+                        {allBins.map((b: any) => (
+                          <option key={b.id} value={b.id}>
+                            {b.code} ({b.rack?.name || 'Rack'})
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  )}
+
                   <td className="px-4 py-3 text-right tabular-nums text-slate-600 font-medium">
-                    {dispatchedQty}
+                    {targetQty}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-slate-600 font-medium">
                     {returnedQty}

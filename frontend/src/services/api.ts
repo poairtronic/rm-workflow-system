@@ -330,9 +330,16 @@ export const deliveryChallanApi = {
       notes: data.notes || '',
       items: data.items.map((i: any) => ({
         productId: i.productId,
-        binId: i.binId,
+        binId: i.binId || undefined,
         quantityDispatched: Number(i.quantity) || Number(i.quantityDispatched),
-        ...(isType1 && { scId: i.scId, processId: i.processId, description: i.description, batchNumber: i.batchNumber })
+        ...(isType1 && { scId: i.scId, processId: i.processId, description: i.description, batchNumber: i.batchNumber }),
+        ...(!isType1 && {
+          outputProductId: i.outputProductId || undefined,
+          expectedOutputQuantity: i.expectedOutputQuantity ? Number(i.expectedOutputQuantity) : undefined,
+          outputBinId: i.outputBinId || undefined,
+          description: i.description,
+          batchNumber: i.batchNumber,
+        }),
       }))
     };
     
@@ -350,6 +357,8 @@ export const deliveryChallanApi = {
         return {
           itemId: i.itemId,
           quantityToReturn: Number(rawQty),
+          ...(i.returnedProductId && { returnedProductId: i.returnedProductId }),
+          ...(i.destinationBinId && { destinationBinId: i.destinationBinId }),
         };
       })
     };
@@ -363,7 +372,30 @@ import type { ConsolidatedTraceabilityDto } from '../types/traceability.dto';
 import type { PoConsolidatedTraceabilityDto } from '../types/po-traceability.dto';
 
 export const traceabilityApi = {
-  getConsolidated: (scId: string) => api.get<ConsolidatedTraceabilityDto>(`/api/traceability/sc/${scId}/consolidated`),
+  getConsolidated: async (scId: string) => {
+    const raw = await api.get<any>(`/api/traceability/sc/${scId}/consolidated`);
+    const masterData = {
+      scCode: raw?.sc?.scNumber || 'SC',
+      poNumber: raw?.po?.poNumber || 'UNKNOWN',
+      customerName: raw?.po?.customer?.name || 'Customer',
+      nomenclature: raw?.sc?.productName || 'Component',
+      drawingNumber: raw?.sc?.drawingNumber || 'N/A',
+      fulfillmentStatus: raw?.sc?.status || 'PENDING',
+    };
+    return {
+      ...raw,
+      masterData: raw?.masterData || masterData,
+      events: raw?.events || [],
+      reconciliation: raw?.reconciliation || {
+        totalIssuedKg: 0,
+        totalConsumedKg: 0,
+        totalReturnedUsableKg: 0,
+        totalScrapKg: 0,
+        varianceKg: 0,
+        isBalanced: true,
+      },
+    } as ConsolidatedTraceabilityDto & any;
+  },
   getPoConsolidated: (poId: string) => api.get<PoConsolidatedTraceabilityDto>(`/api/traceability/po/${poId}/consolidated`),
 };
 

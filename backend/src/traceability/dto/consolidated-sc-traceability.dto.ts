@@ -257,6 +257,22 @@ export class ConsolidatedFinalRmUsageDto {
   items!: RmUsageItemBreakdown[];
 }
 
+export class ConsolidatedDcMovementDto {
+  id!: string;
+  challanId!: string;
+  challanNumber?: string;
+  processName?: string;
+  vendorName?: string;
+  dispatchedProductId!: string;
+  dispatchedProductName?: string;
+  dispatchedQty!: number;
+  returnedProductId?: string;
+  returnedProductName?: string;
+  returnedQty!: number;
+  status!: string;
+  createdAt!: string;
+}
+
 export class ConsolidatedScTraceabilityDto {
   sc!: ConsolidatedScMetaDto;
   po!: ConsolidatedPoDto;
@@ -269,6 +285,7 @@ export class ConsolidatedScTraceabilityDto {
   inventoryTransactions!: ConsolidatedInventoryTransactionDto[];
   productionProcesses!: ConsolidatedProcessStepDto[];
   deliveryChallans!: ConsolidatedDeliveryChallanDto[];
+  dcMovements!: ConsolidatedDcMovementDto[];
   vendors!: ConsolidatedVendorDto[];
   finalRmUsage!: ConsolidatedFinalRmUsageDto;
   generatedAt!: string;

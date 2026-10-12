@@ -18,6 +18,14 @@ export class ReturnDeliveryChallanItemDto {
   @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0.001)
   quantityToReturn: number;
+
+  @IsOptional()
+  @IsUUID()
+  returnedProductId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  destinationBinId?: string;
 }
 
 export class ReturnDeliveryChallanDto {
