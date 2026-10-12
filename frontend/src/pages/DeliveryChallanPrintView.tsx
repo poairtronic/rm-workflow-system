@@ -282,7 +282,7 @@ export function DeliveryChallanPrintView() {
               </div>
               
               <div className="p-2 text-center text-[11px] font-bold uppercase tracking-wider text-slate-800 bg-white flex-1 flex items-center justify-center">
-                {processName || 'PROCESS TYPE'}
+                {processName || (challan.type === 'GENERAL_INVENTORY_OUTWARD' || dc.type === 'GENERAL_INVENTORY_OUTWARD' ? 'STOCK CONVERSION' : 'PROCESS TYPE')}
               </div>
             </div>
           </div>

@@ -20,8 +20,21 @@ export function DispatchPayloadGrid({ blockIndex }: { blockIndex: number }) {
         </div>
         <button
           type="button"
-          onClick={() => append({ scItemId: '', productId: '', binId: '', batchNumber: '', quantity: '' as any, outputProductId: '', expectedOutputQuantity: '' as any, outputBinId: '', uom: 'KG', description: '' })}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-50 transition-colors"
+          onClick={() => append({ 
+            scItemId: '', 
+            productId: '', 
+            partNumber: !isType1 ? `DC2-${String(fields.length + 1).padStart(3, '0')}` : '', 
+            partName: '', 
+            binId: '', 
+            batchNumber: '', 
+            quantity: '' as any, 
+            outputProductId: '', 
+            expectedOutputQuantity: '' as any, 
+            outputBinId: '', 
+            uom: 'NOS', 
+            description: '' 
+          })}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-50 transition-colors cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           Add Item
@@ -32,14 +45,16 @@ export function DispatchPayloadGrid({ blockIndex }: { blockIndex: number }) {
         <table className="w-full text-sm text-left whitespace-nowrap">
           <thead className="h-8 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             <tr>
-              <th className="px-3 py-2 w-1/4">{isType1 ? 'Part Name' : 'Input Material (Out)'}</th>
+              <th className="px-3 py-2 w-56">{isType1 ? 'Part Name' : 'Internal RM Stock (Search)'}</th>
+              {!isType1 && <th className="px-3 py-2 w-28 text-center">Part No. (Auto)</th>}
+              {!isType1 && <th className="px-3 py-2 w-48">DC Material Name</th>}
               {!isType1 && <th className="px-3 py-2 w-32">Source Rack</th>}
               {!isType1 && <th className="px-3 py-2 w-36">Source Bin</th>}
               <th className="px-3 py-2 text-right w-24">{isType1 ? 'Quantity' : 'Dispatched Qty'}</th>
-              {!isType1 && <th className="px-3 py-2 w-1/4">Converted Output Material (In)</th>}
+              {!isType1 && <th className="px-3 py-2 w-56">Converted Output Material (In)</th>}
               {!isType1 && <th className="px-3 py-2 text-right w-24">Expected Inward Qty</th>}
-              <th className="px-3 py-2 w-1/6">Batch / Heat No.</th>
-              <th className="px-3 py-2 w-1/4">Description (Opt)</th>
+              <th className="px-3 py-2 w-32">Batch / Heat No.</th>
+              <th className="px-3 py-2 w-36">Description (Opt)</th>
               <th className="px-3 py-2 text-center w-12">Action</th>
             </tr>
           </thead>

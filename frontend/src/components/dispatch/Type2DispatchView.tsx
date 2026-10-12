@@ -53,7 +53,18 @@ export function Type2DispatchView() {
       scBlocks: [{
         scId: null,
         processId: null,
-        items: [{ productId: '', binId: '', batchNumber: '', quantity: 0, description: '' }]
+        items: [{ 
+          productId: '', 
+          partNumber: 'DC2-001',
+          partName: '',
+          binId: '', 
+          batchNumber: '', 
+          quantity: 0, 
+          outputProductId: '', 
+          expectedOutputQuantity: '' as any,
+          outputBinId: '', 
+          description: '' 
+        }]
       }]
     },
     mode: 'onChange'
@@ -89,8 +100,10 @@ export function Type2DispatchView() {
     handleSubmit((data) => {
       const payload = {
         ...data,
-        items: data.scBlocks[0].items.map((item: any) => ({
+        items: data.scBlocks[0].items.map((item: any, idx: number) => ({
           ...item,
+          partNumber: item.partNumber || `DC2-${String(idx + 1).padStart(3, '0')}`,
+          partName: item.partName || undefined,
           quantityDispatched: Number(item.quantity),
           outputProductId: item.outputProductId || undefined,
           expectedOutputQuantity: item.expectedOutputQuantity ? Number(item.expectedOutputQuantity) : undefined,
@@ -248,9 +261,10 @@ export function Type2DispatchView() {
                     <table className="w-full text-sm text-left whitespace-nowrap">
                       <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold uppercase text-slate-600">
                         <tr>
-                          <th className="px-4 py-2.5">Input Material (Out)</th>
-                          <th className="px-4 py-2.5">Source Rack</th>
-                          <th className="px-4 py-2.5">Source Bin</th>
+                          <th className="px-4 py-2.5">DC Part No.</th>
+                          <th className="px-4 py-2.5">DC Material Name (For Vendor)</th>
+                          <th className="px-4 py-2.5">Internal RM Stock (Deducted)</th>
+                          <th className="px-4 py-2.5">Source Rack / Bin</th>
                           <th className="px-4 py-2.5 text-right">Dispatched Qty</th>
                           <th className="px-4 py-2.5">Converted Material (In)</th>
                           <th className="px-4 py-2.5 text-right">Expected Inward Qty</th>
@@ -263,13 +277,16 @@ export function Type2DispatchView() {
                           const binObj = (allBins as any[])?.find((b: any) => b.id === item.binId);
                           const rackName = binObj?.rack?.name || binObj?.rack?.code || '—';
                           const binCode = binObj?.code || '—';
+                          const partNo = item.partNumber || `DC2-${String(idx + 1).padStart(3, '0')}`;
+                          const partName = item.partName || prod?.name || '—';
                           return (
                             <tr key={idx} className="hover:bg-slate-50/50">
-                              <td className="px-4 py-2.5 font-medium text-slate-900">
+                              <td className="px-4 py-2.5 font-mono font-bold text-blue-700 text-xs">{partNo}</td>
+                              <td className="px-4 py-2.5 font-bold text-slate-900">{partName}</td>
+                              <td className="px-4 py-2.5 text-xs text-slate-600">
                                 {prod ? `${prod.code} - ${prod.name}` : (item.materialCode || item.productId || 'Item')}
                               </td>
-                              <td className="px-4 py-2.5 text-slate-600 font-medium">{rackName}</td>
-                              <td className="px-4 py-2.5 text-slate-600 font-medium">{binCode}</td>
+                              <td className="px-4 py-2.5 text-slate-600 font-medium text-xs">{rackName} / {binCode}</td>
                               <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-rose-700">
                                 -{item.quantity} {prod?.uom || item.uom || 'NOS'}
                               </td>

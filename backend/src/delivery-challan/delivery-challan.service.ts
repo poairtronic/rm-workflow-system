@@ -352,18 +352,12 @@ export class DeliveryChallanService {
         });
         await stockTxRepo.save(stockTx);
 
-        // Resolve partNumber and partName from DTO or SC RM Item
+        // Resolve partNumber and partName from DTO or auto-generate for Type 2
         let partNumber = itemDto.partNumber;
         let partName = itemDto.partName;
-        const targetScId = itemDto.scId || dto.scId;
-        if ((!partNumber || !partName) && targetScId) {
-          const sc = await queryRunner.manager.findOne(SalesOrderComponent, {
-            where: { id: targetScId },
-          });
-          if (sc) {
-            if (!partNumber) partNumber = sc.scNumber;
-            if (!partName) partName = sc.productName;
-          }
+        if (!partNumber) {
+          const itemIndex = dto.items.indexOf(itemDto);
+          partNumber = `DC2-${String(itemIndex + 1).padStart(3, '0')}`;
         }
 
         // Create DC item with Type 2 stock conversion mapping
@@ -375,7 +369,7 @@ export class DeliveryChallanService {
           expectedOutputQuantity:
             itemDto.expectedOutputQuantity != null ? Number(itemDto.expectedOutputQuantity) : null,
           outputBinId: itemDto.outputBinId ?? null,
-          scId: targetScId ?? null,
+          scId: itemDto.scId ?? null,
           processId: (itemDto.processId || dto.processId) ?? null,
           batchNumber: itemDto.batchNumber ?? null,
           description: itemDto.description ?? null,

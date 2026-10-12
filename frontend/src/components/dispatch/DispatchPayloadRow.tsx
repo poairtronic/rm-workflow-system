@@ -187,12 +187,18 @@ export function DispatchPayloadRow({
       return;
     }
 
+    if (!isType1) {
+      const defaultPartNo = `DC2-${String(index + 1).padStart(3, '0')}`;
+      const existingPartNo = watch(`scBlocks.${blockIndex}.items.${index}.partNumber`);
+      if (!existingPartNo) {
+        setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, defaultPartNo, { shouldValidate: true });
+      }
+      return;
+    }
+
     if (currentScItem) {
       setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, currentScItem.partNumber || '');
       setValue(`scBlocks.${blockIndex}.items.${index}.partName`, currentScItem.partName || currentScItem.material || '');
-    } else {
-      setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, '');
-      setValue(`scBlocks.${blockIndex}.items.${index}.partName`, '');
     }
   }, [isType1, selectedSc, scRmItems, scItemId, currentScItem, setValue, blockIndex, index]);
 
@@ -327,34 +333,54 @@ export function DispatchPayloadRow({
               );
             })()}
             <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.scItemId` as const)} />
+            <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.partNumber` as const)} />
+            <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.partName` as const)} />
           </div>
         ) : (
-          <>
-            <select
-              {...register(`scBlocks.${blockIndex}.items.${index}.productId` as const, {
-                required: 'Product is required',
-              })}
-              className="w-full h-8 px-2 rounded-md bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
-            >
-              <option value="">Select Product...</option>
-              {sortedProducts.map((p: any) => (
-                <option key={p.id} value={p.id}>
-                  {getProductDisplayLabel(p)}
-                </option>
-              ))}
-            </select>
-            {currentScItem && (currentScItem.partNumber || currentScItem.partName) && (
-              <div className="flex items-center gap-1.5 mt-1 px-1.5 py-0.5 rounded bg-indigo-50 border border-indigo-100 text-[10px] font-mono text-indigo-900">
-                <span className="font-bold">{currentScItem.partNumber || 'PRD'}</span>
-                <span>•</span>
-                <span className="truncate max-w-45 font-sans font-medium text-slate-700">{currentScItem.partName || currentScItem.material}</span>
-              </div>
-            )}
-          </>
+          <select
+            {...register(`scBlocks.${blockIndex}.items.${index}.productId` as const, {
+              required: 'Product is required',
+            })}
+            className="w-full h-8 px-2 rounded-md bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
+          >
+            <option value="">Select Internal RM...</option>
+            {sortedProducts.map((p: any) => (
+              <option key={p.id} value={p.id}>
+                {getProductDisplayLabel(p)}
+              </option>
+            ))}
+          </select>
         )}
-        <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.partNumber` as const)} />
-        <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.partName` as const)} />
       </td>
+
+      {/* 1b. Type 2 Auto-Generated DC Part Number */}
+      {!isType1 && (
+        <td className="px-3 py-2 text-center">
+          <input
+            type="text"
+            readOnly
+            value={watch(`scBlocks.${blockIndex}.items.${index}.partNumber`) || `DC2-${String(index + 1).padStart(3, '0')}`}
+            {...register(`scBlocks.${blockIndex}.items.${index}.partNumber` as const)}
+            className="w-24 h-8 px-2 rounded-md bg-slate-100 border border-slate-200 text-xs font-mono font-bold text-blue-700 text-center select-none cursor-default shadow-xs"
+            title="Auto-generated DC Part Number printed for Vendor"
+          />
+        </td>
+      )}
+
+      {/* 1c. Type 2 Custom DC Material Name for Vendor */}
+      {!isType1 && (
+        <td className="px-3 py-2">
+          <input
+            type="text"
+            placeholder="e.g. Aluminium Housing"
+            {...register(`scBlocks.${blockIndex}.items.${index}.partName` as const, {
+              required: !isType1 ? 'DC Material Name is required' : false,
+            })}
+            className="w-44 h-8 px-2.5 rounded-md bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium shadow-xs"
+            title="Material name printed on the Delivery Challan for vendor"
+          />
+        </td>
+      )}
 
       {/* 2. Rack (Dedicated distinct field) */}
       {!isType1 && (
