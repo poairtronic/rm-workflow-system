@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, FormProvider } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { Search, PackageCheck, Loader2, Lock, AlertTriangle, ArrowLeft, X, RotateCcw } from 'lucide-react';
+import { Search, PackageCheck, Loader2, Lock, AlertTriangle, ArrowLeft, X, RotateCcw, CheckCircle2 } from 'lucide-react';
 import { deliveryChallanApi } from '../services/api';
 import { vendorMasterApi } from '../services/vendorMaster.service';
 import type { DeliveryChallanDto } from '../types/delivery-challan.dto';
@@ -248,9 +248,10 @@ export function DockReceiptWorkspace() {
     processReturnMutation.mutate(data);
   };
 
-  // DC lifecycle: only allow Return/Close for statuses that have been dispatched
-  const canReturn = selectedDc && selectedDc.status !== 'OPEN' && selectedDc.status !== 'CLOSED';
-  const canClose = selectedDc && selectedDc.status !== 'OPEN' && selectedDc.status !== 'CLOSED';
+  // DC lifecycle: allow Return/Close for active statuses (dispatched, open, partially returned)
+  const isClosed = selectedDc?.status === 'CLOSED' || selectedDc?.status === 'RETURNED';
+  const canReturn = selectedDc && !isClosed;
+  const canClose = selectedDc && !isClosed;
 
   return (
     <div className="max-w-[1600px] mx-auto w-full pb-24">
@@ -467,42 +468,63 @@ export function DockReceiptWorkspace() {
             </button>
           </div>
 
-          {/* Status warning for OPEN challans */}
-          {selectedDc.status === 'OPEN' && (
-            <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-              <strong>OPEN challan:</strong> This DC has not been marked as Dispatched. Return and Close
-              actions are disabled until the status transitions past OPEN.
+          {/* Status banner for CLOSED challans */}
+          {isClosed && (
+            <div className="mb-4 p-4 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-700 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                <div>
+                  <p className="font-semibold text-slate-900">Delivery Challan Closed / Completed</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    All materials for this challan have been inwarded and reconciled. This record is finalized.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
           <FormProvider {...methods}>
             <form id="reconciliation-form" onSubmit={methods.handleSubmit(onProcessReturn)}>
-              <ReconciliationGrid dc={selectedDc} />
+              <ReconciliationGrid dc={selectedDc} isReadOnly={isClosed} />
             </form>
           </FormProvider>
 
           {/* Sticky Action Footer */}
-          <div className="fixed bottom-0 left-65 right-0 p-4 bg-white border-t border-slate-200 z-20 flex justify-end gap-3 shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)]">
-            <button
-              type="button"
-              onClick={() => setActiveDcView('CLOSURE')}
-              disabled={!canClose || processReturnMutation.isPending}
-              title={!canClose ? 'Challan must be DISPATCHED before closing' : undefined}
-              className="px-6 h-10 bg-white border border-slate-200 text-slate-900 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Administrative Closure
-            </button>
-            <button
-              type="submit"
-              form="reconciliation-form"
-              disabled={!canReturn || processReturnMutation.isPending || !methods.formState.isValid}
-              title={!canReturn ? 'Challan must be DISPATCHED before returning' : undefined}
-              className="inline-flex items-center gap-2 px-6 h-10 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {processReturnMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Save Reconciliation
-            </button>
-          </div>
+          {isClosed ? (
+            <div className="fixed bottom-0 left-65 right-0 p-4 bg-white border-t border-slate-200 z-20 flex justify-between items-center px-8 shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)]">
+              <span className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                Closed Record — Read-Only Mode
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedDc(null)}
+                className="px-6 h-10 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-700 transition-colors shadow-sm"
+              >
+                Back to Custody Board
+              </button>
+            </div>
+          ) : (
+            <div className="fixed bottom-0 left-65 right-0 p-4 bg-white border-t border-slate-200 z-20 flex justify-end gap-3 shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)]">
+              <button
+                type="button"
+                onClick={() => setActiveDcView('CLOSURE')}
+                disabled={!canClose || processReturnMutation.isPending}
+                className="px-6 h-10 bg-white border border-slate-200 text-slate-900 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Administrative Closure
+              </button>
+              <button
+                type="submit"
+                form="reconciliation-form"
+                disabled={!canReturn || processReturnMutation.isPending || !methods.formState.isValid}
+                className="inline-flex items-center gap-2 px-6 h-10 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {processReturnMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                Save Reconciliation
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
