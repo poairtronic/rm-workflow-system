@@ -99,7 +99,9 @@ export class InventoryService {
       .leftJoinAndSelect('bin.rack', 'rack')
       .leftJoinAndSelect('rack.location', 'location')
       .leftJoinAndSelect('location.warehouse', 'warehouse')
-      .where('sb.current_quantity > 0');
+      .where('sb.current_quantity > 0')
+      .andWhere('sb.product_id IS NOT NULL')
+      .andWhere('sb.bin_id IS NOT NULL');
 
     if (productId) {
       query.andWhere('sb.product_id = :productId', { productId });
@@ -125,13 +127,16 @@ export class InventoryService {
     const [balances, total] = await query.getManyAndCount();
 
     const data = await Promise.all(balances.map(async b => {
-      const latestTx = await this.stockTransactionRepository.findOne({
-        where: [
-          { productId: b.productId, destinationBinId: b.binId, lotBatchNumber: Not(IsNull()) },
-          { productId: b.productId, sourceBinId: b.binId, lotBatchNumber: Not(IsNull()) }
-        ],
-        order: { createdAt: 'DESC' }
-      });
+      let latestTx: StockTransaction | null = null;
+      if (b.productId && b.binId) {
+        latestTx = await this.stockTransactionRepository.findOne({
+          where: [
+            { productId: b.productId, destinationBinId: b.binId, lotBatchNumber: Not(IsNull()) },
+            { productId: b.productId, sourceBinId: b.binId, lotBatchNumber: Not(IsNull()) }
+          ],
+          order: { createdAt: 'DESC' }
+        });
+      }
 
       return {
         id: b.id,
