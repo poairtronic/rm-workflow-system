@@ -11,7 +11,9 @@ import {
   SearchSelect,
   Checkbox,
   StatusBadge,
+  ConfirmDialog,
 } from '../components/ui';
+import { useAuth } from '../contexts/AuthContext';
 import { masterDataService } from '../services/masterDataService';
 import type { Warehouse, Location, Rack, Bin } from '../services/masterDataService';
 import {
@@ -27,6 +29,7 @@ import {
   FolderPlus,
   Search,
   X,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -132,6 +135,7 @@ export function WarehousesAndBinsWorkspace() {
                 key={w.id}
                 warehouse={w}
                 onOpenAddBin={handleOpenAddBin}
+                onWarehouseDeleted={loadWarehouses}
               />
             ))}
           </div>
@@ -176,10 +180,15 @@ export function WarehousesAndBinsWorkspace() {
 function WarehouseMasterCard({
   warehouse,
   onOpenAddBin,
+  onWarehouseDeleted,
 }: {
   warehouse: Warehouse;
   onOpenAddBin: (ctx: { warehouseId?: string; locationId?: string; rackId?: string }) => void;
+  onWarehouseDeleted?: () => void;
 }) {
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'ADMIN';
+
   const [isWarehouseExpanded, setIsWarehouseExpanded] = useState(true);
   const [locations, setLocations] = useState<Location[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -187,6 +196,10 @@ function WarehouseMasterCard({
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
 
   const [isAddLocationOpen, setIsAddLocationOpen] = useState(false);
+  const [locationToDelete, setLocationToDelete] = useState<Location | null>(null);
+  const [isDeletingLocation, setIsDeletingLocation] = useState(false);
+  const [isDeleteWarehouseOpen, setIsDeleteWarehouseOpen] = useState(false);
+  const [isDeletingWarehouse, setIsDeletingWarehouse] = useState(false);
 
   const loadLocations = async () => {
     try {
@@ -216,33 +229,44 @@ function WarehouseMasterCard({
   );
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md transition-all duration-300 overflow-hidden">
+    <div className="bg-white dark:bg-[#121526] rounded-2xl border border-slate-200/90 dark:border-[#1e233d] shadow-xs hover:shadow-md transition-all duration-300 overflow-hidden">
       {/* Warehouse Header */}
-      <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/70 border-b border-slate-100">
+      <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/70 dark:bg-[#0e111f]/80 border-b border-slate-100 dark:border-[#1e233d]">
         <div
           className="flex items-center space-x-3.5 cursor-pointer select-none group"
           onClick={() => setIsWarehouseExpanded(!isWarehouseExpanded)}
         >
-          <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-xs group-hover:bg-blue-600 group-hover:text-white transition-all duration-200">
+          <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-xs group-hover:bg-blue-600 group-hover:text-white transition-all duration-200">
             <Building2 className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h3 className="font-bold text-slate-900 text-lg group-hover:text-blue-600 transition-colors">
+              <h3 className="font-bold text-slate-900 dark:text-white text-lg group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                 {warehouse.name}
               </h3>
-              <span className="font-mono text-xs font-semibold px-2.5 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700 shadow-2xs">
+              <span className="font-mono text-xs font-semibold px-2.5 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 shadow-2xs">
                 {warehouse.code}
               </span>
               <StatusBadge status={warehouse.isActive ? 'ACTIVE' : 'INACTIVE'} />
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Primary Warehouse Facility • {locations.length} Storage Location{locations.length !== 1 ? 's' : ''}
             </p>
           </div>
         </div>
 
         <div className="flex items-center space-x-2.5">
+          {isAdmin && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setIsDeleteWarehouseOpen(true)}
+              className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 border-red-200 dark:border-red-900/50"
+              title="Delete Warehouse"
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
+            </Button>
+          )}
           <Button
             size="sm"
             variant="secondary"
@@ -254,7 +278,7 @@ function WarehouseMasterCard({
           <button
             type="button"
             onClick={() => setIsWarehouseExpanded(!isWarehouseExpanded)}
-            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+            className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
             title={isWarehouseExpanded ? 'Collapse warehouse' : 'Expand warehouse'}
           >
             {isWarehouseExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
@@ -266,10 +290,10 @@ function WarehouseMasterCard({
       {isWarehouseExpanded && (
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
               Storage Locations Grid
             </span>
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-slate-400 dark:text-slate-400">
               Click any location to reveal storage racks across rows below
             </span>
           </div>
@@ -290,8 +314,8 @@ function WarehouseMasterCard({
                     onClick={() => setSelectedLocationId(isSelected ? null : loc.id)}
                     className={`group relative rounded-xl border p-4.5 transition-all duration-200 ease-out cursor-pointer select-none ${
                       isSelected
-                        ? 'border-blue-600 bg-blue-50/30 ring-2 ring-blue-500 shadow-md scale-[1.02]'
-                        : 'border-slate-200 bg-slate-50/70 hover:bg-white hover:scale-[1.02] hover:-translate-y-0.5 hover:shadow-lg hover:border-blue-500 hover:ring-2 hover:ring-blue-100 shadow-xs'
+                        ? 'border-blue-600 bg-blue-50/30 dark:bg-blue-950/20 ring-2 ring-blue-500 shadow-md scale-[1.02]'
+                        : 'border-slate-200 dark:border-[#1e233d] bg-slate-50/70 dark:bg-[#0e111f]/60 hover:bg-white dark:hover:bg-[#121526] hover:scale-[1.02] hover:-translate-y-0.5 hover:shadow-lg hover:border-blue-500 hover:ring-2 hover:ring-blue-100 shadow-xs'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-2.5">
@@ -300,27 +324,42 @@ function WarehouseMasterCard({
                           className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-200 ${
                             isSelected
                               ? 'bg-blue-600 text-white'
-                              : 'bg-indigo-50 border border-indigo-100 text-indigo-600 group-hover:bg-blue-600 group-hover:text-white'
+                              : 'bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 text-indigo-600 dark:text-indigo-400 group-hover:bg-blue-600 group-hover:text-white'
                           }`}
                         >
                           <MapPin className="w-4 h-4" />
                         </div>
-                        <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700 shadow-2xs">
+                        <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 shadow-2xs">
                           {loc.code}
                         </span>
                       </div>
-                      <StatusBadge status={loc.isActive ? 'ACTIVE' : 'INACTIVE'} />
+                      <div className="flex items-center space-x-1.5">
+                        <StatusBadge status={loc.isActive ? 'ACTIVE' : 'INACTIVE'} />
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            title={`Delete ${loc.name}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLocationToDelete(loc);
+                            }}
+                            className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
-                    <h4 className="font-bold text-slate-900 text-base group-hover:text-blue-600 transition-colors">
+                    <h4 className="font-bold text-slate-900 dark:text-white text-base group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                       {loc.name}
                     </h4>
 
-                    <div className="mt-4 pt-3 border-t border-slate-200/80 flex items-center justify-between text-xs">
-                      <span className="font-medium text-slate-500">
+                    <div className="mt-4 pt-3 border-t border-slate-200/80 dark:border-[#1e233d] flex items-center justify-between text-xs">
+                      <span className="font-medium text-slate-500 dark:text-slate-400">
                         Storage Location
                       </span>
-                      <div className="flex items-center gap-1 font-semibold text-blue-600 group-hover:translate-x-0.5 transition-transform">
+                      <div className="flex items-center gap-1 font-semibold text-blue-600 dark:text-blue-400 group-hover:translate-x-0.5 transition-transform">
                         <span>{isSelected ? 'Selected (Active)' : 'View Racks & Storage Units'}</span>
                         <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isSelected ? 'rotate-90' : ''}`} />
                       </div>
@@ -332,12 +371,12 @@ function WarehouseMasterCard({
               {/* Add Location Card (Dashed) */}
               <div
                 onClick={() => setIsAddLocationOpen(true)}
-                className="rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/30 p-5 transition-all duration-200 ease-out hover:scale-[1.02] hover:-translate-y-0.5 hover:shadow-md flex flex-col items-center justify-center cursor-pointer text-center group min-h-[135px] select-none"
+                className="rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 p-5 transition-all duration-200 ease-out hover:scale-[1.02] hover:-translate-y-0.5 hover:shadow-md flex flex-col items-center justify-center cursor-pointer text-center group min-h-[135px] select-none"
               >
-                <div className="w-9 h-9 rounded-full bg-slate-100 group-hover:bg-blue-100 group-hover:text-blue-600 flex items-center justify-center text-slate-500 transition-colors mb-2">
+                <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50 group-hover:text-blue-600 dark:group-hover:text-blue-400 flex items-center justify-center text-slate-500 dark:text-slate-400 transition-colors mb-2">
                   <Plus className="w-4 h-4" />
                 </div>
-                <span className="font-semibold text-sm text-slate-700 group-hover:text-blue-600 transition-colors">
+                <span className="font-semibold text-sm text-slate-700 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                   Add Location
                 </span>
                 <span className="text-xs text-slate-400 mt-0.5">
@@ -371,6 +410,77 @@ function WarehouseMasterCard({
             setIsAddLocationOpen(false);
             loadLocations();
           }}
+        />
+      )}
+
+      {/* Delete Location Confirmation Dialog */}
+      {locationToDelete && (
+        <ConfirmDialog
+          isOpen={!!locationToDelete}
+          onClose={() => setLocationToDelete(null)}
+          onConfirm={async () => {
+            try {
+              setIsDeletingLocation(true);
+              await masterDataService.deleteLocation(locationToDelete.id, true);
+              toast.success(`Location "${locationToDelete.name}" deleted successfully.`);
+              if (selectedLocationId === locationToDelete.id) {
+                setSelectedLocationId(null);
+              }
+              setLocationToDelete(null);
+              loadLocations();
+            } catch (err: any) {
+              toast.error(err.message || 'Failed to delete location');
+            } finally {
+              setIsDeletingLocation(false);
+            }
+          }}
+          title="Delete Location"
+          message={
+            <div>
+              <p className="font-medium text-slate-800 dark:text-slate-100 mb-1">
+                Are you sure you want to delete storage location <span className="text-red-600 dark:text-red-400 font-semibold">"{locationToDelete.name}"</span> ({locationToDelete.code})?
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                This will delete the location and any associated empty racks or storage units. Locations holding active physical inventory stock balances cannot be deleted.
+              </p>
+            </div>
+          }
+          isDanger={true}
+          confirmText={isDeletingLocation ? 'Deleting...' : 'Delete Location'}
+        />
+      )}
+
+      {/* Delete Warehouse Confirmation Dialog */}
+      {isDeleteWarehouseOpen && (
+        <ConfirmDialog
+          isOpen={isDeleteWarehouseOpen}
+          onClose={() => setIsDeleteWarehouseOpen(false)}
+          onConfirm={async () => {
+            try {
+              setIsDeletingWarehouse(true);
+              await masterDataService.deleteWarehouse(warehouse.id, true);
+              toast.success(`Warehouse "${warehouse.name}" deleted successfully.`);
+              setIsDeleteWarehouseOpen(false);
+              onWarehouseDeleted?.();
+            } catch (err: any) {
+              toast.error(err.message || 'Failed to delete warehouse');
+            } finally {
+              setIsDeletingWarehouse(false);
+            }
+          }}
+          title="Delete Warehouse Facility"
+          message={
+            <div>
+              <p className="font-medium text-slate-800 dark:text-slate-100 mb-1">
+                Are you sure you want to delete warehouse facility <span className="text-red-600 dark:text-red-400 font-semibold">"{warehouse.name}"</span> ({warehouse.code})?
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                This will delete the facility and its empty storage hierarchy. Facilities containing active inventory balances cannot be deleted.
+              </p>
+            </div>
+          }
+          isDanger={true}
+          confirmText={isDeletingWarehouse ? 'Deleting...' : 'Delete Warehouse'}
         />
       )}
     </div>
@@ -541,6 +651,7 @@ function RacksAndBinsRowView({
               locationId={location.id}
               locationName={location.name}
               onOpenAddBin={onOpenAddBin}
+              onRackDeleted={loadRacks}
             />
           ))}
         </div>
@@ -572,15 +683,24 @@ function RackBoxCard({
   locationId,
   locationName,
   onOpenAddBin,
+  onRackDeleted,
 }: {
   rack: Rack;
   warehouseId: string;
   locationId: string;
   locationName: string;
   onOpenAddBin: (ctx: { warehouseId?: string; locationId?: string; rackId?: string }) => void;
+  onRackDeleted?: () => void;
 }) {
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'ADMIN';
+
   const [bins, setBins] = useState<Bin[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [binToDelete, setBinToDelete] = useState<Bin | null>(null);
+  const [isDeletingBin, setIsDeletingBin] = useState(false);
+  const [isDeleteRackOpen, setIsDeleteRackOpen] = useState(false);
+  const [isDeletingRack, setIsDeletingRack] = useState(false);
 
   const loadBins = async () => {
     setIsLoading(true);
@@ -610,83 +730,179 @@ function RackBoxCard({
       return (
         <div
           onClick={() => onOpenAddBin({ warehouseId, locationId, rackId: rack.id })}
-          className="rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/50 hover:bg-blue-50/50 hover:border-blue-400 p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 min-h-[100px]"
+          className="rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 hover:border-blue-400 p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 min-h-[100px]"
         >
           <Plus className="w-5 h-5 text-slate-400 mb-2" />
-          <span className="text-sm font-semibold text-slate-600">Add First Bin</span>
+          <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Add First Bin</span>
         </div>
       );
     }
     return (
       <>
-        {bins.map(bin => (
+        {bins.map((bin) => (
           <div
             key={bin.id}
-            className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs hover:shadow-md hover:border-blue-400 transition-all duration-200 flex flex-col justify-between space-y-3 cursor-pointer group"
+            className="rounded-xl border border-slate-200 dark:border-[#1e233d] bg-white dark:bg-[#121526] p-5 shadow-xs hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 flex flex-col justify-between space-y-3 cursor-pointer group"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#1e233d] pb-3">
               <div className="flex items-center space-x-3 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                   <Box className="w-4 h-4" />
                 </div>
-                <span className="font-bold text-slate-900 text-base font-mono truncate">
+                <span className="font-bold text-slate-900 dark:text-white text-base font-mono truncate">
                   {bin.code}
                 </span>
               </div>
+              {isAdmin && (
+                <button
+                  type="button"
+                  title={`Delete storage unit ${bin.code}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setBinToDelete(bin);
+                  }}
+                  className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-500 font-medium">{bin.name || 'Storage Bin'}</span>
-              <span className={`px-2 py-1 rounded-md font-semibold ${bin.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+              <span className="text-slate-500 dark:text-slate-400 font-medium">{bin.name || 'Storage Bin'}</span>
+              <span className={`px-2 py-1 rounded-md font-semibold ${bin.isActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}`}>
                 {bin.isActive ? 'ACTIVE' : 'INACTIVE'}
               </span>
             </div>
           </div>
         ))}
+
+        {binToDelete && (
+          <ConfirmDialog
+            isOpen={!!binToDelete}
+            onClose={() => setBinToDelete(null)}
+            onConfirm={async () => {
+              try {
+                setIsDeletingBin(true);
+                await masterDataService.deleteBin(binToDelete.id);
+                toast.success(`Storage unit "${binToDelete.code}" deleted successfully.`);
+                setBinToDelete(null);
+                loadBins();
+              } catch (err: any) {
+                toast.error(err.message || 'Failed to delete storage unit');
+              } finally {
+                setIsDeletingBin(false);
+              }
+            }}
+            title="Delete Storage Unit"
+            message={
+              <div>
+                <p className="font-medium text-slate-800 dark:text-slate-100 mb-1">
+                  Are you sure you want to delete storage unit <span className="text-red-600 dark:text-red-400 font-semibold">"{binToDelete.code}"</span>?
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                  Storage units referenced by active stock balances or historical transactions cannot be deleted.
+                </p>
+              </div>
+            }
+            isDanger={true}
+            confirmText={isDeletingBin ? 'Deleting...' : 'Delete Unit'}
+          />
+        )}
       </>
     );
   }
 
   // If not a Bin Area (i.e. Rack Area, Rod Area, Box Area), show only the Rack card!
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between h-[120px]">
-      <div>
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div className="flex items-center space-x-3 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-slate-50 text-slate-600 flex items-center justify-center shrink-0">
-              <Layers className="w-4 h-4" />
+    <>
+      <div className="rounded-xl border border-slate-200 dark:border-[#1e233d] bg-white dark:bg-[#121526] p-5 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200 flex flex-col justify-between h-[120px]">
+        <div>
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-[#1e233d]">
+            <div className="flex items-center space-x-3 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
+                <Layers className="w-4 h-4" />
+              </div>
+              <span className="font-bold text-slate-900 dark:text-white text-base truncate" title={rack.name}>
+                {rack.name}
+              </span>
             </div>
-            <span className="font-bold text-slate-900 text-base truncate" title={rack.name}>
-              {rack.name}
-            </span>
+            <div className="flex items-center space-x-1.5 shrink-0 ml-1">
+              <span className="font-mono text-xs font-semibold px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                {rack.code}
+              </span>
+              {isAdmin && (
+                <button
+                  type="button"
+                  title={`Delete rack ${rack.code}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsDeleteRackOpen(true);
+                  }}
+                  className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
-          <span className="font-mono text-xs font-semibold px-2 py-1 rounded bg-slate-100 border border-slate-200 text-slate-700 shrink-0 ml-1">
-            {rack.code}
-          </span>
+        </div>
+
+        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-3 pt-1">
+          <div className="flex items-center space-x-2">
+            <span className={`w-2 h-2 rounded-full ${rack.isActive ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`} />
+            <span className="font-medium text-slate-600 dark:text-slate-300">{rack.isActive ? 'Active' : 'Inactive'}</span>
+          </div>
+          
+          {/* Hide bins entirely, only prompt to initialize if missing */}
+          {isLoading ? (
+            <span className="text-slate-400">Loading...</span>
+          ) : bins.length > 0 ? (
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded">● Ready</span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onOpenAddBin({ warehouseId, locationId, rackId: rack.id })}
+              className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 flex items-center gap-1 hover:underline cursor-pointer bg-blue-50 dark:bg-blue-950/40 px-2 py-1 rounded"
+            >
+              <Plus className="w-3 h-3" /> Initialize Node
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="flex items-center justify-between text-xs text-slate-500 mt-3 pt-1">
-        <div className="flex items-center space-x-2">
-          <span className={`w-2 h-2 rounded-full ${rack.isActive ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-          <span className="font-medium text-slate-600">{rack.isActive ? 'Active' : 'Inactive'}</span>
-        </div>
-        
-        {/* Hide bins entirely, only prompt to initialize if missing */}
-        {isLoading ? (
-          <span className="text-slate-400">Loading...</span>
-        ) : bins.length > 0 ? (
-          <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-1 rounded">● Ready</span>
-        ) : (
-          <button
-            type="button"
-            onClick={() => onOpenAddBin({ warehouseId, locationId, rackId: rack.id })}
-            className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline cursor-pointer bg-blue-50 px-2 py-1 rounded"
-          >
-            <Plus className="w-3 h-3" /> Initialize Node
-          </button>
-        )}
-      </div>
-    </div>
+      {isDeleteRackOpen && (
+        <ConfirmDialog
+          isOpen={isDeleteRackOpen}
+          onClose={() => setIsDeleteRackOpen(false)}
+          onConfirm={async () => {
+            try {
+              setIsDeletingRack(true);
+              await masterDataService.deleteRack(rack.id, true);
+              toast.success(`Rack "${rack.name}" deleted successfully.`);
+              setIsDeleteRackOpen(false);
+              onRackDeleted?.();
+            } catch (err: any) {
+              toast.error(err.message || 'Failed to delete rack');
+            } finally {
+              setIsDeletingRack(false);
+            }
+          }}
+          title="Delete Rack"
+          message={
+            <div>
+              <p className="font-medium text-slate-800 dark:text-slate-100 mb-1">
+                Are you sure you want to delete rack <span className="text-red-600 dark:text-red-400 font-semibold">"{rack.name}"</span> ({rack.code})?
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                This will delete the rack and its clean empty storage units. Racks with active inventory stock cannot be deleted.
+              </p>
+            </div>
+          }
+          isDanger={true}
+          confirmText={isDeletingRack ? 'Deleting...' : 'Delete Rack'}
+        />
+      )}
+    </>
   );
 }
 

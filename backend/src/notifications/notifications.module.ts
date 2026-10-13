@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module.js';
 import { EmailModule } from '../email/email.module.js';
+import { AuditModule } from '../audit/audit.module.js';
 import { NotificationsController } from './notifications.controller.js';
 import { NotificationsService } from './notifications.service.js';
 import { WorkflowNotificationService } from './workflow-notification.service.js';
@@ -25,6 +26,7 @@ import { NotificationRecipientService } from './notification-recipient.service.j
     ]),
     AuthModule,
     EmailModule,
+    AuditModule,
   ],
   controllers: [NotificationsController],
   providers: [

@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -179,18 +180,45 @@ export class VendorService {
   }
 
   /**
-   * Soft-deactivates a vendor.
+   * Deletes a vendor record from the master list.
+   * Safety check: blocks deletion if any delivery challans reference this vendor.
    */
   async remove(id: string): Promise<{ success: boolean; message: string }> {
     const vendor = await this.findOne(id);
-    vendor.isActive = false;
-    await this.vendorRepo.save(vendor);
+
+    // Check if vendor is referenced by delivery challans
+    const dcResult = await this.vendorRepo.manager.query(
+      `SELECT COUNT(*)::int as count FROM delivery_challans WHERE vendor_id = $1`,
+      [id],
+    );
+    const dcCount = Number(dcResult[0]?.count || 0);
+    if (dcCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete vendor "${vendor.name}" (${vendor.code}) because ${dcCount} delivery challan(s) reference this vendor. You can deactivate it instead.`,
+      );
+    }
+
+    // Clean up child dependencies safely
+    await this.vendorRepo.manager.query(
+      `DELETE FROM vendor_sla_overrides WHERE sla_id IN (SELECT id FROM vendor_slas WHERE vendor_id = $1)`,
+      [id],
+    );
+    await this.vendorRepo.manager.query(
+      `DELETE FROM vendor_slas WHERE vendor_id = $1`,
+      [id],
+    );
+    await this.vendorRepo.manager.query(
+      `DELETE FROM vendor_process_capabilities WHERE vendor_id = $1`,
+      [id],
+    );
+
+    await this.vendorRepo.remove(vendor);
     this.logger.log(
-      `[VENDOR DEACTIVATED] ID: ${vendor.id}, Code: ${vendor.code}`,
+      `[VENDOR DELETED] ID: ${vendor.id}, Code: ${vendor.code}, Name: "${vendor.name}"`,
     );
     return {
       success: true,
-      message: `Vendor "${vendor.name}" (${vendor.code}) has been deactivated.`,
+      message: `Vendor "${vendor.name}" (${vendor.code}) deleted successfully.`,
     };
   }
 }

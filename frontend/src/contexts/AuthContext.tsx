@@ -22,6 +22,7 @@ interface AuthContextType {
   login: (credentials: any) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -87,6 +88,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refreshUser = async () => {
+    try {
+      const res = await authApi.getMe();
+      if (res?.user) {
+        setCurrentUser(res.user);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('rm_access_token');
     setCurrentUser(null);
@@ -103,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ currentUser, token, isAuthenticated: !!currentUser, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ currentUser, token, isAuthenticated: !!currentUser, login, logout, isLoading, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

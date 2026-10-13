@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -49,17 +50,23 @@ export class ProductsController {
   }
 
   @Post()
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
   createProduct(@Body() dto: CreateProductDto) {
     return this.masterDataService.createProduct(dto);
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
   updateProduct(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateProductDto,
   ) {
     return this.masterDataService.updateProduct(id, dto);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
+  deleteProduct(@Param('id', ParseUUIDPipe) id: string) {
+    return this.masterDataService.deleteProduct(id);
   }
 }

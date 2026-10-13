@@ -420,3 +420,49 @@ export const reportApi = {
 export { vendorMasterApi } from './vendorMaster.service';
 export { userMasterApi } from './userMaster.service';
 
+export const systemSettingsApi = {
+  getConfig: () => api.get<any>('/api/notifications/system-config'),
+  updateConfig: (data: any) => api.patch<any>('/api/notifications/system-config', data),
+};
+
+export const auditLogsApi = {
+  getLogs: (params: { search?: string; module?: string; action?: string; limit?: number; offset?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (params.search) q.append('search', params.search);
+    if (params.module && params.module !== 'ALL') q.append('module', params.module);
+    if (params.action && params.action !== 'ALL') q.append('action', params.action);
+    if (params.limit) q.append('limit', String(params.limit));
+    if (params.offset) q.append('offset', String(params.offset));
+    return api.get<{ logs: any[]; total: number; limit: number; offset: number }>(`/api/audit/logs?${q.toString()}`);
+  },
+  exportCsv: (params: { search?: string; module?: string; action?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.search) q.append('search', params.search);
+    if (params.module && params.module !== 'ALL') q.append('module', params.module);
+    if (params.action && params.action !== 'ALL') q.append('action', params.action);
+    return api.get<Blob>(`/api/audit/export-csv?${q.toString()}`, 'blob');
+  },
+};
+
+export const emailCommunicationApi = {
+  getObservability: () => api.get<any>('/api/email/observability'),
+  getLogs: (params: { status?: string; search?: string; limit?: number; offset?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (params.status && params.status !== 'ALL') q.append('status', params.status);
+    if (params.search) q.append('search', params.search);
+    if (params.limit) q.append('limit', String(params.limit));
+    if (params.offset) q.append('offset', String(params.offset));
+    return api.get<{ logs: any[]; total: number; limit: number; offset: number }>(`/api/email/logs?${q.toString()}`);
+  },
+  retryJob: (jobId: string) => api.post<any>(`/api/email/jobs/${jobId}/retry`),
+  sendTestEmail: (data: { recipientEmail: string; subject?: string; message?: string }) =>
+    api.post<{ success: boolean; message: string; providerMessageId?: string; error?: string }>('/api/email/test-send', data),
+};
+
+export const profileApi = {
+  getMe: () => api.get<any>('/api/auth/me'),
+  updateProfile: (data: { name?: string; department?: string }) => api.patch<any>('/api/auth/profile', data),
+  changePassword: (data: { currentPassword: string; newPassword: string }) => api.post<any>('/api/auth/change-password', data),
+};
+
+

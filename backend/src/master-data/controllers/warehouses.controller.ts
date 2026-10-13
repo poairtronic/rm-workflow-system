@@ -69,7 +69,10 @@ export class WarehousesController {
 
   @Delete(':id')
   @Roles(UserRole.ADMIN, UserRole.STORES)
-  deleteWarehouse(@Param('id', ParseUUIDPipe) id: string) {
-    return this.masterDataService.deleteWarehouse(id);
+  deleteWarehouse(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('cascade') cascade?: string,
+  ) {
+    return this.masterDataService.deleteWarehouse(id, cascade === 'true');
   }
 }

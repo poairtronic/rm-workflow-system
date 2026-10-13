@@ -322,14 +322,37 @@ export function InventoryStockWorkspace() {
     } },
     { key: 'warehouseName', header: 'Warehouse', render: (r) => r.warehouseName || 'N/A' },
     { key: 'latestLotBatchNumber', header: 'Lot/Batch', render: (r) => r.latestLotBatchNumber || 'N/A' },
-    { key: 'currentQuantity', header: 'Qty', isNumeric: true, render: (r) => `${r.currentQuantity} ${r.uom || ''}` },
+    { 
+      key: 'currentQuantity', 
+      header: 'Qty', 
+      isNumeric: true, 
+      render: (r) => {
+        const val = Number(r.currentQuantity);
+        if (val < 0) {
+          return (
+            <span className="inline-flex items-center gap-1 font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded border border-red-200 dark:border-red-800">
+              {r.currentQuantity} {r.uom || ''}
+            </span>
+          );
+        }
+        return `${r.currentQuantity} ${r.uom || ''}`;
+      } 
+    },
     { key: 'msl', header: 'MSL', isNumeric: true, render: (r) => r.msl ?? 'N/A' },
     { 
       key: 'status', 
       header: 'Status', 
       render: (r) => {
+        const val = Number(r.currentQuantity);
+        if (val < 0) {
+          return (
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-600 text-white shadow-xs">
+              DEFICIT
+            </span>
+          );
+        }
         if (r.msl === undefined || r.msl === null) return <StatusBadge status="OK" />;
-        const diff = Number(r.currentQuantity) - Number(r.msl);
+        const diff = val - Number(r.msl);
         if (diff < 0) return <StatusBadge status="CRITICAL" />;
         if (diff <= 5) return <StatusBadge status="LOW" />;
         return <StatusBadge status="OK" />;

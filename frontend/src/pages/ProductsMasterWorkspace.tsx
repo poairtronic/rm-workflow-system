@@ -10,6 +10,7 @@ import {
   Checkbox,
   SearchSelect,
   StatusBadge,
+  ConfirmDialog,
 } from '../components/ui';
 import type { ColumnDef, SearchSelectOption } from '../components/ui';
 import {
@@ -36,6 +37,8 @@ import {
   Filter,
   RotateCcw,
   X,
+  Edit2,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -68,6 +71,8 @@ export function ProductsMasterWorkspace() {
   // Modal / Form state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [deleteProductTarget, setDeleteProductTarget] = useState<Product | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form Fields
   const [code, setCode] = useState('');
@@ -267,6 +272,23 @@ export function ProductsMasterWorkspace() {
       setFormErrors({ submit: errMsg });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!deleteProductTarget) return;
+    try {
+      setIsDeleting(true);
+      const res = await masterDataService.deleteProduct(deleteProductTarget.id);
+      toast.success(res?.message || `Product ${deleteProductTarget.name} deleted successfully.`);
+      setDeleteProductTarget(null);
+      await loadData();
+    } catch (err: any) {
+      console.error('Failed to delete product', err);
+      toast.error(err?.message || 'Failed to delete product');
+      setDeleteProductTarget(null);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -615,6 +637,36 @@ export function ProductsMasterWorkspace() {
         sortable: true,
         render: (row) => (
           <StatusBadge status={row.isActive ? 'ACTIVE' : 'INACTIVE'} />
+        ),
+      },
+      {
+        key: 'actions',
+        header: 'Actions',
+        render: (row) => (
+          <div className="flex items-center space-x-1.5" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                openEditModal(row);
+              }}
+              className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors cursor-pointer"
+              title="Edit Product"
+            >
+              <Edit2 className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeleteProductTarget(row);
+              }}
+              className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
+              title="Delete Product"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         ),
       },
     ],
@@ -1070,6 +1122,23 @@ export function ProductsMasterWorkspace() {
       </div>
     </>
   )}
+
+  {/* Confirm Product Deletion Dialog */}
+  <ConfirmDialog
+    isOpen={!!deleteProductTarget}
+    onClose={() => setDeleteProductTarget(null)}
+    onConfirm={handleDeleteProduct}
+    title="Delete Product"
+    message={
+      <span>
+        Are you sure you want to permanently delete product{' '}
+        <strong className="text-gray-900">{deleteProductTarget?.name}</strong>{' '}
+        ({deleteProductTarget?.code || 'No Code'})? This action cannot be undone.
+      </span>
+    }
+    confirmText={isDeleting ? 'Deleting...' : 'Delete Product'}
+    isDanger={true}
+  />
 </div>
 );
 }

@@ -53,3 +53,24 @@ export class UpdateLocationDto {
   @IsBoolean()
   isActive?: boolean;
 }
+
+export class StockRelocationItemDto {
+  @IsUUID('4')
+  @IsNotEmpty()
+  productId!: string;
+
+  @IsUUID('4')
+  @IsNotEmpty()
+  sourceBinId!: string;
+
+  @IsUUID('4')
+  @IsNotEmpty()
+  targetBinId!: string;
+
+  @IsNotEmpty()
+  quantity!: number;
+}
+
+export class RelocateAndDeleteLocationDto {
+  transfers!: StockRelocationItemDto[];
+}

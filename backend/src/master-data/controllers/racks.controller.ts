@@ -66,7 +66,10 @@ export class RacksController {
 
   @Delete(':id')
   @Roles(UserRole.ADMIN, UserRole.STORES)
-  deleteRack(@Param('id', ParseUUIDPipe) id: string) {
-    return this.masterDataService.deleteRack(id);
+  deleteRack(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('cascade') cascade?: string,
+  ) {
+    return this.masterDataService.deleteRack(id, cascade === 'true');
   }
 }

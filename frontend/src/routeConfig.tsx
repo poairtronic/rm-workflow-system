@@ -1,6 +1,10 @@
-import { LayoutDashboard, PackageSearch, PackagePlus, BellRing, Box, Shield, Settings, PackageCheck, ShieldCheck, Network, BarChart3, FileText, FilePlus, PlaySquare, Users, Database, Truck } from 'lucide-react';
+import { LayoutDashboard, PackageSearch, PackagePlus, BellRing, Box, Shield, Settings, PackageCheck, ShieldCheck, Network, BarChart3, FileText, FilePlus, PlaySquare, Users, Database, Truck, Mail, User } from 'lucide-react';
 import type { UserRole } from './contexts/AuthContext';
 
+import { SystemConfigurationWorkspace } from './pages/SystemConfigurationWorkspace';
+import { ProfileWorkspace } from './pages/ProfileWorkspace';
+import { AuditLogsWorkspace } from './pages/AuditLogsWorkspace';
+import { EmailCommunicationWorkspace } from './pages/EmailCommunicationWorkspace';
 import { MslAlertsWorkspace } from './pages/MslAlertsWorkspace';
 import { ProcessMasterWorkspace } from './pages/ProcessMasterWorkspace';
 import { VendorSlaWorkspace } from './pages/VendorSlaWorkspace';
@@ -83,6 +87,18 @@ export const ROUTE_CONFIG: RouteConfig[] = [
 
   // REPORTS
   { name: 'Enterprise Reports', path: '/reports/generation', icon: FileText, roles: ['SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: ReportGeneratorWorkspace, isSidebar: true, group: 'REPORTS', moduleKey: 'enterprise_reports' },
+
+  // SYSTEM SETTINGS
+  { name: 'System Configuration', path: '/settings', icon: Settings, roles: ['ADMIN', 'GENERAL_MANAGER'], component: SystemConfigurationWorkspace, isSidebar: true, group: 'SYSTEM SETTINGS', moduleKey: 'system_config' },
+  { name: 'Edit Profile', path: '/profile', icon: User, roles: ['DESIGNER', 'STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: ProfileWorkspace, isSidebar: true, group: 'SYSTEM SETTINGS', moduleKey: 'profile' },
+  { name: 'Audit Logs', path: '/audit-logs', icon: FileText, roles: ['ADMIN', 'GENERAL_MANAGER', 'SENIOR_MANAGER', 'STORES', 'PRODUCTION', 'DESIGNER'], component: AuditLogsWorkspace, isSidebar: true, group: 'SYSTEM SETTINGS', moduleKey: 'audit_logs' },
+  { name: 'Email & Communication', path: '/communication', icon: Mail, roles: ['ADMIN', 'GENERAL_MANAGER', 'SENIOR_MANAGER'], component: EmailCommunicationWorkspace, isSidebar: true, group: 'SYSTEM SETTINGS', moduleKey: 'communication' },
+
+  // SYSTEM SETTINGS ALIASES (Hidden from sidebar)
+  { name: 'System Config Alias', path: '/settings/configuration', roles: ['ADMIN', 'GENERAL_MANAGER'], component: SystemConfigurationWorkspace, isSidebar: false },
+  { name: 'System Config Alias 2', path: '/settings/system', roles: ['ADMIN', 'GENERAL_MANAGER'], component: SystemConfigurationWorkspace, isSidebar: false },
+  { name: 'Communication Alias', path: '/settings/communication', roles: ['ADMIN', 'GENERAL_MANAGER', 'SENIOR_MANAGER'], component: EmailCommunicationWorkspace, isSidebar: false },
+  { name: 'Audit Logs Alias', path: '/settings/audit-logs', roles: ['ADMIN', 'GENERAL_MANAGER', 'SENIOR_MANAGER', 'STORES', 'PRODUCTION', 'DESIGNER'], component: AuditLogsWorkspace, isSidebar: false },
 
   // PRINTABLE (Not in Sidebar)
   { name: 'DC Print', path: '/dispatch/delivery-challan/:id/print', roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: DeliveryChallanPrintView, isSidebar: false, isPrintable: true },

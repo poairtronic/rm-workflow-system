@@ -25,6 +25,7 @@ import { CreateStockAdjustmentDto } from './dto/create-stock-adjustment.dto.js';
 import { ModernStockInDto } from './dto/modern-stock-in.dto.js';
 import { ModernStockOutDto } from './dto/modern-stock-out.dto.js';
 import { ModernStockAdjustmentDto } from './dto/modern-stock-adjustment.dto.js';
+import { ModernStockTransferDto } from './dto/modern-stock-transfer.dto.js';
 import { ReconciliationResultDto } from './dto/reconciliation-result.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
@@ -156,6 +157,16 @@ export class InventoryController {
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     return this.inventoryService.modernStockAdjustment(dto, userId);
+  }
+
+  @Post('transfer')
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  modernStockTransfer(
+    @Body() dto: ModernStockTransferDto,
+    @Request() req: any,
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    return this.inventoryService.modernStockTransfer(dto, userId);
   }
 
   @Get(':id')

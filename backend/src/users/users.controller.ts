@@ -4,6 +4,7 @@ import {
   Post,
   Body,
   Patch,
+  Delete,
   Param,
   UseGuards,
   Put,
@@ -80,5 +81,12 @@ export class UsersController {
   @Roles(UserRole.ADMIN)
   resetPassword(@Param('id') id: string, @Body() body?: { newPassword?: string }) {
     return this.usersService.resetPassword(id, body?.newPassword);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  remove(@Param('id') id: string, @Req() req: any) {
+    const currentUserId = req?.user?.userId || req?.user?.sub || req?.user?.id;
+    return this.usersService.deleteUser(id, currentUserId);
   }
 }

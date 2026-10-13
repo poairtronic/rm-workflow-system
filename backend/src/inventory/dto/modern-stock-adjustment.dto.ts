@@ -52,4 +52,7 @@ export class ModernStockAdjustmentDto {
   @IsNumber()
   @IsOptional()
   cost?: number;
+
+  @IsOptional()
+  allowNegative?: boolean;
 }

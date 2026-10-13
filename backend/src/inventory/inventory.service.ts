@@ -27,6 +27,7 @@ import { Bin } from './entities/bin.entity.js';
 import { ModernStockInDto } from './dto/modern-stock-in.dto.js';
 import { ModernStockOutDto } from './dto/modern-stock-out.dto.js';
 import { ModernStockAdjustmentDto } from './dto/modern-stock-adjustment.dto.js';
+import { ModernStockTransferDto } from './dto/modern-stock-transfer.dto.js';
 import {
   GetInventoryFilterDto,
   StockStatusFilter,
@@ -77,7 +78,6 @@ export class InventoryService {
       .leftJoinAndSelect('rack.location', 'location')
       .leftJoinAndSelect('location.warehouse', 'warehouse')
       .where('sb.product_id = :productId', { productId })
-      .andWhere('sb.current_quantity > 0')
       .getMany();
 
     return balances.map(b => ({
@@ -99,7 +99,7 @@ export class InventoryService {
       .leftJoinAndSelect('bin.rack', 'rack')
       .leftJoinAndSelect('rack.location', 'location')
       .leftJoinAndSelect('location.warehouse', 'warehouse')
-      .where('sb.current_quantity > 0')
+      .where('sb.current_quantity != 0')
       .andWhere('sb.product_id IS NOT NULL')
       .andWhere('sb.bin_id IS NOT NULL');
 
@@ -1192,12 +1192,22 @@ export class InventoryService {
         });
         await queryRunner.manager.save(currentBalance);
       } else if (!currentBalance && dto.direction === AdjustmentDirection.DECREASE) {
-        throw new BadRequestException('Insufficient stock for adjustment decrease.');
+        if (!dto.allowNegative) {
+          throw new BadRequestException('Insufficient stock for adjustment decrease.');
+        }
+        currentBalance = this.stockBalanceRepository.create({
+          productId: dto.productId,
+          binId: dto.binId,
+          currentQuantity: 0,
+          openingBalance: 0,
+        });
+        await queryRunner.manager.save(currentBalance);
       }
 
       if (
         dto.direction === AdjustmentDirection.DECREASE &&
-        Number(currentBalance?.currentQuantity || 0) < dto.quantity
+        Number(currentBalance?.currentQuantity || 0) < dto.quantity &&
+        !dto.allowNegative
       ) {
         throw new BadRequestException('Insufficient stock for adjustment decrease.');
       }
@@ -1229,16 +1239,26 @@ export class InventoryService {
           [dto.quantity, savedTx.id, dto.productId, dto.binId],
         );
       } else if (dto.direction === AdjustmentDirection.DECREASE) {
-        const updateResult = await queryRunner.manager.query(
-          `UPDATE stock_balances 
-           SET current_quantity = current_quantity - $1, 
-               last_transaction_id = $2, 
-               updated_at = NOW() 
-           WHERE product_id = $3 AND bin_id = $4 AND current_quantity >= $1`,
-          [dto.quantity, savedTx.id, dto.productId, dto.binId],
-        );
+        const querySql = dto.allowNegative
+          ? `UPDATE stock_balances 
+             SET current_quantity = current_quantity - $1, 
+                 last_transaction_id = $2, 
+                 updated_at = NOW() 
+             WHERE product_id = $3 AND bin_id = $4`
+          : `UPDATE stock_balances 
+             SET current_quantity = current_quantity - $1, 
+                 last_transaction_id = $2, 
+                 updated_at = NOW() 
+             WHERE product_id = $3 AND bin_id = $4 AND current_quantity >= $1`;
 
-        if (updateResult[1] === 0) {
+        const updateResult = await queryRunner.manager.query(querySql, [
+          dto.quantity,
+          savedTx.id,
+          dto.productId,
+          dto.binId,
+        ]);
+
+        if (!dto.allowNegative && updateResult[1] === 0) {
           throw new BadRequestException('Insufficient stock for adjustment decrease.');
         }
       } else {
@@ -1257,6 +1277,152 @@ export class InventoryService {
       return {
         transaction: savedTx,
         balance: finalBalance,
+      };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async modernStockTransfer(dto: ModernStockTransferDto, userId: string) {
+    if (dto.sourceBinId === dto.targetBinId) {
+      throw new BadRequestException('Source bin and Target bin cannot be the same.');
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const product = await queryRunner.manager.findOne(Product, {
+        where: { id: dto.productId },
+      });
+      if (!product) {
+        throw new NotFoundException(`Product ${dto.productId} not found`);
+      }
+
+      const sourceBin = await queryRunner.manager.findOne(Bin, {
+        where: { id: dto.sourceBinId },
+      });
+      if (!sourceBin) {
+        throw new NotFoundException(`Source Bin ${dto.sourceBinId} not found`);
+      }
+
+      const targetBin = await queryRunner.manager.findOne(Bin, {
+        where: { id: dto.targetBinId },
+      });
+      if (!targetBin) {
+        throw new NotFoundException(`Target Bin ${dto.targetBinId} not found`);
+      }
+
+      // 1. Fetch or create source balance
+      let sourceBalance = await queryRunner.manager.findOne(StockBalance, {
+        where: { productId: dto.productId, binId: dto.sourceBinId },
+      });
+      if (!sourceBalance) {
+        sourceBalance = this.stockBalanceRepository.create({
+          productId: dto.productId,
+          binId: dto.sourceBinId,
+          currentQuantity: 0,
+          openingBalance: 0,
+        });
+        await queryRunner.manager.save(sourceBalance);
+      }
+
+      const currentSourceQty = Number(sourceBalance.currentQuantity || 0);
+
+      // Check for negative stock if not explicitly allowed
+      if (currentSourceQty < dto.quantity && !dto.allowNegative) {
+        throw new BadRequestException(
+          `Source bin "${sourceBin.code}" has insufficient stock (Available: ${currentSourceQty}, Moving: ${dto.quantity}). Confirm negative stock alert to proceed.`,
+        );
+      }
+
+      // 2. Fetch or create target balance
+      let targetBalance = await queryRunner.manager.findOne(StockBalance, {
+        where: { productId: dto.productId, binId: dto.targetBinId },
+      });
+      if (!targetBalance) {
+        targetBalance = this.stockBalanceRepository.create({
+          productId: dto.productId,
+          binId: dto.targetBinId,
+          currentQuantity: 0,
+          openingBalance: 0,
+        });
+        await queryRunner.manager.save(targetBalance);
+      }
+
+      // 3. Create Transfer Transaction
+      const transaction = this.stockTransactionRepository.create({
+        productId: dto.productId,
+        sourceBinId: dto.sourceBinId,
+        destinationBinId: dto.targetBinId,
+        transactionType: TransactionType.TRANSFER,
+        quantity: dto.quantity,
+        referenceType: dto.referenceType || 'BIN_TRANSFER',
+        referenceId: dto.referenceId,
+        reason: dto.reason,
+        remarks: dto.remarks || dto.reason,
+        lotBatchNumber: dto.lotBatchNumber,
+        cost: dto.cost,
+        createdById: userId,
+      });
+      const savedTx = await queryRunner.manager.save(transaction);
+
+      // 4. Update source balance (deduct) - supports negative value if allowed!
+      const updateSourceSql = dto.allowNegative
+        ? `UPDATE stock_balances 
+           SET current_quantity = current_quantity - $1, 
+               last_transaction_id = $2, 
+               updated_at = NOW() 
+           WHERE product_id = $3 AND bin_id = $4`
+        : `UPDATE stock_balances 
+           SET current_quantity = current_quantity - $1, 
+               last_transaction_id = $2, 
+               updated_at = NOW() 
+           WHERE product_id = $3 AND bin_id = $4 AND current_quantity >= $1`;
+
+      const sourceResult = await queryRunner.manager.query(updateSourceSql, [
+        dto.quantity,
+        savedTx.id,
+        dto.productId,
+        dto.sourceBinId,
+      ]);
+
+      if (!dto.allowNegative && sourceResult[1] === 0) {
+        throw new BadRequestException('Insufficient stock in source bin.');
+      }
+
+      // 5. Update target balance (add)
+      await queryRunner.manager.query(
+        `UPDATE stock_balances 
+         SET current_quantity = current_quantity + $1, 
+             last_transaction_id = $2, 
+             updated_at = NOW() 
+         WHERE product_id = $3 AND bin_id = $4`,
+        [dto.quantity, savedTx.id, dto.productId, dto.targetBinId],
+      );
+
+      const finalSourceBalance = await queryRunner.manager.findOne(StockBalance, {
+        where: { productId: dto.productId, binId: dto.sourceBinId },
+        relations: { product: true, bin: true },
+      });
+
+      const finalTargetBalance = await queryRunner.manager.findOne(StockBalance, {
+        where: { productId: dto.productId, binId: dto.targetBinId },
+        relations: { product: true, bin: true },
+      });
+
+      await queryRunner.commitTransaction();
+
+      this.triggerMslCheck(dto.productId);
+
+      return {
+        transaction: savedTx,
+        sourceBalance: finalSourceBalance,
+        targetBalance: finalTargetBalance,
       };
     } catch (error) {
       await queryRunner.rollbackTransaction();

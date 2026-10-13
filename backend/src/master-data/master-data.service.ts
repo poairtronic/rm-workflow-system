@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In, DataSource } from 'typeorm';
 import { ProductCategory } from '../inventory/entities/product-category.entity.js';
 import { ProductFamily } from '../inventory/entities/product-family.entity.js';
 import { Product } from '../inventory/entities/product.entity.js';
@@ -14,13 +14,13 @@ import { WarehouseLocation } from '../inventory/entities/warehouse-location.enti
 import { Rack } from '../inventory/entities/rack.entity.js';
 import { Bin } from '../inventory/entities/bin.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
-import { StockTransaction } from '../inventory/entities/stock-transaction.entity.js';
+import { StockTransaction, TransactionType } from '../inventory/entities/stock-transaction.entity.js';
 
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto.js';
 import { CreateFamilyDto, UpdateFamilyDto } from './dto/family.dto.js';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto.js';
 import { CreateWarehouseDto, UpdateWarehouseDto } from './dto/warehouse.dto.js';
-import { CreateLocationDto, UpdateLocationDto } from './dto/location.dto.js';
+import { CreateLocationDto, UpdateLocationDto, RelocateAndDeleteLocationDto } from './dto/location.dto.js';
 import { CreateRackDto, UpdateRackDto } from './dto/rack.dto.js';
 import { CreateBinDto, UpdateBinDto } from './dto/bin.dto.js';
 import { MasterFilterDto } from './dto/master-filter.dto.js';
@@ -46,6 +46,7 @@ export class MasterDataService {
     private readonly stockBalanceRepo: Repository<StockBalance>,
     @InjectRepository(StockTransaction)
     private readonly stockTransactionRepo: Repository<StockTransaction>,
+    private readonly dataSource: DataSource,
   ) {}
 
   // ==========================================
@@ -524,6 +525,85 @@ export class MasterDataService {
     return this.productRepo.save(product);
   }
 
+  async deleteProduct(id: string) {
+    const product = await this.findProductById(id);
+
+    // 1. Check stock transactions referencing this product
+    const txCount = await this.stockTransactionRepo.count({
+      where: { productId: id },
+    });
+    if (txCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete product "${product.name}" (${product.code}) because it has ${txCount} historical stock transaction(s). You can deactivate it instead.`,
+      );
+    }
+
+    // 2. Check stock balances with non-zero quantities
+    const balances = await this.stockBalanceRepo.find({
+      where: { productId: id },
+    });
+    const hasPositiveStock = balances.some(
+      (b) => Number(b.currentQuantity) > 0,
+    );
+    if (hasPositiveStock) {
+      throw new BadRequestException(
+        `Cannot delete product "${product.name}" (${product.code}) because it currently holds active stock. Please transfer or adjust the inventory to 0, or deactivate the product.`,
+      );
+    }
+
+    // 3. Check delivery challan items
+    const dcResult = await this.productRepo.manager.query(
+      `SELECT COUNT(*)::int as count FROM delivery_challan_items WHERE product_id = $1 OR output_product_id = $1`,
+      [id],
+    );
+    const dcCount = Number(dcResult[0]?.count || 0);
+    if (dcCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete product "${product.name}" (${product.code}) because it is referenced in delivery challans. You can deactivate it instead.`,
+      );
+    }
+
+    // 4. Check general issue items
+    const issueResult = await this.productRepo.manager.query(
+      `SELECT COUNT(*)::int as count FROM general_issue_items WHERE product_id = $1`,
+      [id],
+    );
+    const issueCount = Number(issueResult[0]?.count || 0);
+    if (issueCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete product "${product.name}" (${product.code}) because it is referenced in material issues. You can deactivate it instead.`,
+      );
+    }
+
+    // 5. Check RM items mapped to this product
+    const rmResult = await this.productRepo.manager.query(
+      `SELECT COUNT(*)::int as count FROM rm_items WHERE mapped_product_id = $1`,
+      [id],
+    );
+    const rmCount = Number(rmResult[0]?.count || 0);
+    if (rmCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete product "${product.name}" (${product.code}) because it is mapped to RM requisition item(s). You can deactivate it instead.`,
+      );
+    }
+
+    // Safe to delete! Clean up any zero-balance records & MSL alerts
+    await this.productRepo.manager.query(
+      `DELETE FROM stock_balances WHERE product_id = $1`,
+      [id],
+    );
+    await this.productRepo.manager.query(
+      `DELETE FROM msl_alerts WHERE product_id = $1`,
+      [id],
+    );
+
+    await this.productRepo.remove(product);
+    return {
+      success: true,
+      message: `Product "${product.name}" (${product.code}) deleted successfully.`,
+    };
+  }
+
   // ==========================================
   // 4. WAREHOUSES
   // ==========================================
@@ -641,7 +721,7 @@ export class MasterDataService {
     return this.warehouseRepo.save(warehouse);
   }
 
-  async deleteWarehouse(id: string) {
+  async deleteWarehouse(id: string, _cascade = false) {
     const warehouse = await this.findWarehouseById(id);
     const locationCount = await this.locationRepo.count({
       where: { warehouseId: id },
@@ -649,7 +729,7 @@ export class MasterDataService {
 
     if (locationCount > 0) {
       throw new ConflictException(
-        `Cannot delete warehouse "${warehouse.name}" because it contains ${locationCount} locations. Deactivate it instead.`,
+        `Cannot delete warehouse "${warehouse.name}" because it contains ${locationCount} storage location(s). All warehouse locations must be deleted first.`,
       );
     }
 
@@ -785,16 +865,210 @@ export class MasterDataService {
     return this.locationRepo.save(location);
   }
 
-  async deleteLocation(id: string) {
+  async getLocationActiveStocks(locationId: string) {
+    await this.findLocationById(locationId);
+    const racks = await this.rackRepo.find({
+      where: { locationId },
+    });
+    const rackIds = racks.map((r) => r.id);
+    if (rackIds.length === 0) return [];
+
+    const bins = await this.binRepo.find({
+      where: { rackId: In(rackIds) },
+    });
+    const binIds = bins.map((b) => b.id);
+    if (binIds.length === 0) return [];
+
+    const balances = await this.stockBalanceRepo
+      .createQueryBuilder('sb')
+      .leftJoinAndSelect('sb.product', 'product')
+      .leftJoinAndSelect('sb.bin', 'bin')
+      .leftJoinAndSelect('bin.rack', 'rack')
+      .where('sb.bin_id IN (:...binIds)', { binIds })
+      .andWhere('sb.current_quantity != 0')
+      .getMany();
+
+    return balances.map((b) => ({
+      balanceId: b.id,
+      productId: b.productId,
+      productName: b.product?.name || 'Unknown Product',
+      productCode: b.product?.code || 'N/A',
+      uom: b.product?.uom || 'KG',
+      quantity: Number(b.currentQuantity),
+      currentBinId: b.binId,
+      currentBinCode: b.bin?.code || 'N/A',
+      currentRackId: b.bin?.rackId,
+      currentRackCode: b.bin?.rack?.code || 'N/A',
+    }));
+  }
+
+  async relocateAndDeleteLocation(
+    locationId: string,
+    dto: RelocateAndDeleteLocationDto,
+    userId: string,
+  ) {
+    const location = await this.findLocationById(locationId);
+    const racks = await this.rackRepo.find({ where: { locationId } });
+    const rackIds = racks.map((r) => r.id);
+    const bins = rackIds.length > 0 ? await this.binRepo.find({ where: { rackId: In(rackIds) } }) : [];
+    const binIds = bins.map((b) => b.id);
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // 1. Process each transfer atomically
+      for (const t of (dto.transfers || [])) {
+        if (!t.productId || !t.sourceBinId || !t.targetBinId || Number(t.quantity) <= 0) continue;
+        if (t.sourceBinId === t.targetBinId) {
+          throw new BadRequestException('Target bin must be different from source bin.');
+        }
+
+        if (binIds.includes(t.targetBinId)) {
+          throw new BadRequestException('Target bin cannot be inside the location being deleted.');
+        }
+
+        const transaction = this.stockTransactionRepo.create({
+          productId: t.productId,
+          sourceBinId: t.sourceBinId,
+          destinationBinId: t.targetBinId,
+          transactionType: TransactionType.TRANSFER,
+          quantity: Number(t.quantity),
+          referenceType: 'LOCATION_DECOMMISSION',
+          reason: `Stock relocated prior to deletion of location "${location.name}"`,
+          remarks: `Automated inventory shift from ${location.name} to target storage unit.`,
+          createdById: userId,
+        });
+        const savedTx = await queryRunner.manager.save(transaction);
+
+        // Deduct from source balance
+        await queryRunner.manager.query(
+          `UPDATE stock_balances 
+           SET current_quantity = current_quantity - $1, 
+               last_transaction_id = $2, 
+               updated_at = NOW() 
+           WHERE product_id = $3 AND bin_id = $4`,
+          [t.quantity, savedTx.id, t.productId, t.sourceBinId],
+        );
+
+        // Ensure target balance exists
+        let targetBalance = await queryRunner.manager.findOne(StockBalance, {
+          where: { productId: t.productId, binId: t.targetBinId },
+        });
+        if (!targetBalance) {
+          targetBalance = this.stockBalanceRepo.create({
+            productId: t.productId,
+            binId: t.targetBinId,
+            currentQuantity: 0,
+            openingBalance: 0,
+          });
+          await queryRunner.manager.save(targetBalance);
+        }
+
+        // Add to target balance
+        await queryRunner.manager.query(
+          `UPDATE stock_balances 
+           SET current_quantity = current_quantity + $1, 
+               last_transaction_id = $2, 
+               updated_at = NOW() 
+           WHERE product_id = $3 AND bin_id = $4`,
+          [t.quantity, savedTx.id, t.productId, t.targetBinId],
+        );
+      }
+
+      // 2. Remove balances and safely unlink historical transactions
+      if (binIds.length > 0) {
+        await queryRunner.manager.query(
+          `DELETE FROM stock_balances WHERE bin_id = ANY($1)`,
+          [binIds],
+        );
+
+        await queryRunner.manager.query(
+          `UPDATE stock_transactions SET source_bin_id = NULL WHERE source_bin_id = ANY($1)`,
+          [binIds],
+        );
+        await queryRunner.manager.query(
+          `UPDATE stock_transactions SET destination_bin_id = NULL WHERE destination_bin_id = ANY($1)`,
+          [binIds],
+        );
+
+        await queryRunner.manager.remove(bins);
+      }
+
+      if (racks.length > 0) {
+        await queryRunner.manager.remove(racks);
+      }
+      await queryRunner.manager.remove(location);
+
+      await queryRunner.commitTransaction();
+      return {
+        success: true,
+        message: `Location "${location.name}" deleted successfully. All inventory transferred to selected bins.`,
+      };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async deleteLocation(id: string, cascade = false) {
     const location = await this.findLocationById(id);
     const rackCount = await this.rackRepo.count({
       where: { locationId: id },
     });
 
-    if (rackCount > 0) {
+    if (rackCount > 0 && !cascade) {
       throw new ConflictException(
         `Cannot delete location "${location.name}" because it contains ${rackCount} racks. Deactivate it instead.`,
       );
+    }
+
+    if (rackCount > 0 && cascade) {
+      const racks = await this.rackRepo.find({
+        where: { locationId: id },
+      });
+      const rackIds = racks.map((r) => r.id);
+      const bins = rackIds.length > 0 ? await this.binRepo.find({
+        where: { rackId: In(rackIds) },
+      }) : [];
+      const binIds = bins.map((b) => b.id);
+
+      if (binIds.length > 0) {
+        const activeBalances = await this.stockBalanceRepo
+          .createQueryBuilder('sb')
+          .where('sb.bin_id IN (:...binIds)', { binIds })
+          .andWhere('sb.current_quantity != 0')
+          .getCount();
+
+        if (activeBalances > 0) {
+          throw new ConflictException(
+            `Cannot delete location "${location.name}" because its storage units contain active stock balances (${activeBalances}). Please transfer or relocate stock before deleting.`,
+          );
+        }
+
+        // Delete empty stock_balances
+        await this.dataSource.query(
+          `DELETE FROM stock_balances WHERE bin_id = ANY($1)`,
+          [binIds],
+        );
+
+        // Disassociate FK on historical transactions so ledger is preserved without blocking bin deletion
+        await this.dataSource.query(
+          `UPDATE stock_transactions SET source_bin_id = NULL WHERE source_bin_id = ANY($1)`,
+          [binIds],
+        );
+        await this.dataSource.query(
+          `UPDATE stock_transactions SET destination_bin_id = NULL WHERE destination_bin_id = ANY($1)`,
+          [binIds],
+        );
+
+        await this.binRepo.remove(bins);
+      }
+
+      await this.rackRepo.remove(racks);
     }
 
     await this.locationRepo.remove(location);
@@ -926,16 +1200,48 @@ export class MasterDataService {
     return this.rackRepo.save(rack);
   }
 
-  async deleteRack(id: string) {
+  async deleteRack(id: string, cascade = false) {
     const rack = await this.findRackById(id);
     const binCount = await this.binRepo.count({
       where: { rackId: id },
     });
 
-    if (binCount > 0) {
+    if (binCount > 0 && !cascade) {
       throw new ConflictException(
         `Cannot delete rack "${rack.name}" because it contains ${binCount} bins. Deactivate it instead.`,
       );
+    }
+
+    if (binCount > 0 && cascade) {
+      const bins = await this.binRepo.find({
+        where: { rackId: id },
+      });
+      const binIds = bins.map((b) => b.id);
+
+      if (binIds.length > 0) {
+        const balanceCount = await this.stockBalanceRepo.count({
+          where: { binId: In(binIds) },
+        });
+        if (balanceCount > 0) {
+          throw new ConflictException(
+            `Cannot delete rack "${rack.name}" because its storage units contain active stock balances (${balanceCount}). Please transfer or issue stock before deleting.`,
+          );
+        }
+
+        const txCount = await this.stockTransactionRepo.count({
+          where: [
+            { sourceBinId: In(binIds) },
+            { destinationBinId: In(binIds) },
+          ],
+        });
+        if (txCount > 0) {
+          throw new ConflictException(
+            `Cannot delete rack "${rack.name}" because historical stock transactions are linked to its storage units. Deactivate the rack instead.`,
+          );
+        }
+
+        await this.binRepo.remove(bins);
+      }
     }
 
     await this.rackRepo.remove(rack);

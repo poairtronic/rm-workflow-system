@@ -147,4 +147,34 @@ export class AuthService {
       message: 'Password changed successfully',
     };
   }
+
+  async updateProfile(
+    userId: string,
+    data: { name?: string; department?: string },
+  ): Promise<{ success: boolean; user: Partial<User>; message: string }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: { role: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (data.name && data.name.trim()) {
+      user.name = data.name.trim();
+    }
+    if (data.department !== undefined) {
+      user.department = data.department.trim();
+    }
+
+    const saved = await this.userRepository.save(user);
+    const { passwordHash: _, ...userWithoutPass } = saved;
+
+    return {
+      success: true,
+      user: userWithoutPass,
+      message: 'Profile updated successfully',
+    };
+  }
 }

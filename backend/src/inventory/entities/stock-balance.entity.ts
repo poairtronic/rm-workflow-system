@@ -16,7 +16,6 @@ import { Product } from './product.entity.js';
 import { Bin } from './bin.entity.js';
 
 @Entity('stock_balances')
-@Check(`"current_quantity" >= 0`)
 @Unique(['productId', 'binId'])
 export class StockBalance {
   @PrimaryGeneratedColumn('uuid')
@@ -73,7 +72,7 @@ export class StockBalance {
   @Column({ name: 'last_transaction_id', nullable: true })
   lastTransactionId?: string;
 
-  @OneToOne(() => StockTransaction, { nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => StockTransaction, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'last_transaction_id' })
   lastTransaction?: StockTransaction;
 

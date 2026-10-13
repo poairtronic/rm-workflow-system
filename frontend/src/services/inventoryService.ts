@@ -82,6 +82,21 @@ export interface ModernStockAdjustmentPayload {
   remarks?: string;
   referenceType?: string;
   referenceId?: string;
+  allowNegative?: boolean;
+}
+
+export interface ModernStockTransferPayload {
+  productId: string;
+  sourceBinId: string;
+  targetBinId: string;
+  quantity: number;
+  reason: string;
+  remarks?: string;
+  lotBatchNumber?: string;
+  cost?: number;
+  referenceType?: string;
+  referenceId?: string;
+  allowNegative?: boolean;
 }
 
 export const inventoryService = {
@@ -125,6 +140,13 @@ export const inventoryService = {
   adjustStock: async (payload: ModernStockAdjustmentPayload) => {
     return api.post<{ transaction: StockTransaction; balance: StockBalance }>(
       '/api/inventory/adjustment',
+      payload,
+    );
+  },
+
+  transferStock: async (payload: ModernStockTransferPayload) => {
+    return api.post<{ transaction: StockTransaction; sourceBalance: StockBalance; targetBalance: StockBalance }>(
+      '/api/inventory/transfer',
       payload,
     );
   },

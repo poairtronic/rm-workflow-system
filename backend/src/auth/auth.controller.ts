@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Patch,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -101,5 +102,15 @@ export class AuthController {
       dto.currentPassword,
       dto.newPassword,
     );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('profile')
+  updateProfile(
+    @Body() dto: { name?: string; department?: string },
+    @Req() req: { user: any },
+  ) {
+    const currentUserId = req?.user?.userId || req?.user?.sub || req?.user?.id;
+    return this.authService.updateProfile(currentUserId, dto);
   }
 }

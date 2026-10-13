@@ -19,7 +19,7 @@ import {
   Button,
 } from '../components/ui';
 import type { ColumnDef } from '../components/ui';
-import { Plus, Shield, Mail, Calendar, ArrowLeft, KeyRound, SlidersHorizontal } from 'lucide-react';
+import { Plus, Shield, Mail, Calendar, ArrowLeft, KeyRound, Trash2, SlidersHorizontal } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { UserAccessDrawer } from '../components/access-control/UserAccessDrawer';
 import { RolePermissionMatrixModal } from '../components/access-control/RolePermissionMatrixModal';
@@ -58,6 +58,9 @@ export function UserMasterWorkspace() {
 
   // Reset Password Confirmation State
   const [resetPasswordTarget, setResetPasswordTarget] = useState<UserMasterDto | null>(null);
+
+  // Delete User Confirmation State
+  const [deleteUserTarget, setDeleteUserTarget] = useState<UserMasterDto | null>(null);
 
   // Access Control Drawer State
   const [accessDrawerTarget, setAccessDrawerTarget] = useState<UserMasterDto | null>(null);
@@ -131,6 +134,19 @@ export function UserMasterWorkspace() {
     onError: (err: any) => {
       toast.error(err?.message || 'Failed to reset password');
       setResetPasswordTarget(null);
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: (id: string) => userMasterApi.deleteUser(id),
+    onSuccess: (res) => {
+      toast.success(res?.message || 'User deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['users-master'] });
+      setDeleteUserTarget(null);
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to delete user');
+      setDeleteUserTarget(null);
     },
   });
 
@@ -216,7 +232,7 @@ export function UserMasterWorkspace() {
                   setRoleChangeTarget({ user: u, newRole });
                 }
               }}
-              className="text-xs border border-gray-200 rounded px-1.5 py-1 bg-white text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+              className="text-xs border border-gray-200 dark:border-[#1e233d] rounded-md px-2 py-1 bg-white dark:bg-[#0e111f] text-gray-700 dark:text-slate-200 hover:border-gray-300 dark:hover:border-[#2b3254] focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer font-medium"
               title="Click to change role"
             >
               {SYSTEM_ROLES.map((r) => (
@@ -242,7 +258,7 @@ export function UserMasterWorkspace() {
             
             {isSelf ? (
               <span
-                className="text-[11px] text-gray-400 font-medium italic cursor-not-allowed"
+                className="text-[11px] text-gray-400 dark:text-[#55627a] font-medium italic cursor-not-allowed"
                 title="Administrators cannot deactivate their own account (Self-lock guard)"
               >
                 Locked
@@ -251,10 +267,10 @@ export function UserMasterWorkspace() {
               <button
                 type="button"
                 onClick={() => setToggleUserTarget(u)}
-                className={`text-xs px-2 py-1 rounded font-medium border transition-colors ${
+                className={`text-xs px-2.5 py-1 rounded-md font-semibold border transition-all cursor-pointer ${
                   u.isActive
-                    ? 'border-red-200 text-red-700 hover:bg-red-50'
-                    : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                    ? 'border-red-200 dark:border-rose-500/30 text-red-700 dark:text-rose-400 bg-red-50/50 dark:bg-rose-500/10 hover:bg-red-100 dark:hover:bg-rose-500/20'
+                    : 'border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20'
                 }`}
               >
                 {u.isActive ? 'Deactivate' : 'Activate'}
@@ -265,11 +281,23 @@ export function UserMasterWorkspace() {
               <button
                 type="button"
                 onClick={() => setResetPasswordTarget(u)}
-                className="text-xs px-2 py-1 rounded font-medium border border-amber-200 text-amber-700 hover:bg-amber-50 transition-colors flex items-center gap-1"
+                className="text-xs px-2.5 py-1 rounded-md font-semibold border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-500/10 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-all flex items-center gap-1 cursor-pointer"
                 title="Reset password to system default"
               >
                 <KeyRound className="w-3 h-3" />
                 <span>Reset PWD</span>
+              </button>
+            )}
+
+            {currentUser?.role === 'ADMIN' && !isSelf && (
+              <button
+                type="button"
+                onClick={() => setDeleteUserTarget(u)}
+                className="text-xs px-2.5 py-1 rounded-md font-semibold border border-red-200 dark:border-rose-500/30 text-red-700 dark:text-rose-400 bg-red-50/50 dark:bg-rose-500/10 hover:bg-red-100 dark:hover:bg-rose-500/20 transition-all flex items-center gap-1 cursor-pointer"
+                title="Permanently delete user account"
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>Delete</span>
               </button>
             )}
           </div>
@@ -283,10 +311,10 @@ export function UserMasterWorkspace() {
         <button
           type="button"
           onClick={() => setAccessDrawerTarget(u)}
-          className="text-xs px-2.5 py-1.5 rounded-md font-semibold bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-colors flex items-center gap-1.5 shadow-2xs"
+          className="text-xs px-2.5 py-1.5 rounded-md font-semibold bg-blue-50 dark:bg-indigo-500/10 border border-blue-200 dark:border-indigo-500/30 text-blue-700 dark:text-indigo-400 hover:bg-blue-100 dark:hover:bg-indigo-500/20 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
           title="Configure module visibility and permissions for this user"
         >
-          <Shield className="w-3.5 h-3.5 text-blue-600" />
+          <Shield className="w-3.5 h-3.5 text-blue-600 dark:text-indigo-400" />
           <span>Manage Access</span>
         </button>
       ),
@@ -441,14 +469,14 @@ export function UserMasterWorkspace() {
                 <Button
                   variant="secondary"
                   onClick={() => setIsRoleMatrixOpen(true)}
-                  className="flex items-center space-x-1.5 border-slate-300 hover:bg-slate-50 text-slate-700"
+                  className="flex items-center space-x-1.5 border-slate-300 dark:border-[#1e233d] hover:bg-slate-50 dark:hover:bg-[#161a2e] text-slate-700 dark:text-slate-200 bg-white dark:bg-[#121526]"
                 >
-                  <SlidersHorizontal className="w-4 h-4 text-blue-600" />
+                  <SlidersHorizontal className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                   <span>Role Access Matrix</span>
                 </Button>
                 <Button
                   onClick={() => setIsCreateOpen(true)}
-                  className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+                  className="flex items-center space-x-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-900/30"
                 >
                   <Plus className="w-4 h-4" />
                   <span>New User</span>
@@ -568,6 +596,27 @@ export function UserMasterWorkspace() {
       <RolePermissionMatrixModal
         isOpen={isRoleMatrixOpen}
         onClose={() => setIsRoleMatrixOpen(false)}
+      />
+
+      {/* Confirm User Deletion Dialog */}
+      <ConfirmDialog
+        isOpen={!!deleteUserTarget}
+        onClose={() => setDeleteUserTarget(null)}
+        onConfirm={() => {
+          if (deleteUserTarget) {
+            deleteUserMutation.mutate(deleteUserTarget.id);
+          }
+        }}
+        title="Delete User Account"
+        message={
+          <span>
+            Are you sure you want to permanently delete user{' '}
+            <strong className="text-gray-900">{deleteUserTarget?.name}</strong> (
+            {deleteUserTarget?.email})? This action cannot be undone.
+          </span>
+        }
+        confirmText="Delete User"
+        isDanger={true}
       />
     </div>
   );

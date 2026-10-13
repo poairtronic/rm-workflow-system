@@ -95,6 +95,23 @@ export class NotificationsController {
     return { workflowEmailEnabled: enabled };
   }
 
+  @Get('system-config')
+  @UseGuards(JwtAuthGuard)
+  async getSystemConfig() {
+    return await this.notificationsService.getSystemConfig();
+  }
+
+  @Patch('system-config')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.GENERAL_MANAGER)
+  async updateSystemConfig(
+    @Body() body: any,
+    @Request() req: any,
+  ) {
+    const actorId = req.user?.userId || req.user?.id || 'ADMIN';
+    return await this.notificationsService.updateSystemConfig(body, actorId);
+  }
+
   @Get('preferences/me')
   @UseGuards(JwtAuthGuard)
   async getMyPreferences(@Request() req: any) {

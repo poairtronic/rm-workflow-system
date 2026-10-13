@@ -1,16 +1,32 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Search, LogOut, KeyRound, X, Truck, Package, Settings, Building2, ExternalLink } from 'lucide-react';
+import { Search, LogOut, KeyRound, X, Truck, Package, Settings, Building2, ExternalLink, Sun, Moon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { NotificationBell } from '../notifications/NotificationBell';
 import { ChangePasswordModal } from '../auth/ChangePasswordModal';
 import { deliveryChallanApi, productionProcessApi, api, unwrapList } from '../../services/api';
+import { getCurrentTheme, applyTheme } from '../../utils/theme';
 
 export function TopBar() {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState(() => getCurrentTheme());
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      setCurrentTheme(e.detail?.theme || getCurrentTheme());
+    };
+    window.addEventListener('theme-changed', handler);
+    return () => window.removeEventListener('theme-changed', handler);
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = currentTheme === 'Modern Dark' ? 'Enterprise Light' : 'Modern Dark';
+    setCurrentTheme(nextTheme);
+    applyTheme(nextTheme);
+  };
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -273,11 +289,11 @@ export function TopBar() {
   };
 
   return (
-    <header className="fixed top-0 right-0 left-65 h-16 bg-white/80 backdrop-blur border-b border-slate-200 z-20 flex items-center px-6 justify-between">
+    <header className="fixed top-0 right-0 left-65 h-16 bg-white/90 dark:bg-[#0d0f1b]/90 backdrop-blur-md border-b border-slate-200 dark:border-[#1a1e33] z-20 flex items-center px-6 justify-between transition-colors duration-150">
       {/* Search Input Container */}
       <div className="flex items-center gap-4 flex-1" ref={dropdownRef}>
         <div className="relative group max-w-lg w-full">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-[#55627a] group-focus-within:text-primary dark:group-focus-within:text-indigo-400 transition-colors" />
           <input
             ref={inputRef}
             type="text"
@@ -288,7 +304,7 @@ export function TopBar() {
             }}
             onFocus={() => setIsOpen(true)}
             placeholder="Search Part #, Product Name, Vendor, Process Type (e.g. Heating)..."
-            className="w-full pl-9 pr-20 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white transition-all font-medium"
+            className="w-full pl-9 pr-20 py-2 bg-slate-50 dark:bg-[#0e111f] border border-slate-200 dark:border-[#1e233d] rounded-lg text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-[#55627a] focus:outline-none focus:ring-2 focus:ring-primary/20 dark:focus:ring-indigo-500/20 focus:border-primary dark:focus:border-indigo-500 transition-all font-medium"
           />
 
           <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
@@ -299,13 +315,13 @@ export function TopBar() {
                   setSearchQuery('');
                   setIsOpen(false);
                 }}
-                className="text-slate-400 hover:text-slate-600 p-0.5 rounded"
+                className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 p-0.5 rounded cursor-pointer"
                 title="Clear"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
-            <kbd className="hidden sm:inline-block border border-slate-200 rounded px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 bg-white shadow-2xs">
+            <kbd className="hidden sm:inline-block border border-slate-200 dark:border-[#1e233d] rounded px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:text-[#7a879e] bg-white dark:bg-[#121526] shadow-2xs">
               CTRL K
             </kbd>
           </div>
@@ -447,28 +463,54 @@ export function TopBar() {
         </div>
       </div>
       
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-4">
+        {/* Instant Theme Toggle Button */}
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="p-2 rounded-lg text-slate-500 dark:text-[#8896ab] hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-[#161a2e] border border-transparent dark:border-[#1e233d]/60 transition-colors cursor-pointer"
+          title={currentTheme === 'Modern Dark' ? 'Switch to Light Mode' : 'Switch to Modern Dark Mode'}
+        >
+          {currentTheme === 'Modern Dark' ? (
+            <Sun className="w-4 h-4 text-amber-400" />
+          ) : (
+            <Moon className="w-4 h-4 text-slate-600" />
+          )}
+        </button>
+
         {currentUser && <NotificationBell onNavigateTarget={handleNavigateTarget} />}
         
-        <div className="flex items-center gap-4 border-l border-slate-200 pl-6">
+        <div className="flex items-center gap-3 border-l border-slate-200 dark:border-[#1a1e33] pl-4">
           {currentUser && (
             <>
-              <span className="text-xs font-bold px-2 py-1 bg-primary/10 text-primary rounded">
+              <span className="text-xs font-bold px-2 py-0.5 bg-primary/10 dark:bg-indigo-500/15 text-primary dark:text-indigo-400 border border-transparent dark:border-indigo-500/20 rounded">
                 {currentUser.role.replace('_', ' ')}
               </span>
-              <div className="flex flex-col text-right">
-                <span className="text-sm font-medium text-slate-900">{currentUser.name || 'User'}</span>
-              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/profile')}
+                className="flex flex-col text-right hover:opacity-80 transition-opacity cursor-pointer"
+                title="View Profile & Settings"
+              >
+                <span className="text-sm font-semibold text-slate-900 dark:text-white">{currentUser.name || 'User'}</span>
+              </button>
               <button 
-                onClick={() => setIsChangePasswordOpen(true)}
-                className="p-1.5 rounded-md text-slate-500 hover:text-primary hover:bg-slate-100 transition-colors cursor-pointer"
+                onClick={() => navigate('/settings')}
+                className="p-1.5 rounded-lg text-slate-500 dark:text-[#8896ab] hover:text-primary dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-[#161a2e] transition-colors cursor-pointer"
+                title="System Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => navigate('/profile?tab=password')}
+                className="p-1.5 rounded-lg text-slate-500 dark:text-[#8896ab] hover:text-primary dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-[#161a2e] transition-colors cursor-pointer"
                 title="Change Password"
               >
                 <KeyRound className="w-4 h-4" />
               </button>
               <button 
                 onClick={logout}
-                className="p-1.5 rounded-md text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-500 dark:text-rose-400 hover:text-red-600 dark:hover:text-rose-300 hover:bg-red-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
                 title="Log out"
               >
                 <LogOut className="w-4 h-4" />

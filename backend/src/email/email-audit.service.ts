@@ -142,4 +142,61 @@ export class EmailAuditService {
     });
     return await this.emailLogRepository.save(logEntry);
   }
+
+  async recordDirectDelivery(params: {
+    recipientEmail: string;
+    subject: string;
+    provider: EmailProvider;
+    status: EmailJobStatus;
+    providerMessageId?: string | null;
+    errorMessage?: string | null;
+  }): Promise<EmailLog> {
+    const logEntry = this.emailLogRepository.create({
+      eventType: 'DIRECT_DELIVERY',
+      recipientEmail: params.recipientEmail,
+      subject: params.subject,
+      provider: params.provider,
+      attempt: 1,
+      status: params.status,
+      providerMessageId: params.providerMessageId || null,
+      errorMessage: this.sanitizeError(params.errorMessage),
+      attemptedAt: new Date(),
+    });
+    return await this.emailLogRepository.save(logEntry);
+  }
+
+  /**
+   * Retrieves paginated email delivery logs with status and search filtering
+   */
+  async getPaginatedLogs(options: {
+    status?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ logs: EmailLog[]; total: number; limit: number; offset: number }> {
+    const limit = Math.min(Math.max(options.limit || 50, 1), 200);
+    const offset = Math.max(options.offset || 0, 0);
+
+    const qb = this.emailLogRepository.createQueryBuilder('log');
+
+    if (options.status && options.status !== 'ALL' && options.status !== 'All Statuses') {
+      const st = options.status.trim().toUpperCase();
+      qb.andWhere('log.status = :st', { st });
+    }
+
+    if (options.search && options.search.trim()) {
+      const s = `%${options.search.trim()}%`;
+      qb.andWhere(
+        '(log.recipientEmail ILIKE :s OR log.subject ILIKE :s OR log.eventType ILIKE :s OR log.errorMessage ILIKE :s)',
+        { s },
+      );
+    }
+
+    qb.orderBy('log.attemptedAt', 'DESC')
+      .skip(offset)
+      .take(limit);
+
+    const [logs, total] = await qb.getManyAndCount();
+    return { logs, total, limit, offset };
+  }
 }

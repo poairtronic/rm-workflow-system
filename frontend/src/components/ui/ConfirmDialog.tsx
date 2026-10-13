@@ -57,12 +57,12 @@ export function ConfirmDialog({
               <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
             </div>
           )}
-          <div className="text-sm text-gray-600">{message}</div>
+          <div className="text-sm text-gray-600 dark:text-slate-300">{message}</div>
         </div>
 
         {requireReason && (
           <div className="mt-4">
-            <label htmlFor="reason" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="reason" className="block text-sm font-medium text-gray-700 dark:text-slate-200">
               {reasonLabel} <span className="text-red-500">*</span>
             </label>
             <div className="mt-1">
@@ -70,7 +70,7 @@ export function ConfirmDialog({
                 id="reason"
                 name="reason"
                 rows={3}
-                className="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md"
+                className="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-white rounded-md"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Please provide a reason..."
@@ -85,7 +85,7 @@ export function ConfirmDialog({
             type="button"
             onClick={handleClose}
             disabled={isLoading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 cursor-pointer"
           >
             {cancelText}
           </button>

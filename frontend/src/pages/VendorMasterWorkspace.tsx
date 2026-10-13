@@ -19,7 +19,7 @@ import {
   Button,
 } from '../components/ui';
 import type { ColumnDef } from '../components/ui';
-import { Plus, Edit2, CheckCircle2, XCircle, Building2, Phone, Mail, User, ArrowLeft } from 'lucide-react';
+import { Plus, Edit2, CheckCircle2, XCircle, Trash2, Building2, Phone, Mail, User, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export function VendorMasterWorkspace() {
@@ -52,6 +52,9 @@ export function VendorMasterWorkspace() {
 
   // Toggle Confirm Dialog
   const [toggleVendor, setToggleVendor] = useState<VendorMasterDto | null>(null);
+
+  // Delete Confirm Dialog
+  const [deleteVendorTarget, setDeleteVendorTarget] = useState<VendorMasterDto | null>(null);
 
   // Fetch Vendors
   const {
@@ -135,6 +138,19 @@ export function VendorMasterWorkspace() {
     onError: (err: any) => {
       toast.error(err?.message || 'Failed to toggle vendor status');
       setToggleVendor(null);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => vendorMasterApi.delete(id),
+    onSuccess: (res) => {
+      toast.success(res?.message || 'Vendor deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['vendors-master'] });
+      setDeleteVendorTarget(null);
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to delete vendor');
+      setDeleteVendorTarget(null);
     },
   });
 
@@ -322,6 +338,17 @@ export function VendorMasterWorkspace() {
                 ) : (
                   <CheckCircle2 className="w-4 h-4" />
                 )}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteVendorTarget(v);
+                }}
+                className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                title="Delete Vendor"
+              >
+                <Trash2 className="w-4 h-4" />
               </button>
             </>
           ) : (
@@ -582,6 +609,27 @@ export function VendorMasterWorkspace() {
         }
         confirmText={toggleVendor?.isActive ? 'Deactivate' : 'Activate'}
         isDanger={toggleVendor?.isActive}
+      />
+
+      {/* Confirm Vendor Deletion Dialog */}
+      <ConfirmDialog
+        isOpen={!!deleteVendorTarget}
+        onClose={() => setDeleteVendorTarget(null)}
+        onConfirm={() => {
+          if (deleteVendorTarget) {
+            deleteMutation.mutate(deleteVendorTarget.id);
+          }
+        }}
+        title="Delete Vendor"
+        message={
+          <span>
+            Are you sure you want to permanently delete vendor{' '}
+            <strong className="text-gray-900">{deleteVendorTarget?.name}</strong> ({deleteVendorTarget?.code})?
+            This will remove the vendor and associated process configurations. This action cannot be undone.
+          </span>
+        }
+        confirmText="Delete Vendor"
+        isDanger={true}
       />
     </div>
   );

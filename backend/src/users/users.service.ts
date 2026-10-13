@@ -247,4 +247,76 @@ export class UsersService {
       message: `Password for user ${user.email} reset successfully`,
     };
   }
+
+  async deleteUser(id: string, currentUserId?: string) {
+    if (currentUserId && currentUserId === id) {
+      throw new BadRequestException(
+        'Administrators cannot delete their own account.',
+      );
+    }
+
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    // Check if user is author/creator/issuer of critical transactional records
+    const checkQueries = [
+      { name: 'Stock Transactions', sql: `SELECT COUNT(*)::int as c FROM stock_transactions WHERE created_by = $1` },
+      { name: 'Delivery Challans', sql: `SELECT COUNT(*)::int as c FROM delivery_challans WHERE created_by_id = $1` },
+      { name: 'RM Requisitions', sql: `SELECT COUNT(*)::int as c FROM rm_requests WHERE created_by_id = $1 OR reviewed_by_id = $1` },
+      { name: 'Material Issues', sql: `SELECT COUNT(*)::int as c FROM material_issues WHERE issued_by_id = $1` },
+      { name: 'General Issues', sql: `SELECT COUNT(*)::int as c FROM general_issues WHERE issued_by_id = $1` },
+      { name: 'Production Receipts', sql: `SELECT COUNT(*)::int as c FROM production_receipts WHERE received_by_id = $1` },
+      { name: 'Material Consumptions', sql: `SELECT COUNT(*)::int as c FROM material_consumptions WHERE recorded_by_id = $1` },
+      { name: 'Material Returns', sql: `SELECT COUNT(*)::int as c FROM material_returns WHERE returned_by_id = $1 OR confirmed_by_id = $1` },
+    ];
+
+    let totalRefs = 0;
+    const refBreakdown: string[] = [];
+
+    for (const q of checkQueries) {
+      try {
+        const res = await this.userRepository.manager.query(q.sql, [id]);
+        const count = Number(res[0]?.c || 0);
+        if (count > 0) {
+          totalRefs += count;
+          refBreakdown.push(`${count} ${q.name}`);
+        }
+      } catch {
+        // Table or column may not exist in certain environments
+      }
+    }
+
+    if (totalRefs > 0) {
+      throw new BadRequestException(
+        `Cannot delete user "${user.name}" (${user.email}) because they authored historical records (${refBreakdown.join(', ')}). You can deactivate the account instead.`,
+      );
+    }
+
+    // Clean up auxiliary references
+    try {
+      await this.userRepository.manager.query(
+        `DELETE FROM user_module_permissions WHERE user_id = $1`,
+        [id],
+      );
+      await this.userRepository.manager.query(
+        `DELETE FROM user_notification_preferences WHERE user_id = $1`,
+        [id],
+      );
+      await this.userRepository.manager.query(
+        `DELETE FROM notifications WHERE user_id = $1`,
+        [id],
+      );
+    } catch {
+      // Continue if tables don't exist
+    }
+
+    await this.userRepository.remove(user);
+    return {
+      success: true,
+      message: `User "${user.name}" (${user.email}) deleted successfully.`,
+    };
+  }
 }
+

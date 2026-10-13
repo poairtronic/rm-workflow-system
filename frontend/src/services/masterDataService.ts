@@ -179,6 +179,9 @@ export const masterDataService = {
   ): Promise<Product> => {
     return api.patch<Product>(`/api/products/${id}`, data);
   },
+  deleteProduct: async (id: string): Promise<{ success: boolean; message: string }> => {
+    return api.delete<{ success: boolean; message: string }>(`/api/products/${id}`);
+  },
 
   // Warehouses
   getWarehouses: async (params?: MasterFilterParams): Promise<PaginatedResponse<Warehouse>> => {
@@ -193,8 +196,8 @@ export const masterDataService = {
   updateWarehouse: async (id: string, data: { code?: string; name?: string; isActive?: boolean }): Promise<Warehouse> => {
     return api.patch<Warehouse>(`/api/warehouses/${id}`, data);
   },
-  deleteWarehouse: async (id: string): Promise<{ success: boolean; message: string }> => {
-    return api.delete<{ success: boolean; message: string }>(`/api/warehouses/${id}`);
+  deleteWarehouse: async (id: string, cascade = true): Promise<{ success: boolean; message: string }> => {
+    return api.delete<{ success: boolean; message: string }>(`/api/warehouses/${id}${cascade ? '?cascade=true' : ''}`);
   },
 
   // Locations
@@ -210,8 +213,8 @@ export const masterDataService = {
   updateLocation: async (id: string, data: { warehouseId?: string; code?: string; name?: string; isActive?: boolean }): Promise<Location> => {
     return api.patch<Location>(`/api/locations/${id}`, data);
   },
-  deleteLocation: async (id: string): Promise<{ success: boolean; message: string }> => {
-    return api.delete<{ success: boolean; message: string }>(`/api/locations/${id}`);
+  deleteLocation: async (id: string, cascade = true): Promise<{ success: boolean; message: string }> => {
+    return api.delete<{ success: boolean; message: string }>(`/api/locations/${id}${cascade ? '?cascade=true' : ''}`);
   },
 
   // Racks
@@ -227,8 +230,8 @@ export const masterDataService = {
   updateRack: async (id: string, data: { locationId?: string; code?: string; name?: string; isActive?: boolean }): Promise<Rack> => {
     return api.patch<Rack>(`/api/racks/${id}`, data);
   },
-  deleteRack: async (id: string): Promise<{ success: boolean; message: string }> => {
-    return api.delete<{ success: boolean; message: string }>(`/api/racks/${id}`);
+  deleteRack: async (id: string, cascade = true): Promise<{ success: boolean; message: string }> => {
+    return api.delete<{ success: boolean; message: string }>(`/api/racks/${id}${cascade ? '?cascade=true' : ''}`);
   },
 
   // Bins

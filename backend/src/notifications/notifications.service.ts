@@ -6,7 +6,35 @@ import { UserNotificationPreference } from './entities/user-notification-prefere
 import { Notification } from './entities/notification.entity.js';
 import { GetNotificationsQueryDto } from './dto/get-notifications-query.dto.js';
 
+import { AuditService } from '../audit/audit.service.js';
+
 export const GLOBAL_WORKFLOW_EMAIL_KEY = 'GLOBAL_WORKFLOW_EMAIL_ENABLED';
+
+export interface SystemConfigPayload {
+  appearance?: {
+    theme?: string;
+    density?: string;
+  };
+  notifications?: {
+    globalEmailEnabled?: boolean;
+    workflowAlertsEnabled?: boolean;
+    dcOverdueAlertsEnabled?: boolean;
+    materialIssueOverdueAlertsEnabled?: boolean;
+    lowStockMslAlertsEnabled?: boolean;
+    stockMovementAlertsEnabled?: boolean;
+  };
+  regional?: {
+    timezone?: string;
+    dateFormat?: string;
+    defaultStockUnit?: string;
+    currency?: string;
+  };
+  thresholds?: {
+    dcReturnSlaDays?: number;
+    materialIssueOverdueHours?: number;
+    mslCheckIntervalHours?: number;
+  };
+}
 
 @Injectable()
 export class NotificationsService {
@@ -17,6 +45,7 @@ export class NotificationsService {
     private readonly userPrefRepository: Repository<UserNotificationPreference>,
     @InjectRepository(Notification)
     private readonly notificationRepository: Repository<Notification>,
+    private readonly auditService: AuditService,
   ) {}
 
   getStatus() {
@@ -216,5 +245,138 @@ export class NotificationsService {
     }
     notification.isRead = true;
     return await this.notificationRepository.save(notification);
+  }
+
+  /**
+   * Retrieves full system configuration with defaults
+   */
+  async getSystemConfig(): Promise<Required<SystemConfigPayload>> {
+    const settings = await this.systemSettingRepository.find();
+    const map = new Map<string, string>();
+    for (const s of settings) {
+      map.set(s.key, s.value);
+    }
+
+    const parseBool = (key: string, def: boolean): boolean => {
+      if (!map.has(key)) return def;
+      const v = map.get(key);
+      return v === 'true' || v === '1';
+    };
+
+    const parseIntVal = (key: string, def: number): number => {
+      if (!map.has(key)) return def;
+      const parsed = parseInt(map.get(key)!, 10);
+      return isNaN(parsed) ? def : parsed;
+    };
+
+    return {
+      appearance: {
+        theme: map.get('APP_THEME') || 'Enterprise Light',
+        density: map.get('APP_DATA_DENSITY') || 'Compact',
+      },
+      notifications: {
+        globalEmailEnabled: parseBool(GLOBAL_WORKFLOW_EMAIL_KEY, true),
+        workflowAlertsEnabled: parseBool('WORKFLOW_ALERTS_ENABLED', true),
+        dcOverdueAlertsEnabled: parseBool('DC_OVERDUE_ALERTS_ENABLED', true),
+        materialIssueOverdueAlertsEnabled: parseBool('MATERIAL_ISSUE_OVERDUE_ALERTS_ENABLED', true),
+        lowStockMslAlertsEnabled: parseBool('LOW_STOCK_MSL_ALERTS_ENABLED', true),
+        stockMovementAlertsEnabled: parseBool('STOCK_MOVEMENT_ALERTS_ENABLED', true),
+      },
+      regional: {
+        timezone: map.get('APP_TIMEZONE') || 'Asia/Kolkata (IST)',
+        dateFormat: map.get('APP_DATE_FORMAT') || 'DD MMM YYYY',
+        defaultStockUnit: map.get('DEFAULT_STOCK_UNIT') || 'Meters',
+      },
+      thresholds: {
+        dcReturnSlaDays: parseIntVal('DC_RETURN_SLA_DAYS', 7),
+        materialIssueOverdueHours: parseIntVal('MATERIAL_ISSUE_OVERDUE_HOURS', 48),
+        mslCheckIntervalHours: parseIntVal('MSL_CHECK_INTERVAL_HOURS', 24),
+      },
+    };
+  }
+
+  /**
+   * Updates system configuration, saves to system_settings, and records an audit log
+   */
+  async updateSystemConfig(
+    payload: SystemConfigPayload,
+    actorId?: string,
+  ): Promise<Required<SystemConfigPayload>> {
+    const toSave: Record<string, string> = {};
+
+    if (payload.appearance) {
+      if (payload.appearance.theme) toSave['APP_THEME'] = payload.appearance.theme;
+      if (payload.appearance.density) toSave['APP_DATA_DENSITY'] = payload.appearance.density;
+    }
+
+    if (payload.notifications) {
+      if (typeof payload.notifications.globalEmailEnabled === 'boolean') {
+        toSave[GLOBAL_WORKFLOW_EMAIL_KEY] = String(payload.notifications.globalEmailEnabled);
+      }
+      if (typeof payload.notifications.workflowAlertsEnabled === 'boolean') {
+        toSave['WORKFLOW_ALERTS_ENABLED'] = String(payload.notifications.workflowAlertsEnabled);
+      }
+      if (typeof payload.notifications.dcOverdueAlertsEnabled === 'boolean') {
+        toSave['DC_OVERDUE_ALERTS_ENABLED'] = String(payload.notifications.dcOverdueAlertsEnabled);
+      }
+      if (typeof payload.notifications.materialIssueOverdueAlertsEnabled === 'boolean') {
+        toSave['MATERIAL_ISSUE_OVERDUE_ALERTS_ENABLED'] = String(payload.notifications.materialIssueOverdueAlertsEnabled);
+      }
+      if (typeof payload.notifications.lowStockMslAlertsEnabled === 'boolean') {
+        toSave['LOW_STOCK_MSL_ALERTS_ENABLED'] = String(payload.notifications.lowStockMslAlertsEnabled);
+      }
+      if (typeof payload.notifications.stockMovementAlertsEnabled === 'boolean') {
+        toSave['STOCK_MOVEMENT_ALERTS_ENABLED'] = String(payload.notifications.stockMovementAlertsEnabled);
+      }
+    }
+
+    if (payload.regional) {
+      if (payload.regional.timezone) toSave['APP_TIMEZONE'] = payload.regional.timezone;
+      if (payload.regional.dateFormat) toSave['APP_DATE_FORMAT'] = payload.regional.dateFormat;
+      if (payload.regional.defaultStockUnit) toSave['DEFAULT_STOCK_UNIT'] = payload.regional.defaultStockUnit;
+    }
+
+    if (payload.thresholds) {
+      if (typeof payload.thresholds.dcReturnSlaDays === 'number') {
+        toSave['DC_RETURN_SLA_DAYS'] = String(payload.thresholds.dcReturnSlaDays);
+      }
+      if (typeof payload.thresholds.materialIssueOverdueHours === 'number') {
+        toSave['MATERIAL_ISSUE_OVERDUE_HOURS'] = String(payload.thresholds.materialIssueOverdueHours);
+      }
+      if (typeof payload.thresholds.mslCheckIntervalHours === 'number') {
+        toSave['MSL_CHECK_INTERVAL_HOURS'] = String(payload.thresholds.mslCheckIntervalHours);
+      }
+    }
+
+    for (const [key, value] of Object.entries(toSave)) {
+      let setting = await this.systemSettingRepository.findOne({ where: { key } });
+      if (!setting) {
+        setting = this.systemSettingRepository.create({
+          key,
+          value,
+          updatedBy: actorId || 'ADMIN',
+        });
+      } else {
+        setting.value = value;
+        if (actorId) setting.updatedBy = actorId;
+      }
+      await this.systemSettingRepository.save(setting);
+    }
+
+    // Record audit event
+    try {
+      await this.auditService.logEvent({
+        entityName: 'ApplicationSetting',
+        entityId: 'GlobalSystemConfiguration',
+        actionType: 'UPDATE',
+        actorId,
+        newValues: toSave,
+        metadata: { updatedKeys: Object.keys(toSave) },
+      });
+    } catch {
+      // Non-blocking audit error
+    }
+
+    return await this.getSystemConfig();
   }
 }
