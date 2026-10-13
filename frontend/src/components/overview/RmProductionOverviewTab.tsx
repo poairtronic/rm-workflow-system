@@ -8,21 +8,43 @@ interface RmProductionOverviewTabProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  DRAFT: '#94a3b8',
-  PARTIALLY_ISSUED: '#38bdf8',
-  ISSUED: '#3b82f6',
-  IN_PRODUCTION: '#f59e0b',
-  COMPLETED: '#10b981',
-  CLOSED: '#64748b',
+  DRAFT: '#64748b',             // Slate Gray
+  SUBMITTED: '#8b5cf6',         // Vivid Purple
+  STORES_PENDING: '#eab308',    // Amber / Golden Yellow
+  PARTIALLY_ISSUED: '#06b6d4',  // Cyan / Sky Blue
+  ISSUED: '#2563eb',            // Royal Blue
+  IN_PRODUCTION: '#f97316',     // Vibrant Orange
+  ADDITIONAL_REQUEST: '#ec4899',// Hot Pink / Magenta
+  ACTIVE: '#6366f1',            // Indigo
+  COMPLETED: '#10b981',         // Emerald Green
+  CLOSED: '#334155',            // Dark Charcoal
+  REJECTED: '#ef4444',          // Crimson Red
 };
 
+const FALLBACK_PALETTE = [
+  '#6366f1', // Indigo
+  '#ec4899', // Pink
+  '#14b8a6', // Teal
+  '#f43f5e', // Rose
+  '#8b5cf6', // Violet
+  '#0284c7', // Sky
+  '#84cc16', // Lime
+  '#a855f7', // Purple
+  '#d97706', // Amber
+  '#059669', // Emerald
+];
+
 export function RmProductionOverviewTab({ data }: RmProductionOverviewTabProps) {
-  const pieData = Object.entries(data.scStatusMap).map(([status, count]) => ({
-    name: status.replace(/_/g, ' '),
-    value: count,
-    statusKey: status,
-    color: STATUS_COLORS[status] || '#cbd5e1',
-  }));
+  const pieData = Object.entries(data.scStatusMap).map(([status, count], idx) => {
+    const key = status.toUpperCase().trim();
+    const color = STATUS_COLORS[key] || FALLBACK_PALETTE[idx % FALLBACK_PALETTE.length];
+    return {
+      name: status.replace(/_/g, ' '),
+      value: count,
+      statusKey: status,
+      color,
+    };
+  });
 
   const pipelineData = [
     { stage: 'Requisitions', count: Object.values(data.rmStatusMap).reduce((a, b) => a + b, 0), fill: '#6366f1' },
@@ -92,7 +114,7 @@ export function RmProductionOverviewTab({ data }: RmProductionOverviewTabProps) 
             </span>
           </div>
 
-          <div className="h-64 w-full">
+          <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -100,9 +122,9 @@ export function RmProductionOverviewTab({ data }: RmProductionOverviewTabProps) 
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
-                  cy="50%"
-                  innerRadius={55}
-                  outerRadius={85}
+                  cy="42%"
+                  innerRadius={52}
+                  outerRadius={82}
                   paddingAngle={3}
                   className="cursor-pointer focus:outline-none"
                 >
@@ -116,9 +138,8 @@ export function RmProductionOverviewTab({ data }: RmProductionOverviewTabProps) 
                 />
                 <Legend
                   verticalAlign="bottom"
-                  height={36}
                   iconType="circle"
-                  wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+                  wrapperStyle={{ fontSize: '11px', paddingTop: '6px' }}
                 />
               </PieChart>
             </ResponsiveContainer>

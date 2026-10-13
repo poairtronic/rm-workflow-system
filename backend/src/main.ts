@@ -2,6 +2,14 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module.js';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter.js';
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[RMRIT Backend] Unhandled Rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[RMRIT Backend] Uncaught Exception:', err);
+});
+
 async function bootstrap() {
   try {
     const app = await NestFactory.create(AppModule);
