@@ -362,6 +362,41 @@ export class MasterDataService {
     );
   }
 
+  private async generateUniqueBarcode(): Promise<string> {
+    const existingBarcodes = await this.productRepo
+      .createQueryBuilder('p')
+      .select('p.barcode', 'barcode')
+      .where("p.barcode LIKE 'PRD-%'")
+      .getRawMany();
+
+    let maxNum = 0;
+    for (const row of existingBarcodes) {
+      if (row.barcode) {
+        const match = row.barcode.match(/^PRD-(\d+)$/i);
+        if (match) {
+          const val = parseInt(match[1], 10);
+          if (!isNaN(val) && val > maxNum) {
+            maxNum = val;
+          }
+        }
+      }
+    }
+
+    let candidateNum = maxNum + 1;
+    let candidateBarcode = `PRD-${String(candidateNum).padStart(6, '0')}`;
+
+    while (
+      await this.productRepo.findOne({
+        where: { barcode: candidateBarcode },
+      })
+    ) {
+      candidateNum++;
+      candidateBarcode = `PRD-${String(candidateNum).padStart(6, '0')}`;
+    }
+
+    return candidateBarcode;
+  }
+
   async createProduct(dto: CreateProductDto) {
     const normalizedCode = (dto.code || '').trim().toUpperCase();
     if (!normalizedCode) {
@@ -376,6 +411,22 @@ export class MasterDataService {
       throw new ConflictException(
         `Product with code "${normalizedCode}" already exists.`,
       );
+    }
+
+    let barcodeToUse: string;
+    if (dto.barcode && dto.barcode.trim()) {
+      const trimmedBarcode = dto.barcode.trim();
+      const existingBarcode = await this.productRepo.findOne({
+        where: { barcode: trimmedBarcode },
+      });
+      if (existingBarcode) {
+        throw new ConflictException(
+          `Product with barcode "${trimmedBarcode}" already exists.`,
+        );
+      }
+      barcodeToUse = trimmedBarcode;
+    } else {
+      barcodeToUse = await this.generateUniqueBarcode();
     }
 
     const resolvedFamilyId = await this.resolveOrCreateFamily(dto);
@@ -404,6 +455,7 @@ export class MasterDataService {
 
     const product = this.productRepo.create({
       code: normalizedCode,
+      barcode: barcodeToUse,
       familyId: resolvedFamilyId,
       name: trimmedName,
       uom: normalizedUom,
@@ -427,7 +479,7 @@ export class MasterDataService {
       qb.andWhere('p.familyId = :parentId', { parentId });
     }
     if (search) {
-      qb.andWhere('(p.name ILIKE :search OR p.code ILIKE :search)', {
+      qb.andWhere('(p.name ILIKE :search OR p.code ILIKE :search OR p.barcode ILIKE :search)', {
         search: `%${search}%`,
       });
     }
@@ -460,6 +512,99 @@ export class MasterDataService {
     return product;
   }
 
+  async findProductByBarcode(barcode: string) {
+    const trimmed = (barcode || '').trim();
+    if (!trimmed) {
+      throw new BadRequestException('Barcode cannot be empty.');
+    }
+
+    const product = await this.productRepo
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.family', 'family')
+      .leftJoinAndSelect('family.category', 'category')
+      .leftJoinAndSelect('p.stockBalances', 'stockBalances')
+      .leftJoinAndSelect('stockBalances.bin', 'bin')
+      .leftJoinAndSelect('bin.rack', 'rack')
+      .leftJoinAndSelect('rack.location', 'location')
+      .leftJoinAndSelect('location.warehouse', 'warehouse')
+      .where('p.barcode = :barcode OR LOWER(p.barcode) = LOWER(:barcode)', {
+        barcode: trimmed,
+      })
+      .getOne();
+
+    if (!product) {
+      throw new NotFoundException(`Product with barcode "${trimmed}" not found.`);
+    }
+
+    const totalQuantity = (product.stockBalances || []).reduce(
+      (sum, sb) => sum + Number(sb.currentQuantity || 0),
+      0,
+    );
+
+    return {
+      ...product,
+      totalQuantity,
+    };
+  }
+
+  async backfillBarcodes() {
+    const productsWithoutBarcode = await this.productRepo
+      .createQueryBuilder('p')
+      .where('p.barcode IS NULL OR p.barcode = :empty', { empty: '' })
+      .orderBy('p.createdAt', 'ASC')
+      .addOrderBy('p.code', 'ASC')
+      .getMany();
+
+    if (productsWithoutBarcode.length === 0) {
+      return {
+        success: true,
+        count: 0,
+        message: 'All products already have unique barcodes assigned.',
+      };
+    }
+
+    const existingBarcodes = await this.productRepo
+      .createQueryBuilder('p')
+      .select('p.barcode', 'barcode')
+      .where("p.barcode LIKE 'PRD-%'")
+      .getRawMany();
+
+    const usedBarcodes = new Set<string>();
+    let maxNum = 0;
+    for (const row of existingBarcodes) {
+      if (row.barcode) {
+        usedBarcodes.add(row.barcode.toUpperCase());
+        const match = row.barcode.match(/^PRD-(\d+)$/i);
+        if (match) {
+          const val = parseInt(match[1], 10);
+          if (!isNaN(val) && val > maxNum) {
+            maxNum = val;
+          }
+        }
+      }
+    }
+
+    let nextNum = maxNum;
+    for (const prod of productsWithoutBarcode) {
+      let candidateBarcode = '';
+      do {
+        nextNum++;
+        candidateBarcode = `PRD-${String(nextNum).padStart(6, '0')}`;
+      } while (usedBarcodes.has(candidateBarcode.toUpperCase()));
+
+      usedBarcodes.add(candidateBarcode.toUpperCase());
+      prod.barcode = candidateBarcode;
+    }
+
+    await this.productRepo.save(productsWithoutBarcode, { chunk: 100 });
+
+    return {
+      success: true,
+      count: productsWithoutBarcode.length,
+      message: `Successfully backfilled ${productsWithoutBarcode.length} product(s) with unique barcodes.`,
+    };
+  }
+
   async updateProduct(id: string, dto: UpdateProductDto) {
     const product = await this.findProductById(id);
 
@@ -479,6 +624,25 @@ export class MasterDataService {
         );
       }
       product.code = normalizedCode;
+    }
+
+    if (dto.barcode !== undefined) {
+      const trimmedBarcode = dto.barcode?.trim();
+      if (trimmedBarcode) {
+        const existingBarcode = await this.productRepo
+          .createQueryBuilder('p')
+          .where('p.barcode = :barcode', { barcode: trimmedBarcode })
+          .andWhere('p.id != :id', { id })
+          .getOne();
+        if (existingBarcode) {
+          throw new ConflictException(
+            `Product with barcode "${trimmedBarcode}" already exists.`,
+          );
+        }
+        product.barcode = trimmedBarcode;
+      } else {
+        product.barcode = await this.generateUniqueBarcode();
+      }
     }
 
     if (dto.uom !== undefined) {

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Search, LogOut, KeyRound, X, Truck, Package, Settings, Building2, ExternalLink, Sun, Moon } from 'lucide-react';
+import { Search, LogOut, KeyRound, X, Truck, Package, Settings, Building2, ExternalLink, Sun, Moon, Barcode } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
@@ -7,8 +7,13 @@ import { NotificationBell } from '../notifications/NotificationBell';
 import { ChangePasswordModal } from '../auth/ChangePasswordModal';
 import { deliveryChallanApi, productionProcessApi, api, unwrapList } from '../../services/api';
 import { getCurrentTheme, applyTheme } from '../../utils/theme';
+import { triggerBarcodeScanner } from '../../hooks/useBarcodeScanner';
 
-export function TopBar() {
+interface TopBarProps {
+  onOpenScanner?: () => void;
+}
+
+export function TopBar({ onOpenScanner }: TopBarProps = {}) {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -463,7 +468,24 @@ export function TopBar() {
         </div>
       </div>
       
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        {/* Quick Barcode Scanner Trigger Button */}
+        <button
+          type="button"
+          onClick={() => {
+            if (onOpenScanner) onOpenScanner();
+            else triggerBarcodeScanner();
+          }}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-900/60 bg-blue-50/70 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-all font-medium text-xs shadow-2xs cursor-pointer group"
+          title="Hardware Barcode Scanner (Press F2 or Ctrl+B)"
+        >
+          <Barcode className="w-4 h-4 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
+          <span className="hidden md:inline font-semibold">Scan Item</span>
+          <kbd className="hidden sm:inline-block font-mono text-[10px] bg-white dark:bg-[#121526] px-1.5 py-0.2 rounded border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-300 shadow-2xs">
+            F2
+          </kbd>
+        </button>
+
         {/* Instant Theme Toggle Button */}
         <button
           type="button"

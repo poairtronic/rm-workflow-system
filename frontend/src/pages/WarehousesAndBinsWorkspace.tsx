@@ -12,10 +12,11 @@ import {
   Checkbox,
   StatusBadge,
   ConfirmDialog,
+  Modal,
 } from '../components/ui';
 import { useAuth } from '../contexts/AuthContext';
 import { masterDataService } from '../services/masterDataService';
-import type { Warehouse, Location, Rack, Bin } from '../services/masterDataService';
+import type { Warehouse, Location, Rack, Bin, LocationActiveStock } from '../services/masterDataService';
 import {
   ChevronRight,
   ChevronDown,
@@ -30,8 +31,11 @@ import {
   Search,
   X,
   Trash2,
+  AlertTriangle,
+  AlertOctagon,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { RelocateLocationStockModal } from '../components/modals/RelocateLocationStockModal';
 
 export function WarehousesAndBinsWorkspace() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -196,10 +200,72 @@ function WarehouseMasterCard({
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
 
   const [isAddLocationOpen, setIsAddLocationOpen] = useState(false);
-  const [locationToDelete, setLocationToDelete] = useState<Location | null>(null);
-  const [isDeletingLocation, setIsDeletingLocation] = useState(false);
+
+  // Warehouse Deletion states
   const [isDeleteWarehouseOpen, setIsDeleteWarehouseOpen] = useState(false);
   const [isDeletingWarehouse, setIsDeletingWarehouse] = useState(false);
+  const [isWarehouseBlockedModalOpen, setIsWarehouseBlockedModalOpen] = useState(false);
+  const [warehouseLocationCount, setWarehouseLocationCount] = useState<number | null>(null);
+  const [isCheckingWarehouseLocations, setIsCheckingWarehouseLocations] = useState(false);
+
+  // Location Deletion & Relocation states
+  const [locationToDelete, setLocationToDelete] = useState<Location | null>(null);
+  const [isDeletingLocation, setIsDeletingLocation] = useState(false);
+  const [isCheckingLocationStock, setIsCheckingLocationStock] = useState<string | null>(null);
+  const [relocateModalData, setRelocateModalData] = useState<{
+    location: Location;
+    activeStocks: LocationActiveStock[];
+  } | null>(null);
+
+  const handleDeleteWarehouseClick = async () => {
+    // 1. If locations are already in state and length > 0
+    if (locations.length > 0) {
+      setWarehouseLocationCount(locations.length);
+      setIsWarehouseBlockedModalOpen(true);
+      return;
+    }
+
+    // 2. Double-check server to verify if locations exist
+    try {
+      setIsCheckingWarehouseLocations(true);
+      const res = await masterDataService.getLocations({
+        parentId: warehouse.id,
+        pageSize: 10,
+      });
+      if (res.total > 0 || res.data.length > 0) {
+        setLocations(res.data);
+        setWarehouseLocationCount(res.total || res.data.length);
+        setIsWarehouseBlockedModalOpen(true);
+        return;
+      }
+
+      // 0 locations: show delete warehouse confirm dialog
+      setIsDeleteWarehouseOpen(true);
+    } catch (err: any) {
+      setIsDeleteWarehouseOpen(true);
+    } finally {
+      setIsCheckingWarehouseLocations(false);
+    }
+  };
+
+  const handleDeleteLocationClick = async (loc: Location) => {
+    try {
+      setIsCheckingLocationStock(loc.id);
+      const activeStocks = await masterDataService.getLocationActiveStocks(loc.id);
+      if (activeStocks && activeStocks.length > 0) {
+        // Active products exist! Prompt to shift inventory before deletion
+        setRelocateModalData({ location: loc, activeStocks });
+      } else {
+        // No active stock: open standard delete confirmation dialog
+        setLocationToDelete(loc);
+      }
+    } catch (err: any) {
+      console.error('Failed to check active stocks for location', err);
+      setLocationToDelete(loc);
+    } finally {
+      setIsCheckingLocationStock(null);
+    }
+  };
 
   const loadLocations = async () => {
     try {
@@ -260,11 +326,13 @@ function WarehouseMasterCard({
             <Button
               size="sm"
               variant="secondary"
-              onClick={() => setIsDeleteWarehouseOpen(true)}
+              onClick={handleDeleteWarehouseClick}
+              disabled={isCheckingWarehouseLocations}
               className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 border-red-200 dark:border-red-900/50"
               title="Delete Warehouse"
             >
-              <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
+              <Trash2 className="w-3.5 h-3.5 mr-1" />
+              {isCheckingWarehouseLocations ? 'Checking...' : 'Delete'}
             </Button>
           )}
           <Button
@@ -341,11 +409,12 @@ function WarehouseMasterCard({
                             title={`Delete ${loc.name}`}
                             onClick={(e) => {
                               e.stopPropagation();
-                              setLocationToDelete(loc);
+                              handleDeleteLocationClick(loc);
                             }}
+                            disabled={isCheckingLocationStock === loc.id}
                             className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors cursor-pointer"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className={`w-3.5 h-3.5 ${isCheckingLocationStock === loc.id ? 'animate-pulse text-amber-500' : ''}`} />
                           </button>
                         )}
                       </div>
@@ -413,7 +482,25 @@ function WarehouseMasterCard({
         />
       )}
 
-      {/* Delete Location Confirmation Dialog */}
+      {/* Relocate Stock & Delete Location Modal (When active inventory exists) */}
+      {relocateModalData && (
+        <RelocateLocationStockModal
+          isOpen={!!relocateModalData}
+          location={relocateModalData.location}
+          warehouse={warehouse}
+          activeStocks={relocateModalData.activeStocks}
+          onClose={() => setRelocateModalData(null)}
+          onSuccess={() => {
+            if (selectedLocationId === relocateModalData.location.id) {
+              setSelectedLocationId(null);
+            }
+            setRelocateModalData(null);
+            loadLocations();
+          }}
+        />
+      )}
+
+      {/* Delete Location Confirmation Dialog (When location has 0 active stock) */}
       {locationToDelete && (
         <ConfirmDialog
           isOpen={!!locationToDelete}
@@ -441,7 +528,7 @@ function WarehouseMasterCard({
                 Are you sure you want to delete storage location <span className="text-red-600 dark:text-red-400 font-semibold">"{locationToDelete.name}"</span> ({locationToDelete.code})?
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                This will delete the location and any associated empty racks or storage units. Locations holding active physical inventory stock balances cannot be deleted.
+                This location has no active physical inventory balances. This will delete the location and any associated empty racks or storage units.
               </p>
             </div>
           }
@@ -450,7 +537,64 @@ function WarehouseMasterCard({
         />
       )}
 
-      {/* Delete Warehouse Confirmation Dialog */}
+      {/* Cannot Delete Warehouse Error Pop-Up Modal (When storage locations exist) */}
+      {isWarehouseBlockedModalOpen && (
+        <Modal
+          isOpen={isWarehouseBlockedModalOpen}
+          onClose={() => setIsWarehouseBlockedModalOpen(false)}
+          title={
+            <div className="flex items-center space-x-2 text-rose-600 dark:text-rose-400">
+              <div className="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-950/50 flex items-center justify-center">
+                <AlertOctagon className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+              </div>
+              <span className="font-bold text-base text-slate-900 dark:text-white">
+                Cannot Delete Warehouse Facility
+              </span>
+            </div>
+          }
+          className="dark:bg-[#121526] dark:border dark:border-[#1e233d] max-w-md"
+        >
+          <div className="p-6 space-y-4">
+            <div className="p-4 rounded-xl bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200/90 dark:border-rose-900/50 flex items-start space-x-3.5">
+              <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+              <div className="text-xs">
+                <p className="font-bold text-sm text-rose-950 dark:text-rose-200">
+                  Warehouse location exists!
+                </p>
+                <p className="text-rose-700 dark:text-rose-300 mt-1 leading-relaxed">
+                  Warehouse facility <strong className="font-mono">"{warehouse.name}"</strong> ({warehouse.code}) cannot be deleted because it contains{' '}
+                  <strong className="underline decoration-rose-400 decoration-2">
+                    {warehouseLocationCount || locations.length} storage location(s)
+                  </strong>.
+                </p>
+              </div>
+            </div>
+
+            <div className="text-xs text-slate-600 dark:text-slate-300 space-y-2 bg-slate-50 dark:bg-[#0e111f] p-3.5 rounded-xl border border-slate-200 dark:border-[#1e233d]">
+              <p className="font-semibold text-slate-800 dark:text-slate-200">
+                To delete this warehouse facility:
+              </p>
+              <ol className="list-decimal list-inside space-y-1 text-slate-500 dark:text-slate-400">
+                <li>Delete each storage location within this facility first.</li>
+                <li>If a location contains products, the system will prompt you to select target racks/bins to shift the stock.</li>
+                <li>Once all storage locations in this warehouse are deleted, you can delete this warehouse facility.</li>
+              </ol>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <Button
+                variant="secondary"
+                onClick={() => setIsWarehouseBlockedModalOpen(false)}
+                className="cursor-pointer font-medium"
+              >
+                Understood
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Delete Warehouse Confirmation Dialog (When 0 locations exist) */}
       {isDeleteWarehouseOpen && (
         <ConfirmDialog
           isOpen={isDeleteWarehouseOpen}
@@ -475,7 +619,7 @@ function WarehouseMasterCard({
                 Are you sure you want to delete warehouse facility <span className="text-red-600 dark:text-red-400 font-semibold">"{warehouse.name}"</span> ({warehouse.code})?
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                This will delete the facility and its empty storage hierarchy. Facilities containing active inventory balances cannot be deleted.
+                This will delete the empty facility. All storage locations inside have already been decommissioned.
               </p>
             </div>
           }

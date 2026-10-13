@@ -21,6 +21,7 @@ export interface Family {
 export interface Product {
   id: string;
   code?: string;
+  barcode?: string;
   name: string;
   familyId: string;
   family?: Family;
@@ -30,6 +31,20 @@ export interface Product {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProductStockBalance {
+  id: string;
+  productId?: string;
+  binId?: string;
+  currentQuantity: number;
+  openingBalance?: number;
+  bin?: Bin;
+}
+
+export interface ProductWithStockDetails extends Product {
+  stockBalances?: ProductStockBalance[];
+  totalQuantity: number;
 }
 
 export interface Warehouse {
@@ -72,6 +87,28 @@ export interface Bin {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface LocationActiveStock {
+  balanceId: string;
+  productId: string;
+  productName: string;
+  productCode?: string;
+  uom: string;
+  quantity: number;
+  currentBinId: string;
+  currentBinCode: string;
+  currentRackId?: string;
+  currentRackCode?: string;
+}
+
+export interface RelocateAndDeleteLocationPayload {
+  transfers: {
+    productId: string;
+    sourceBinId: string;
+    targetBinId: string;
+    quantity: number;
+  }[];
 }
 
 export interface PaginatedResponse<T> {
@@ -148,8 +185,15 @@ export const masterDataService = {
   getProductById: async (id: string): Promise<Product> => {
     return api.get<Product>(`/api/products/${id}`);
   },
+  getProductByBarcode: async (barcode: string): Promise<ProductWithStockDetails> => {
+    return api.get<ProductWithStockDetails>(`/api/products/by-barcode/${encodeURIComponent(barcode)}`);
+  },
+  backfillBarcodes: async (): Promise<{ success: boolean; count: number; message: string }> => {
+    return api.post<{ success: boolean; count: number; message: string }>('/api/products/backfill-barcodes', {});
+  },
   createProduct: async (data: {
     code: string;
+    barcode?: string;
     name: string;
     familyId?: string;
     categoryId?: string;
@@ -166,6 +210,7 @@ export const masterDataService = {
     id: string,
     data: {
       code?: string;
+      barcode?: string;
       name?: string;
       familyId?: string;
       categoryId?: string;
@@ -206,6 +251,12 @@ export const masterDataService = {
   },
   getLocationById: async (id: string): Promise<Location> => {
     return api.get<Location>(`/api/locations/${id}`);
+  },
+  getLocationActiveStocks: async (locationId: string): Promise<LocationActiveStock[]> => {
+    return api.get<LocationActiveStock[]>(`/api/locations/${locationId}/active-stocks`);
+  },
+  relocateAndDeleteLocation: async (locationId: string, payload: RelocateAndDeleteLocationPayload): Promise<{ success: boolean; message: string }> => {
+    return api.post<{ success: boolean; message: string }>(`/api/locations/${locationId}/relocate-and-delete`, payload);
   },
   createLocation: async (data: { warehouseId: string; code: string; name: string; isActive?: boolean }): Promise<Location> => {
     return api.post<Location>('/api/locations', data);

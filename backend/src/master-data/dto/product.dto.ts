@@ -19,6 +19,14 @@ export class CreateProductDto {
   @MaxLength(100)
   code!: string;
 
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @MaxLength(100)
+  barcode?: string;
+
   @IsString()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsNotEmpty()
@@ -75,6 +83,14 @@ export class UpdateProductDto {
   @IsNotEmpty()
   @MaxLength(100)
   code?: string;
+
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @MaxLength(100)
+  barcode?: string;
 
   @IsOptional()
   @IsString()

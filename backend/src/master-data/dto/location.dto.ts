@@ -5,8 +5,12 @@ import {
   IsUUID,
   IsOptional,
   IsBoolean,
+  IsArray,
+  ValidateNested,
+  IsNumber,
+  Min,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class CreateLocationDto {
   @IsUUID('4')
@@ -67,10 +71,15 @@ export class StockRelocationItemDto {
   @IsNotEmpty()
   targetBinId!: string;
 
+  @IsNumber()
+  @Min(0.001)
   @IsNotEmpty()
   quantity!: number;
 }
 
 export class RelocateAndDeleteLocationDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => StockRelocationItemDto)
   transfers!: StockRelocationItemDto[];
 }

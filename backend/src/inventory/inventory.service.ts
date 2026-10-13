@@ -28,6 +28,7 @@ import { ModernStockInDto } from './dto/modern-stock-in.dto.js';
 import { ModernStockOutDto } from './dto/modern-stock-out.dto.js';
 import { ModernStockAdjustmentDto } from './dto/modern-stock-adjustment.dto.js';
 import { ModernStockTransferDto } from './dto/modern-stock-transfer.dto.js';
+import { ScanStockTransactionDto } from './dto/scan-stock-transaction.dto.js';
 import {
   GetInventoryFilterDto,
   StockStatusFilter,
@@ -1156,6 +1157,80 @@ export class InventoryService {
       throw error;
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  async scanStockTransaction(dto: ScanStockTransactionDto, userId: string) {
+    const trimmedBarcode = (dto.barcode || '').trim();
+    if (!trimmedBarcode) {
+      throw new BadRequestException('Barcode cannot be empty.');
+    }
+
+    const product = await this.dataSource.getRepository(Product).findOne({
+      where: { barcode: trimmedBarcode },
+    });
+
+    if (!product) {
+      throw new NotFoundException(`Product with barcode "${trimmedBarcode}" not found.`);
+    }
+
+    let effectiveUserId = userId;
+    try {
+      const userCheck = await this.dataSource.query('SELECT id FROM users WHERE id = $1', [userId]);
+      if (!userCheck || userCheck.length === 0) {
+        const fallback = await this.dataSource.query('SELECT id FROM users WHERE is_active = true LIMIT 1');
+        if (fallback && fallback.length > 0) {
+          effectiveUserId = fallback[0].id;
+        }
+      }
+    } catch {
+      // Ignore fallback lookup errors
+    }
+
+    if (dto.action === 'STOCK_IN') {
+      const res = await this.modernStockIn(
+        {
+          productId: product.id,
+          binId: dto.binId,
+          quantity: dto.quantity,
+          referenceType: 'BARCODE_SCAN',
+          reason: `Fast Barcode Scan Stock In (${trimmedBarcode})`,
+          remarks: dto.remarks || `Barcode Scan Stock In [${trimmedBarcode}]`,
+        },
+        effectiveUserId,
+      );
+
+      return {
+        success: true,
+        message: `Successfully stocked in ${dto.quantity} ${product.uom || 'units'} of ${product.name}`,
+        action: dto.action,
+        product,
+        transaction: res.transaction,
+        balance: res.balance,
+      };
+    } else if (dto.action === 'STOCK_OUT') {
+      const res = await this.modernStockOut(
+        {
+          productId: product.id,
+          binId: dto.binId,
+          quantity: dto.quantity,
+          referenceType: 'BARCODE_SCAN',
+          reason: `Fast Barcode Scan Stock Out (${trimmedBarcode})`,
+          remarks: dto.remarks || `Barcode Scan Stock Out [${trimmedBarcode}]`,
+        },
+        effectiveUserId,
+      );
+
+      return {
+        success: true,
+        message: `Successfully stocked out ${dto.quantity} ${product.uom || 'units'} of ${product.name}`,
+        action: dto.action,
+        product,
+        transaction: res.transaction,
+        balance: res.balance,
+      };
+    } else {
+      throw new BadRequestException(`Invalid transaction action: ${dto.action}`);
     }
   }
 

@@ -16,6 +16,7 @@ import {
   SlidersHorizontal,
   Truck,
   X,
+  Barcode,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { MultiSelectFilter } from '../components/ui/MultiSelectFilter';
@@ -23,6 +24,7 @@ import { masterDataService } from '../services/masterDataService';
 import type { Product, Category, Family, Warehouse, Location, Rack, Bin } from '../services/masterDataService';
 import { Filter, Search, RefreshCw } from 'lucide-react';
 import { DcMovementsWorkspaceView } from '../components/dispatch/DcMovementsWorkspaceView';
+import { triggerBarcodeScanner } from '../hooks/useBarcodeScanner';
 const UOM_OPTIONS = ['NOS', 'KGS', 'MTRS', 'LTRS', 'BOX', 'PACK', 'SET', 'ROLL'];
 
 export function InventoryStockWorkspace() {
@@ -180,6 +182,16 @@ export function InventoryStockWorkspace() {
       fetchTransactions();
     }
   }, [activeTab, txPage, txTypeFilter, txSearch]);
+
+  // Auto-refresh when fast barcode scan transactions are processed
+  useEffect(() => {
+    const handleUpdate = () => {
+      loadData();
+      if (activeTab === 'LEDGER') fetchTransactions();
+    };
+    window.addEventListener('inventory-updated', handleUpdate);
+    return () => window.removeEventListener('inventory-updated', handleUpdate);
+  }, [activeTab]);
 
   // Build maps for fast lookup
   const binMap = new Map(bins.map(b => [b.id, b]));
@@ -430,6 +442,18 @@ export function InventoryStockWorkspace() {
           <div className="flex items-center space-x-2">
             <button
               type="button"
+              onClick={() => triggerBarcodeScanner()}
+              className="inline-flex items-center px-3 py-1.5 border border-blue-300 text-xs font-semibold rounded-md text-blue-800 bg-blue-50 hover:bg-blue-100 transition-colors shadow-2xs cursor-pointer group"
+              title="Hardware Barcode Scanner (Press F2 anywhere)"
+            >
+              <Barcode className="w-3.5 h-3.5 mr-1.5 text-blue-600 group-hover:scale-110 transition-transform" />
+              Quick Scan
+              <kbd className="ml-1.5 px-1 py-0.2 text-[9px] font-mono bg-white rounded border border-blue-200 text-blue-700">
+                F2
+              </kbd>
+            </button>
+            <button
+              type="button"
               onClick={() => handleOpenMovement('STOCK_IN')}
               className="inline-flex items-center px-3 py-1.5 border border-emerald-300 text-xs font-medium rounded-md text-emerald-800 bg-emerald-50 hover:bg-emerald-100 transition-colors shadow-sm"
             >
@@ -517,6 +541,15 @@ export function InventoryStockWorkspace() {
                 />
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => triggerBarcodeScanner()}
+                  className="h-10 px-3 flex items-center gap-2 border border-blue-200 bg-blue-50/70 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 rounded-lg text-blue-700 dark:text-blue-300 text-xs font-semibold transition-colors shadow-2xs cursor-pointer"
+                  title="Scan Product Barcode (F2)"
+                >
+                  <Barcode className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span>Scan Barcode</span>
+                </button>
                 <button
                   type="button"
                   onClick={loadData}

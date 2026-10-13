@@ -39,8 +39,13 @@ import {
   X,
   Edit2,
   Trash2,
+  Printer,
+  Barcode as BarcodeIcon,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { BarcodeBadge } from '../components/inventory/BarcodeBadge';
+import { BarcodeLabelModal } from '../components/inventory/BarcodeLabelModal';
+import { BarcodeSvg } from '../components/common/BarcodeSvg';
 
 const UOM_OPTIONS = ['MM', 'KG', 'NOS', 'MTR', 'PC', 'SQM', 'LTR'] as const;
 
@@ -74,8 +79,13 @@ export function ProductsMasterWorkspace() {
   const [deleteProductTarget, setDeleteProductTarget] = useState<Product | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Barcode Label Printing State
+  const [printModalProducts, setPrintModalProducts] = useState<Product[] | null>(null);
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
+
   // Form Fields
   const [code, setCode] = useState('');
+  const [barcode, setBarcode] = useState('');
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [isCustomCategory, setIsCustomCategory] = useState(false);
@@ -139,6 +149,7 @@ export function ProductsMasterWorkspace() {
   const openCreateModal = () => {
     setEditingProduct(null);
     setCode('');
+    setBarcode('');
     setName('');
     setCategoryId(categories.length > 0 ? categories[0].id : '');
     setIsCustomCategory(false);
@@ -157,6 +168,7 @@ export function ProductsMasterWorkspace() {
   const openEditModal = (product: Product) => {
     setEditingProduct(product);
     setCode(product.code || '');
+    setBarcode(product.barcode || '');
     setName(product.name || '');
 
     const currentFam = families.find((f) => f.id === product.familyId);
@@ -238,6 +250,7 @@ export function ProductsMasterWorkspace() {
 
       const payload: any = {
         code: cleanCode,
+        barcode: barcode.trim() || undefined,
         name: cleanName,
         uom,
         minimumInventory: msl === '' ? 0 : Number(msl),
@@ -543,6 +556,42 @@ export function ProductsMasterWorkspace() {
   const columns: ColumnDef<Product>[] = useMemo(
     () => [
       {
+        key: 'select',
+        header: (
+          <input
+            type="checkbox"
+            checked={
+              filteredProducts.length > 0 &&
+              filteredProducts.every((p) => selectedProductIds.has(p.id))
+            }
+            onChange={(e) => {
+              if (e.target.checked) {
+                setSelectedProductIds(new Set(filteredProducts.map((p) => p.id)));
+              } else {
+                setSelectedProductIds(new Set());
+              }
+            }}
+            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+            title="Select all products"
+          />
+        ),
+        render: (row) => (
+          <input
+            type="checkbox"
+            checked={selectedProductIds.has(row.id)}
+            onChange={(e) => {
+              e.stopPropagation();
+              const next = new Set(selectedProductIds);
+              if (next.has(row.id)) next.delete(row.id);
+              else next.add(row.id);
+              setSelectedProductIds(next);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+          />
+        ),
+      },
+      {
         key: 'code',
         header: 'Code',
         sortable: true,
@@ -550,6 +599,17 @@ export function ProductsMasterWorkspace() {
           <span className="font-mono font-medium text-gray-900">
             {row.code || '—'}
           </span>
+        ),
+      },
+      {
+        key: 'barcode',
+        header: 'Barcode',
+        sortable: true,
+        render: (row) => (
+          <BarcodeBadge
+            product={row}
+            onPrint={(prod) => setPrintModalProducts([prod])}
+          />
         ),
       },
       {
@@ -648,6 +708,17 @@ export function ProductsMasterWorkspace() {
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
+                setPrintModalProducts([row]);
+              }}
+              className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors cursor-pointer"
+              title="Print Barcode Label"
+            >
+              <Printer className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
                 openEditModal(row);
               }}
               className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors cursor-pointer"
@@ -670,7 +741,7 @@ export function ProductsMasterWorkspace() {
         ),
       },
     ],
-    [productStorageMap],
+    [productStorageMap, selectedProductIds, filteredProducts],
   );
 
   return (
@@ -717,16 +788,16 @@ export function ProductsMasterWorkspace() {
               {/* Basic Information Section */}
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-                  Product Identification
+                  Product Identification & Barcode
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                   {/* Product Code */}
                   <FormField
                     label="Product Code"
                     id="product-code"
                     required
                     error={formErrors.code}
-                    hint="Unique identifier (auto-converted to UPPERCASE)."
+                    hint="Unique identifier (e.g. RM-0001)."
                   >
                     <TextInput
                       id="product-code"
@@ -744,7 +815,7 @@ export function ProductsMasterWorkspace() {
                     id="product-name"
                     required
                     error={formErrors.name}
-                    hint="Descriptive name of the raw material or component."
+                    hint="Descriptive name of the material."
                   >
                     <TextInput
                       id="product-name"
@@ -755,7 +826,83 @@ export function ProductsMasterWorkspace() {
                       required
                     />
                   </FormField>
+
+                  {/* Barcode (Code 128) */}
+                  <FormField
+                    label="Barcode (Code 128)"
+                    id="product-barcode"
+                    hint={
+                      editingProduct
+                        ? 'Unique barcode. Clear to auto-regenerate.'
+                        : 'Optional. Auto-generated (PRD-XXXXXX) if empty.'
+                    }
+                  >
+                    <div className="relative">
+                      <TextInput
+                        id="product-barcode"
+                        value={barcode}
+                        onChange={(e) => setBarcode(e.target.value.trim().toUpperCase())}
+                        placeholder={editingProduct ? 'PRD-XXXXXX' : 'Auto-generated if blank'}
+                        className="font-mono uppercase pr-8"
+                      />
+                      <BarcodeIcon className="w-4 h-4 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
+                    </div>
+                  </FormField>
                 </div>
+
+                {/* Live Barcode Preview Box */}
+                {(barcode || (editingProduct && editingProduct.barcode)) && (
+                  <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-white p-1 rounded border border-slate-200">
+                        <BarcodeSvg
+                          value={barcode || editingProduct?.barcode || ''}
+                          width={1.2}
+                          height={28}
+                          fontSize={9}
+                          margin={1}
+                        />
+                      </div>
+                      <div className="text-xs">
+                        <span className="font-semibold text-slate-700 dark:text-slate-300 block">
+                          Code 128 Scannable Preview
+                        </span>
+                        <span className="text-[11px] font-mono text-slate-500">
+                          {barcode || editingProduct?.barcode}
+                        </span>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        const targetProd: Product = {
+                          ...(editingProduct || {
+                            id: 'preview',
+                            name: name || 'New Product',
+                            code: code || 'CODE',
+                            familyId: familyId || '',
+                            minimumInventory: Number(msl) || 0,
+                            isActive: true,
+                            createdAt: '',
+                            updatedAt: '',
+                          }),
+                          name: name || 'New Product',
+                          code: code || 'CODE',
+                          barcode: barcode || editingProduct?.barcode,
+                          uom: uom,
+                        };
+                        setPrintModalProducts([targetProd]);
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <Printer className="w-3.5 h-3.5 mr-1" />
+                      <span>Test Print Label</span>
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {/* Categorization Section */}
@@ -979,6 +1126,19 @@ export function ProductsMasterWorkspace() {
           </div>
 
           <div className="flex items-center space-x-2 shrink-0">
+            {selectedProductIds.size > 0 && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  const toPrint = products.filter((p) => selectedProductIds.has(p.id));
+                  setPrintModalProducts(toPrint);
+                }}
+                className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 cursor-pointer"
+              >
+                <Printer className="w-4 h-4 mr-1.5" />
+                <span>Print Barcodes ({selectedProductIds.size})</span>
+              </Button>
+            )}
             <Button
               variant="secondary"
               onClick={loadData}
@@ -1123,22 +1283,32 @@ export function ProductsMasterWorkspace() {
     </>
   )}
 
-  {/* Confirm Product Deletion Dialog */}
-  <ConfirmDialog
-    isOpen={!!deleteProductTarget}
-    onClose={() => setDeleteProductTarget(null)}
-    onConfirm={handleDeleteProduct}
-    title="Delete Product"
-    message={
-      <span>
-        Are you sure you want to permanently delete product{' '}
-        <strong className="text-gray-900">{deleteProductTarget?.name}</strong>{' '}
-        ({deleteProductTarget?.code || 'No Code'})? This action cannot be undone.
-      </span>
-    }
-    confirmText={isDeleting ? 'Deleting...' : 'Delete Product'}
-    isDanger={true}
-  />
-</div>
+    {/* Confirm Product Deletion Dialog */}
+    <ConfirmDialog
+      isOpen={!!deleteProductTarget}
+      onClose={() => setDeleteProductTarget(null)}
+      onConfirm={handleDeleteProduct}
+      title="Delete Product"
+      message={
+        <span>
+          Are you sure you want to permanently delete product{' '}
+          <strong className="text-gray-900">{deleteProductTarget?.name}</strong>{' '}
+          ({deleteProductTarget?.code || 'No Code'})? This action cannot be undone.
+        </span>
+      }
+      confirmText={isDeleting ? 'Deleting...' : 'Delete Product'}
+      isDanger={true}
+    />
+
+    {/* Barcode Thermal & Sheet Label Print Modal */}
+    {printModalProducts && (
+      <BarcodeLabelModal
+        isOpen={!!printModalProducts}
+        products={printModalProducts}
+        productStorageMap={productStorageMap}
+        onClose={() => setPrintModalProducts(null)}
+      />
+    )}
+  </div>
 );
 }

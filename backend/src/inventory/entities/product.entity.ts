@@ -8,6 +8,7 @@ import {
   OneToMany,
   JoinColumn,
   Check,
+  Index,
 } from 'typeorm';
 import { ProductFamily } from './product-family.entity.js';
 import type { StockBalance } from './stock-balance.entity.js';
@@ -34,6 +35,10 @@ export class Product {
 
   @Column({ length: 100, nullable: true, unique: true })
   code?: string;
+
+  @Index('IDX_products_barcode')
+  @Column({ length: 100, nullable: true, unique: true })
+  barcode?: string;
 
   @Column({ length: 255, unique: true })
   name!: string;

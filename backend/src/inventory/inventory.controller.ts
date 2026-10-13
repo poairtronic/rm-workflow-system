@@ -26,6 +26,7 @@ import { ModernStockInDto } from './dto/modern-stock-in.dto.js';
 import { ModernStockOutDto } from './dto/modern-stock-out.dto.js';
 import { ModernStockAdjustmentDto } from './dto/modern-stock-adjustment.dto.js';
 import { ModernStockTransferDto } from './dto/modern-stock-transfer.dto.js';
+import { ScanStockTransactionDto } from './dto/scan-stock-transaction.dto.js';
 import { ReconciliationResultDto } from './dto/reconciliation-result.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
@@ -127,6 +128,16 @@ export class InventoryController {
     filterDto: GetTransactionFilterDto,
   ) {
     return this.inventoryService.getAllTransactions(filterDto);
+  }
+
+  @Post('scan-transaction')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.PRODUCTION)
+  scanStockTransaction(
+    @Body() dto: ScanStockTransactionDto,
+    @Request() req: any,
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    return this.inventoryService.scanStockTransaction(dto, userId);
   }
 
   @Post('stock-in')

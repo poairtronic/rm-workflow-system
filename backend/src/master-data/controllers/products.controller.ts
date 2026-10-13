@@ -36,6 +36,25 @@ export class ProductsController {
     return this.masterDataService.findProducts(filter);
   }
 
+  @Get('by-barcode/:barcode')
+  @Roles(
+    UserRole.ADMIN,
+    UserRole.DESIGNER,
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+  )
+  findProductByBarcode(@Param('barcode') barcode: string) {
+    return this.masterDataService.findProductByBarcode(barcode);
+  }
+
+  @Post('backfill-barcodes')
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
+  backfillBarcodes() {
+    return this.masterDataService.backfillBarcodes();
+  }
+
   @Get(':id')
   @Roles(
     UserRole.ADMIN,

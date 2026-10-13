@@ -150,4 +150,22 @@ export const inventoryService = {
       payload,
     );
   },
+
+  scanStockTransaction: async (payload: {
+    barcode: string;
+    action: 'STOCK_IN' | 'STOCK_OUT';
+    binId: string;
+    quantity: number;
+    remarks?: string;
+  }) => {
+    return api.post<{
+      success: boolean;
+      message: string;
+      action: 'STOCK_IN' | 'STOCK_OUT';
+      product: any;
+      transaction: StockTransaction;
+      balance: StockBalance;
+    }>('/api/inventory/scan-transaction', payload);
+  },
 };
+
