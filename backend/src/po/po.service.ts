@@ -1,4 +1,4 @@
-﻿import {
+import {
   Injectable,
   NotFoundException,
   ConflictException,
@@ -48,7 +48,7 @@ export class PoService {
 
   async findAll() {
     return await this.poRepository.find({
-      relations: { customer: true },
+      relations: { customer: true, salesOrderComponents: true },
       order: { createdAt: 'DESC' },
     });
   }

@@ -23,7 +23,11 @@ export function ProtectedRoute({ allowedRoles, moduleKey, children }: ProtectedR
   }
 
   if (!isAuthenticated || !currentUser) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    const fromPath =
+      location.pathname === '/unauthorized' || location.pathname === '/login'
+        ? undefined
+        : location.pathname;
+    return <Navigate to="/login" state={fromPath ? { from: fromPath } : undefined} replace />;
   }
 
   if (currentUser.role === 'ADMIN') {

@@ -402,6 +402,13 @@ export const traceabilityApi = {
     } as ConsolidatedTraceabilityDto & any;
   },
   getPoConsolidated: (poId: string) => api.get<PoConsolidatedTraceabilityDto>(`/api/traceability/po/${poId}/consolidated`),
+  getPoList: () => api.get<any[]>('/api/po'),
+  getScList: (search?: string) => api.get<any[]>(`/api/sc${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+};
+
+export const poApi = {
+  getAll: () => api.get<any[]>('/api/po'),
+  getById: (id: string) => api.get<any>(`/api/po/${id}`),
 };
 
 import type { GlobalVendorMetrics, VendorProfileDto, EscalateDcDto } from '../types/vendor-analytics.dto';

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Shield, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { getRoleDefaultPath, isPathAllowedForUser } from '../routeConfig';
 
 export function LoginView() {
   const [employeeId, setEmployeeId] = useState('');
@@ -13,8 +14,11 @@ export function LoginView() {
   const location = useLocation();
 
   if (isAuthenticated && currentUser) {
-    const from = location.state?.from || '/';
-    return <Navigate to={from} replace />;
+    const rawFrom = location.state?.from;
+    const target = isPathAllowedForUser(rawFrom, currentUser)
+      ? rawFrom
+      : getRoleDefaultPath(currentUser.role);
+    return <Navigate to={target} replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,9 +27,12 @@ export function LoginView() {
     setIsSubmitting(true);
     
     try {
-      await login({ employeeId, password });
-      const from = location.state?.from || '/';
-      navigate(from, { replace: true });
+      const loggedInUser = await login({ employeeId, password });
+      const rawFrom = location.state?.from;
+      const target = isPathAllowedForUser(rawFrom, loggedInUser)
+        ? rawFrom
+        : getRoleDefaultPath(loggedInUser?.role);
+      navigate(target, { replace: true });
     } catch (err: any) {
       setError(err.message || 'Invalid credentials. Please try again.');
     } finally {

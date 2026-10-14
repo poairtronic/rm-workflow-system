@@ -69,6 +69,19 @@ export class RmController {
     return this.rmService.submitDraftRmByPo(poId, req.user);
   }
 
+  @Get('next-part-number')
+  @Roles(
+    UserRole.PRODUCTION,
+    UserRole.DESIGNER,
+    UserRole.ADMIN,
+    UserRole.STORES,
+    UserRole.GENERAL_MANAGER,
+    UserRole.SENIOR_MANAGER,
+  )
+  getNextPartNumber() {
+    return this.rmService.getNextPartNumber();
+  }
+
   @Get('mine')
   @Roles(UserRole.PRODUCTION, UserRole.DESIGNER, UserRole.ADMIN)
   getMine(@Req() req: any) {

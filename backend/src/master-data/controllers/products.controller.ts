@@ -55,6 +55,20 @@ export class ProductsController {
     return this.masterDataService.backfillBarcodes();
   }
 
+  @Get('next-code')
+  @Roles(
+    UserRole.ADMIN,
+    UserRole.DESIGNER,
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+  )
+  async getNextProductCode() {
+    const nextCode = await this.masterDataService.generateUniqueProductCode();
+    return { nextCode };
+  }
+
   @Get(':id')
   @Roles(
     UserRole.ADMIN,

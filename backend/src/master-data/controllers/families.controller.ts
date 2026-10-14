@@ -50,13 +50,13 @@ export class FamiliesController {
   }
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.STORES)
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.DESIGNER, UserRole.GENERAL_MANAGER)
   createFamily(@Body() dto: CreateFamilyDto) {
     return this.masterDataService.createFamily(dto);
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.STORES)
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.DESIGNER, UserRole.GENERAL_MANAGER)
   updateFamily(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateFamilyDto,

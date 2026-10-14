@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
+import { useForm, FormProvider, Controller } from 'react-hook-form';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { ClipboardList, ArrowLeft, Send, Loader2, Printer, CheckCircle2 } from 'lucide-react';
 import { deliveryChallanApi, api, unwrapList } from '../../services/api';
 import { masterDataService } from '../../services/masterDataService';
+import { SearchSelect } from '../ui/SearchSelect';
 import { DispatchPayloadGrid } from './DispatchPayloadGrid';
 
 export function Type2DispatchView() {
@@ -164,17 +165,25 @@ export function Type2DispatchView() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Vendor Destination</label>
-                  <select
-                    {...register('vendorId', { required: 'Destination is required' })}
-                    className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value="">Select Vendor...</option>
-                    {sortedVendorList.map((v: any) => (
-                      <option key={v.id} value={v.id}>
-                        {v.code} – {v.name}
-                      </option>
-                    ))}
-                  </select>
+                  <Controller
+                    name="vendorId"
+                    control={methods.control}
+                    rules={{ required: 'Destination is required' }}
+                    render={({ field, fieldState }) => (
+                      <SearchSelect
+                        value={field.value || ''}
+                        onChange={(val) => field.onChange(val)}
+                        placeholder="Search vendor by name or code..."
+                        searchPlaceholder="Type vendor name or code..."
+                        options={sortedVendorList.map((v: any) => ({
+                          id: v.id,
+                          primary: v.name,
+                          secondary: v.code ? `[${v.code}] ${v.category || ''}`.trim() : (v.category || ''),
+                        }))}
+                        error={Boolean(fieldState.error)}
+                      />
+                    )}
+                  />
                   {errors.vendorId && (
                     <p className="mt-1 text-xs text-red-500">{errors.vendorId.message as string}</p>
                   )}

@@ -41,7 +41,7 @@ export function useBarcodeScanner({
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (!enabled) return;
+      if (!enabled || !e || typeof e.key !== 'string') return;
 
       // 1. Hotkey detection (F2 or Ctrl+B / Cmd+B)
       if (e.key === 'F2' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b')) {

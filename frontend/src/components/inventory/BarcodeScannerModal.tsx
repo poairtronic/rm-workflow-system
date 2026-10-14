@@ -46,6 +46,9 @@ function playWarehouseSound(
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
 
     // Volume multiplier based on warehouse noise profile
     const gainMultiplier = profile === 'HIGH_NOISE' ? 2.0 : profile === 'SUBTLE' ? 0.4 : 1.0;
@@ -174,11 +177,44 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   const qtyInputRef = useRef<HTMLInputElement | null>(null);
   const lastLookupRef = useRef<{ code: string; time: number }>({ code: '', time: 0 });
 
+  // Auto-Suggest Search States (search by barcode, code, or product name)
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
+  const [isSearchingSuggestions, setIsSearchingSuggestions] = useState<boolean>(false);
+  const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggestionsBoxRef = useRef<HTMLDivElement | null>(null);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        suggestionsBoxRef.current &&
+        !suggestionsBoxRef.current.contains(e.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(e.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, []);
+
   // Update sound profile in localStorage
   const handleSoundProfileChange = (newProfile: SoundProfile) => {
     setSoundProfile(newProfile);
     localStorage.setItem('rm_scanner_sound_profile', newProfile);
     playWarehouseSound('SCAN_SUCCESS', newProfile);
+    if (newProfile === 'MUTE') {
+      toast('Scanner audio muted', { icon: '🔇' });
+    } else if (newProfile === 'HIGH_NOISE') {
+      toast('Loud warehouse floor audio enabled', { icon: '🔊' });
+    } else {
+      toast('Normal warehouse audio enabled', { icon: '🔉' });
+    }
   };
 
   // Fetch all master warehouse bins once when modal opens
@@ -228,6 +264,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
       setIsLinkingOpen(false);
       setSelectedLinkProduct(null);
       setFlashState('IDLE');
+      setSuggestions([]);
+      setShowSuggestions(false);
     }
   }, [isOpen, initialBarcode]);
 
@@ -287,8 +325,55 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, isPrintModalOpen, isLinkingOpen, foundProduct, onClose]);
 
-  // Lookup product by barcode with Laser Debounce Guard
+  // Handle typing search with debounced product suggestions
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawVal = e.target.value.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+    setBarcodeInput(rawVal);
+
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+
+    const trimmed = rawVal.trim();
+    if (trimmed.length >= 1) {
+      setIsSearchingSuggestions(true);
+      setShowSuggestions(true);
+      searchDebounceRef.current = setTimeout(async () => {
+        try {
+          const res = await masterDataService.getProducts({
+            search: trimmed,
+            pageSize: 8,
+            isActive: true,
+          });
+          setSuggestions(res.data || []);
+        } catch (err) {
+          console.debug('Failed to fetch product suggestions', err);
+          setSuggestions([]);
+        } finally {
+          setIsSearchingSuggestions(false);
+        }
+      }, 200);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setIsSearchingSuggestions(false);
+    }
+  };
+
+  // User selects an item from suggestions dropdown
+  const handleSelectSuggestion = async (product: Product) => {
+    setShowSuggestions(false);
+    setSuggestions([]);
+    const targetQuery = product.barcode || product.code || product.id;
+    setBarcodeInput(product.barcode || product.code || product.name);
+    if (targetQuery) {
+      await handleLookup(targetQuery);
+    }
+  };
+
+  // Lookup product by barcode or search query with Laser Debounce Guard
   const handleLookup = async (codeToSearch: string) => {
+    setShowSuggestions(false);
     const sanitized = sanitizeBarcode(codeToSearch);
     if (!sanitized) {
       toast.error('Please enter or scan a barcode.');
@@ -311,13 +396,38 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
       setShowOtherBins(false);
       setIsLinkingOpen(false);
 
-      const product = await masterDataService.getProductByBarcode(sanitized);
+      let product: ProductWithStockDetails | null = null;
+      try {
+        product = await masterDataService.getProductByBarcode(sanitized);
+      } catch (barcodeErr) {
+        // Fallback: search products by query (name, code, barcode)
+        const searchRes = await masterDataService.getProducts({
+          search: codeToSearch.trim(),
+          pageSize: 5,
+          isActive: true,
+        });
+        if (searchRes.data && searchRes.data.length > 0) {
+          const match = searchRes.data[0];
+          const queryTarget = match.barcode || match.code || match.id;
+          if (queryTarget) {
+            try {
+              product = await masterDataService.getProductByBarcode(queryTarget);
+            } catch {
+              // Ignore fallback error
+            }
+          }
+        }
+        if (!product) {
+          throw barcodeErr;
+        }
+      }
 
       setFoundProduct(product);
+      setBarcodeInput(product.barcode || product.code || sanitized);
       playWarehouseSound('SCAN_SUCCESS', soundProfile);
       setHistory((prev) => [
         {
-          barcode: sanitized,
+          barcode: product.barcode || sanitized,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
           product,
           status: 'FOUND',
@@ -326,7 +436,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
       ]);
       onSelectProduct?.(product);
     } catch (err: any) {
-      console.warn(`Product not found for barcode: "${sanitized}"`, err);
+      console.warn(`Product not found for: "${sanitized}"`, err);
       setUnknownBarcode(sanitized);
       playWarehouseSound('ERROR', soundProfile);
       setFlashState('ERROR');
@@ -347,6 +457,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
   const handleBarcodeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setShowSuggestions(false);
     if (barcodeInput.trim()) {
       handleLookup(barcodeInput.trim());
     }
@@ -361,6 +472,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     setShowOtherBins(false);
     setIsLinkingOpen(false);
     setSelectedLinkProduct(null);
+    setSuggestions([]);
+    setShowSuggestions(false);
     setTimeout(() => {
       inputRef.current?.focus();
     }, 50);
@@ -574,11 +687,13 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
       <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
         <div
           onClick={(e) => {
-            // Keep autofocus alive unless clicking interactive buttons/inputs
+            const targetEl = e.target as HTMLElement;
+            // Keep autofocus alive unless clicking interactive buttons/inputs/selects or suggestions
             if (
-              (e.target as HTMLElement).tagName !== 'BUTTON' &&
-              (e.target as HTMLElement).tagName !== 'INPUT' &&
-              (e.target as HTMLElement).tagName !== 'SELECT'
+              !targetEl.closest('button') &&
+              !targetEl.closest('input') &&
+              !targetEl.closest('select') &&
+              !suggestionsBoxRef.current?.contains(targetEl)
             ) {
               if (foundProduct) {
                 qtyInputRef.current?.focus();
@@ -618,17 +733,23 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Sound Profile Selector */}
-              <div className="flex items-center p-0.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0e111f]">
+              {/* Interactive Sound Profile Selector */}
+              <div className="flex items-center gap-1 p-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0e111f] shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1.5 hidden md:inline select-none">
+                  Beep:
+                </span>
                 <button
                   type="button"
-                  onClick={() => handleSoundProfileChange('HIGH_NOISE')}
-                  className={`px-2 py-1 rounded text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1 ${
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSoundProfileChange('HIGH_NOISE');
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95 ${
                     soundProfile === 'HIGH_NOISE'
-                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 shadow-2xs'
+                      : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
                   }`}
-                  title="High-Noise Warehouse Floor Mode (Extra Loud & High Pitch)"
+                  title="High-Noise Warehouse Floor Mode (Click to switch to Loud audio)"
                 >
                   <Volume2 className="w-3.5 h-3.5 text-amber-600" />
                   <span className="hidden sm:inline">Loud</span>
@@ -636,13 +757,16 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => handleSoundProfileChange('STANDARD')}
-                  className={`px-2 py-1 rounded text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1 ${
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSoundProfileChange('STANDARD');
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95 ${
                     soundProfile === 'STANDARD'
-                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
-                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 shadow-2xs'
+                      : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
                   }`}
-                  title="Standard Warehouse Audio Feedback"
+                  title="Standard Warehouse Audio Feedback (Click to switch to Normal audio)"
                 >
                   <Volume1 className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Normal</span>
@@ -650,15 +774,19 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => handleSoundProfileChange('MUTE')}
-                  className={`px-2 py-1 rounded text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1 ${
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSoundProfileChange('MUTE');
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95 ${
                     soundProfile === 'MUTE'
-                      ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                      ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 shadow-2xs'
+                      : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
                   }`}
-                  title="Mute Audio Feedback"
+                  title="Mute Audio Feedback (Click to Mute)"
                 >
                   <VolumeX className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Mute</span>
                 </button>
               </div>
 
@@ -674,17 +802,22 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
           {/* Body */}
           <div className="flex-1 overflow-y-auto p-6 space-y-5">
-            {/* High-Contrast Scanner Input Box with Sanitation & Debounce */}
-            <form onSubmit={handleBarcodeSubmit} className="relative">
+            {/* High-Contrast Scanner Input Box with Auto-Suggest Dropdown */}
+            <form onSubmit={handleBarcodeSubmit} className="relative z-30">
               <div className="relative flex items-center">
                 <Barcode className="w-5 h-5 text-blue-600 dark:text-blue-400 absolute left-4 pointer-events-none" />
                 <input
                   ref={inputRef}
                   type="text"
                   value={barcodeInput}
-                  onChange={(e) => setBarcodeInput(sanitizeBarcode(e.target.value))}
-                  placeholder="Pull scanner trigger or enter barcode (e.g. PRD-000001)..."
-                  className="w-full h-12 pl-12 pr-28 rounded-xl border-2 border-blue-500/60 focus:border-blue-600 dark:border-blue-500/40 dark:focus:border-blue-400 bg-white dark:bg-[#0e111f] text-base font-mono font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-950 shadow-inner"
+                  onChange={handleInputChange}
+                  onFocus={() => {
+                    if (suggestions.length > 0 && barcodeInput.trim().length >= 1) {
+                      setShowSuggestions(true);
+                    }
+                  }}
+                  placeholder="Scan barcode, or search by product name, code (e.g. RM-0001), or barcode..."
+                  className="w-full h-12 pl-12 pr-28 rounded-xl border-2 border-blue-500/60 focus:border-blue-600 dark:border-blue-500/40 dark:focus:border-blue-400 bg-white dark:bg-[#0e111f] text-sm sm:text-base font-medium text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-950 shadow-inner"
                   autoFocus
                 />
                 <div className="absolute right-2 flex items-center gap-1.5">
@@ -704,6 +837,70 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                   </Button>
                 </div>
               </div>
+
+              {/* Auto-Suggest Dropdown List (Search by Barcode, Code, or Name) */}
+              {showSuggestions && barcodeInput.trim().length >= 1 && (
+                <div
+                  ref={suggestionsBoxRef}
+                  className="absolute left-0 right-0 top-full mt-1.5 z-40 bg-white dark:bg-[#121526] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 animate-in fade-in slide-in-from-top-1 duration-150"
+                >
+                  {isSearchingSuggestions ? (
+                    <div className="p-4 text-center text-xs text-slate-500 dark:text-slate-400 flex items-center justify-center gap-2">
+                      <span className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                      <span>Searching products by name, code, or barcode...</span>
+                    </div>
+                  ) : suggestions.length > 0 ? (
+                    <>
+                      <div className="px-3.5 py-1.5 bg-slate-50 dark:bg-slate-900/60 text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center justify-between">
+                        <span>Matching Products ({suggestions.length})</span>
+                        <span className="text-[10px] text-slate-400">Click to select item</span>
+                      </div>
+                      {suggestions.map((p) => (
+                        <div
+                          key={p.id}
+                          onClick={() => handleSelectSuggestion(p)}
+                          className="px-4 py-3 hover:bg-blue-50/80 dark:hover:bg-blue-950/50 cursor-pointer transition-colors flex items-center justify-between gap-3 group"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-sm text-slate-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                                {p.name}
+                              </span>
+                              {p.family?.name && (
+                                <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                                  {p.family.name}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                              <span>Code: <strong className="font-mono text-slate-700 dark:text-slate-300">{p.code || '—'}</strong></span>
+                              {p.uom && <span>UOM: <strong className="text-slate-700 dark:text-slate-300">{p.uom}</strong></span>}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {p.barcode ? (
+                              <span className="inline-flex items-center gap-1 font-mono text-xs font-bold px-2 py-1 rounded bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900">
+                                <Barcode className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                                {p.barcode}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-400 italic">No Barcode</span>
+                            )}
+                            <Button size="sm" variant="secondary" className="text-xs h-7 px-2.5">
+                              Select
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <div className="p-4 text-center text-xs text-slate-500 dark:text-slate-400">
+                      No products found matching &ldquo;{barcodeInput}&rdquo;. You can still scan a barcode with your hardware scanner.
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 px-1">
                 <span className="flex items-center gap-1">

@@ -192,7 +192,7 @@ export const masterDataService = {
     return api.post<{ success: boolean; count: number; message: string }>('/api/products/backfill-barcodes', {});
   },
   createProduct: async (data: {
-    code: string;
+    code?: string;
     barcode?: string;
     name: string;
     familyId?: string;
@@ -205,6 +205,15 @@ export const masterDataService = {
     isActive?: boolean;
   }): Promise<Product> => {
     return api.post<Product>('/api/products', data);
+  },
+  getNextProductCode: async (): Promise<string> => {
+    try {
+      const res = await api.get<{ nextCode: string }>('/api/products/next-code');
+      return res?.nextCode || '';
+    } catch (err) {
+      console.warn('Failed to fetch next product code from server', err);
+      return '';
+    }
   },
   updateProduct: async (
     id: string,

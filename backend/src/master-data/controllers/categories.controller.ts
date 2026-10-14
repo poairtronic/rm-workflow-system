@@ -50,13 +50,13 @@ export class CategoriesController {
   }
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.STORES)
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.DESIGNER, UserRole.GENERAL_MANAGER)
   createCategory(@Body() dto: CreateCategoryDto) {
     return this.masterDataService.createCategory(dto);
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.STORES)
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.DESIGNER, UserRole.GENERAL_MANAGER)
   updateCategory(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateCategoryDto,

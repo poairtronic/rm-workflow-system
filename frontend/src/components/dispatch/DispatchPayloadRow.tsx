@@ -1,9 +1,10 @@
 import { useEffect, useMemo } from 'react';
-import { useFormContext } from 'react-hook-form';
+import { useFormContext, Controller } from 'react-hook-form';
 import { Trash2, ArrowRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api, unwrapList } from '../../services/api';
 import { masterDataService } from '../../services/masterDataService';
+import { SearchSelect, type SearchSelectOption } from '../ui/SearchSelect';
 
 export function DispatchPayloadRow({
   blockIndex,
@@ -20,7 +21,7 @@ export function DispatchPayloadRow({
   isType1?: boolean;
   baseSeq?: number;
 }) {
-  const { register, setValue, watch } = useFormContext();
+  const { register, setValue, watch, control, formState: { errors } } = useFormContext();
 
   const { data: products } = useQuery({
     queryKey: ['products'],
@@ -80,6 +81,54 @@ export function DispatchPayloadRow({
       });
     });
   }, [availableProducts]);
+
+  const productOptions: SearchSelectOption[] = useMemo(() => {
+    return (sortedProducts as any[]).map((p: any) => {
+      const scItem = selectedSc?.rmRequest?.items?.find(
+        (i: any) =>
+          (i.mappedProductId || i.mapped_product_id || i.productId || i.product_id) === p.id
+      );
+      const pNumVal = scItem?.partNumber || scItem?.part_number;
+      const pNameVal = scItem?.partName || scItem?.part_name;
+
+      const secondaryParts: string[] = [];
+      if (p.family?.name) secondaryParts.push(p.family.name);
+      if (p.uom) secondaryParts.push(p.uom);
+      if (p.barcode) secondaryParts.push(`Barcode: ${p.barcode}`);
+      if (pNumVal || pNameVal) secondaryParts.push(`SC Part: ${pNumVal || ''} ${pNameVal || ''}`.trim());
+
+      const displayName = p.code ? `[${p.code}] ${p.name}` : p.name;
+
+      return {
+        id: p.id,
+        primary: displayName,
+        secondary: secondaryParts.join(' • '),
+      };
+    });
+  }, [sortedProducts, selectedSc]);
+
+  const outputProductOptions: SearchSelectOption[] = useMemo(() => {
+    const all = ((products as any[]) || []).slice().sort((a, b) => {
+      return (a.code || a.name || '').localeCompare(b.code || b.name || '', undefined, {
+        numeric: true,
+      });
+    });
+
+    return all.map((p: any) => {
+      const secondaryParts: string[] = [];
+      if (p.family?.name) secondaryParts.push(p.family.name);
+      if (p.uom) secondaryParts.push(p.uom);
+      if (p.barcode) secondaryParts.push(`Barcode: ${p.barcode}`);
+
+      const displayName = p.code ? `[${p.code}] ${p.name}` : p.name;
+
+      return {
+        id: p.id,
+        primary: displayName,
+        secondary: secondaryParts.join(' • '),
+      };
+    });
+  }, [products]);
 
   const productId = watch(`scBlocks.${blockIndex}.items.${index}.productId`);
   const binId = watch(`scBlocks.${blockIndex}.items.${index}.binId`);
@@ -157,9 +206,11 @@ export function DispatchPayloadRow({
 
     const foundItem = scRmItems.find((it: any) => it.id === selectedKey);
     if (foundItem) {
-      setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, foundItem.partNumber || selectedSc?.scNumber || '', { shouldValidate: true });
-      setValue(`scBlocks.${blockIndex}.items.${index}.partName`, foundItem.partName || foundItem.material || '', { shouldValidate: true });
-      setValue(`scBlocks.${blockIndex}.items.${index}.productId`, foundItem.mappedProductId || '', { shouldValidate: true });
+      const pNum = foundItem.partNumber || foundItem.part_number || selectedSc?.scNumber || '';
+      const pName = foundItem.partName || foundItem.part_name || foundItem.material || '';
+      setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, pNum, { shouldValidate: true });
+      setValue(`scBlocks.${blockIndex}.items.${index}.partName`, pName, { shouldValidate: true });
+      setValue(`scBlocks.${blockIndex}.items.${index}.productId`, foundItem.mappedProductId || foundItem.mapped_product_id || '', { shouldValidate: true });
       if (foundItem.quantity) {
         setValue(`scBlocks.${blockIndex}.items.${index}.quantity`, Number(foundItem.quantity), { shouldValidate: true });
       }
@@ -197,23 +248,12 @@ export function DispatchPayloadRow({
     }
 
     if (currentScItem) {
-      setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, currentScItem.partNumber || '');
-      setValue(`scBlocks.${blockIndex}.items.${index}.partName`, currentScItem.partName || currentScItem.material || '');
+      const pNum = currentScItem.partNumber || currentScItem.part_number || '';
+      const pName = currentScItem.partName || currentScItem.part_name || currentScItem.material || '';
+      setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, pNum);
+      setValue(`scBlocks.${blockIndex}.items.${index}.partName`, pName);
     }
   }, [isType1, selectedSc, scRmItems, scItemId, currentScItem, setValue, blockIndex, index, baseSeq]);
-
-  const getProductDisplayLabel = (p: any) => {
-    const scItem = selectedSc?.rmRequest?.items?.find(
-      (i: any) =>
-        (i.mappedProductId || i.mapped_product_id || i.productId || i.product_id) === p.id
-    );
-    if (scItem && (scItem.partNumber || scItem.partName)) {
-      const pNum = scItem.partNumber ? `[${scItem.partNumber}] ` : '';
-      const pName = scItem.partName ? `${scItem.partName} - ` : '';
-      return `${pNum}${pName}${p.code ? `[${p.code}] ` : ''}${p.name}`;
-    }
-    return `${p.code ? `[${p.code}] ` : ''}${p.name}`;
-  };
 
   // Find currently selected bin and its rack
   const selectedBin = allBins.find((ab: any) => ab.id === binId);
@@ -280,9 +320,14 @@ export function DispatchPayloadRow({
   const currentSeq = (baseSeq || 1) + index;
   const defaultPartNo = `DC2-${String(currentSeq).padStart(3, '0')}`;
 
+  const watchedPartNumber = watch(`scBlocks.${blockIndex}.items.${index}.partNumber`);
+  const activeScItem = isType1 && scItemId && scItemId !== 'sc_assembly'
+    ? scRmItems.find((it: any) => it.id === scItemId)
+    : null;
   const partNumberVal =
-    watch(`scBlocks.${blockIndex}.items.${index}.partNumber`) ||
-    (!isType1 ? defaultPartNo : '');
+    watchedPartNumber ||
+    (activeScItem?.partNumber || activeScItem?.part_number) ||
+    (!isType1 ? defaultPartNo : (scItemId === 'sc_assembly' ? selectedSc?.scNumber || '' : ''));
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs space-y-4 hover:border-slate-300 transition-all">
@@ -293,7 +338,7 @@ export function DispatchPayloadRow({
             S.No. {String(index + 1).padStart(2, '0')}
           </span>
 
-          {!isType1 && partNumberVal && (
+          {partNumberVal && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
               Part No: {partNumberVal}
             </span>
@@ -319,9 +364,9 @@ export function DispatchPayloadRow({
       {isType1 ? (
         /* ================= TYPE 1: PRODUCTION PROCESS (MULTI-LINE) ================= */
         <div className="space-y-3.5">
-          {/* Line 1: Part Selection & Quantity */}
+          {/* Line 1: Part Selection, Auto Part No., & Quantity */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-start">
-            <div className="md:col-span-8">
+            <div className="md:col-span-6">
               <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 SC Item / Component Part Name *
               </label>
@@ -337,47 +382,48 @@ export function DispatchPayloadRow({
                 >
                   {scRmItems.length > 0 && (
                     <optgroup label={`SC Products / Materials (${scRmItems.length})`}>
-                      {scRmItems.map((it: any) => (
-                        <option key={it.id} value={it.id}>
-                          {it.material || it.partName || 'Item'} {it.grade ? `(${it.grade})` : ''} • Qty: {Number(it.quantity)}
-                        </option>
-                      ))}
+                      {scRmItems.map((it: any) => {
+                        const pNum = it.partNumber || it.part_number;
+                        const pName = it.partName || it.part_name;
+                        const labelParts = [
+                          pNum ? `[${pNum}]` : '',
+                          pName ? `${pName} —` : '',
+                          it.material || 'Material',
+                          it.grade ? `(${it.grade})` : '',
+                          `• Qty: ${Number(it.quantity)}`,
+                        ].filter(Boolean).join(' ');
+
+                        return (
+                          <option key={it.id} value={it.id}>
+                            {labelParts}
+                          </option>
+                        );
+                      })}
                     </optgroup>
                   )}
                   <optgroup label="Component Assembly">
                     <option value="sc_assembly">
-                      ★ {selectedSc.scNumber} - {selectedSc.productName} (Target: {Number(selectedSc.targetQuantity || 1)})
+                      ★ [Assembly] {selectedSc.scNumber} - {selectedSc.productName} (Target: {Number(selectedSc.targetQuantity || 1)})
                     </option>
                   </optgroup>
                 </select>
               )}
-              {selectedSc && scItemId && scItemId !== 'sc_assembly' && (() => {
-                const activeIt = scRmItems.find((it: any) => it.id === scItemId);
-                if (!activeIt) return null;
-                return (
-                  <div className="flex items-center gap-2 mt-1.5 px-2 py-1 rounded bg-blue-50 border border-blue-100 text-[11px] text-blue-900">
-                    <span className="font-semibold">{activeIt.materialType || 'MATERIAL'}</span>
-                    {activeIt.grade && (
-                      <>
-                        <span>•</span>
-                        <span>Grade: {activeIt.grade}</span>
-                      </>
-                    )}
-                    {activeIt.size && (
-                      <>
-                        <span>•</span>
-                        <span>Size: {activeIt.size}</span>
-                      </>
-                    )}
-                  </div>
-                );
-              })()}
-              <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.scItemId` as const)} />
-              <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.partNumber` as const)} />
-              <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.partName` as const)} />
             </div>
 
-            <div className="md:col-span-4">
+            <div className="md:col-span-3">
+              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Part No. (Auto)
+              </label>
+              <input
+                type="text"
+                readOnly
+                value={partNumberVal || '—'}
+                className="w-full h-9 px-2.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-mono font-bold text-blue-700 text-center select-none cursor-default shadow-2xs"
+                title="Auto-assigned part number from RM Requisition"
+              />
+            </div>
+
+            <div className="md:col-span-3">
               <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Dispatched Quantity *
               </label>
@@ -399,6 +445,64 @@ export function DispatchPayloadRow({
               />
             </div>
           </div>
+
+          {/* Selected Item Detail Card */}
+          {selectedSc && scItemId && (() => {
+            if (scItemId === 'sc_assembly') {
+              return (
+                <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-100 text-[11px] text-indigo-950">
+                  <span className="font-mono font-bold bg-indigo-200/70 text-indigo-800 px-2 py-0.5 rounded text-[10px]">
+                    SC: {selectedSc.scNumber}
+                  </span>
+                  <span className="font-semibold text-indigo-900">{selectedSc.productName}</span>
+                  <span className="text-indigo-300">•</span>
+                  <span>Target Assembly Qty: <strong>{Number(selectedSc.targetQuantity || 1)}</strong></span>
+                </div>
+              );
+            }
+            const activeIt = scRmItems.find((it: any) => it.id === scItemId);
+            if (!activeIt) return null;
+            const pNum = activeIt.partNumber || activeIt.part_number;
+            const pName = activeIt.partName || activeIt.part_name;
+            return (
+              <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-100 text-[11px] text-blue-950">
+                {pNum && (
+                  <span className="font-mono font-bold bg-blue-200/70 text-blue-800 px-2 py-0.5 rounded text-[10px]">
+                    {pNum}
+                  </span>
+                )}
+                {pName && (
+                  <span className="font-semibold text-slate-800">
+                    {pName}
+                  </span>
+                )}
+                {activeIt.material && (
+                  <>
+                    <span className="text-blue-300">•</span>
+                    <span className="text-slate-700">Material: <strong className="font-medium text-slate-900">{activeIt.material}</strong></span>
+                  </>
+                )}
+                {activeIt.grade && (
+                  <>
+                    <span className="text-blue-300">•</span>
+                    <span className="text-slate-700">Grade: <strong className="font-medium text-slate-900">{activeIt.grade}</strong></span>
+                  </>
+                )}
+                {activeIt.size && (
+                  <>
+                    <span className="text-blue-300">•</span>
+                    <span className="text-slate-700">Size: <strong className="font-medium text-slate-900">{activeIt.size}</strong></span>
+                  </>
+                )}
+                <span className="text-blue-300">•</span>
+                <span className="text-slate-700">Requisition Qty: <strong className="font-medium text-slate-900">{Number(activeIt.quantity)}</strong></span>
+              </div>
+            );
+          })()}
+
+          <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.scItemId` as const)} />
+          <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.partNumber` as const)} />
+          <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.partName` as const)} />
 
           {/* Line 2: Batch & Description (Entered in next line) */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-start pt-2 border-t border-slate-100">
@@ -430,24 +534,42 @@ export function DispatchPayloadRow({
         <div className="space-y-4">
           {/* Line 1: Outward RM Material & Custom Vendor Identity */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3.5 items-start">
-            {/* 1a. Internal RM Stock */}
+            {/* 1a. Internal RM Stock (Searchable Dropdown) */}
             <div className="md:col-span-5">
               <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Internal RM Stock (Search) *
               </label>
-              <select
-                {...register(`scBlocks.${blockIndex}.items.${index}.productId` as const, {
-                  required: 'Product is required',
-                })}
-                className="w-full h-9 px-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
-              >
-                <option value="">Select Internal RM Stock...</option>
-                {sortedProducts.map((p: any) => (
-                  <option key={p.id} value={p.id}>
-                    {getProductDisplayLabel(p)}
-                  </option>
-                ))}
-              </select>
+              <Controller
+                name={`scBlocks.${blockIndex}.items.${index}.productId` as const}
+                control={control}
+                rules={{ required: 'Product is required' }}
+                render={({ field, fieldState }) => (
+                  <SearchSelect
+                    value={field.value || ''}
+                    onChange={(val) => {
+                      field.onChange(val);
+                      setValue(`scBlocks.${blockIndex}.items.${index}.binId`, '');
+                      const sel = products?.find((p: any) => p.id === val);
+                      if (sel) {
+                        const currentPartName = watch(`scBlocks.${blockIndex}.items.${index}.partName`);
+                        if (!currentPartName) {
+                          setValue(`scBlocks.${blockIndex}.items.${index}.partName`, sel.name, { shouldValidate: true });
+                        }
+                      }
+                    }}
+                    placeholder="Search product by name, code, barcode..."
+                    searchPlaceholder="Type product name, code, or barcode..."
+                    options={productOptions}
+                    error={Boolean(fieldState.error)}
+                    triggerClassName="h-9 py-1 text-xs"
+                  />
+                )}
+              />
+              {(errors as any)?.scBlocks?.[blockIndex]?.items?.[index]?.productId && (
+                <p className="mt-1 text-[11px] text-red-500 font-medium">
+                  {(errors as any).scBlocks[blockIndex].items[index].productId.message as string}
+                </p>
+              )}
             </div>
 
             {/* 1b. Auto Part No. */}
@@ -614,7 +736,7 @@ export function DispatchPayloadRow({
               />
             </div>
 
-            {/* 2c. Converted Output Material */}
+            {/* 2c. Converted Output Material (Searchable Dropdown) */}
             <div className="md:col-span-4">
               <div className="flex items-center gap-1 mb-1.5">
                 <ArrowRight className="w-3.5 h-3.5 text-emerald-600" />
@@ -622,19 +744,27 @@ export function DispatchPayloadRow({
                   Converted Output Material (In) *
                 </label>
               </div>
-              <select
-                {...register(`scBlocks.${blockIndex}.items.${index}.outputProductId` as const, {
-                  required: !isType1 ? 'Output product is required' : false,
-                })}
-                className="w-full h-9 px-3 rounded-lg bg-white border border-emerald-300 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
-              >
-                <option value="">Select Converted Output Material...</option>
-                {sortedProducts.map((p: any) => (
-                  <option key={p.id} value={p.id}>
-                    {getProductDisplayLabel(p)}
-                  </option>
-                ))}
-              </select>
+              <Controller
+                name={`scBlocks.${blockIndex}.items.${index}.outputProductId` as const}
+                control={control}
+                rules={{ required: !isType1 ? 'Output product is required' : false }}
+                render={({ field, fieldState }) => (
+                  <SearchSelect
+                    value={field.value || ''}
+                    onChange={(val) => field.onChange(val)}
+                    placeholder="Search converted output material..."
+                    searchPlaceholder="Type output material name, code, barcode..."
+                    options={outputProductOptions}
+                    error={Boolean(fieldState.error)}
+                    triggerClassName="h-9 py-1 text-xs border-emerald-300 focus:border-emerald-500 focus:ring-emerald-100"
+                  />
+                )}
+              />
+              {(errors as any)?.scBlocks?.[blockIndex]?.items?.[index]?.outputProductId && (
+                <p className="mt-1 text-[11px] text-red-500 font-medium">
+                  {(errors as any).scBlocks[blockIndex].items[index].outputProductId.message as string}
+                </p>
+              )}
             </div>
 
             {/* 2d. Expected Inward Qty */}

@@ -80,6 +80,8 @@ export const workflowService = {
   submitDraftRmByPo: (poId: string) => api.post<any>(`/api/rm/po/${poId}/submit`, {}),
   getMine: () => api.get<any[]>('/api/rm/mine'),
   getStoresQueue: () => api.get<any[]>('/api/rm/stores/queue'),
+  getNextPartNumber: () =>
+    api.get<{ nextPartNumber: string; maxSequence: number }>('/api/rm/next-part-number'),
   deleteRm: (id: string) => api.delete<any>(`/api/rm/${id}`),
   deleteRmItem: (id: string, itemId: string) => api.delete<any>(`/api/rm/${id}/items/${itemId}`),
 

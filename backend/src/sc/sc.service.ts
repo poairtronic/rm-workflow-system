@@ -72,6 +72,7 @@ export class ScService {
     const qb = this.scRepo
       .createQueryBuilder('sc')
       .leftJoinAndSelect('sc.purchaseOrder', 'po')
+      .leftJoinAndSelect('po.customer', 'customer')
       .leftJoinAndSelect('sc.rmRequest', 'rm')
       .leftJoinAndSelect('rm.items', 'items');
 

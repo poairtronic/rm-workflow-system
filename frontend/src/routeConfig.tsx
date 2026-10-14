@@ -106,3 +106,42 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   // DEV TOOLS (Hidden from sidebar)
   { name: 'UI Kit Showcase', path: '/dev/ui-kit', icon: FileText, roles: ['ADMIN'], component: UiKitShowcase, isSidebar: false },
 ];
+
+export function getRoleDefaultPath(role?: string): string {
+  switch (role) {
+    case 'DESIGNER':
+      return '/design/rm-creation';
+    case 'STORES':
+      return '/stores/rm-issue';
+    case 'PRODUCTION':
+      return '/production/rm';
+    case 'SENIOR_MANAGER':
+    case 'GENERAL_MANAGER':
+    case 'ADMIN':
+      return '/overview';
+    default:
+      return '/overview';
+  }
+}
+
+export function isPathAllowedForUser(
+  path?: string,
+  user?: { role?: string; effectiveModules?: string[] } | null,
+): boolean {
+  if (!path || !user || !user.role) return false;
+  if (path === '/' || path === '/login' || path === '/unauthorized') return false;
+
+  if (user.role === 'ADMIN') return true;
+
+  const matchedRoute = ROUTE_CONFIG.find((r) => r.path === path);
+  if (!matchedRoute) {
+    return false;
+  }
+
+  if (matchedRoute.moduleKey && user.effectiveModules && user.effectiveModules.length > 0) {
+    return user.effectiveModules.includes(matchedRoute.moduleKey);
+  }
+
+  return matchedRoute.roles.includes(user.role as UserRole);
+}
+

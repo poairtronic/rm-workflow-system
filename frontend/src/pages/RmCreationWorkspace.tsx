@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Plus, Trash2, Save, AlertCircle, Send, CheckCircle2, FileText, Layers, Box } from 'lucide-react';
-import { PageHeader } from '../components/ui/PageHeader';
+import { PageHeader, SearchSelect, type SearchSelectOption } from '../components/ui';
 import { masterDataService } from '../services/masterDataService';
 import type { Product } from '../services/masterDataService';
 import { workflowService } from '../services/workflowService';
@@ -28,8 +28,8 @@ interface SCCardForm {
   error?: string;
 }
 
-const getNextPartNumber = (cards: SCCardForm[], extraOffset = 0): string => {
-  let maxNum = 0;
+const getNextPartNumber = (cards: SCCardForm[], baseSeq = 0, extraOffset = 0): string => {
+  let maxNum = baseSeq;
   for (const c of cards) {
     for (const it of c.items) {
       if (it.partNumber) {
@@ -45,11 +45,11 @@ const getNextPartNumber = (cards: SCCardForm[], extraOffset = 0): string => {
   return `PRD ${String(nextVal).padStart(3, '0')}`;
 };
 
-const createDefaultItem = (existingCards: SCCardForm[] = [], extraOffset = 0): RMItemForm => ({
+const createDefaultItem = (existingCards: SCCardForm[] = [], baseSeq = 0, extraOffset = 0): RMItemForm => ({
   id: crypto.randomUUID(),
   productId: '',
   partName: '',
-  partNumber: getNextPartNumber(existingCards, extraOffset),
+  partNumber: getNextPartNumber(existingCards, baseSeq, extraOffset),
   spec: '',
   quantity: 1,
   remarks: '',
@@ -74,6 +74,31 @@ export function RmCreationWorkspace() {
   const [rejectionNotice, setRejectionNotice] = useState<string | null>(null);
 
   const [productBalances, setProductBalances] = useState<Record<string, number>>({});
+  const [basePartNumberSeq, setBasePartNumberSeq] = useState(0);
+
+  const productOptions: SearchSelectOption[] = useMemo(() => {
+    return products.map((p) => {
+      const codePrefix = p.code ? `[${p.code}] ` : '';
+      const details = [
+        p.family?.name,
+        p.uom ? `UOM: ${p.uom}` : undefined,
+      ].filter(Boolean).join(' • ');
+
+      return {
+        id: p.id,
+        primary: `${codePrefix}${p.name}`,
+        secondary: details || undefined,
+      };
+    });
+  }, [products]);
+
+  const scOptions: SearchSelectOption[] = useMemo(() => {
+    return availableScs.map((sc) => ({
+      id: sc.id,
+      primary: `${sc.scNumber} - ${sc.productName}`,
+      secondary: sc.purchaseOrder?.poNumber ? `PO: ${sc.purchaseOrder.poNumber}` : 'No PO',
+    }));
+  }, [availableScs]);
 
   useEffect(() => {
     loadProducts();
@@ -81,10 +106,28 @@ export function RmCreationWorkspace() {
     if (existingPoId) {
       loadExistingDraft(existingPoId);
     } else {
-      // Initialize with one default SC card
-      handleAddScCard();
+      initNewForm();
     }
   }, [existingPoId]);
+
+  const initNewForm = async () => {
+    try {
+      const res = await workflowService.getNextPartNumber();
+      const maxSeq = res?.maxSequence ?? 0;
+      setBasePartNumberSeq(maxSeq);
+      setScCards([
+        {
+          id: crypto.randomUUID(),
+          scNumber: '',
+          productName: '',
+          targetQuantity: 1,
+          items: [createDefaultItem([], maxSeq)],
+        },
+      ]);
+    } catch {
+      handleAddScCard();
+    }
+  };
 
   const loadProducts = async () => {
     try {
@@ -142,7 +185,7 @@ export function RmCreationWorkspace() {
           items: (sc.items || []).map((item: any, iIdx: number) => ({
             id: item.id || crypto.randomUUID(),
             productId: item.productId || '',
-            partNumber: item.partNumber || `PRD ${String(iIdx + 1).padStart(3, '0')}`,
+            partNumber: item.partNumber || getNextPartNumber([], basePartNumberSeq, iIdx),
             partName: item.partName || item.remarks || '',
             spec: item.spec || '',
             quantity: Number(item.quantity) || 1,
@@ -219,7 +262,7 @@ export function RmCreationWorkspace() {
           scNumber: foundSc.scNumber,
           productName: foundSc.productName,
           targetQuantity: foundSc.targetQuantity || 1,
-          items: [createDefaultItem([])],
+          items: [createDefaultItem([], basePartNumberSeq)],
         },
       ]);
     }
@@ -233,7 +276,7 @@ export function RmCreationWorkspace() {
         scNumber: '',
         productName: '',
         targetQuantity: 1,
-        items: [createDefaultItem(scCards)],
+        items: [createDefaultItem(scCards, basePartNumberSeq)],
       },
     ]);
   };
@@ -263,7 +306,7 @@ export function RmCreationWorkspace() {
         if (card.id === scId) {
           return {
             ...card,
-            items: [...card.items, createDefaultItem(scCards)],
+            items: [...card.items, createDefaultItem(scCards, basePartNumberSeq)],
           };
         }
         return card;
@@ -297,10 +340,20 @@ export function RmCreationWorkspace() {
             items: card.items.map((item) => {
               if (item.id === itemId) {
                 const updated = { ...item, [field]: value };
+                if (field === 'productId' && value) {
+                  const selProd = products.find((p) => p.id === value);
+                  if (selProd && !item.partName) {
+                    updated.partName = selProd.name;
+                    updated.remarks = selProd.name;
+                    if (!updated.partNumber?.trim()) {
+                      updated.partNumber = getNextPartNumber(scCards, basePartNumberSeq);
+                    }
+                  }
+                }
                 if (field === 'partName') {
                   updated.remarks = value;
                   if (!updated.partNumber?.trim()) {
-                    updated.partNumber = getNextPartNumber(scCards);
+                    updated.partNumber = getNextPartNumber(scCards, basePartNumberSeq);
                   }
                 }
                 return updated;
@@ -381,7 +434,7 @@ export function RmCreationWorkspace() {
           targetQuantity: Number(card.targetQuantity) || 1,
           items: card.items.map((item, itemIdx) => ({
             productId: item.productId,
-            partNumber: item.partNumber?.trim() || `PRD ${String(itemIdx + 1).padStart(3, '0')}`,
+            partNumber: item.partNumber?.trim() || getNextPartNumber(scCards, basePartNumberSeq, itemIdx),
             partName: item.partName?.trim() || item.remarks?.trim() || undefined,
             spec: item.spec.trim(),
             quantity: Number(item.quantity),
@@ -581,18 +634,13 @@ export function RmCreationWorkspace() {
             <label className="block text-sm font-bold text-slate-700 mb-1">
               Select Active Size Card (SC) *
             </label>
-            <select
+            <SearchSelect
               value={selectedScId}
-              onChange={(e) => handleSelectSc(e.target.value)}
-              className="w-full max-w-xl px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm"
-            >
-              <option value="">-- Choose an existing Size Card from database --</option>
-              {availableScs.map((sc) => (
-                <option key={sc.id} value={sc.id}>
-                  {sc.scNumber} - {sc.productName} ({sc.purchaseOrder?.poNumber || 'No PO'})
-                </option>
-              ))}
-            </select>
+              onChange={(id) => handleSelectSc(id)}
+              options={scOptions}
+              placeholder="-- Choose an existing Size Card from database --"
+              className="w-full max-w-xl text-sm"
+            />
             <p className="text-xs text-slate-500 mt-1">
               Selecting an existing Size Card automatically loads the linked Purchase Order (PO) number and component details.
             </p>
@@ -730,7 +778,7 @@ export function RmCreationWorkspace() {
                 <table className="w-full text-left text-sm whitespace-nowrap">
                   <thead>
                     <tr className="text-slate-500 border-b border-slate-200 text-xs uppercase tracking-wide">
-                      <th className="pb-3 font-semibold">RM Product Master *</th>
+                      <th className="pb-3 font-semibold min-w-[280px]">RM Product Master *</th>
                       <th className="pb-3 font-semibold">Part Name *</th>
                       <th className="pb-3 font-semibold w-44">Part Number (Auto) *</th>
                       <th className="pb-3 font-semibold">Spec / Grade *</th>
@@ -741,19 +789,14 @@ export function RmCreationWorkspace() {
                   <tbody className="divide-y divide-slate-100">
                     {card.items.map((item) => (
                       <tr key={item.id} className="hover:bg-slate-50/50">
-                        <td className="py-3 pr-4">
-                          <select
+                        <td className="py-3 pr-4 min-w-[280px]">
+                          <SearchSelect
                             value={item.productId}
-                            onChange={(e) => handleUpdateItem(card.id, item.id, 'productId', e.target.value)}
-                            className="w-full px-3 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm"
-                          >
-                            <option value="">-- Select RM Material --</option>
-                            {products.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.code ? `[${p.code}] ` : ''}{p.name}
-                              </option>
-                            ))}
-                          </select>
+                            onChange={(id) => handleUpdateItem(card.id, item.id, 'productId', id)}
+                            options={productOptions}
+                            placeholder="-- Select RM Material --"
+                            className="w-full text-sm"
+                          />
                         </td>
                         <td className="py-3 pr-4">
                           <input

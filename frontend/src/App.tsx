@@ -6,7 +6,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { LoginView } from './pages/LoginView';
 import { UnauthorizedView } from './pages/UnauthorizedView';
-import { ROUTE_CONFIG } from './routeConfig';
+import { ROUTE_CONFIG, getRoleDefaultPath } from './routeConfig';
 import { PrintableDocumentLayout } from './components/layout/PrintableDocumentLayout';
 import { useAuth } from './contexts/AuthContext';
 
@@ -15,16 +15,7 @@ const queryClient = new QueryClient();
 function RoleBasedHome() {
   const { currentUser } = useAuth();
   if (!currentUser) return <Navigate to="/login" replace />;
-  switch (currentUser.role) {
-    case 'DESIGNER': return <Navigate to="/design/rm-creation" replace />;
-    case 'STORES': return <Navigate to="/stores/rm-issue" replace />;
-    case 'PRODUCTION': return <Navigate to="/production/rm" replace />;
-    case 'SENIOR_MANAGER':
-    case 'GENERAL_MANAGER':
-    case 'ADMIN':
-      return <Navigate to="/overview" replace />;
-    default: return <Navigate to="/unauthorized" replace />;
-  }
+  return <Navigate to={getRoleDefaultPath(currentUser.role)} replace />;
 }
 
 function App() {

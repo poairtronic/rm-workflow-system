@@ -684,9 +684,12 @@ export class TraceabilityService {
    * additional material requests, immutable stock transactions, production processes, delivery challans,
    * participating vendors, and authoritative Final RM usage calculation.
    */
-  async getConsolidatedScTraceability(scId: string): Promise<ConsolidatedScTraceabilityDto> {
-    const sc = await this.scRepo.findOne({
-      where: { id: scId },
+  async getConsolidatedScTraceability(scInput: string): Promise<ConsolidatedScTraceabilityDto> {
+    const trimmedInput = (scInput || '').trim();
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedInput);
+
+    let sc = await this.scRepo.findOne({
+      where: isUuid ? { id: trimmedInput } : { scNumber: trimmedInput },
       relations: {
         purchaseOrder: { customer: true },
         rmItems: true,
@@ -694,9 +697,22 @@ export class TraceabilityService {
       },
     });
 
-    if (!sc) {
-      throw new NotFoundException(`Sales Order Component with ID "${scId}" not found`);
+    if (!sc && !isUuid) {
+      sc = await this.scRepo
+        .createQueryBuilder('sc')
+        .leftJoinAndSelect('sc.purchaseOrder', 'purchaseOrder')
+        .leftJoinAndSelect('purchaseOrder.customer', 'customer')
+        .leftJoinAndSelect('sc.rmItems', 'rmItems')
+        .leftJoinAndSelect('sc.completedBy', 'completedBy')
+        .where('LOWER(sc.scNumber) = LOWER(:scNumber)', { scNumber: trimmedInput })
+        .getOne();
     }
+
+    if (!sc) {
+      throw new NotFoundException(`Sales Order Component with identifier "${scInput}" not found`);
+    }
+
+    const scId = sc.id;
 
     // 1. RM Requests
     const rmRequests = await this.rmReqRepo.find({
@@ -1075,15 +1091,28 @@ export class TraceabilityService {
    * child SC breakdowns, cumulative RM usage, inventory transaction activity, production routing,
    * delivery challans, and engaged vendors across the entire order.
    */
-  async getConsolidatedPoTraceability(poId: string): Promise<ConsolidatedPoTraceabilityDto> {
-    const po = await this.poRepo.findOne({
-      where: { id: poId },
+  async getConsolidatedPoTraceability(poInput: string): Promise<ConsolidatedPoTraceabilityDto> {
+    const trimmedInput = (poInput || '').trim();
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedInput);
+
+    let po = await this.poRepo.findOne({
+      where: isUuid ? { id: trimmedInput } : { poNumber: trimmedInput },
       relations: { customer: true },
     });
 
-    if (!po) {
-      throw new NotFoundException(`Purchase Order with ID "${poId}" not found`);
+    if (!po && !isUuid) {
+      po = await this.poRepo
+        .createQueryBuilder('po')
+        .leftJoinAndSelect('po.customer', 'customer')
+        .where('LOWER(po.poNumber) = LOWER(:poNumber)', { poNumber: trimmedInput })
+        .getOne();
     }
+
+    if (!po) {
+      throw new NotFoundException(`Purchase Order with identifier "${poInput}" not found`);
+    }
+
+    const poId = po.id;
 
     const scs = await this.scRepo.find({
       where: { poId },

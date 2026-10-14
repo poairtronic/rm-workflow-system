@@ -11,13 +11,13 @@ import {
 import { Transform } from 'class-transformer';
 
 export class CreateProductDto {
+  @IsOptional()
   @IsString()
   @Transform(({ value }) =>
     typeof value === 'string' ? value.trim().toUpperCase() : value,
   )
-  @IsNotEmpty()
   @MaxLength(100)
-  code!: string;
+  code?: string;
 
   @IsOptional()
   @IsString()

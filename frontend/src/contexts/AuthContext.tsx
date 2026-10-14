@@ -19,7 +19,7 @@ interface AuthContextType {
   currentUser: User | null;
   token: string | null;
   isAuthenticated: boolean;
-  login: (credentials: any) => Promise<void>;
+  login: (credentials: any) => Promise<User | null>;
   logout: () => void;
   isLoading: boolean;
   refreshUser: () => Promise<void>;
@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setToken(null);
           // Network / backend down - show toast but don't crash
           if (!e?.response || e?.code === 'ERR_NETWORK' || e?.code === 'ECONNREFUSED') {
-            toast.error('Backend unavailable – please start the server.', { duration: 5000 });
+            toast.error('Backend unavailable – please start the server.', { duration: 5000, id: 'backend-down' });
           }
         }
       }
@@ -59,30 +59,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     initializeAuth();
 
+    let isHandlingUnauthorized = false;
     const handleUnauthorized = () => {
-      console.log('HANDLE UNAUTHORIZED TRIGGERED!');
-      toast.error('Session expired');
+      if (isHandlingUnauthorized) return;
+      isHandlingUnauthorized = true;
+      setTimeout(() => {
+        isHandlingUnauthorized = false;
+      }, 3000);
+
+      toast.error('Session expired. Please sign in.', { id: 'session-expired' });
       localStorage.removeItem('rm_access_token');
       setCurrentUser(null);
       setToken(null);
-      navigate('/login');
+      navigate('/login', { replace: true });
     };
     
     window.addEventListener('auth:unauthorized', handleUnauthorized);
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
   }, [navigate]); // exclude location.pathname to avoid re-running
 
-  const login = async (credentials: any) => {
+  const login = async (credentials: any): Promise<User | null> => {
     try {
       const response = await authApi.login(credentials);
       
       localStorage.setItem('rm_access_token', response.token);
       setCurrentUser(response.user);
       setToken(response.token);
-      
+      return response.user;
     } catch (err: any) {
       if (err instanceof TypeError && err.message === 'Failed to fetch') {
-        toast.error('Cannot reach the server. Is the backend running?', { duration: 5000 });
+        toast.error('Cannot reach the server. Is the backend running?', { duration: 5000, id: 'network-err' });
       }
       throw err;
     }

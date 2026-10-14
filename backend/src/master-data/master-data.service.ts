@@ -397,20 +397,67 @@ export class MasterDataService {
     return candidateBarcode;
   }
 
-  async createProduct(dto: CreateProductDto) {
-    const normalizedCode = (dto.code || '').trim().toUpperCase();
-    if (!normalizedCode) {
-      throw new BadRequestException('Product code is required.');
+  async generateUniqueProductCode(): Promise<string> {
+    let existingCodes: { code?: string }[] = [];
+    try {
+      const qb = this.productRepo.createQueryBuilder('p');
+      if (typeof qb.getRawMany === 'function') {
+        existingCodes = await qb
+          .select('p.code', 'code')
+          .where('p.code IS NOT NULL')
+          .getRawMany();
+      } else if (typeof this.productRepo.find === 'function') {
+        existingCodes = await this.productRepo.find({ select: { code: true } as any });
+      }
+    } catch {
+      // Fallback for minimal test environments
     }
 
-    const existingCode = await this.productRepo
-      .createQueryBuilder('p')
-      .where('UPPER(p.code) = :code', { code: normalizedCode })
-      .getOne();
-    if (existingCode) {
-      throw new ConflictException(
-        `Product with code "${normalizedCode}" already exists.`,
-      );
+    let maxNum = 0;
+    for (const row of existingCodes) {
+      if (row?.code) {
+        // Matches RM-0001, RM-0450, RM 0450, etc.
+        const match = row.code.match(/^RM\s*[-_]?\s*(\d+)$/i);
+        if (match) {
+          const val = parseInt(match[1], 10);
+          if (!isNaN(val) && val > maxNum) {
+            maxNum = val;
+          }
+        }
+      }
+    }
+
+    let candidateNum = maxNum + 1;
+    let candidateCode = `RM-${String(candidateNum).padStart(4, '0')}`;
+
+    // Ensure candidateCode doesn't already exist
+    while (
+      await this.productRepo
+        .createQueryBuilder('p')
+        .where('UPPER(p.code) = :code', { code: candidateCode })
+        .getOne()
+    ) {
+      candidateNum++;
+      candidateCode = `RM-${String(candidateNum).padStart(4, '0')}`;
+    }
+
+    return candidateCode;
+  }
+
+  async createProduct(dto: CreateProductDto) {
+    let normalizedCode = (dto.code || '').trim().toUpperCase();
+    if (!normalizedCode) {
+      normalizedCode = await this.generateUniqueProductCode();
+    } else {
+      const existingCode = await this.productRepo
+        .createQueryBuilder('p')
+        .where('UPPER(p.code) = :code', { code: normalizedCode })
+        .getOne();
+      if (existingCode) {
+        throw new ConflictException(
+          `Product with code "${normalizedCode}" already exists.`,
+        );
+      }
     }
 
     let barcodeToUse: string;
@@ -527,9 +574,12 @@ export class MasterDataService {
       .leftJoinAndSelect('bin.rack', 'rack')
       .leftJoinAndSelect('rack.location', 'location')
       .leftJoinAndSelect('location.warehouse', 'warehouse')
-      .where('p.barcode = :barcode OR LOWER(p.barcode) = LOWER(:barcode)', {
-        barcode: trimmed,
-      })
+      .where(
+        'p.barcode = :barcode OR LOWER(p.barcode) = LOWER(:barcode) OR p.code = :barcode OR LOWER(p.code) = LOWER(:barcode)',
+        {
+          barcode: trimmed,
+        },
+      )
       .getOne();
 
     if (!product) {

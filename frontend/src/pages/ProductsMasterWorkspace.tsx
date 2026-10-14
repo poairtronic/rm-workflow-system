@@ -11,6 +11,7 @@ import {
   SearchSelect,
   StatusBadge,
   ConfirmDialog,
+  Modal,
 } from '../components/ui';
 import type { ColumnDef, SearchSelectOption } from '../components/ui';
 import {
@@ -41,6 +42,7 @@ import {
   Trash2,
   Printer,
   Barcode as BarcodeIcon,
+  CheckSquare,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { BarcodeBadge } from '../components/inventory/BarcodeBadge';
@@ -79,9 +81,12 @@ export function ProductsMasterWorkspace() {
   const [deleteProductTarget, setDeleteProductTarget] = useState<Product | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Barcode Label Printing State
+  // Barcode Label Printing & Bulk Selection State
   const [printModalProducts, setPrintModalProducts] = useState<Product[] | null>(null);
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // Form Fields
   const [code, setCode] = useState('');
@@ -94,6 +99,18 @@ export function ProductsMasterWorkspace() {
   const [familyId, setFamilyId] = useState('');
   const [isCustomFamily, setIsCustomFamily] = useState(false);
   const [customFamily, setCustomFamily] = useState('');
+
+  // Quick Category / Family Creation Modals
+  const [isCreateCategoryModalOpen, setIsCreateCategoryModalOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [quickCategoryError, setQuickCategoryError] = useState<string | null>(null);
+
+  const [isCreateFamilyModalOpen, setIsCreateFamilyModalOpen] = useState(false);
+  const [newFamilyName, setNewFamilyName] = useState('');
+  const [newFamilyCategoryId, setNewFamilyCategoryId] = useState('');
+  const [isCreatingFamily, setIsCreatingFamily] = useState(false);
+  const [quickFamilyError, setQuickFamilyError] = useState<string | null>(null);
 
   const [uom, setUom] = useState<string>('KG');
   const [msl, setMsl] = useState<number | ''>(0);
@@ -145,10 +162,26 @@ export function ProductsMasterWorkspace() {
     loadData();
   }, [loadData]);
 
+  const computeNextProductCode = useCallback((): string => {
+    let maxNum = 0;
+    for (const p of products) {
+      if (p.code) {
+        const match = p.code.match(/^RM\s*[-_]?\s*(\d+)$/i);
+        if (match) {
+          const val = parseInt(match[1], 10);
+          if (!isNaN(val) && val > maxNum) {
+            maxNum = val;
+          }
+        }
+      }
+    }
+    const nextVal = maxNum + 1;
+    return `RM-${String(nextVal).padStart(4, '0')}`;
+  }, [products]);
+
   // Open Create Modal
-  const openCreateModal = () => {
+  const openCreateModal = async () => {
     setEditingProduct(null);
-    setCode('');
     setBarcode('');
     setName('');
     setCategoryId(categories.length > 0 ? categories[0].id : '');
@@ -162,6 +195,31 @@ export function ProductsMasterWorkspace() {
     setIsActive(true);
     setFormErrors({});
     setIsModalOpen(true);
+
+    // Initial instant fallback so user immediately sees next sequential code
+    const initialCode = computeNextProductCode();
+    setCode(initialCode);
+
+    // Query server for authoritative next unique code
+    try {
+      const serverCode = await masterDataService.getNextProductCode();
+      if (serverCode) {
+        setCode(serverCode);
+      }
+    } catch (err) {
+      console.warn('Could not fetch next product code from server, using local sequence', err);
+    }
+  };
+
+  const handleRegenerateCode = async () => {
+    try {
+      const serverCode = await masterDataService.getNextProductCode();
+      if (serverCode) {
+        setCode(serverCode);
+        return;
+      }
+    } catch {}
+    setCode(computeNextProductCode());
   };
 
   // Open Edit Modal
@@ -208,12 +266,104 @@ export function ProductsMasterWorkspace() {
     }));
   }, [families, categoryId]);
 
+  // Quick Creation Actions
+  const handleOpenCreateCategoryModal = (initialName = '') => {
+    setNewCategoryName(initialName);
+    setQuickCategoryError(null);
+    setIsCreateCategoryModalOpen(true);
+  };
+
+  const handleSubmitCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanName = newCategoryName.trim();
+    if (!cleanName) {
+      setQuickCategoryError('Category name is required');
+      return;
+    }
+
+    try {
+      setIsCreatingCategory(true);
+      setQuickCategoryError(null);
+
+      const created = await masterDataService.createCategory({ name: cleanName });
+      toast.success(`Category "${cleanName}" created!`);
+
+      // Update state and select the new category
+      setCategories((prev) => {
+        const exists = prev.some((c) => c.id === created.id);
+        return exists ? prev : [...prev, created];
+      });
+      setCategoryId(created.id);
+      setFamilyId('');
+      setIsCustomCategory(false);
+      setIsCreateCategoryModalOpen(false);
+    } catch (err: any) {
+      console.error('Failed to create category', err);
+      setQuickCategoryError(err?.message || 'Failed to create category');
+    } finally {
+      setIsCreatingCategory(false);
+    }
+  };
+
+  const handleOpenCreateFamilyModal = (initialName = '') => {
+    setNewFamilyName(initialName);
+    setNewFamilyCategoryId(categoryId || (categories.length > 0 ? categories[0].id : ''));
+    setQuickFamilyError(null);
+    setIsCreateFamilyModalOpen(true);
+  };
+
+  const handleSubmitCreateFamily = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanName = newFamilyName.trim();
+    const targetCatId = newFamilyCategoryId || categoryId;
+
+    if (!targetCatId) {
+      setQuickFamilyError('Please select a parent Category');
+      return;
+    }
+    if (!cleanName) {
+      setQuickFamilyError('Family name is required');
+      return;
+    }
+
+    try {
+      setIsCreatingFamily(true);
+      setQuickFamilyError(null);
+
+      const created = await masterDataService.createFamily({
+        categoryId: targetCatId,
+        name: cleanName,
+      });
+      toast.success(`Product Family "${cleanName}" created!`);
+
+      // Update state and select the new family
+      setFamilies((prev) => {
+        const exists = prev.some((f) => f.id === created.id);
+        return exists ? prev : [...prev, created];
+      });
+      setCategoryId(targetCatId);
+      setFamilyId(created.id);
+      setIsCustomFamily(false);
+      setIsCreateFamilyModalOpen(false);
+    } catch (err: any) {
+      console.error('Failed to create family', err);
+      setQuickFamilyError(err?.message || 'Failed to create product family');
+    } finally {
+      setIsCreatingFamily(false);
+    }
+  };
+
   // Validation & Submit
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const errors: Record<string, string> = {};
 
-    const cleanCode = code.trim().toUpperCase();
+    let cleanCode = code.trim().toUpperCase();
+    if (!cleanCode && !editingProduct) {
+      cleanCode = computeNextProductCode();
+      setCode(cleanCode);
+    }
+
     if (!cleanCode) {
       errors.code = 'Product Code is required';
     }
@@ -303,6 +453,42 @@ export function ProductsMasterWorkspace() {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedProductIds.size === 0) return;
+    setIsBulkDeleting(true);
+    let successCount = 0;
+    let failedCount = 0;
+
+    const idsToDelete = Array.from(selectedProductIds);
+    for (const id of idsToDelete) {
+      const prod = products.find((p) => p.id === id);
+      const prodName = prod?.name || id;
+      try {
+        await masterDataService.deleteProduct(id);
+        successCount++;
+      } catch (err: any) {
+        failedCount++;
+        console.warn(`Failed to delete product ${prodName}:`, err);
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`Successfully deleted ${successCount} product(s).`);
+    }
+    if (failedCount > 0) {
+      toast.error(
+        `${failedCount} product(s) could not be deleted (e.g. have historical transactions or active stock).`,
+        { duration: 5000 },
+      );
+    }
+
+    setIsBulkDeleteConfirmOpen(false);
+    setIsBulkDeleting(false);
+    setSelectedProductIds(new Set());
+    setIsSelectionMode(false);
+    await loadData();
   };
 
   // Quick lookup maps
@@ -553,9 +739,11 @@ export function ProductsMasterWorkspace() {
   };
 
   // Table Columns
-  const columns: ColumnDef<Product>[] = useMemo(
-    () => [
-      {
+  const columns: ColumnDef<Product>[] = useMemo(() => {
+    const cols: ColumnDef<Product>[] = [];
+
+    if (isSelectionMode) {
+      cols.push({
         key: 'select',
         header: (
           <input
@@ -590,7 +778,10 @@ export function ProductsMasterWorkspace() {
             className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
           />
         ),
-      },
+      });
+    }
+
+    cols.push(
       {
         key: 'code',
         header: 'Code',
@@ -740,9 +931,10 @@ export function ProductsMasterWorkspace() {
           </div>
         ),
       },
-    ],
-    [productStorageMap, selectedProductIds, filteredProducts],
-  );
+    );
+
+    return cols;
+  }, [productStorageMap, selectedProductIds, filteredProducts, isSelectionMode]);
 
   return (
     <div className="p-6 space-y-6">
@@ -797,16 +989,33 @@ export function ProductsMasterWorkspace() {
                     id="product-code"
                     required
                     error={formErrors.code}
-                    hint="Unique identifier (e.g. RM-0001)."
+                    hint={
+                      editingProduct
+                        ? 'Unique identifier (e.g. RM-0001).'
+                        : 'Auto-generated next sequence (e.g. RM-0451). Editable if custom code required.'
+                    }
                   >
-                    <TextInput
-                      id="product-code"
-                      value={code}
-                      onChange={(e) => setCode(e.target.value.toUpperCase())}
-                      placeholder="e.g. EN31-ROD-100"
-                      error={!!formErrors.code}
-                      required
-                    />
+                    <div className="relative">
+                      <TextInput
+                        id="product-code"
+                        value={code}
+                        onChange={(e) => setCode(e.target.value.toUpperCase())}
+                        placeholder={editingProduct ? 'e.g. RM-0001' : 'Auto-generated (e.g. RM-0451)'}
+                        error={!!formErrors.code}
+                        className="font-mono uppercase font-semibold pr-9"
+                        required
+                      />
+                      {!editingProduct && (
+                        <button
+                          type="button"
+                          onClick={handleRegenerateCode}
+                          title="Recalculate next product code"
+                          className="absolute right-2 top-2 p-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-md transition-colors"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </FormField>
 
                   {/* Product Name */}
@@ -912,16 +1121,22 @@ export function ProductsMasterWorkspace() {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {/* Category */}
-                  <FormField
-                    label="Category"
-                    required
-                    error={formErrors.category}
-                    hint={
-                      isCustomCategory
-                        ? 'Enter a new category name.'
-                        : 'Select existing category or type a new one.'
-                    }
-                  >
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                        Category <span className="text-red-500 font-bold">*</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenCreateCategoryModal()}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+                        title="Create a new Category in Master Data"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>New Category</span>
+                      </button>
+                    </div>
+
                     {isCustomCategory ? (
                       <div className="space-y-1.5">
                         <TextInput
@@ -930,13 +1145,16 @@ export function ProductsMasterWorkspace() {
                           placeholder="New Category Name (e.g. Raw Material)"
                           error={!!formErrors.category}
                         />
-                        <button
-                          type="button"
-                          onClick={() => setIsCustomCategory(false)}
-                          className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
-                        >
-                          ← Select existing category
-                        </button>
+                        <div className="flex items-center justify-between pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setIsCustomCategory(false)}
+                            className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                          >
+                            ← Select existing category
+                          </button>
+                          <span className="text-[11px] text-slate-400">Will be created automatically on save</span>
+                        </div>
                       </div>
                     ) : (
                       <div className="space-y-1.5">
@@ -949,32 +1167,51 @@ export function ProductsMasterWorkspace() {
                           options={categoryOptions}
                           placeholder="Choose Category..."
                           error={!!formErrors.category}
+                          onCreateOption={(term) => handleOpenCreateCategoryModal(term)}
+                          createOptionLabel={(term) => term ? `Create Category "${term}"` : 'Add New Category'}
                         />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsCustomCategory(true);
-                            setIsCustomFamily(true);
-                          }}
-                          className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
-                        >
-                          + Type new category
-                        </button>
+                        <div className="flex items-center justify-between text-xs pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsCustomCategory(true);
+                              setIsCustomFamily(true);
+                            }}
+                            className="font-medium text-slate-500 hover:text-blue-600 hover:underline cursor-pointer"
+                          >
+                            Type custom category
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenCreateCategoryModal()}
+                            className="font-semibold text-blue-600 hover:text-blue-700 cursor-pointer flex items-center gap-1"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>Create Master Category</span>
+                          </button>
+                        </div>
                       </div>
                     )}
-                  </FormField>
+                    {formErrors.category && <p className="text-xs font-medium text-red-600 mt-1">{formErrors.category}</p>}
+                  </div>
 
                   {/* Product Family */}
-                  <FormField
-                    label="Product Family"
-                    required
-                    error={formErrors.family}
-                    hint={
-                      isCustomFamily
-                        ? 'Enter a new product family name.'
-                        : 'Select existing product family or type a new one.'
-                    }
-                  >
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                        Product Family <span className="text-red-500 font-bold">*</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenCreateFamilyModal()}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+                        title="Create a new Product Family in Master Data"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>New Family</span>
+                      </button>
+                    </div>
+
                     {isCustomFamily ? (
                       <div className="space-y-1.5">
                         <TextInput
@@ -983,15 +1220,18 @@ export function ProductsMasterWorkspace() {
                           placeholder="New Family Name (e.g. Alloy Steel)"
                           error={!!formErrors.family}
                         />
-                        {!isCustomCategory && (
-                          <button
-                            type="button"
-                            onClick={() => setIsCustomFamily(false)}
-                            className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
-                          >
-                            ← Select existing family
-                          </button>
-                        )}
+                        <div className="flex items-center justify-between pt-0.5">
+                          {!isCustomCategory && (
+                            <button
+                              type="button"
+                              onClick={() => setIsCustomFamily(false)}
+                              className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                            >
+                              ← Select existing family
+                            </button>
+                          )}
+                          <span className="text-[11px] text-slate-400">Will be created automatically on save</span>
+                        </div>
                       </div>
                     ) : (
                       <div className="space-y-1.5">
@@ -1005,17 +1245,30 @@ export function ProductsMasterWorkspace() {
                               : 'Choose Family...'
                           }
                           error={!!formErrors.family}
+                          onCreateOption={(term) => handleOpenCreateFamilyModal(term)}
+                          createOptionLabel={(term) => term ? `Create Family "${term}"` : 'Add New Product Family'}
                         />
-                        <button
-                          type="button"
-                          onClick={() => setIsCustomFamily(true)}
-                          className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
-                        >
-                          + Type new family
-                        </button>
+                        <div className="flex items-center justify-between text-xs pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setIsCustomFamily(true)}
+                            className="font-medium text-slate-500 hover:text-blue-600 hover:underline cursor-pointer"
+                          >
+                            Type custom family
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenCreateFamilyModal()}
+                            className="font-semibold text-blue-600 hover:text-blue-700 cursor-pointer flex items-center gap-1"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>Create Master Family</span>
+                          </button>
+                        </div>
                       </div>
                     )}
-                  </FormField>
+                    {formErrors.family && <p className="text-xs font-medium text-red-600 mt-1">{formErrors.family}</p>}
+                  </div>
                 </div>
               </div>
 
@@ -1126,19 +1379,26 @@ export function ProductsMasterWorkspace() {
           </div>
 
           <div className="flex items-center space-x-2 shrink-0">
-            {selectedProductIds.size > 0 && (
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  const toPrint = products.filter((p) => selectedProductIds.has(p.id));
-                  setPrintModalProducts(toPrint);
-                }}
-                className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 cursor-pointer"
-              >
-                <Printer className="w-4 h-4 mr-1.5" />
-                <span>Print Barcodes ({selectedProductIds.size})</span>
-              </Button>
-            )}
+            <Button
+              variant={isSelectionMode ? 'primary' : 'secondary'}
+              onClick={() => {
+                if (isSelectionMode) {
+                  setIsSelectionMode(false);
+                  setSelectedProductIds(new Set());
+                } else {
+                  setIsSelectionMode(true);
+                }
+              }}
+              className={
+                isSelectionMode
+                  ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
+                  : 'cursor-pointer'
+              }
+              title={isSelectionMode ? 'Exit Selection Mode' : 'Select multiple products to delete or print barcodes'}
+            >
+              <CheckSquare className="w-4 h-4 mr-1.5" />
+              <span>{isSelectionMode ? 'Cancel Selection' : 'Select'}</span>
+            </Button>
             <Button
               variant="secondary"
               onClick={loadData}
@@ -1266,6 +1526,90 @@ export function ProductsMasterWorkspace() {
         </div>
       </div>
 
+      {/* Batch Action Toolbar when in Selection Mode */}
+      {isSelectionMode && (
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 rounded-xl shadow-xs transition-all animate-fadeIn">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-600 text-white">
+              {selectedProductIds.size} Selected
+            </span>
+            <span className="text-xs text-slate-600 dark:text-slate-400">
+              {selectedProductIds.size === 0
+                ? 'Check the boxes or click any row to select products'
+                : `${selectedProductIds.size} of ${filteredProducts.length} product(s) selected`}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                if (
+                  filteredProducts.length > 0 &&
+                  selectedProductIds.size === filteredProducts.length
+                ) {
+                  setSelectedProductIds(new Set());
+                } else {
+                  setSelectedProductIds(new Set(filteredProducts.map((p) => p.id)));
+                }
+              }}
+              className="text-xs h-8 px-2.5 bg-white hover:bg-slate-50 cursor-pointer"
+            >
+              {filteredProducts.length > 0 &&
+              selectedProductIds.size === filteredProducts.length
+                ? 'Deselect All'
+                : 'Select All'}
+            </Button>
+
+            {/* Print Barcodes Button */}
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={selectedProductIds.size === 0}
+              onClick={() => {
+                const toPrint = products.filter((p) => selectedProductIds.has(p.id));
+                setPrintModalProducts(toPrint);
+              }}
+              className={`text-xs h-8 px-3 border-blue-200 text-blue-700 bg-white hover:bg-blue-50 cursor-pointer ${
+                selectedProductIds.size === 0 ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              title="Print Barcode Labels for selected products"
+            >
+              <Printer className="w-3.5 h-3.5 mr-1.5" />
+              <span>Print Barcodes ({selectedProductIds.size})</span>
+            </Button>
+
+            {/* Delete Selected Button */}
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={selectedProductIds.size === 0}
+              onClick={() => setIsBulkDeleteConfirmOpen(true)}
+              className={`text-xs h-8 px-3 border-red-200 text-red-700 bg-white hover:bg-red-50 hover:border-red-300 cursor-pointer ${
+                selectedProductIds.size === 0 ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              title="Delete selected products"
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1.5 text-red-600" />
+              <span>Delete ({selectedProductIds.size})</span>
+            </Button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsSelectionMode(false);
+                setSelectedProductIds(new Set());
+              }}
+              className="p-1 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 cursor-pointer ml-1"
+              title="Exit Selection Mode"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
         <DataTable
           columns={columns}
@@ -1274,7 +1618,16 @@ export function ProductsMasterWorkspace() {
           isError={!!error}
           errorMsg={error || undefined}
           onRetry={loadData}
-          onRowClick={openEditModal}
+          onRowClick={
+            isSelectionMode
+              ? (row) => {
+                  const next = new Set(selectedProductIds);
+                  if (next.has(row.id)) next.delete(row.id);
+                  else next.add(row.id);
+                  setSelectedProductIds(next);
+                }
+              : openEditModal
+          }
           searchable={false}
           pagination={true}
           defaultPageSize={15}
@@ -1282,6 +1635,126 @@ export function ProductsMasterWorkspace() {
       </div>
     </>
   )}
+
+    {/* Quick Create Category Modal */}
+    <Modal
+      isOpen={isCreateCategoryModalOpen}
+      onClose={() => setIsCreateCategoryModalOpen(false)}
+      title="Create New Category"
+    >
+      <form onSubmit={handleSubmitCreateCategory} className="space-y-4">
+        <p className="text-xs text-slate-500">
+          Create a new product category in master data. It will be immediately available and selected for this product.
+        </p>
+
+        {quickCategoryError && (
+          <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{quickCategoryError}</span>
+          </div>
+        )}
+
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+            Category Name *
+          </label>
+          <TextInput
+            value={newCategoryName}
+            onChange={(e) => setNewCategoryName(e.target.value)}
+            placeholder="e.g. Raw Material, Hardware & Fasteners, Consumables"
+            autoFocus
+            required
+          />
+        </div>
+
+        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setIsCreateCategoryModalOpen(false)}
+            disabled={isCreatingCategory}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={isCreatingCategory || !newCategoryName.trim()}
+          >
+            {isCreatingCategory ? 'Creating...' : 'Create Category'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+
+    {/* Quick Create Product Family Modal */}
+    <Modal
+      isOpen={isCreateFamilyModalOpen}
+      onClose={() => setIsCreateFamilyModalOpen(false)}
+      title="Create New Product Family"
+    >
+      <form onSubmit={handleSubmitCreateFamily} className="space-y-4">
+        <p className="text-xs text-slate-500">
+          Create a new product family under the selected category. It will be immediately linked and selected.
+        </p>
+
+        {quickFamilyError && (
+          <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{quickFamilyError}</span>
+          </div>
+        )}
+
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+            Parent Category *
+          </label>
+          <Select
+            value={newFamilyCategoryId || categoryId || ''}
+            onChange={(e) => setNewFamilyCategoryId(e.target.value)}
+            required
+          >
+            <option value="">Select Category...</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+            Product Family Name *
+          </label>
+          <TextInput
+            value={newFamilyName}
+            onChange={(e) => setNewFamilyName(e.target.value)}
+            placeholder="e.g. Alloy Steel, Hex Bolts, Carbide Inserts"
+            autoFocus
+            required
+          />
+        </div>
+
+        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setIsCreateFamilyModalOpen(false)}
+            disabled={isCreatingFamily}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={isCreatingFamily || !newFamilyName.trim() || !(newFamilyCategoryId || categoryId)}
+          >
+            {isCreatingFamily ? 'Creating...' : 'Create Product Family'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
 
     {/* Confirm Product Deletion Dialog */}
     <ConfirmDialog
@@ -1297,6 +1770,43 @@ export function ProductsMasterWorkspace() {
         </span>
       }
       confirmText={isDeleting ? 'Deleting...' : 'Delete Product'}
+      isDanger={true}
+    />
+
+    {/* Confirm Bulk Product Deletion Dialog */}
+    <ConfirmDialog
+      isOpen={isBulkDeleteConfirmOpen}
+      onClose={() => !isBulkDeleting && setIsBulkDeleteConfirmOpen(false)}
+      onConfirm={handleBulkDelete}
+      title={`Delete ${selectedProductIds.size} Products`}
+      message={
+        <div className="space-y-3">
+          <p>
+            Are you sure you want to permanently delete{' '}
+            <strong className="text-gray-900">{selectedProductIds.size}</strong> selected products?
+          </p>
+          <div className="max-h-36 overflow-y-auto rounded-md bg-slate-50 dark:bg-slate-800/50 p-2.5 text-xs text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 space-y-1">
+            {Array.from(selectedProductIds).slice(0, 10).map((id) => {
+              const p = products.find((prod) => prod.id === id);
+              return (
+                <div key={id} className="flex items-center justify-between py-0.5 border-b border-slate-100 last:border-b-0">
+                  <span className="font-medium truncate">{p?.name || id}</span>
+                  <span className="font-mono text-slate-500 ml-2">{p?.code || '—'}</span>
+                </div>
+              );
+            })}
+            {selectedProductIds.size > 10 && (
+              <div className="text-slate-400 italic pt-1">
+                ...and {selectedProductIds.size - 10} more
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+            Note: Products with historical stock transactions or active inventory cannot be deleted and will be automatically skipped.
+          </p>
+        </div>
+      }
+      confirmText={isBulkDeleting ? 'Deleting...' : `Delete ${selectedProductIds.size} Products`}
       isDanger={true}
     />
 

@@ -83,7 +83,7 @@ export class TraceabilityController {
     UserRole.GENERAL_MANAGER,
   )
   async getConsolidatedPoTraceability(
-    @Param('poId', ParseUUIDPipe) poId: string,
+    @Param('poId') poId: string,
   ): Promise<ConsolidatedPoTraceabilityDto> {
     return this.traceabilityService.getConsolidatedPoTraceability(poId);
   }
@@ -103,7 +103,7 @@ export class TraceabilityController {
     UserRole.GENERAL_MANAGER,
   )
   async getConsolidatedScTraceability(
-    @Param('scId', ParseUUIDPipe) scId: string,
+    @Param('scId') scId: string,
   ): Promise<ConsolidatedScTraceabilityDto> {
     return this.traceabilityService.getConsolidatedScTraceability(scId);
   }

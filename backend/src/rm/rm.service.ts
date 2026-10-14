@@ -100,6 +100,54 @@ export class RmService {
     return this.rmItemRepo.save(item);
   }
 
+  async getNextPartNumber(): Promise<{ nextPartNumber: string; maxSequence: number }> {
+    let maxNum = 0;
+    try {
+      const rawRmItems = await this.rmItemRepo
+        .createQueryBuilder('i')
+        .select('i.partNumber', 'partNumber')
+        .where('i.partNumber IS NOT NULL')
+        .getRawMany();
+
+      for (const row of rawRmItems) {
+        if (row?.partNumber) {
+          const match = row.partNumber.match(/PRD\s*0*(\d+)/i);
+          if (match) {
+            const val = parseInt(match[1], 10);
+            if (!isNaN(val) && val > maxNum) {
+              maxNum = val;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Error reading rm_items for max partNumber', e);
+    }
+
+    try {
+      const rawDcItems = await this.dataSource.query(
+        `SELECT part_number as "partNumber" FROM delivery_challan_items WHERE part_number IS NOT NULL AND part_number ~* 'PRD\\s*0*\\d+'`
+      );
+      for (const row of rawDcItems || []) {
+        if (row?.partNumber) {
+          const match = row.partNumber.match(/PRD\s*0*(\d+)/i);
+          if (match) {
+            const val = parseInt(match[1], 10);
+            if (!isNaN(val) && val > maxNum) {
+              maxNum = val;
+            }
+          }
+        }
+      }
+    } catch {}
+
+    const nextVal = maxNum + 1;
+    return {
+      maxSequence: maxNum,
+      nextPartNumber: `PRD ${String(nextVal).padStart(3, '0')}`,
+    };
+  }
+
   async submitRm(rmId: string, dto?: SubmitRmDto) {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();

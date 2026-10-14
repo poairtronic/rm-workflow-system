@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
+import { Check, ChevronsUpDown, Loader2, Plus } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 
@@ -10,16 +10,20 @@ export interface SearchSelectOption {
   secondary?: string;
 }
 
-interface SearchSelectProps {
+export interface SearchSelectProps {
   value?: string;
   onChange: (id: string, option?: SearchSelectOption) => void;
   options: SearchSelectOption[];
   onSearch?: (term: string) => void;
   isLoading?: boolean;
   placeholder?: string;
+  searchPlaceholder?: string;
   error?: boolean;
   className?: string;
+  triggerClassName?: string;
   disabled?: boolean;
+  onCreateOption?: (term: string) => void;
+  createOptionLabel?: string | ((term: string) => string);
 }
 
 export function SearchSelect({
@@ -29,9 +33,13 @@ export function SearchSelect({
   onSearch,
   isLoading = false,
   placeholder = 'Select an option...',
+  searchPlaceholder,
   error = false,
   className,
+  triggerClassName,
   disabled = false,
+  onCreateOption,
+  createOptionLabel,
 }: SearchSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -151,13 +159,14 @@ export function SearchSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  // Filter options if not async
+  // Filter options: instant for local options, debounced for async onSearch
+  const effectiveSearch = onSearch ? debouncedSearch : searchTerm;
   const filteredOptions = onSearch
     ? options
     : options.filter((opt) => {
-        if (!debouncedSearch.trim()) return true;
+        if (!effectiveSearch.trim()) return true;
         const target = `${opt.primary || ''} ${opt.secondary || ''}`.toLowerCase();
-        const searchTerms = debouncedSearch.trim().toLowerCase().split(/\s+/);
+        const searchTerms = effectiveSearch.trim().toLowerCase().split(/\s+/);
         return searchTerms.every((term) => target.includes(term));
       });
 
@@ -174,6 +183,12 @@ export function SearchSelect({
       });
     }
   }, [isOpen, selectedOption]);
+
+  const trimmedSearch = searchTerm.trim();
+  const exactMatchExists = options.some(
+    (opt) => opt.primary.toLowerCase() === trimmedSearch.toLowerCase()
+  );
+  const showCreateOption = Boolean(onCreateOption && trimmedSearch && !exactMatchExists);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!isOpen) {
@@ -200,6 +215,9 @@ export function SearchSelect({
         if (activeIndex >= 0 && activeIndex < filteredOptions.length) {
           const opt = filteredOptions[activeIndex];
           onChange(opt.id, opt);
+          setIsOpen(false);
+        } else if (showCreateOption && onCreateOption) {
+          onCreateOption(trimmedSearch);
           setIsOpen(false);
         }
         break;
@@ -234,7 +252,8 @@ export function SearchSelect({
             : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 focus:border-blue-600 focus:ring-blue-100',
           disabled
             ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 cursor-not-allowed border-slate-200 dark:border-slate-700'
-            : 'cursor-pointer text-slate-900 dark:text-slate-100'
+            : 'cursor-pointer text-slate-900 dark:text-slate-100',
+          triggerClassName
         )}
       >
         <span className="block truncate w-full min-w-0 text-left">
@@ -292,7 +311,7 @@ export function SearchSelect({
                 type="text"
                 ref={inputRef}
                 className="block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50/70 dark:bg-[#0e111f] px-3 py-1.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-xs focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40"
-                placeholder="Type to filter..."
+                placeholder={searchPlaceholder || 'Type to filter...'}
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
@@ -301,6 +320,29 @@ export function SearchSelect({
                 onKeyDown={handleKeyDown}
               />
             </div>
+
+            {/* Quick Create Action when typing an unlisted option */}
+            {showCreateOption && (
+              <div className="shrink-0 p-1 border-b border-slate-100 dark:border-slate-800 bg-blue-50/50 dark:bg-blue-950/30">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onCreateOption?.(trimmedSearch);
+                    setIsOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-850 hover:bg-blue-50 dark:hover:bg-blue-900/50 rounded-lg shadow-2xs transition-colors text-left cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  <span className="truncate">
+                    {typeof createOptionLabel === 'function'
+                      ? createOptionLabel(trimmedSearch)
+                      : createOptionLabel
+                        ? `${createOptionLabel} "${trimmedSearch}"`
+                        : `Create "${trimmedSearch}"`}
+                  </span>
+                </button>
+              </div>
+            )}
 
             {/* Scrollable Options List */}
             <ul
@@ -381,6 +423,27 @@ export function SearchSelect({
                 })
               )}
             </ul>
+
+            {/* Persistent Bottom Action to Create or Type New */}
+            {onCreateOption && (
+              <div className="shrink-0 p-1 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-900/60">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onCreateOption?.(trimmedSearch);
+                    setIsOpen(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/50 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>
+                    {typeof createOptionLabel === 'function'
+                      ? createOptionLabel(trimmedSearch)
+                      : createOptionLabel || 'Add New Option'}
+                  </span>
+                </button>
+              </div>
+            )}
           </div>,
           document.body
         )}

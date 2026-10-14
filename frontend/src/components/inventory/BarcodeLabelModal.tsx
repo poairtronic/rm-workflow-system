@@ -46,11 +46,21 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
 
   const totalLabels = products.length * Math.max(1, copies);
 
+  // Helper to format bin labels cleanly on small labels
+  const getCleanBinTag = (prodId: string): string => {
+    const storage = productStorageMap?.get(prodId);
+    const labels = storage?.binLabels;
+    if (!labels || labels.length === 0) return '';
+    if (labels.length === 1) return labels[0];
+    return `${labels[0]} (+${labels.length - 1})`;
+  };
+
   // Helper to generate SVG string for a barcode
   const generateBarcodeSvgString = (
     barcodeValue: string,
     widthScale: number,
     barHeight: number,
+    fontSize: number = 10,
   ): string => {
     try {
       const svgNode = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -59,17 +69,17 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
         width: widthScale,
         height: barHeight,
         displayValue: true,
-        fontSize: 11,
-        margin: 2,
+        fontSize: fontSize,
+        margin: 1,
         font: 'monospace',
-        textMargin: 2,
+        textMargin: 1,
         background: 'transparent',
         lineColor: '#000000',
       });
       return svgNode.outerHTML;
     } catch (e) {
       console.error('Error generating barcode SVG string:', e);
-      return `<div style="font-family:monospace;font-size:12px;font-weight:bold;">${barcodeValue}</div>`;
+      return `<div style="font-family:monospace;font-size:10px;font-weight:bold;">${barcodeValue}</div>`;
     }
   };
 
@@ -79,11 +89,14 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
 
       const iframe = document.createElement('iframe');
       iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = '0';
+      iframe.style.top = '0';
+      iframe.style.left = '0';
+      iframe.style.width = '100vw';
+      iframe.style.height = '100vh';
+      iframe.style.border = 'none';
+      iframe.style.opacity = '0';
+      iframe.style.pointerEvents = 'none';
+      iframe.style.zIndex = '-9999';
       document.body.appendChild(iframe);
 
       const doc = iframe.contentWindow?.document;
@@ -94,16 +107,17 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
       // Generate HTML items
       let labelsHtml = '';
 
-      const scale = format === '50x25' ? 1.2 : format === '75x50' ? 1.7 : 1.4;
-      const height = format === '50x25' ? 32 : format === '75x50' ? 52 : 38;
+      const scale = format === '50x25' ? 1.15 : format === '75x50' ? 1.6 : 1.3;
+      const height = format === '50x25' ? 22 : format === '75x50' ? 42 : 26;
+      const barcodeFontSize = format === '50x25' ? 9 : format === '75x50' ? 11 : 9.5;
 
       if (format === 'A4_SHEET') {
         labelsHtml += '<div class="sheet-grid">';
         for (const prod of products) {
           const barcode = prod.barcode || `PRD-${prod.code || 'ITEM'}`;
-          const svgMarkup = generateBarcodeSvgString(barcode, scale, height);
-          const storage = productStorageMap?.get(prod.id);
-          const binText = storage?.binLabels?.join(', ') || '';
+          const svgMarkup = generateBarcodeSvgString(barcode, scale, height, barcodeFontSize);
+          const binText = getCleanBinTag(prod.id);
+          const codeText = prod.code || prod.barcode || '';
 
           for (let i = 0; i < copies; i++) {
             labelsHtml += `
@@ -115,8 +129,8 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
                 ${showName ? `<div class="prod-name" title="${prod.name}">${prod.name}</div>` : ''}
                 <div class="barcode-wrapper">${svgMarkup}</div>
                 <div class="label-footer">
-                  ${showCode ? `<span class="prod-code">${prod.code || '—'}</span>` : ''}
-                  ${showUomMsl ? `<span class="prod-uom">UOM: ${prod.uom || 'KG'} ${prod.minimumInventory ? `| MSL: ${prod.minimumInventory}` : ''}</span>` : ''}
+                  ${showCode && codeText ? `<span class="prod-code">${codeText}</span>` : ''}
+                  ${showUomMsl ? `<span class="prod-uom">UOM: ${prod.uom || 'KG'}${prod.minimumInventory ? ` | MSL: ${prod.minimumInventory}` : ''}</span>` : ''}
                 </div>
               </div>
             `;
@@ -127,9 +141,9 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
         // Continuous thermal stickers (50x25 or 75x50)
         for (const prod of products) {
           const barcode = prod.barcode || `PRD-${prod.code || 'ITEM'}`;
-          const svgMarkup = generateBarcodeSvgString(barcode, scale, height);
-          const storage = productStorageMap?.get(prod.id);
-          const binText = storage?.binLabels?.join(', ') || '';
+          const svgMarkup = generateBarcodeSvgString(barcode, scale, height, barcodeFontSize);
+          const binText = getCleanBinTag(prod.id);
+          const codeText = prod.code || prod.barcode || '';
 
           for (let i = 0; i < copies; i++) {
             labelsHtml += `
@@ -141,8 +155,8 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
                 ${showName ? `<div class="prod-name" title="${prod.name}">${prod.name}</div>` : ''}
                 <div class="barcode-wrapper">${svgMarkup}</div>
                 <div class="label-footer">
-                  ${showCode ? `<span class="prod-code">${prod.code || '—'}</span>` : ''}
-                  ${showUomMsl ? `<span class="prod-uom">UOM: ${prod.uom || 'KG'} ${prod.minimumInventory ? `| MSL: ${prod.minimumInventory}` : ''}</span>` : ''}
+                  ${showCode && codeText ? `<span class="prod-code">${codeText}</span>` : ''}
+                  ${showUomMsl ? `<span class="prod-uom">UOM: ${prod.uom || 'KG'}${prod.minimumInventory ? ` | MSL: ${prod.minimumInventory}` : ''}</span>` : ''}
                 </div>
               </div>
             `;
@@ -155,10 +169,10 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
         @page {
           ${
             format === '50x25'
-              ? 'size: 50mm 25mm; margin: 0;'
+              ? 'size: 50mm 25mm; margin: 0mm !important;'
               : format === '75x50'
-              ? 'size: 75mm 50mm; margin: 0;'
-              : 'size: A4 portrait; margin: 10mm;'
+              ? 'size: 75mm 50mm; margin: 0mm !important;'
+              : 'size: A4 portrait; margin: 8mm !important;'
           }
         }
         * {
@@ -167,11 +181,17 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
           print-color-adjust: exact;
         }
         html, body {
-          margin: 0;
-          padding: 0;
+          margin: 0 !important;
+          padding: 0 !important;
           background: #ffffff;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
           color: #000000;
+        }
+        @media print {
+          body {
+            margin: 0 !important;
+            padding: 0 !important;
+          }
         }
         ${
           format === 'A4_SHEET'
@@ -193,21 +213,23 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
             justify-content: space-between;
             align-items: center;
             overflow: hidden;
+            box-sizing: border-box;
             page-break-inside: avoid;
           }
         `
             : `
           .label-item {
-            ${
-              format === '50x25'
-                ? 'width: 50mm; height: 25mm; padding: 1.2mm 2mm;'
-                : 'width: 75mm; height: 50mm; padding: 3mm 4mm;'
-            }
+            width: ${format === '50x25' ? '50mm' : '75mm'};
+            height: ${format === '50x25' ? '25mm' : '50mm'};
+            max-width: ${format === '50x25' ? '50mm' : '75mm'};
+            max-height: ${format === '50x25' ? '25mm' : '50mm'};
+            padding: ${format === '50x25' ? '1mm 1.5mm' : '2.5mm 3.5mm'};
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             align-items: center;
             overflow: hidden;
+            box-sizing: border-box;
             page-break-after: always;
             break-after: page;
           }
@@ -218,44 +240,61 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
           display: flex;
           justify-content: space-between;
           align-items: center;
-          font-size: ${format === '75x50' ? '11px' : '8px'};
+          font-size: ${format === '75x50' ? '10px' : '7.5px'};
           font-weight: 800;
           letter-spacing: 0.5px;
           border-bottom: 0.5px solid #000;
           padding-bottom: 1px;
+          gap: 4px;
+          flex-shrink: 0;
+          line-height: 1.1;
         }
         .comp-title {
           font-weight: 900;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          flex-shrink: 1;
         }
         .bin-tag {
-          font-size: ${format === '75x50' ? '10px' : '7.5px'};
+          font-size: ${format === '75x50' ? '9px' : '7px'};
           font-family: monospace;
-          background: #eee;
-          padding: 0 3px;
+          background: #f1f5f9;
+          padding: 0.5px 3px;
           border-radius: 2px;
-          border: 0.5px solid #888;
+          border: 0.5px solid #94a3b8;
+          max-width: 52%;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          flex-shrink: 0;
         }
         .prod-name {
           width: 100%;
-          font-size: ${format === '75x50' ? '11px' : '8px'};
+          font-size: ${format === '75x50' ? '10.5px' : '7.5px'};
           font-weight: 700;
           text-align: center;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
           line-height: 1.1;
-          margin-top: 1px;
+          margin: 1px 0;
+          flex-shrink: 0;
         }
         .barcode-wrapper {
           width: 100%;
           display: flex;
           justify-content: center;
           align-items: center;
+          flex: 1;
+          min-height: 0;
+          overflow: hidden;
           margin: 0;
           padding: 0;
         }
         .barcode-wrapper svg {
           max-width: 100%;
+          max-height: 100%;
           height: auto;
           display: block;
         }
@@ -264,17 +303,24 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
           display: flex;
           justify-content: space-between;
           align-items: center;
-          font-size: ${format === '75x50' ? '10px' : '7px'};
+          font-size: ${format === '75x50' ? '9.5px' : '6.5px'};
           border-top: 0.5px solid #000;
           padding-top: 1px;
           line-height: 1;
+          flex-shrink: 0;
+          gap: 4px;
         }
         .prod-code {
           font-family: monospace;
           font-weight: 800;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
         .prod-uom {
           font-weight: 600;
+          white-space: nowrap;
+          flex-shrink: 0;
         }
       `;
 
@@ -283,7 +329,7 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
         <!DOCTYPE html>
         <html>
           <head>
-            <title>Airtronic Barcode Labels</title>
+            <title></title>
             <style>${styles}</style>
           </head>
           <body>
@@ -359,9 +405,12 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
                   }`}
                 >
                   <div>
-                    <div className="text-xs font-bold">50mm × 25mm (Standard Thermal)</div>
+                    <div className="text-xs font-bold flex items-center gap-1.5">
+                      <span>50mm × 25mm (Standard Thermal)</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-normal">Roll Printer</span>
+                    </div>
                     <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Standard item bin & tote sticker (2" × 1")
+                      Zebra, TSC, TVS thermal label roll printers (2" × 1")
                     </div>
                   </div>
                   {format === '50x25' && <Check className="w-4 h-4 text-blue-600" />}
@@ -377,9 +426,12 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
                   }`}
                 >
                   <div>
-                    <div className="text-xs font-bold">75mm × 50mm (Large Pallet/Box)</div>
+                    <div className="text-xs font-bold flex items-center gap-1.5">
+                      <span>75mm × 50mm (Large Pallet/Box)</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-normal">Roll Printer</span>
+                    </div>
                     <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                      High-visibility sticker for RM racks & crates (3" × 2")
+                      High-visibility thermal sticker for RM racks & crates (3" × 2")
                     </div>
                   </div>
                   {format === '75x50' && <Check className="w-4 h-4 text-blue-600" />}
@@ -395,9 +447,12 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
                   }`}
                 >
                   <div>
-                    <div className="text-xs font-bold">A4 Adhesive Sheet (24-up Grid)</div>
+                    <div className="text-xs font-bold flex items-center gap-1.5">
+                      <span>A4 Adhesive Sheet (24-up Grid)</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300 font-normal">Office Laser</span>
+                    </div>
                     <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                      3 × 8 multi-sticker layout for office laser printers
+                      Recommended for Canon MF440, HP LaserJet, standard office printers
                     </div>
                   </div>
                   {format === 'A4_SHEET' && <Check className="w-4 h-4 text-blue-600" />}
@@ -530,11 +585,11 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
               }`}
             >
               {/* Header */}
-              <div className="w-full flex justify-between items-center border-b border-black pb-0.5">
-                <span className="text-[10px] font-black tracking-wider">{companyName || 'AIRTRONIC'}</span>
-                {showLocation && (
-                  <span className="text-[9px] font-mono font-bold bg-slate-100 px-1 py-0.2 rounded border border-slate-400">
-                    {productStorageMap?.get(activeProduct.id)?.binLabels?.[0] || 'STORES'}
+              <div className="w-full flex justify-between items-center border-b border-black pb-0.5 gap-2">
+                <span className="text-[10px] font-black tracking-wider truncate">{companyName || 'AIRTRONIC'}</span>
+                {showLocation && getCleanBinTag(activeProduct.id) && (
+                  <span className="text-[9px] font-mono font-bold bg-slate-100 px-1 py-0.2 rounded border border-slate-400 max-w-[50%] truncate">
+                    {getCleanBinTag(activeProduct.id)}
                   </span>
                 )}
               </div>
@@ -553,20 +608,22 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
               <div className="w-full flex justify-center items-center my-auto overflow-hidden">
                 <BarcodeSvg
                   value={activeProduct.barcode || `PRD-${activeProduct.code || '000001'}`}
-                  width={format === '75x50' ? 1.8 : 1.3}
-                  height={format === '75x50' ? 56 : 34}
-                  fontSize={format === '75x50' ? 12 : 9}
+                  width={format === '75x50' ? 1.6 : 1.15}
+                  height={format === '75x50' ? 44 : 26}
+                  fontSize={format === '75x50' ? 11 : 9}
                   margin={1}
                 />
               </div>
 
               {/* Footer */}
-              <div className="w-full flex justify-between items-center border-t border-black pt-0.5 text-[8.5px]">
+              <div className="w-full flex justify-between items-center border-t border-black pt-0.5 text-[8.5px] gap-2">
                 {showCode && (
-                  <span className="font-mono font-bold">{activeProduct.code || '—'}</span>
+                  <span className="font-mono font-bold truncate">
+                    {activeProduct.code || activeProduct.barcode || ''}
+                  </span>
                 )}
                 {showUomMsl && (
-                  <span className="text-[8px] font-semibold">
+                  <span className="text-[8px] font-semibold shrink-0">
                     UOM: {activeProduct.uom || 'KG'}
                     {activeProduct.minimumInventory ? ` | MSL: ${activeProduct.minimumInventory}` : ''}
                   </span>
