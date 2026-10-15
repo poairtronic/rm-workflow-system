@@ -137,17 +137,14 @@ export function TraceabilityWorkspace() {
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
               <ScContextBanner masterData={data.masterData} />
 
+              {/* Zero-Loss Mass Balance Reconciliation Audit */}
+              <ZeroLossReconciliation metrics={data.reconciliation} />
+
               {/* Subcontracting DC Movements WIP Ledger */}
               <DcMovementsLedger movements={(data as any)?.dcMovements || []} />
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                  <LifecycleTimeline events={data.events} />
-                </div>
-                <div className="lg:col-span-1">
-                  <ZeroLossReconciliation metrics={data.reconciliation} />
-                </div>
-              </div>
+              {/* 360° Lifecycle Audit Trail */}
+              <LifecycleTimeline events={data.events} />
             </div>
           )}
         </div>

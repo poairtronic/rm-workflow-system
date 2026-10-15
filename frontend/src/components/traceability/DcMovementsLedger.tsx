@@ -23,7 +23,7 @@ interface DcMovementsLedgerProps {
 export function DcMovementsLedger({ movements = [] }: DcMovementsLedgerProps) {
   if (movements.length === 0) {
     return (
-      <div className="bg-white border border-slate-200 rounded-xl shadow-xs p-6 mb-6">
+      <div className="bg-white border border-slate-200 rounded-xl shadow-xs p-6">
         <div className="flex items-center gap-2 mb-2">
           <Truck className="w-5 h-5 text-primary" />
           <h2 className="text-[15px] font-semibold text-slate-900 uppercase tracking-wide">
@@ -38,7 +38,7 @@ export function DcMovementsLedger({ movements = [] }: DcMovementsLedgerProps) {
   }
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-xs p-6 mb-6">
+    <div className="bg-white border border-slate-200 rounded-xl shadow-xs p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-100 gap-2">
         <div>
           <div className="flex items-center gap-2">
