@@ -1,38 +1,103 @@
-name: CI
+name: RMRIT CI/CD Pipeline
 
 on:
   push:
     branches: [main]
+    tags:
+      - 'v*.*.*'
   pull_request:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  build-and-test:
-    name: Build and Test
+  validate-and-build:
+    name: Lint, Test & Compile
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
-      - name: Checkout repository
+      - name: Checkout Source Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Setup Node.js
+      - name: Setup Node.js Environment
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Clean Dependency Installation
         run: npm ci
 
-      - name: Run test suite
-        run: |
-          npm --prefix backend run test
-          npm --prefix frontend run test
+      - name: Lint Workspaces
+        run: npm run lint --if-present
 
-      - name: Build projects
+      - name: Execute Backend Tests (Vitest)
+        env:
+          NODE_ENV: test
+          JWT_SECRET: ci_test_jwt_secret_min_32_characters_12345
+        run: npm --prefix backend run test
+
+      - name: Execute Frontend Validation
+        run: npm --prefix frontend run test
+
+      - name: Compile Backend Production Bundle
+        run: npm --prefix backend run build
+
+      - name: Compile Frontend Production Distribution
+        env:
+          VITE_BACKEND_URL: https://rmrit-backend.onrender.com
+        run: npm --prefix frontend run build
+
+  deploy-to-render:
+    name: Deploy to Render Cloud
+    needs: validate-and-build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Render Backend Deployment
+        env:
+          BACKEND_HOOK: ${{ secrets.RENDER_BACKEND_DEPLOY_HOOK_URL }}
         run: |
-          npm --prefix backend run build
-          npm --prefix frontend run build
+          if [ -n "$BACKEND_HOOK" ]; then
+            echo "Dispatching deployment hook to Render Backend..."
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BACKEND_HOOK")
+            echo "Render Backend Deploy Hook response: HTTP $HTTP_STATUS"
+          else
+            echo "::notice::RENDER_BACKEND_DEPLOY_HOOK_URL secret not set. Skipping backend trigger."
+          fi
+
+      - name: Trigger Render Frontend Deployment
+        env:
+          FRONTEND_HOOK: ${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -n "$FRONTEND_HOOK" ]; then
+            echo "Dispatching deployment hook to Render Frontend..."
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$FRONTEND_HOOK")
+            echo "Render Frontend Deploy Hook response: HTTP $HTTP_STATUS"
+          else
+            echo "::notice::RENDER_FRONTEND_DEPLOY_HOOK_URL secret not set. Skipping frontend trigger."
+          fi
+
+  create-github-release:
+    name: Create GitHub Release
+    needs: validate-and-build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Generate Release Notes & Tag
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

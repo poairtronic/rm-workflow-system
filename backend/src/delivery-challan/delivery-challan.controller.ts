@@ -26,31 +26,31 @@ export class DeliveryChallanController {
     return this.deliveryChallanService.createType2Challan(dto, userId);
   }
   @Get('custody/vendor/:vendorId')
-  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER)
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER, UserRole.DESIGNER, UserRole.PRODUCTION)
   async getVendorCustodySummary(@Param('vendorId') vendorId: string) {
     return this.deliveryChallanService.getVendorCustodySummary(vendorId);
   }
 
   @Get('custody/product/:productId')
-  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER)
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER, UserRole.DESIGNER, UserRole.PRODUCTION)
   async getProductCustodyTotal(@Param('productId') productId: string) {
     return this.deliveryChallanService.getProductCustodyTotal(productId);
   }
 
   @Get('all-movements')
-  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION, UserRole.GENERAL_MANAGER)
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION, UserRole.GENERAL_MANAGER, UserRole.DESIGNER)
   async getAllMovements() {
     return this.deliveryChallanService.getAllDcMovements();
   }
 
   @Get('movements/:scId')
-  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION)
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION, UserRole.GENERAL_MANAGER, UserRole.DESIGNER)
   async getScMovements(@Param('scId', ParseUUIDPipe) scId: string) {
     return this.deliveryChallanService.getScMovements(scId);
   }
 
   @Get('overdue')
-  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER)
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER, UserRole.DESIGNER, UserRole.PRODUCTION)
   async getOverdueChallans() {
     return this.deliveryChallanService.getOverdueChallans();
   }
@@ -69,7 +69,7 @@ export class DeliveryChallanController {
   }
 
   @Get('next-type2-item-sequence')
-  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION, UserRole.GENERAL_MANAGER)
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION, UserRole.GENERAL_MANAGER, UserRole.DESIGNER)
   async getNextType2ItemSequence() {
     const nextSequence = await this.deliveryChallanService.getNextType2ItemSequence();
     return {
@@ -79,7 +79,7 @@ export class DeliveryChallanController {
   }
 
   @Get(':id/printable')
-  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION)
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION, UserRole.GENERAL_MANAGER, UserRole.DESIGNER)
   async getPrintable(@Param('id', ParseUUIDPipe) id: string) {
     return this.deliveryChallanService.getPrintableChallanData(id);
   }

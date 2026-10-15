@@ -20,6 +20,7 @@ interface DraftItem {
   updatedAt: string;
 }
 
+// Phase 2 & 3: Direct issue workspace with smart bin auto-filtering and PO completion
 export function StoresRmIssueWorkspace() {
   const [queues, setQueues] = useState<DraftItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,6 +108,15 @@ export function StoresRmIssueWorkspace() {
   };
 
   const selectedPo = queues.find((q) => q.poId === selectedPoId);
+  const poCompletedCount = selectedPo
+    ? selectedPo.scs.filter((s) => s.scStatus === 'ISSUED' || s.scStatus === 'COMPLETED' || s.scStatus === 'IN_PRODUCTION' || s.status === 'COMPLETED').length
+    : 0;
+  const isSelectedPoCompleted = selectedPo
+    ? selectedPo.scs.length > 0 && poCompletedCount === selectedPo.scs.length
+    : false;
+  const isSelectedPoPartial = selectedPo
+    ? !isSelectedPoCompleted && selectedPo.scs.some((s) => s.scStatus === 'PARTIALLY_ISSUED')
+    : false;
 
   if (selectedScForReview) {
     return (
@@ -184,27 +194,43 @@ export function StoresRmIssueWorkspace() {
               <h3 className="font-semibold text-slate-900">Purchase Orders</h3>
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
-              {queues.map((po) => (
-                <button
-                  key={po.poId}
-                  onClick={() => setSelectedPoId(po.poId)}
-                  className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                    selectedPoId === po.poId
-                      ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-500'
-                      : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-200'
-                  }`}
-                >
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="font-semibold text-slate-900">{po.poNumber}</span>
-                    <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                      {po.scs.length} SCs
-                    </span>
-                  </div>
-                  <div className="text-xs text-slate-500 truncate">
-                    Last update: {new Date(po.updatedAt).toLocaleDateString()}
-                  </div>
-                </button>
-              ))}
+              {queues.map((po) => {
+                const isPoCompleted = po.scs.length > 0 && po.scs.every(s => s.scStatus === 'ISSUED' || s.scStatus === 'COMPLETED' || s.scStatus === 'IN_PRODUCTION' || s.status === 'COMPLETED');
+                const isPoPartial = !isPoCompleted && po.scs.some(s => s.scStatus === 'PARTIALLY_ISSUED');
+
+                return (
+                  <button
+                    key={po.poId}
+                    onClick={() => setSelectedPoId(po.poId)}
+                    className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                      selectedPoId === po.poId
+                        ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-500'
+                        : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-200'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-semibold text-slate-900">{po.poNumber}</span>
+                      {isPoCompleted ? (
+                        <span className="text-xs bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full">
+                          ✓ Completed
+                        </span>
+                      ) : isPoPartial ? (
+                        <span className="text-xs bg-purple-100 text-purple-800 font-semibold px-2 py-0.5 rounded-full">
+                          Partially Issued
+                        </span>
+                      ) : (
+                        <span className="text-xs bg-amber-100 text-amber-800 font-semibold px-2 py-0.5 rounded-full">
+                          Pending
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-slate-500">
+                      <span>{po.scs.length} Component{po.scs.length > 1 ? 's' : ''}</span>
+                      <span>{new Date(po.updatedAt).toLocaleDateString()}</span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -213,12 +239,32 @@ export function StoresRmIssueWorkspace() {
             {selectedPo ? (
               <div className="bg-slate-50 rounded-xl border border-slate-200 shadow-sm flex flex-col h-full overflow-hidden">
                 <div className="p-5 border-b border-slate-200 bg-white">
-                  <h3 className="text-lg font-bold text-slate-900">PO: {selectedPo.poNumber}</h3>
-                  <p className="text-sm text-slate-500 mt-1">Select an SC below to review mapping or issue material.</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900">PO: {selectedPo.poNumber}</h3>
+                      <p className="text-sm text-slate-500 mt-1">Select an SC below to issue raw materials directly to production.</p>
+                    </div>
+                    {isSelectedPoCompleted ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-emerald-100 text-emerald-800 rounded-full border border-emerald-300">
+                        ✓ PO Fully Issued & Completed ({poCompletedCount}/{selectedPo.scs.length} SCs)
+                      </span>
+                    ) : isSelectedPoPartial ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-purple-100 text-purple-800 rounded-full border border-purple-300">
+                        Partially Issued ({poCompletedCount}/{selectedPo.scs.length} SCs Completed)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-amber-100 text-amber-800 rounded-full border border-amber-300">
+                        Pending Stores Issue ({selectedPo.scs.length} SCs)
+                      </span>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                  {selectedPo.scs.map((sc) => (
+                  {selectedPo.scs.map((sc) => {
+                    const isScIssued = sc.scStatus === 'ISSUED' || sc.scStatus === 'IN_PRODUCTION' || sc.scStatus === 'COMPLETED';
+
+                    return (
                     <div key={sc.scId} className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
                       <div className="flex justify-between items-start mb-4">
                         <div>
@@ -233,32 +279,22 @@ export function StoresRmIssueWorkspace() {
                       </div>
                       
                       <div className="flex justify-end space-x-3 border-t border-slate-100 pt-4">
-                        {sc.status === 'SUBMITTED' ? (
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => setRejectTarget({ rmId: sc.rmId || '', scNumber: sc.scNumber })}
-                              className="px-3 py-2 text-sm text-red-700 hover:bg-red-50 font-medium rounded-lg border border-red-200 transition-colors cursor-pointer"
-                            >
-                              Reject
-                            </button>
-                            <button 
-                              onClick={() => setSelectedScForReview({
-                                scId: sc.scId,
-                                scNumber: sc.scNumber,
-                                poNumber: selectedPo.poNumber,
-                                productName: sc.productName,
-                                rmId: sc.rmId,
-                              })}
-                              className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-medium rounded-lg transition-colors shadow-sm cursor-pointer"
-                            >
-                              <FileText className="w-4 h-4" />
-                              <span>Review Mapping</span>
-                            </button>
-                          </div>
-                        ) : sc.status === 'REJECTED' ? (
+                        {sc.status === 'REJECTED' ? (
                           <span className="text-xs text-red-600 font-medium italic">Requisition Rejected by Stores</span>
+                        ) : isScIssued ? (
+                          <span className="inline-flex items-center text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
+                            ✓ Material Fully Issued
+                          </span>
                         ) : (
                           <div className="flex items-center space-x-3">
+                            {sc.status === 'SUBMITTED' && (
+                              <button
+                                onClick={() => setRejectTarget({ rmId: sc.rmId || '', scNumber: sc.scNumber })}
+                                className="px-3 py-2 text-sm text-red-700 hover:bg-red-50 font-medium rounded-lg border border-red-200 transition-colors cursor-pointer"
+                              >
+                                Reject
+                              </button>
+                            )}
                             <button 
                               onClick={() => setSelectedScForReview({
                                 scId: sc.scId,
@@ -271,22 +307,21 @@ export function StoresRmIssueWorkspace() {
                               title="View or modify inventory mapping"
                             >
                               <FileText className="w-4 h-4" />
-                              <span>View Mapping</span>
+                              <span>Mapping</span>
                             </button>
-                            {sc.scStatus !== 'ISSUED' && sc.scStatus !== 'IN_PRODUCTION' && sc.scStatus !== 'COMPLETED' && (
-                              <button 
-                                onClick={() => handleOpenIssueModal(sc.scId, sc.scNumber)}
-                                className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-medium rounded-lg transition-colors shadow-sm cursor-pointer"
-                              >
-                                <PackagePlus className="w-4 h-4" />
-                                <span>Issue Material</span>
-                              </button>
-                            )}
+                            <button 
+                              onClick={() => handleOpenIssueModal(sc.scId, sc.scNumber)}
+                              className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-medium rounded-lg transition-colors shadow-sm cursor-pointer"
+                            >
+                              <PackagePlus className="w-4 h-4" />
+                              <span>Issue Material</span>
+                            </button>
                           </div>
                         )}
                       </div>
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               </div>
             ) : (

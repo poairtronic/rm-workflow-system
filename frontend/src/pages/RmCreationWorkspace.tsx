@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Save, AlertCircle, Send, CheckCircle2, FileText, Layers, Box } from 'lucide-react';
+import { Plus, Trash2, Save, AlertCircle, Send, CheckCircle2, FileText, Layers, Box, Lock, Shield } from 'lucide-react';
 import { PageHeader, SearchSelect, type SearchSelectOption } from '../components/ui';
 import { masterDataService } from '../services/masterDataService';
 import type { Product } from '../services/masterDataService';
 import { workflowService } from '../services/workflowService';
+import { useAuth } from '../contexts/AuthContext';
 import type { SC } from '../services/workflowService';
 import { api, unwrapList } from '../services/api';
 
@@ -56,6 +57,9 @@ const createDefaultItem = (existingCards: SCCardForm[] = [], baseSeq = 0, extraO
 });
 
 export function RmCreationWorkspace() {
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'ADMIN';
+
   const searchParams = new URLSearchParams(window.location.search);
   const existingPoId = searchParams.get('poId');
 
@@ -72,6 +76,8 @@ export function RmCreationWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [rejectionNotice, setRejectionNotice] = useState<string | null>(null);
+  const [isLockedBySubmission, setIsLockedBySubmission] = useState(false);
+  const [hasOnlySubmitted, setHasOnlySubmitted] = useState(false);
 
   const [productBalances, setProductBalances] = useState<Record<string, number>>({});
   const [basePartNumberSeq, setBasePartNumberSeq] = useState(0);
@@ -200,6 +206,18 @@ export function RmCreationWorkspace() {
               if (it.productId) loadBalances(it.productId);
             });
           });
+
+          // Submission lock check: if any SC is submitted/reviewed/issued and none are in draft/rejected
+          const allSubmitted = (data.scs || []).length > 0 && !(data.scs || []).some((s: any) => s.status === 'DRAFT' || s.status === 'REJECTED');
+          if (allSubmitted) {
+            setHasOnlySubmitted(true);
+            if (!isAdmin) {
+              setIsLockedBySubmission(true);
+            }
+          } else {
+            setHasOnlySubmitted(false);
+            setIsLockedBySubmission(false);
+          }
         }
       }
     } catch (err: any) {
@@ -500,29 +518,61 @@ export function RmCreationWorkspace() {
         subtitle="Request raw material according to Purchase Order (PO), Size Card (SC), or as a standalone request."
         actionSlot={
           <div className="flex items-center space-x-3">
-            <button
-              onClick={handleSaveDraft}
-              disabled={loading || submitting}
-              className="flex items-center space-x-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 shadow-xs"
-            >
-              <Save className="w-4 h-4 text-slate-500" />
-              <span>{loading ? 'Saving...' : 'Save Draft'}</span>
-            </button>
-            <button
-              onClick={() => {
-                if (validateForm()) {
-                  setShowSubmitConfirm(true);
-                }
-              }}
-              disabled={loading || submitting}
-              className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm"
-            >
-              <Send className="w-4 h-4" />
-              <span>Submit to Stores</span>
-            </button>
+            {isLockedBySubmission ? (
+              <button
+                type="button"
+                onClick={() => (window.location.href = '/design/my-requisitions')}
+                className="flex items-center space-x-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors shadow-xs"
+              >
+                <FileText className="w-4 h-4 text-slate-500" />
+                <span>Back to My Requisitions</span>
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={handleSaveDraft}
+                  disabled={loading || submitting}
+                  className="flex items-center space-x-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 shadow-xs"
+                >
+                  <Save className="w-4 h-4 text-slate-500" />
+                  <span>{loading ? 'Saving...' : 'Save Draft'}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    if (validateForm()) {
+                      setShowSubmitConfirm(true);
+                    }
+                  }}
+                  disabled={loading || submitting}
+                  className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Submit to Stores</span>
+                </button>
+              </>
+            )}
           </div>
         }
       />
+
+      {isLockedBySubmission && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center space-x-3 text-amber-900 shadow-xs">
+          <Lock className="w-5 h-5 text-amber-600 flex-shrink-0" />
+          <div>
+            <div className="font-bold text-sm">Requisition Submitted & Locked</div>
+            <div className="text-xs text-amber-700">
+              This raw material requisition has already been submitted to Stores and cannot be edited by Designers. Contact an Administrator if changes are needed.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {hasOnlySubmitted && isAdmin && (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center space-x-2 text-blue-900 shadow-xs">
+          <Shield className="w-4 h-4 text-blue-600 flex-shrink-0" />
+          <span className="text-xs font-bold">Admin Override Active: You have administrator privileges to edit this submitted specification.</span>
+        </div>
+      )}
 
       {/* Mode Selector */}
       {!existingPoId && (

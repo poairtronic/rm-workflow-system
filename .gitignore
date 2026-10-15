@@ -57,3 +57,7 @@ backend/backend/
 .storage/
 scratch/
 patch.py
+backend/debug_sc.txt
+backend/discovered-routes.json
+backend/test-detailed-modules-3.js
+backend/test-streamlined-workflow.js

@@ -617,13 +617,19 @@ export class RmService {
       if (!po) throw new NotFoundException('PO not found');
 
       const isOwner = user.role === UserRole.DESIGNER;
+      const isAdmin = user.role === UserRole.ADMIN;
       const ownerCond = isOwner ? { createdById: user.userId } : {};
 
+      const statusConditions: any[] = [
+        { poId, status: RmRequestStatus.DRAFT, ...ownerCond },
+        { poId, status: RmRequestStatus.REJECTED, ...ownerCond },
+      ];
+      if (isAdmin) {
+        statusConditions.push({ poId, status: RmRequestStatus.SUBMITTED });
+      }
+
       const existingDrafts = await queryRunner.manager.find(RmRequest, {
-         where: [
-           { poId, status: RmRequestStatus.DRAFT, ...ownerCond },
-           { poId, status: RmRequestStatus.REJECTED, ...ownerCond },
-         ],
+         where: statusConditions,
          relations: { salesOrderComponent: true, items: true }
       });
 
@@ -645,8 +651,9 @@ export class RmService {
         if (draft) {
           sc = draft.salesOrderComponent!;
           sc.productName = scDto.productName;
-          sc.status = ScStatus.DRAFT;
-          draft.status = RmRequestStatus.DRAFT;
+          const targetStatus = draft.status === RmRequestStatus.SUBMITTED ? RmRequestStatus.SUBMITTED : RmRequestStatus.DRAFT;
+          draft.status = targetStatus;
+          sc.status = targetStatus === RmRequestStatus.SUBMITTED ? ScStatus.SUBMITTED : ScStatus.DRAFT;
           await queryRunner.manager.save(sc);
           await queryRunner.manager.save(draft);
           await queryRunner.manager.delete(RmItem, { rmFormId: draft.id });
@@ -658,7 +665,8 @@ export class RmService {
           });
           console.log(`[DEBUG] updateDraftRm found SC:`, sc?.id);
           if (sc) {
-            if (sc.rmRequest && sc.rmRequest.status !== RmRequestStatus.DRAFT) {
+            const isSubmittedAllowed = isAdmin && sc.rmRequest?.status === RmRequestStatus.SUBMITTED;
+            if (sc.rmRequest && sc.rmRequest.status !== RmRequestStatus.DRAFT && !isSubmittedAllowed) {
               console.log(`[DEBUG] throwing ConflictException for SC ${scNumber}`);
               throw new ConflictException(`SC ${scNumber} already has a non-DRAFT RM Request.`);
             } else if (sc.rmRequest) {
@@ -918,14 +926,14 @@ export class RmService {
           RmRequestStatus.COMPLETED,
         ]),
       },
-      relations: { salesOrderComponent: { purchaseOrder: true }, items: true },
+      relations: { purchaseOrder: true, salesOrderComponent: { purchaseOrder: true }, items: true },
       order: { updatedAt: 'DESC' },
     });
 
     const grouped = new Map<string, any>();
     
     for (const req of requests) {
-      const po = req.salesOrderComponent?.purchaseOrder;
+      const po = req.salesOrderComponent?.purchaseOrder || req.purchaseOrder;
       if (!po) continue;
 
       if (!grouped.has(po.id)) {
@@ -941,12 +949,12 @@ export class RmService {
       
       group.scs.push({
         rmId: req.id,
-        scId: req.salesOrderComponent!.id,
-        scNumber: req.salesOrderComponent!.scNumber,
-        productName: req.salesOrderComponent!.productName,
+        scId: req.salesOrderComponent?.id || req.scId || req.id,
+        scNumber: req.salesOrderComponent?.scNumber || req.purchaseOrder?.poNumber || 'SC',
+        productName: req.salesOrderComponent?.productName || 'Material Component',
         status: req.status,
-        scStatus: req.salesOrderComponent!.status,
-        itemCount: req.items.length
+        scStatus: req.salesOrderComponent?.status || ScStatus.SUBMITTED,
+        itemCount: req.items?.length || 0,
       });
 
       if (req.updatedAt > group.updatedAt) group.updatedAt = req.updatedAt;
@@ -986,7 +994,9 @@ export class RmService {
     const rm = await this.rmRepo.findOne({ where: { id } });
     if (!rm) throw new NotFoundException('RM not found');
     if (user.role === UserRole.DESIGNER && rm.createdById !== user.userId) throw new NotFoundException('RM not found');
-    StateMachineValidator.assertRmDraft(rm.status, 'update RM item');
+    if (user.role !== UserRole.ADMIN) {
+      StateMachineValidator.assertRmDraft(rm.status, 'update RM item');
+    }
 
     const item = await this.rmItemRepo.findOne({ where: { id: itemId, rmFormId: id } });
     if (!item) throw new NotFoundException('Item not found');

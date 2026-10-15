@@ -84,6 +84,9 @@ export class InventoryService {
     return balances.map(b => ({
       binId: b.binId,
       binCode: b.bin?.code,
+      rackCode: b.bin?.rack?.code,
+      rackName: b.bin?.rack?.name,
+      locationName: b.bin?.rack?.location?.name,
       warehouseName: b.bin?.rack?.location?.warehouse?.name || 'Unknown',
       productId: b.productId,
       currentQuantity: Number(b.currentQuantity)

@@ -24,7 +24,7 @@ interface ItemData {
   totalAvailable: number;
   issueQty: number | '';
   selectedBinId?: string;
-  availableBins?: { binId: string; binCode: string; currentQuantity: number }[];
+  availableBins?: { binId: string; binCode: string; rackCode?: string; currentQuantity: number }[];
 }
 
 export function IssueMaterialModal({ isOpen, onClose, onSuccess, scId, scNumber, additionalRequestId }: IssueMaterialModalProps) {
@@ -56,9 +56,15 @@ export function IssueMaterialModal({ isOpen, onClose, onSuccess, scId, scNumber,
         const req = addReqs.find(r => r.id === additionalRequestId);
         if (!req) throw new Error('Additional request not found.');
         
-        sourceItems = req.items.map((item: any) => ({
-          rmItem: item.rmItem,
-          requiredQty: Number(item.quantityApproved || item.quantityRequested)
+        sourceItems = (req.items || []).map((item: any) => ({
+          rmItem: item.rmItem || {
+            id: item.rmItemId,
+            material: item.material || 'Material Item',
+            mappedProductId: item.productId || item.mappedProductId,
+            grade: 'STD',
+            size: 'STD',
+          },
+          requiredQty: Number(item.quantityApproved || item.quantityRequested || item.quantity || 0),
         }));
       } else {
         const rmRes = await workflowService.getRmList(scId);
@@ -89,7 +95,7 @@ export function IssueMaterialModal({ isOpen, onClose, onSuccess, scId, scNumber,
         }
         
         let totalAvailable = 0;
-        let availableBins: { binId: string; binCode: string; currentQuantity: number }[] = [];
+        let availableBins: { binId: string; binCode: string; rackCode?: string; currentQuantity: number }[] = [];
         if (rmItem.mappedProductId) {
           const balances = await inventoryService.getBalancesByProduct(rmItem.mappedProductId);
           availableBins = (balances || [])
@@ -97,10 +103,14 @@ export function IssueMaterialModal({ isOpen, onClose, onSuccess, scId, scNumber,
             .map((b: any) => ({
               binId: b.binId,
               binCode: b.bin?.code || b.binCode || 'BIN',
+              rackCode: b.rackCode || b.bin?.rack?.code,
               currentQuantity: Number(b.currentQuantity),
             }));
           totalAvailable = availableBins.reduce((sum, b) => sum + b.currentQuantity, 0);
         }
+
+        const remainingToIssue = remaining > 0 ? remaining : 0;
+        const initialIssueQty = Math.min(remainingToIssue, totalAvailable > 0 ? totalAvailable : remainingToIssue);
 
         itemsData.push({
           rmItemId: rmItem.id,
@@ -112,9 +122,9 @@ export function IssueMaterialModal({ isOpen, onClose, onSuccess, scId, scNumber,
           issued,
           remaining,
           totalAvailable,
-          issueQty: remaining > 0 ? remaining : '',
+          issueQty: initialIssueQty > 0 ? initialIssueQty : '',
           availableBins,
-          selectedBinId: availableBins.length === 1 ? availableBins[0].binId : '',
+          selectedBinId: availableBins.length === 1 ? availableBins[0].binId : (availableBins.length > 0 ? availableBins[0].binId : ''),
         });
       }
 
@@ -281,26 +291,33 @@ export function IssueMaterialModal({ isOpen, onClose, onSuccess, scId, scNumber,
                         </div>
 
                         <div className="w-64">
-                          <label className="block text-xs font-medium text-slate-700 mb-1">Source Bin</label>
+                          <label className="block text-xs font-medium text-slate-700 mb-1">Rack & Bin *</label>
                           <select
                             value={item.selectedBinId || ''}
                             onChange={(e) => updateItemBin(itemIdx, e.target.value)}
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white font-medium"
                           >
-                            <option value="">Auto-allocate (Highest Stock)</option>
-                            {(item.availableBins || []).map((b) => (
-                              <option key={b.binId} value={b.binId}>
-                                {b.binCode} • Avail: {b.currentQuantity}
-                              </option>
-                            ))}
+                            {item.availableBins && item.availableBins.length > 0 ? (
+                              item.availableBins.map((b) => (
+                                <option key={b.binId} value={b.binId}>
+                                  {b.rackCode ? `Rack ${b.rackCode} - Bin ${b.binCode}` : `Bin ${b.binCode}`} • Avail: {b.currentQuantity}
+                                </option>
+                              ))
+                            ) : (
+                              <option value="" disabled>No stock in any rack/bin</option>
+                            )}
                           </select>
                         </div>
 
-                        {item.issueQty && Number(item.issueQty) < item.remaining && (
-                          <div className="text-sm text-amber-600 italic mb-2">
-                            * Partial issue
+                        {item.issueQty && Number(item.issueQty) >= item.remaining ? (
+                          <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-md font-semibold mb-1">
+                            ✓ Full issue (Completes item)
                           </div>
-                        )}
+                        ) : item.issueQty && Number(item.issueQty) < item.remaining ? (
+                          <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded-md font-semibold mb-1">
+                            ⏳ Partial issue ({item.remaining - Number(item.issueQty)} remains open)
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>

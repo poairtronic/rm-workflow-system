@@ -14,6 +14,8 @@ import {
 import { AdditionalMaterialRequestItem } from './entities/additional-request-item.entity.js';
 import { SalesOrderComponent, ScStatus } from '../sc/entities/sc.entity.js';
 import { RmItem } from '../rm/entities/rm-item.entity.js';
+import { RmRequest, RmRequestStatus } from '../rm/entities/rm-request.entity.js';
+import { Product } from '../inventory/entities/product.entity.js';
 import { CreateAdditionalRequestDto } from './dto/additional-request.dto.js';
 import { WorkflowNotificationService } from '../notifications/workflow-notification.service.js';
 
@@ -70,29 +72,79 @@ export class AdditionalRequestService {
       const savedRequest = await queryRunner.manager.save(AdditionalMaterialRequest, request);
 
       for (const itemDto of dto.items) {
-        // Validate rmItemId belongs to the given scId
-        const rmItem = await queryRunner.manager.findOne(RmItem, {
-          where: {
-            id: itemDto.rmItemId,
-            scId: dto.scId,
+        let rmItem: RmItem | null = null;
+
+        if (itemDto.rmItemId) {
+          rmItem = await queryRunner.manager.findOne(RmItem, {
+            where: {
+              id: itemDto.rmItemId,
+              scId: dto.scId,
+            },
+          });
+        }
+
+        // If no rmItemId or if productId is provided (e.g. screws, pins, hardware requested by Production)
+        if (!rmItem && itemDto.productId) {
+          rmItem = await queryRunner.manager.findOne(RmItem, {
+            where: {
+              scId: dto.scId,
+              mappedProductId: itemDto.productId,
+            },
+          });
+
+          if (!rmItem) {
+            let rmRequest = await queryRunner.manager.findOne(RmRequest, {
+              where: { scId: dto.scId },
+            });
+
+            if (!rmRequest) {
+              rmRequest = queryRunner.manager.create(RmRequest, {
+                scId: dto.scId,
+                status: RmRequestStatus.REVIEWED,
+                createdById: actorId,
+              });
+              rmRequest = await queryRunner.manager.save(RmRequest, rmRequest);
+            }
+
+            const product = await queryRunner.manager.findOne(Product, {
+              where: { id: itemDto.productId },
+            });
+
+            if (!product) {
+              throw new NotFoundException(`Product with ID "${itemDto.productId}" not found.`);
+            }
+
+            rmItem = queryRunner.manager.create(RmItem, {
+              scId: dto.scId,
+              rmFormId: rmRequest.id,
+              material: product.name,
+              mappedProductId: product.id,
+              materialType: 'COMPONENT',
+              grade: product.code || 'STANDARD',
+              size: product.uom || 'STD',
+              quantity: 0,
+              remarks: itemDto.remarks || 'Production Extra Request Item',
+            });
+            rmItem = await queryRunner.manager.save(RmItem, rmItem);
           }
-        });
+        }
+
         if (!rmItem) {
           throw new BadRequestException(
-            `RM Item "${itemDto.rmItemId}" not found or does not belong to SC "${dto.scId}".`,
+            `Either a valid rmItemId or productId is required for requesting extra material on SC "${dto.scId}".`,
           );
         }
 
         const reqQty = itemDto.quantityRequested ?? itemDto.quantity;
         if (reqQty == null) {
           throw new BadRequestException(
-            `Quantity or quantityRequested is required for RM Item "${itemDto.rmItemId}".`,
+            `Quantity or quantityRequested is required for RM Item "${rmItem.id}".`,
           );
         }
 
         const item = queryRunner.manager.create(AdditionalMaterialRequestItem, {
           requestId: savedRequest.id,
-          rmItemId: itemDto.rmItemId,
+          rmItemId: rmItem.id,
           quantityRequested: reqQty,
           remarks: itemDto.remarks,
         });

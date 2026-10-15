@@ -1,0 +1,19 @@
+name: Render Backend Shift-Hour Keep-Alive
+
+on:
+  schedule:
+    # Runs every 10 minutes between 02:30 UTC and 14:30 UTC (08:00 AM - 08:00 PM IST), Monday-Saturday
+    - cron: '*/10 2-14 * * 1-6'
+  workflow_dispatch:
+
+jobs:
+  ping-health:
+    name: Ping /api/health
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Backend Service
+        run: |
+          TARGET_URL="https://rmrit-backend.onrender.com/api/health"
+          echo "Pinging $TARGET_URL at $(date -u)..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$TARGET_URL" || echo "TIMEOUT")
+          echo "Health check response: HTTP $HTTP_STATUS"

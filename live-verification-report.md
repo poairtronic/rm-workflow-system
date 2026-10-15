@@ -1,201 +1,1006 @@
 # Live API & Email Verification Report
-*Generated At: 2026-10-08T07:45:04.662Z*
+*Generated At: 2026-10-15T11:31:28.289Z*
 
 ## 1. REST API Smoke & Functional Tests
-- **Vendors Fetch** (`GET /api/vendors`): Status 200 [594ms] - PASS
-- **Production Processes Fetch** (`GET /api/production-processes`): Status 200 [274ms] - PASS
-- **Process Outward Analytics** (`GET /api/traceability/analytics/process-outward`): Status 200 [543ms] - PASS
-- **Vendor Performance Analytics** (`GET /api/traceability/vendors/performance-analytics`): Status 200 [789ms] - PASS
+- **Vendors Fetch** (`GET /api/vendors`): Status 200 [270ms] - PASS
+- **Production Processes Fetch** (`GET /api/production-processes`): Status 200 [241ms] - PASS
+- **Process Outward Analytics** (`GET /api/traceability/analytics/process-outward`): Status 200 [918ms] - PASS
+- **Vendor Performance Analytics** (`GET /api/traceability/vendors/performance-analytics`): Status 200 [697ms] - PASS
 
 ## 2. Email Queue & Notification Pipeline Audit
-- **Create DC Type 2** (`POST /api/delivery-challans/type-2`): Status 201 [4529ms] - PASS
-- **Emails Generated During Run:** 20
-- **In-App Notifications Generated:** 28
+- **Create DC Type 2** (`POST /api/delivery-challans/type-2`): Status 201 [4457ms] - PASS
+- **Emails Generated During Run:** 133
+- **In-App Notifications Generated:** 108
 
 ### Sample Email Templates Validated
 - **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** srmanager1_engine@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** manager.169@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** senior.manager@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** live_audit_1791445547489_sm@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** senior_manager@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
   - **Recipient:** p19_audit_1791445208581_sm@rmrit.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
 - **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
-  - **Recipient:** admin_p137@example.com
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** live_audit_1792063845103_stores@rmrit.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
 - **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
-  - **Recipient:** admin2@attach.com
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** p19_audit_1792063751293_sm@rmrit.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
 - **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
-  - **Recipient:** f13_1791445510424_admin@example.com
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** live_audit_1792063845103_admin@rmrit.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
 - **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** stores.19.7.2796246c-758b-4a9e-adc6-b27b5e5da483@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** admin.19.7.62e0036c-2ec8-46a8-816b-10419de09f2a@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** admin.167@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** stores.167@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** stores.169@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** p19_audit_1792063751293_stores@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** admin.169@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** p19_audit_1792063751293_admin@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** p20_2_1792063719011@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** stores.19.6.091fd7cf-6ca3-45b6-9f3b-30eec8c4fd16@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** history3@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** admin.19.6.b3490f1c-4c77-43fb-b792-10f09c505fd8@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** history1@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
   - **Recipient:** user3@test.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
 - **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** history2@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** user2@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** live_audit_1792063845103_sm@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** p20_1_1792063866633@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
   - **Recipient:** user1@test.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
 - **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** admin1_engine@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** manager.167@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** stores2_engine@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** admin.19.5.1792063788468@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** genmanager1_engine@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** srmanager1_engine@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** stores.1510.1792063820911@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** stores1_engine@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `RM_SUBMITTED`
+  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-IDEM-003
   - **Recipient:** p20_6_1791445489785@rmrit.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
-  - **Recipient:** stores_audit@example.com
+- **Event Type:** `RM_SUBMITTED`
+  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-IDEM-003
+  - **Recipient:** stores_txsafe@test.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
-  - **Recipient:** admin_audit@example.com
-  - **Status:** PENDING
-  - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
-  - **Recipient:** p20_3_1791445343953@rmrit.com
-  - **Status:** PENDING
-  - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
-  - **Recipient:** p20_5_1791445481779@rmrit.com
-  - **Status:** PENDING
-  - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
-  - **Recipient:** stores_iso@example.com
-  - **Status:** PENDING
-  - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
-  - **Recipient:** user2@test.com
-  - **Status:** PENDING
-  - **Template Integrity Check:** PASS (Variables resolved)
-- **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
+- **Event Type:** `RM_SUBMITTED`
+  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-IDEM-003
   - **Recipient:** stores_auth@example.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
 - **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
-  - **Recipient:** admin_auth@example.com
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** stores.19.5.1792063788468@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `RM_SUBMITTED`
+  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-IDEM-003
+  - **Recipient:** p20_1_1791445417715@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** manager.169@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `RM_SUBMITTED`
+  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-IDEM-003
+  - **Recipient:** stores.19.9.71785a8d-7b4c-46fa-868c-944393d7908b@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** general.manager@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** senior.manager@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** general_manager@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** live_audit_1791445547489_sm@rmrit.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
 - **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** stores.19.7.c009d1b5-1608-42c2-81c2-43b7b74a2030@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** senior_manager@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** p19_audit_1792063751293_sm@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** admin.19.7.a16cebbe-cd2e-4755-9bd9-4d16a23f0656@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** admin@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** live_audit_1791445547489_stores@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** p19_audit_1791445208581_sm@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** live_audit_1792063845103_stores@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** stores.19.6.18670da3-2d4e-47d2-883f-ceedaa24d88e@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** phase8.auth.verify.1791524353366@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** stores@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** stores.19.7.2796246c-758b-4a9e-adc6-b27b5e5da483@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** admin.19.6.08404263-288c-4161-adb6-06bcbdc7242a@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** live_audit_1791445547489_admin@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `RM_SUBMITTED`
+  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-IDEM-003
+  - **Recipient:** phase8.auth.verify.1791524457924@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `RM_SUBMITTED`
+  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-IDEM-003
+  - **Recipient:** p20_3_1791445343953@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `RM_SUBMITTED`
+  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-IDEM-003
+  - **Recipient:** p20_5_1792063758259@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `RM_SUBMITTED`
+  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-IDEM-003
+  - **Recipient:** stores_iso@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `RM_SUBMITTED`
+  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-IDEM-003
+  - **Recipient:** stores_p137@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `RM_SUBMITTED`
+  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-IDEM-003
+  - **Recipient:** phase8.auth.verify.1791524680521@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `RM_SUBMITTED`
+  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-IDEM-003
+  - **Recipient:** phase8.auth.verify.1791524822159@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `RM_SUBMITTED`
+  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-IDEM-003
+  - **Recipient:** phase8.auth.verify.1791524270715@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** admin.19.8.18ff5ed6-1546-49e2-8690-e3abcd568f6f@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `RM_SUBMITTED`
+  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-IDEM-003
+  - **Recipient:** p19_audit_1791445208581_stores@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** stores.167@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `RM_SUBMITTED`
+  - **Subject:** [RMRIT Notification] RM Request Submitted: RM-IDEM-003
+  - **Recipient:** p20_4_1791445331138@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** stores.169@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** p19_audit_1792063751293_stores@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** stores.19.6.091fd7cf-6ca3-45b6-9f3b-30eec8c4fd16@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** p20_2_1792063719011@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** p20_6_1791445489785@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** admin_audit@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** history3@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** stores_audit@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** history2@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** user3@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** p20_5_1791445481779@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** stores_auth@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** history1@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** user2@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
   - **Recipient:** admin_lifecycle@example.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
 - **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
-  - **Recipient:** admin.19.5.1791445472792@test.com
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** admin_auth@example.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
 - **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** phase8.auth.verify.1791524457924@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** phase8.auth.verify.1791524680521@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** p20_3_1791445343953@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** user1@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** p20_1_1792063866633@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** stores.1510.1792063820911@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** admin.19.8.3f34a8ba-cc66-4fad-b7af-e070352c6653@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** stores.19.5.1792063788468@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** stores.19.7.c009d1b5-1608-42c2-81c2-43b7b74a2030@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** admin.19.5.1791445472792@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** live_audit_1791445547489_stores@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** phase8.auth.verify.1791524822159@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** phase8.auth.verify.1791524270715@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** admin2@attach.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** stores@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** phase8.auth.verify.1791524353366@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
   - **Recipient:** stores.19.5.1791445472792@test.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
 - **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** p20_5_1792063758259@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
   - **Recipient:** p19_audit_1791445208581_admin@rmrit.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
 - **Event Type:** `DC_CREATED`
-  - **Subject:** [RMRIT] Delivery Challan Created: DC-1791445511420
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
   - **Recipient:** p20_2_1791445421918@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-001
+  - **Recipient:** live_audit_1792063845103_sm@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-001
+  - **Recipient:** manager.167@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** stores.19.6.18670da3-2d4e-47d2-883f-ceedaa24d88e@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** p20_6_1791445489785@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** stores_audit@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-001
+  - **Recipient:** manager.169@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** p20_5_1791445481779@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** admin2@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** phase8.auth.verify.1791524270715@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** p20_3_1791445343953@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** phase8.auth.verify.1791524822159@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** stores_txsafe@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** p20_1_1791445417715@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** stores_auth@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** stores.19.9.71785a8d-7b4c-46fa-868c-944393d7908b@test.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** phase8.auth.verify.1791524457924@airtronic.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-2026-103
+  - **Recipient:** stores_iso@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** admin_p137@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** stores_iso@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** stores_p137@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** admin_iso@example.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** p20_4_1791445331138@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `DC_CREATED`
+  - **Subject:** [RMRIT] Delivery Challan Created: SDC/2627/0025
+  - **Recipient:** p19_audit_1791445208581_stores@rmrit.com
+  - **Status:** PENDING
+  - **Template Integrity Check:** PASS (Variables resolved)
+- **Event Type:** `ADDITIONAL_REQUEST`
+  - **Subject:** [RMRIT Notification] Additional Material Request: RM-001
+  - **Recipient:** general.manager@airtronic.com
   - **Status:** PENDING
   - **Template Integrity Check:** PASS (Variables resolved)
 
 ### Sample In-App Notifications Validated
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
-- **Title:** Delivery Challan Created: DC-1791445511420
-  - **Message:** A new Delivery Challan DC-1791445511420 has been created for vendor N/A.
-  - **Target Entity:** DELIVERY_CHALLAN (a302fc6d-a5e3-4481-b2f3-d1ba9b6198ed)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** Additional Material Request: RM-002
+  - **Message:** Additional material request has been created for RM Request RM-002.
+  - **Target Entity:** ADDITIONAL_REQUEST (test-add-req-global-off-1792063907190)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** RM Request Submitted: RM-IDEM-003
+  - **Message:** RM Request RM-IDEM-003 was submitted.
+  - **Target Entity:** RM_REQUEST (idempotency-3-1792063871921)
+- **Title:** Additional Material Request: RM-2026-103
+  - **Message:** Additional material request has been created for RM Request RM-2026-103.
+  - **Target Entity:** ADDITIONAL_REQUEST (amr-1792063897345)
+- **Title:** Additional Material Request: RM-2026-103
+  - **Message:** Additional material request has been created for RM Request RM-2026-103.
+  - **Target Entity:** ADDITIONAL_REQUEST (amr-1792063897345)
+- **Title:** Additional Material Request: RM-2026-103
+  - **Message:** Additional material request has been created for RM Request RM-2026-103.
+  - **Target Entity:** ADDITIONAL_REQUEST (amr-1792063897345)
+- **Title:** Additional Material Request: RM-2026-103
+  - **Message:** Additional material request has been created for RM Request RM-2026-103.
+  - **Target Entity:** ADDITIONAL_REQUEST (amr-1792063897345)
+- **Title:** Additional Material Request: RM-2026-103
+  - **Message:** Additional material request has been created for RM Request RM-2026-103.
+  - **Target Entity:** ADDITIONAL_REQUEST (amr-1792063897345)
+- **Title:** Additional Material Request: RM-2026-103
+  - **Message:** Additional material request has been created for RM Request RM-2026-103.
+  - **Target Entity:** ADDITIONAL_REQUEST (amr-1792063897345)
+- **Title:** Additional Material Request: RM-2026-103
+  - **Message:** Additional material request has been created for RM Request RM-2026-103.
+  - **Target Entity:** ADDITIONAL_REQUEST (amr-1792063897345)
+- **Title:** Additional Material Request: RM-2026-103
+  - **Message:** Additional material request has been created for RM Request RM-2026-103.
+  - **Target Entity:** ADDITIONAL_REQUEST (amr-1792063897345)
+- **Title:** Additional Material Request: RM-2026-103
+  - **Message:** Additional material request has been created for RM Request RM-2026-103.
+  - **Target Entity:** ADDITIONAL_REQUEST (amr-1792063897345)
+- **Title:** Additional Material Request: RM-2026-103
+  - **Message:** Additional material request has been created for RM Request RM-2026-103.
+  - **Target Entity:** ADDITIONAL_REQUEST (amr-1792063897345)
+- **Title:** Additional Material Request: RM-2026-103
+  - **Message:** Additional material request has been created for RM Request RM-2026-103.
+  - **Target Entity:** ADDITIONAL_REQUEST (amr-1792063897345)
+- **Title:** Additional Material Request: RM-2026-103
+  - **Message:** Additional material request has been created for RM Request RM-2026-103.
+  - **Target Entity:** ADDITIONAL_REQUEST (amr-1792063897345)
+- **Title:** Additional Material Request: RM-2026-103
+  - **Message:** Additional material request has been created for RM Request RM-2026-103.
+  - **Target Entity:** ADDITIONAL_REQUEST (amr-1792063897345)
+- **Title:** Additional Material Request: RM-2026-103
+  - **Message:** Additional material request has been created for RM Request RM-2026-103.
+  - **Target Entity:** ADDITIONAL_REQUEST (amr-1792063897345)
+- **Title:** Additional Material Request: RM-2026-103
+  - **Message:** Additional material request has been created for RM Request RM-2026-103.
+  - **Target Entity:** ADDITIONAL_REQUEST (amr-1792063897345)
+- **Title:** Additional Material Request: RM-2026-103
+  - **Message:** Additional material request has been created for RM Request RM-2026-103.
+  - **Target Entity:** ADDITIONAL_REQUEST (amr-1792063897345)
+- **Title:** Additional Material Request: RM-2026-103
+  - **Message:** Additional material request has been created for RM Request RM-2026-103.
+  - **Target Entity:** ADDITIONAL_REQUEST (amr-1792063897345)
+- **Title:** Additional Material Request: RM-2026-103
+  - **Message:** Additional material request has been created for RM Request RM-2026-103.
+  - **Target Entity:** ADDITIONAL_REQUEST (amr-1792063897345)

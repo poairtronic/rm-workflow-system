@@ -20,6 +20,7 @@ import {
 import { MaterialReturnItem } from './entities/material-return-item.entity.js';
 import { SalesOrderComponent, ScStatus } from '../sc/entities/sc.entity.js';
 import { MaterialIssue } from '../material-issue/entities/material-issue.entity.js';
+import { MaterialIssueItem } from '../material-issue/entities/material-issue-item.entity.js';
 import { RmItem } from '../rm/entities/rm-item.entity.js';
 import { Bin } from '../inventory/entities/bin.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
@@ -279,6 +280,21 @@ export class ProductionService {
       }
       totalReceived = QuantityCalculator.roundDecimal(totalReceived);
 
+      const issueItems = await queryRunner.manager
+        .createQueryBuilder(MaterialIssueItem, 'mii')
+        .innerJoin('mii.materialIssue', 'mi')
+        .where('mi.sc_id = :scId', { scId: dto.scId })
+        .andWhere('mii.rm_item_id = :rmItemId', { rmItemId: dto.rmItemId })
+        .getMany();
+
+      let totalIssued = 0;
+      for (const mii of issueItems) {
+        totalIssued += Number(mii.quantityIssued) || 0;
+      }
+      totalIssued = QuantityCalculator.roundDecimal(totalIssued);
+
+      const totalAvailableFloor = Math.max(totalReceived, totalIssued);
+
       // 3. Fetch all previous consumptions for this SC/Item
       const previousConsumptions = await queryRunner.manager.find(
         MaterialConsumption,
@@ -313,7 +329,7 @@ export class ProductionService {
 
       // 5. Validate quantity against WIP
       const availableWip = QuantityCalculator.calculateWip(
-        totalReceived,
+        totalAvailableFloor,
         totalConsumed,
         totalReturned,
       );
@@ -321,7 +337,7 @@ export class ProductionService {
       QuantityCalculator.assertWithinLimit(
         dto.quantityConsumed,
         availableWip,
-        `Consumption quantity exceeds remaining available WIP for "${rmItem.material}".`,
+        `Consumption quantity exceeds remaining available WIP for "${rmItem.material}". Available Limit: ${availableWip}`,
       );
 
       // 6. Create consumption record
@@ -393,6 +409,13 @@ export class ProductionService {
         .where('mi.sc_id = :scId', { scId: dto.scId })
         .getMany();
 
+      // Fetch all issue items for this SC
+      const issueItems = await queryRunner.manager
+        .createQueryBuilder(MaterialIssueItem, 'mii')
+        .innerJoin('mii.materialIssue', 'mi')
+        .where('mi.sc_id = :scId', { scId: dto.scId })
+        .getMany();
+
       // 3. Fetch all previous consumptions for this SC
       const previousConsumptions = await queryRunner.manager
         .createQueryBuilder(MaterialConsumption, 'mc')
@@ -440,6 +463,17 @@ export class ProductionService {
             totalReceived += Number(r.quantityReceived) || 0;
           }
         }
+        totalReceived = QuantityCalculator.roundDecimal(totalReceived);
+
+        let totalIssued = 0;
+        for (const iss of issueItems) {
+          if (iss.rmItemId === itemDto.rmItemId) {
+            totalIssued += Number(iss.quantityIssued) || 0;
+          }
+        }
+        totalIssued = QuantityCalculator.roundDecimal(totalIssued);
+
+        const totalAvailableFloor = Math.max(totalReceived, totalIssued);
 
         let totalConsumed = 0;
         for (const c of previousConsumptions) {
@@ -451,7 +485,7 @@ export class ProductionService {
         let totalReturned = 0;
         for (const ret of allReturns) {
           if (ret.status !== ReturnStatus.REJECTED) {
-            for (const item of ret.items) {
+            for (const item of (ret.items || [])) {
               if (item.rmItemId === itemDto.rmItemId) {
                 totalReturned += Number(item.quantityReturned) || 0;
               }
@@ -460,7 +494,7 @@ export class ProductionService {
         }
 
         const availableWip = QuantityCalculator.calculateWip(
-          totalReceived,
+          totalAvailableFloor,
           totalConsumed,
           totalReturned,
         );
@@ -468,7 +502,7 @@ export class ProductionService {
         QuantityCalculator.assertWithinLimit(
           itemDto.quantityReturned,
           availableWip,
-          `Returned quantity exceeds available WIP material.`,
+          `Returned quantity exceeds available WIP material. Available Limit: ${availableWip}`,
         );
 
         const returnItem = queryRunner.manager.create(MaterialReturnItem, {
@@ -654,9 +688,10 @@ export class ProductionService {
       where: { id: scId },
       relations: {
         rmItems: true,
-        materialIssues: { items: true },
-        materialConsumptions: true,
-        materialReturns: { items: true },
+        purchaseOrder: true,
+        materialIssues: { items: { rmItem: true }, issuedBy: true },
+        materialConsumptions: { recordedBy: true, rmItem: true },
+        materialReturns: { items: { rmItem: true }, returnedBy: true, confirmedBy: true },
       },
     });
 
@@ -727,14 +762,15 @@ export class ProductionService {
       });
       pendingReturned = QuantityCalculator.roundDecimal(pendingReturned);
 
+      const floorAvailable = Math.max(received, issued);
       const unaccounted = QuantityCalculator.calculateUnaccounted(
-        received,
+        floorAvailable,
         consumed,
         returned,
       );
 
       const wip = QuantityCalculator.calculateWip(
-        received,
+        floorAvailable,
         consumed,
         returned + pendingReturned,
       );
@@ -755,11 +791,69 @@ export class ProductionService {
       };
     });
 
+    const consumptionsList = (sc.materialConsumptions || []).map((c) => ({
+      id: c.id,
+      rmItemId: c.rmItemId,
+      material: c.rmItem?.material || 'Material',
+      consumedQuantity: Number(c.consumedQuantity) || 0,
+      unit: c.unit || 'NOS',
+      remarks: c.remarks,
+      recordedBy: c.recordedBy ? (c.recordedBy.name || c.recordedBy.email) : 'Operator',
+      recordedAt: c.recordedAt,
+    }));
+
+    const issuesList = (sc.materialIssues || []).map((iss) => ({
+      id: iss.id,
+      issueNumber: iss.issueNumber,
+      issueType: iss.issueType,
+      remarks: iss.remarks,
+      issuedBy: iss.issuedBy ? (iss.issuedBy.name || iss.issuedBy.email) : 'Stores',
+      createdAt: iss.createdAt,
+      items: (iss.items || []).map((it) => ({
+        id: it.id,
+        rmItemId: it.rmItemId,
+        material: it.rmItem?.material || 'Material',
+        quantityIssued: Number(it.quantityIssued) || 0,
+        heatNumber: it.heatNumber,
+        batchNumber: it.batchNumber,
+      })),
+      totalQuantity: (iss.items || []).reduce(
+        (sum, it) => sum + (Number(it.quantityIssued) || 0),
+        0,
+      ),
+    }));
+
+    const returnsList = (sc.materialReturns || []).map((ret) => ({
+      id: ret.id,
+      status: ret.status,
+      remarks: ret.remarks,
+      returnedBy: ret.returnedBy ? (ret.returnedBy.name || ret.returnedBy.email) : 'Production',
+      confirmedBy: ret.confirmedBy ? (ret.confirmedBy.name || ret.confirmedBy.email) : null,
+      createdAt: ret.createdAt,
+      confirmedAt: ret.confirmedAt,
+      items: (ret.items || []).map((it) => ({
+        id: it.id,
+        rmItemId: it.rmItemId,
+        material: it.rmItem?.material || 'Material',
+        quantityReturned: Number(it.quantityReturned) || 0,
+      })),
+      totalQuantity: (ret.items || []).reduce(
+        (sum, it) => sum + (Number(it.quantityReturned) || 0),
+        0,
+      ),
+    }));
+
     return {
       scId: sc.id,
       scNumber: sc.scNumber,
       status: sc.status,
+      productName: sc.productName,
+      targetQuantity: sc.targetQuantity,
+      poNumber: sc.purchaseOrder?.poNumber || null,
       items: itemsSummary,
+      consumptions: consumptionsList,
+      issues: issuesList,
+      returns: returnsList,
     };
   }
 

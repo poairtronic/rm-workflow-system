@@ -1,7 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { io, Socket } from 'socket.io-client';
+import toast from 'react-hot-toast';
 import type { InAppNotification } from '../types/notification';
 import { NotificationService } from '../services/notification.service';
 import { useAuth } from '../contexts/AuthContext';
+import { APP_CONFIG } from '../app/config';
 
 export type NotificationHistoryFilter = 'ALL' | 'UNREAD' | 'READ';
 
@@ -24,6 +27,11 @@ export function useNotifications(options?: UseNotificationsOptions) {
   const [limit] = useState<number>(options?.limit || 10);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  const filterRef = useRef(filter);
+  useEffect(() => {
+    filterRef.current = filter;
+  }, [filter]);
 
   const fetchNotifications = useCallback(
     async (currentPage = page, currentFilter = filter, currentType = typeFilter) => {
@@ -90,7 +98,57 @@ export function useNotifications(options?: UseNotificationsOptions) {
     fetchNotifications(page, filter, typeFilter);
   }, [fetchNotifications, page, filter, typeFilter]);
 
-  // Optional background refresh (default 60 seconds)
+  // Real-time WebSocket Gateway integration via native Socket.IO
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const token = localStorage.getItem('rm_access_token');
+    if (!token) return;
+
+    const backendUrl = APP_CONFIG.apiBaseUrl || 'http://localhost:3000';
+
+    const socket: Socket = io(backendUrl, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
+    });
+
+    socket.on('notification', (newNotif: InAppNotification) => {
+      if (!newNotif || !newNotif.id) return;
+
+      // Update state live without requiring manual page reload
+      setNotifications((prev) => {
+        if (filterRef.current === 'READ') return prev;
+        if (prev.some((n) => n.id === newNotif.id)) return prev;
+        return [newNotif, ...prev];
+      });
+
+      setUnreadCount((prev) => prev + 1);
+      setTotal((prev) => prev + 1);
+
+      // Toast user immediately with alert
+      const toastMessage = newNotif.message || newNotif.title || 'New notification received';
+      toast(toastMessage, {
+        icon: '🔔',
+        id: `notif-${newNotif.id}`,
+        duration: 4500,
+      });
+    });
+
+    socket.on('notification:unread-count', (data: { count: number }) => {
+      if (data && typeof data.count === 'number') {
+        setUnreadCount(data.count);
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [isAuthenticated]);
+
+  // Optional background refresh (default 60 seconds) as safety fallback
   useEffect(() => {
     if (!isAuthenticated || !options?.pollIntervalMs) return;
 

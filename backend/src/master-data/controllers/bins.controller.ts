@@ -17,9 +17,14 @@ import { Roles } from '../../auth/decorators/roles.decorator.js';
 import { UserRole } from '../../auth/enums/role.enum.js';
 import { CreateBinDto, UpdateBinDto } from '../dto/bin.dto.js';
 import { MasterFilterDto } from '../dto/master-filter.dto.js';
+import {
+  CacheNamespace,
+  InvalidateCache,
+} from '../../common/cache/cache.decorators.js';
 
 @Controller('api/bins')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@CacheNamespace('bins')
 export class BinsController {
   constructor(private readonly masterDataService: MasterDataService) {}
 
@@ -51,18 +56,21 @@ export class BinsController {
 
   @Post()
   @Roles(UserRole.ADMIN, UserRole.STORES)
+  @InvalidateCache('bins')
   createBin(@Body() dto: CreateBinDto) {
     return this.masterDataService.createBin(dto);
   }
 
   @Patch(':id')
   @Roles(UserRole.ADMIN, UserRole.STORES)
+  @InvalidateCache('bins')
   updateBin(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateBinDto) {
     return this.masterDataService.updateBin(id, dto);
   }
 
   @Delete(':id')
   @Roles(UserRole.ADMIN, UserRole.STORES)
+  @InvalidateCache('bins')
   deleteBin(@Param('id', ParseUUIDPipe) id: string) {
     return this.masterDataService.deleteBin(id);
   }

@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -9,6 +10,7 @@ import { UnauthorizedView } from './pages/UnauthorizedView';
 import { ROUTE_CONFIG, getRoleDefaultPath } from './routeConfig';
 import { PrintableDocumentLayout } from './components/layout/PrintableDocumentLayout';
 import { useAuth } from './contexts/AuthContext';
+import { RouteLoadingSkeleton } from './components/common/RouteLoadingSkeleton';
 
 const queryClient = new QueryClient();
 
@@ -24,40 +26,42 @@ function App() {
       <BrowserRouter>
         <AuthProvider>
           <Toaster position="top-right" />
-          <Routes>
-            <Route path="/login" element={<LoginView />} />
-            <Route path="/unauthorized" element={<UnauthorizedView />} />
-            
-            <Route element={<ProtectedRoute />}>
-              <Route element={<AppLayout />}>
-                <Route path="/" element={<RoleBasedHome />} />
-                
-                {/* Legacy Redirects */}
-                <Route path="/design/project-setup" element={<Navigate to="/design/rm-creation" replace />} />
-                <Route path="/design/requisitions" element={<Navigate to="/design/rm-creation" replace />} />
-                <Route path="/stores/issue-material" element={<Navigate to="/stores/rm-issue" replace />} />
-                <Route path="/production/jobs" element={<Navigate to="/production/rm" replace />} />
-                
-                {ROUTE_CONFIG.filter(route => !route.isPrintable).map(route => (
-                  <Route 
-                    key={route.path}
-                    path={route.path} 
-                    element={<ProtectedRoute allowedRoles={route.roles} moduleKey={route.moduleKey}><route.component /></ProtectedRoute>} 
-                  />
-                ))}
-              </Route>
+          <Suspense fallback={<RouteLoadingSkeleton />}>
+            <Routes>
+              <Route path="/login" element={<LoginView />} />
+              <Route path="/unauthorized" element={<UnauthorizedView />} />
               
-              <Route element={<PrintableDocumentLayout />}>
-                {ROUTE_CONFIG.filter(route => route.isPrintable).map(route => (
-                  <Route 
-                    key={route.path}
-                    path={route.path} 
-                    element={<ProtectedRoute allowedRoles={route.roles} moduleKey={route.moduleKey}><route.component /></ProtectedRoute>} 
-                  />
-                ))}
+              <Route element={<ProtectedRoute />}>
+                <Route element={<AppLayout />}>
+                  <Route path="/" element={<RoleBasedHome />} />
+                  
+                  {/* Legacy Redirects */}
+                  <Route path="/design/project-setup" element={<Navigate to="/design/rm-creation" replace />} />
+                  <Route path="/design/requisitions" element={<Navigate to="/design/rm-creation" replace />} />
+                  <Route path="/stores/issue-material" element={<Navigate to="/stores/rm-issue" replace />} />
+                  <Route path="/production/jobs" element={<Navigate to="/production/rm" replace />} />
+                  
+                  {ROUTE_CONFIG.filter(route => !route.isPrintable).map(route => (
+                    <Route 
+                      key={route.path}
+                      path={route.path} 
+                      element={<ProtectedRoute allowedRoles={route.roles} moduleKey={route.moduleKey}><route.component /></ProtectedRoute>} 
+                    />
+                  ))}
+                </Route>
+                
+                <Route element={<PrintableDocumentLayout />}>
+                  {ROUTE_CONFIG.filter(route => route.isPrintable).map(route => (
+                    <Route 
+                      key={route.path}
+                      path={route.path} 
+                      element={<ProtectedRoute allowedRoles={route.roles} moduleKey={route.moduleKey}><route.component /></ProtectedRoute>} 
+                    />
+                  ))}
+                </Route>
               </Route>
-            </Route>
-          </Routes>
+            </Routes>
+          </Suspense>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

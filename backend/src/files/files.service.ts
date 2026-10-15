@@ -1,7 +1,8 @@
-import { Injectable, Inject, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, InternalServerErrorException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UploadedFile } from './entities/uploaded-file.entity.js';
+import { User } from '../users/entities/user.entity.js';
 import { StorageProvider } from './storage/storage-provider.interface.js';
 import { v4 as uuidv4 } from 'uuid';
 import 'multer';
@@ -13,6 +14,9 @@ export class FilesService {
     private readonly uploadedFileRepository: Repository<UploadedFile>,
     @Inject('STORAGE_PROVIDER')
     private readonly storageProvider: any, // use any here to bypass emitDecoratorMetadata interface error
+    @Optional()
+    @InjectRepository(User)
+    private readonly userRepository?: Repository<User>,
   ) {}
 
   async uploadFile(
@@ -80,6 +84,69 @@ export class FilesService {
   async getFileDownloadUrl(fileId: string): Promise<string> {
     const file = await this.getFileMetadata(fileId);
     return await this.storageProvider.getDownloadUrl(file.storageKey);
+  }
+
+  async getDownloadUrlByKey(storageKey: string): Promise<string> {
+    return await this.storageProvider.getDownloadUrl(storageKey);
+  }
+
+  async uploadRawBuffer(
+    buffer: Buffer,
+    storageKey: string,
+    mimeType: string,
+    userId: string,
+    originalName: string,
+  ): Promise<UploadedFile> {
+    const fileId = uuidv4();
+    await this.storageProvider.upload(buffer, storageKey, mimeType);
+
+    let effectiveUserId = userId;
+    if (this.userRepository) {
+      try {
+        const existing = await this.userRepository.findOne({
+          where: { id: userId },
+        });
+        if (!existing) {
+          const fallback = await this.userRepository.findOne({
+            where: { isActive: true },
+            order: { createdAt: 'ASC' },
+          });
+          if (fallback) {
+            effectiveUserId = fallback.id;
+          }
+        }
+      } catch {
+        // Fallback gracefully
+      }
+    }
+
+    // Check if file record with same storageKey already exists to prevent unique constraint violation
+    const existingFile = await this.uploadedFileRepository.findOne({
+      where: { storageKey },
+    });
+
+    if (existingFile) {
+      existingFile.size = buffer.length;
+      existingFile.mimeType = mimeType;
+      existingFile.originalName = originalName;
+      existingFile.isActive = true;
+      existingFile.createdById = effectiveUserId;
+      return await this.uploadedFileRepository.save(existingFile);
+    }
+
+    const uploadedFile = this.uploadedFileRepository.create({
+      id: fileId,
+      originalName,
+      storageKey,
+      mimeType,
+      size: buffer.length,
+      provider:
+        this.storageProvider.constructor?.name === 'SupabaseStorageProvider'
+          ? 'SUPABASE'
+          : 'LOCAL',
+      createdById: effectiveUserId,
+    });
+    return await this.uploadedFileRepository.save(uploadedFile);
   }
 
   async removeFile(userId: string, fileId: string): Promise<void> {

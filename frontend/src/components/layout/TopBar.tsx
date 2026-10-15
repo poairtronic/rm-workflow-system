@@ -39,38 +39,81 @@ export function TopBar({ onOpenScanner }: TopBarProps = {}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Data fetching for global search
+  // Data fetching for global search - only load when search modal is opened or user searches
+  const isSearchActive = isOpen || searchQuery.trim().length > 0;
+
   const { data: challans = [] } = useQuery({
     queryKey: ['global-search-challans'],
-    queryFn: () => deliveryChallanApi.getAll(),
+    queryFn: async () => {
+      try {
+        const res = await deliveryChallanApi.getAll();
+        return Array.isArray(res) ? res : (res as any)?.data || [];
+      } catch {
+        return [];
+      }
+    },
+    enabled: isSearchActive,
     staleTime: 60000,
+    retry: false,
   });
 
   const { data: rawMovements = [] } = useQuery({
     queryKey: ['global-search-movements'],
     queryFn: async () => {
-      const res = await deliveryChallanApi.getAllMovements();
-      return Array.isArray(res) ? res : (res as any)?.data || [];
+      try {
+        const res = await deliveryChallanApi.getAllMovements();
+        return Array.isArray(res) ? res : (res as any)?.data || [];
+      } catch {
+        return [];
+      }
     },
+    enabled: isSearchActive,
     staleTime: 60000,
+    retry: false,
   });
 
   const { data: processes = [] } = useQuery({
     queryKey: ['global-search-processes'],
-    queryFn: () => productionProcessApi.getAll(),
+    queryFn: async () => {
+      try {
+        const res = await productionProcessApi.getAll();
+        return Array.isArray(res) ? res : (res as any)?.data || [];
+      } catch {
+        return [];
+      }
+    },
+    enabled: isSearchActive,
     staleTime: 60000,
+    retry: false,
   });
 
   const { data: vendors = [] } = useQuery({
     queryKey: ['global-search-vendors'],
-    queryFn: () => productionProcessApi.getVendors(),
+    queryFn: async () => {
+      try {
+        const res = await productionProcessApi.getVendors();
+        return Array.isArray(res) ? res : (res as any)?.data || [];
+      } catch {
+        return [];
+      }
+    },
+    enabled: isSearchActive,
     staleTime: 60000,
+    retry: false,
   });
 
   const { data: products = [] } = useQuery({
     queryKey: ['global-search-products'],
-    queryFn: async () => unwrapList(await api.get<any[]>('/api/products')),
+    queryFn: async () => {
+      try {
+        return unwrapList(await api.get<any[]>('/api/products'));
+      } catch {
+        return [];
+      }
+    },
+    enabled: isSearchActive,
     staleTime: 60000,
+    retry: false,
   });
 
   // Hotkey listener: Ctrl+K or Cmd+K

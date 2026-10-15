@@ -33,7 +33,7 @@ export class UserModulePermission {
   @JoinColumn({ name: 'module_key' })
   module!: SystemModule;
 
-  @Column({ name: 'access_type', length: 10 })
+  @Column({ type: 'varchar', name: 'access_type', length: 10 })
   accessType!: AccessOverrideType;
 
   @CreateDateColumn({ name: 'created_at' })

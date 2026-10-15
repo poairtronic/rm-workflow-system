@@ -50,11 +50,63 @@ export interface AccountingItem {
   unaccounted: number;
 }
 
+export interface ConsumptionLogEntry {
+  id: string;
+  rmItemId: string;
+  material: string;
+  consumedQuantity: number;
+  unit: string;
+  remarks?: string;
+  recordedBy: string;
+  recordedAt: string;
+}
+
+export interface IssueLogEntry {
+  id: string;
+  issueNumber: string;
+  issueType: string;
+  remarks?: string;
+  issuedBy: string;
+  createdAt: string;
+  items: {
+    id: string;
+    rmItemId: string;
+    material: string;
+    quantityIssued: number;
+    heatNumber?: string;
+    batchNumber?: string;
+  }[];
+  totalQuantity: number;
+}
+
+export interface ReturnLogEntry {
+  id: string;
+  status: string;
+  remarks?: string;
+  returnedBy: string;
+  confirmedBy?: string | null;
+  createdAt: string;
+  confirmedAt?: string | null;
+  items: {
+    id: string;
+    rmItemId: string;
+    material: string;
+    quantityReturned: number;
+  }[];
+  totalQuantity: number;
+}
+
 export interface MaterialAccounting {
   scId: string;
   scNumber: string;
   status: string;
+  productName?: string;
+  targetQuantity?: number;
+  poNumber?: string | null;
   items: AccountingItem[];
+  consumptions?: ConsumptionLogEntry[];
+  issues?: IssueLogEntry[];
+  returns?: ReturnLogEntry[];
 }
 
 export const workflowService = {
@@ -116,7 +168,7 @@ export const workflowService = {
   getReturns: (status?: string) => api.get<any[]>(`/api/production/returns${status ? `?status=${status}` : ''}`),
 
   // Additional Request
-  createAdditionalRequest: (scId: string, items: { rmItemId?: string; quantity: number, remarks?: string }[], reason?: string, remarks?: string) =>
+  createAdditionalRequest: (scId: string, items: { rmItemId?: string; productId?: string; quantity: number, remarks?: string }[], reason?: string, remarks?: string) =>
     api.post<any>('/api/additional-requests', { scId, items, reason, remarks }),
   getAdditionalRequests: (scId?: string) =>
     api.get<any[]>(`/api/additional-requests${scId ? `?scId=${scId}` : ''}`),

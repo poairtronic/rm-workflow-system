@@ -10,14 +10,17 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service.js';
 import { UserRole } from './enums/role.enum.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { LoginDto } from './dto/login.dto.js';
+import { RefreshTokenDto, LogoutDto } from './dto/refresh-token.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
-
 import { PermissionsService } from '../permissions/permissions.service.js';
 
+@ApiTags('auth')
 @Controller('api/auth')
 export class AuthController {
   constructor(
@@ -25,10 +28,15 @@ export class AuthController {
     private readonly permissionsService: PermissionsService,
   ) {}
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: 'Authenticate user with email and password' })
+  @ApiResponse({ status: 200, description: 'Login successful. Returns access token, refresh token, and user profile.' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials or inactive account.' })
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() loginDto: LoginDto) {
-    const result = await this.authService.login(loginDto);
+  async login(@Body() loginDto: LoginDto, @Req() req: any) {
+    const userAgent = req?.headers ? req.headers['user-agent'] : undefined;
+    const result = await this.authService.login(loginDto, userAgent);
     let effectiveModules: string[] = [];
     try {
       const perms = await this.permissionsService.getUserPermissions(result.user.userId);
@@ -43,6 +51,45 @@ export class AuthController {
         id: result.user.userId,
         effectiveModules,
       },
+    };
+  }
+
+  @ApiOperation({ summary: 'Rotate and refresh JWT access token using a valid refresh token' })
+  @ApiResponse({ status: 200, description: 'Token refreshed successfully. Returns new access token and rotated refresh token.' })
+  @ApiResponse({ status: 401, description: 'Invalid, expired, or revoked refresh token.' })
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  async refresh(@Body() dto: RefreshTokenDto, @Req() req: any) {
+    const userAgent = req?.headers ? req.headers['user-agent'] : undefined;
+    const result = await this.authService.rotateRefreshToken(dto.refreshToken, userAgent);
+    let effectiveModules: string[] = [];
+    try {
+      const perms = await this.permissionsService.getUserPermissions(result.user.userId);
+      effectiveModules = perms.effectiveModules;
+    } catch {
+      // Fallback
+    }
+    return {
+      ...result,
+      user: {
+        ...result.user,
+        id: result.user.userId,
+        effectiveModules,
+      },
+    };
+  }
+
+  @ApiOperation({ summary: 'Revoke refresh token and end user session' })
+  @ApiResponse({ status: 200, description: 'Logged out successfully.' })
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(@Body() dto: LogoutDto) {
+    if (dto?.refreshToken) {
+      await this.authService.revokeRefreshToken(dto.refreshToken);
+    }
+    return {
+      success: true,
+      message: 'Logged out successfully',
     };
   }
 

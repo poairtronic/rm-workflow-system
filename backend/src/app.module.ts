@@ -2,9 +2,12 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { ALL_ENTITIES } from './config/data-source.js';
+import { RefreshToken } from './auth/entities/refresh-token.entity.js';
 import { AuthModule } from './auth/auth.module.js';
 import { UsersModule } from './users/users.module.js';
 import { RolesModule } from './roles/roles.module.js';
@@ -33,6 +36,7 @@ import { DeliveryChallanModule } from './delivery-challan/delivery-challan.modul
 import { TraceabilityModule } from './traceability/traceability.module.js';
 import { DashboardsModule } from './dashboards/dashboards.module.js';
 import { ReportsModule } from './reports/reports.module.js';
+import { MasterDataCacheModule } from './common/cache/master-data-cache.module.js';
 
 @Module({
   imports: [
@@ -55,7 +59,7 @@ import { ReportsModule } from './reports/reports.module.js';
         return {
           type: 'postgres',
           url: dbUrl,
-          entities: ALL_ENTITIES,
+          entities: [RefreshToken, ...ALL_ENTITIES.filter((e) => e !== RefreshToken)],
           autoLoadEntities: true,
           synchronize: !(configService.get("NODE_ENV") === "production") && (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")),
           ssl: isSsl ? { rejectUnauthorized: false } : false,
@@ -65,6 +69,13 @@ import { ReportsModule } from './reports/reports.module.js';
       },
     }),
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60000,
+        limit: 120,
+      },
+    ]),
     AuthModule,
     UsersModule,
     RolesModule,
@@ -93,9 +104,16 @@ import { ReportsModule } from './reports/reports.module.js';
     TraceabilityModule,
     DashboardsModule,
     ReportsModule,
+    MasterDataCacheModule,
   ],
 
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

@@ -8,4 +8,5 @@ export * from './notifications.controller.js';
 export * from './workflow-notification.service.js';
 export * from './communication.service.js';
 export * from './notification-recipient.service.js';
+export * from './notifications.gateway.js';
 export * from './notifications.module.js';

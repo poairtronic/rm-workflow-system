@@ -14,6 +14,7 @@ import { User } from '../users/entities/user.entity.js';
 import { Role } from '../roles/entities/role.entity.js';
 
 import { NotificationRecipientService } from './notification-recipient.service.js';
+import { NotificationsGateway } from './notifications.gateway.js';
 
 @Module({
   imports: [
@@ -30,12 +31,14 @@ import { NotificationRecipientService } from './notification-recipient.service.j
   ],
   controllers: [NotificationsController],
   providers: [
+    NotificationsGateway,
     NotificationsService,
     WorkflowNotificationService,
     CommunicationService,
     NotificationRecipientService,
   ],
   exports: [
+    NotificationsGateway,
     NotificationsService,
     WorkflowNotificationService,
     CommunicationService,

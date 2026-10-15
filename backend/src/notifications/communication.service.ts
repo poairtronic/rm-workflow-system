@@ -44,6 +44,7 @@ export interface CommunicationEventInput {
 }
 
 import { NotificationRecipientService } from './notification-recipient.service.js';
+import { NotificationsGateway } from './notifications.gateway.js';
 
 @Injectable()
 export class CommunicationService {
@@ -64,6 +65,7 @@ export class CommunicationService {
     @Optional() templateService?: TemplateService,
     @Optional() emailIdempotencyService?: EmailIdempotencyService,
     @Optional() recipientService?: NotificationRecipientService,
+    @Optional() private readonly notificationsGateway?: NotificationsGateway,
   ) {
     this.templateService = templateService || new TemplateService();
     this.emailIdempotencyService = emailIdempotencyService || new EmailIdempotencyService();
@@ -136,7 +138,17 @@ export class CommunicationService {
         isRead: false,
       });
 
-      return await this.notificationRepository.save(notification);
+      const saved = await this.notificationRepository.save(notification);
+
+      if (this.notificationsGateway) {
+        try {
+          this.notificationsGateway.sendNotificationToUser(saved.userId, saved);
+        } catch (emitErr: any) {
+          this.logger.warn(`Failed to emit real-time notification to user ${saved.userId}: ${emitErr?.message}`);
+        }
+      }
+
+      return saved;
     } catch (error: any) {
       const errCode = error?.code || error?.driverError?.code;
       const errMsg = String(error?.message || '');
@@ -572,6 +584,16 @@ export class CommunicationService {
           .orIgnore()
           .execute();
         inAppNotifications.push(...notificationValues);
+
+        if (this.notificationsGateway) {
+          for (const notif of notificationValues) {
+            try {
+              this.notificationsGateway.sendNotificationToUser(notif.userId, notif);
+            } catch (emitErr: any) {
+              this.logger.warn(`Failed to emit real-time notification to user ${notif.userId}: ${emitErr?.message}`);
+            }
+          }
+        }
       } catch (err: any) {
         this.logger.error(`Failed bulk insert of in-app notifications: ${err?.message}`);
       }

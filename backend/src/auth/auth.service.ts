@@ -8,7 +8,9 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import bcrypt from 'bcryptjs';
+import crypto from 'node:crypto';
 import { User } from '../users/entities/user.entity.js';
+import { RefreshToken } from './entities/refresh-token.entity.js';
 import { UserRole } from './enums/role.enum.js';
 import { LoginDto } from './dto/login.dto.js';
 
@@ -27,6 +29,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(RefreshToken)
+    private readonly refreshTokenRepository: Repository<RefreshToken>,
   ) {}
 
   async validateUserCredentials(email: string, pass: string): Promise<User> {
@@ -53,7 +57,7 @@ export class AuthService {
     return user;
   }
 
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto, deviceInfo?: string): Promise<{ accessToken: string; refreshToken: string; user: TokenUser }> {
     const user = await this.validateUserCredentials(
       loginDto.email,
       loginDto.password,
@@ -70,7 +74,120 @@ export class AuthService {
       department: user.department,
     };
 
-    return this.signToken(tokenUser);
+    return this.generateTokens(tokenUser, deviceInfo);
+  }
+
+  async generateTokens(
+    user: TokenUser,
+    deviceInfo?: string,
+  ): Promise<{ accessToken: string; refreshToken: string; user: TokenUser }> {
+    const { accessToken } = this.signToken(user);
+    const rawRefreshToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
+
+    const tokenRecord = this.refreshTokenRepository.create({
+      userId: user.userId,
+      tokenHash,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      isRevoked: false,
+      deviceInfo: deviceInfo || null,
+    });
+    await this.refreshTokenRepository.save(tokenRecord);
+
+    return {
+      accessToken,
+      refreshToken: rawRefreshToken,
+      user,
+    };
+  }
+
+  async rotateRefreshToken(
+    rawRefreshToken: string,
+    deviceInfo?: string,
+  ): Promise<{ accessToken: string; refreshToken: string; user: TokenUser }> {
+    if (!rawRefreshToken || typeof rawRefreshToken !== 'string') {
+      throw new UnauthorizedException('Refresh token is required');
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(rawRefreshToken.trim()).digest('hex');
+    const tokenRecord = await this.refreshTokenRepository.findOne({
+      where: { tokenHash },
+      relations: { user: { role: true } },
+    });
+
+    if (!tokenRecord) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    // Reuse Detection: If someone attempts to use an already revoked token,
+    // revoke all active tokens for this user as a safeguard
+    if (tokenRecord.isRevoked) {
+      await this.refreshTokenRepository.update(
+        { userId: tokenRecord.userId },
+        { isRevoked: true },
+      );
+      throw new UnauthorizedException('Revoked refresh token reused. All sessions terminated.');
+    }
+
+    if (new Date() > tokenRecord.expiresAt) {
+      tokenRecord.isRevoked = true;
+      await this.refreshTokenRepository.save(tokenRecord);
+      throw new UnauthorizedException('Refresh token expired');
+    }
+
+    if (!tokenRecord.user || !tokenRecord.user.isActive) {
+      throw new UnauthorizedException('User account is inactive or deleted');
+    }
+
+    // Revoke old token and rotate
+    const newRawRefreshToken = crypto.randomBytes(32).toString('hex');
+    const newTokenHash = crypto.createHash('sha256').update(newRawRefreshToken).digest('hex');
+
+    tokenRecord.isRevoked = true;
+    tokenRecord.replacedByToken = newTokenHash;
+    await this.refreshTokenRepository.save(tokenRecord);
+
+    const roleName = (tokenRecord.user.role?.name || UserRole.DESIGNER) as UserRole;
+    const tokenUser: TokenUser = {
+      userId: tokenRecord.user.id,
+      name: tokenRecord.user.name,
+      email: tokenRecord.user.email,
+      role: roleName,
+      roles: [roleName],
+      department: tokenRecord.user.department,
+    };
+
+    const newRecord = this.refreshTokenRepository.create({
+      userId: tokenUser.userId,
+      tokenHash: newTokenHash,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      isRevoked: false,
+      deviceInfo: deviceInfo || tokenRecord.deviceInfo,
+    });
+    await this.refreshTokenRepository.save(newRecord);
+
+    const { accessToken } = this.signToken(tokenUser);
+    return {
+      accessToken,
+      refreshToken: newRawRefreshToken,
+      user: tokenUser,
+    };
+  }
+
+  async revokeRefreshToken(rawRefreshToken: string): Promise<boolean> {
+    if (!rawRefreshToken || typeof rawRefreshToken !== 'string') {
+      return false;
+    }
+    const tokenHash = crypto.createHash('sha256').update(rawRefreshToken.trim()).digest('hex');
+    const tokenRecord = await this.refreshTokenRepository.findOne({
+      where: { tokenHash },
+    });
+    if (tokenRecord) {
+      tokenRecord.isRevoked = true;
+      await this.refreshTokenRepository.save(tokenRecord);
+      return true;
+    }
+    return false;
   }
 
   signToken(user: TokenUser): { accessToken: string; user: TokenUser } {

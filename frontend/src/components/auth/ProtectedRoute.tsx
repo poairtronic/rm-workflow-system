@@ -4,6 +4,8 @@ import type { UserRole } from '../../contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 
+import { isPathAllowedForUser } from '../../routeConfig';
+
 interface ProtectedRouteProps {
   allowedRoles?: UserRole[];
   moduleKey?: string;
@@ -34,12 +36,14 @@ export function ProtectedRoute({ allowedRoles, moduleKey, children }: ProtectedR
     return children ? <>{children}</> : <Outlet />;
   }
 
-  if (moduleKey && currentUser.effectiveModules) {
-    if (!currentUser.effectiveModules.includes(moduleKey)) {
+  // Check canonical route permission logic
+  if (!isPathAllowedForUser(location.pathname, currentUser)) {
+    // If not matching canonical path directly (e.g. dynamic param routes or wrappers), test fallback props
+    const roleMatches = allowedRoles && allowedRoles.includes(currentUser.role as UserRole);
+    const moduleMatches = moduleKey && currentUser.effectiveModules && currentUser.effectiveModules.includes(moduleKey);
+    if (!roleMatches && !moduleMatches) {
       return <Navigate to="/unauthorized" replace />;
     }
-  } else if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(currentUser.role)) {
-    return <Navigate to="/unauthorized" replace />;
   }
 
   return children ? <>{children}</> : <Outlet />;

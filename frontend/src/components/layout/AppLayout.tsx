@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
+import { RouteLoadingSkeleton } from '../common/RouteLoadingSkeleton';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -43,7 +44,9 @@ export function AppLayout() {
       <TopBar onOpenScanner={() => { setScannedBarcode(''); setIsScannerOpen(true); }} />
       <main className="ml-[260px] mt-16 p-8 bg-[#F8FAFC] dark:bg-[#090a10] min-h-[calc(100vh-64px)] max-w-[calc(100vw-260px)] transition-colors duration-150">
         <ErrorBoundary>
-          <Outlet />
+          <Suspense fallback={<RouteLoadingSkeleton />}>
+            <Outlet />
+          </Suspense>
         </ErrorBoundary>
       </main>
 

@@ -46,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch (e: any) {
           console.log('INIT AUTH: getMe error:', e?.message || e);
           localStorage.removeItem('rm_access_token');
+          localStorage.removeItem('rm_refresh_token');
           setCurrentUser(null);
           setToken(null);
           // Network / backend down - show toast but don't crash
@@ -69,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       toast.error('Session expired. Please sign in.', { id: 'session-expired' });
       localStorage.removeItem('rm_access_token');
+      localStorage.removeItem('rm_refresh_token');
       setCurrentUser(null);
       setToken(null);
       navigate('/login', { replace: true });
@@ -83,6 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await authApi.login(credentials);
       
       localStorage.setItem('rm_access_token', response.token);
+      if (response.refreshToken) {
+        localStorage.setItem('rm_refresh_token', response.refreshToken);
+      }
       setCurrentUser(response.user);
       setToken(response.token);
       return response.user;
@@ -105,11 +110,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('rm_access_token');
-    setCurrentUser(null);
-    setToken(null);
-    navigate('/login');
+  const logout = async () => {
+    const refreshToken = localStorage.getItem('rm_refresh_token');
+    try {
+      if (refreshToken) {
+        await authApi.logout(refreshToken);
+      }
+    } catch {
+      // Ignore network errors on logout
+    } finally {
+      localStorage.removeItem('rm_access_token');
+      localStorage.removeItem('rm_refresh_token');
+      setCurrentUser(null);
+      setToken(null);
+      navigate('/login');
+    }
   };
 
   if (isLoading) {

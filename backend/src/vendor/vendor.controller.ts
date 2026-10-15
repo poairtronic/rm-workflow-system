@@ -39,9 +39,14 @@ import { Vendor } from './entities/vendor.entity.js';
 import { VendorProcessCapability } from './entities/vendor-process-capability.entity.js';
 import { VendorSla } from './entities/vendor-sla.entity.js';
 import { VendorSlaOverride } from './entities/vendor-sla-override.entity.js';
+import {
+  CacheNamespace,
+  InvalidateCache,
+} from '../common/cache/cache.decorators.js';
 
 @Controller('api/vendors')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@CacheNamespace('vendors')
 export class VendorController {
   constructor(
     private readonly vendorService: VendorService,
@@ -55,6 +60,7 @@ export class VendorController {
    */
   @Post()
   @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
+  @InvalidateCache('vendors')
   create(@Body() createDto: CreateVendorDto): Promise<Vendor> {
     return this.vendorService.create(createDto);
   }
@@ -88,6 +94,7 @@ export class VendorController {
    */
   @Patch('slas/:slaId')
   @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
+  @InvalidateCache('vendors')
   updateSla(
     @Param('slaId', ParseUUIDPipe) slaId: string,
     @Body() dto: UpdateVendorSlaDto,
@@ -101,6 +108,7 @@ export class VendorController {
    */
   @Delete('slas/:slaId')
   @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
+  @InvalidateCache('vendors')
   removeSla(
     @Param('slaId', ParseUUIDPipe) slaId: string,
   ): Promise<{ success: boolean; message: string }> {
@@ -133,6 +141,7 @@ export class VendorController {
    */
   @Post('slas/:slaId/override')
   @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER, UserRole.SENIOR_MANAGER)
+  @InvalidateCache('vendors')
   recordOverride(
     @Param('slaId', ParseUUIDPipe) slaId: string,
     @Body() dto: RecordSlaOverrideDto,
@@ -178,6 +187,7 @@ export class VendorController {
    */
   @Patch(':id')
   @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
+  @InvalidateCache('vendors')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateDto: UpdateVendorDto,
@@ -191,6 +201,7 @@ export class VendorController {
    */
   @Patch(':id/toggle-active')
   @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
+  @InvalidateCache('vendors')
   toggleActive(@Param('id', ParseUUIDPipe) id: string): Promise<Vendor> {
     return this.vendorService.toggleActive(id);
   }
@@ -201,6 +212,7 @@ export class VendorController {
    */
   @Delete(':id')
   @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
+  @InvalidateCache('vendors')
   remove(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<{ success: boolean; message: string }> {
@@ -217,6 +229,7 @@ export class VendorController {
    */
   @Post(':id/capabilities')
   @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
+  @InvalidateCache('vendors')
   assignCapability(
     @Param('id', ParseUUIDPipe) vendorId: string,
     @Body() dto: AssignVendorCapabilityDto,
@@ -253,6 +266,7 @@ export class VendorController {
    */
   @Patch(':id/capabilities/:processId')
   @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
+  @InvalidateCache('vendors')
   updateCapability(
     @Param('id', ParseUUIDPipe) vendorId: string,
     @Param('processId', ParseUUIDPipe) processId: string,
@@ -267,6 +281,7 @@ export class VendorController {
    */
   @Delete(':id/capabilities/:processId')
   @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
+  @InvalidateCache('vendors')
   removeCapability(
     @Param('id', ParseUUIDPipe) vendorId: string,
     @Param('processId', ParseUUIDPipe) processId: string,
@@ -284,6 +299,7 @@ export class VendorController {
    */
   @Post(':id/slas')
   @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
+  @InvalidateCache('vendors')
   createSla(
     @Param('id', ParseUUIDPipe) vendorId: string,
     @Body() dto: CreateVendorSlaDto,
@@ -328,4 +344,3 @@ export class VendorController {
     return this.slaService.calculateExpectedReturnDate(vendorId, processId, parsedDate);
   }
 }
-

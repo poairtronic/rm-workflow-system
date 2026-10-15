@@ -8,13 +8,14 @@ import { AuthService } from './auth.service.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
 import { User } from '../users/entities/user.entity.js';
 import { Role } from '../roles/entities/role.entity.js';
+import { RefreshToken } from './entities/refresh-token.entity.js';
 import { PermissionsModule } from '../permissions/permissions.module.js';
 
 @Module({
   imports: [
     PermissionsModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
-    TypeOrmModule.forFeature([User, Role]),
+    TypeOrmModule.forFeature([User, Role, RefreshToken]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

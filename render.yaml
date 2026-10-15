@@ -1,0 +1,55 @@
+services:
+  - type: web
+    name: rmrit-backend
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: npm ci && npm --prefix backend run build
+    startCommand: npm --prefix backend run start:prod
+    healthCheckPath: /api/health
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: STORAGE_PROVIDER
+        value: SUPABASE
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: rmrit-documents
+      - key: FRONTEND_URL
+        value: https://rmrit-frontend.onrender.com
+      - key: GMAIL_SENDER_EMAIL
+        value: posuppportairtronic@gmail.com
+
+  - type: static
+    name: rmrit-frontend
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: npm ci && npm --prefix frontend run build
+    staticPublishPath: frontend/dist
+    autoDeploy: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: SAMEORIGIN
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+    envVars:
+      - key: VITE_BACKEND_URL
+        value: https://rmrit-backend.onrender.com

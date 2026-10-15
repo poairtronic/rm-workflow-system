@@ -14,8 +14,12 @@ import { AdditionalReason } from '../entities/additional-request.entity.js';
 
 export class AdditionalRequestItemDto {
   @IsUUID('4')
-  @IsNotEmpty()
-  rmItemId!: string;
+  @IsOptional()
+  rmItemId?: string;
+
+  @IsUUID('4')
+  @IsOptional()
+  productId?: string;
 
   @IsNumber()
   @Min(0.001)
@@ -45,12 +49,21 @@ export class CreateAdditionalRequestDto {
     if (!value) return AdditionalReason.ADDITIONAL_REQUIREMENT;
     const mapping: Record<string, AdditionalReason> = {
       'DESIGN_CHANGE': AdditionalReason.ADDITIONAL_REQUIREMENT,
+      'GENERAL_HARDWARE': AdditionalReason.ADDITIONAL_REQUIREMENT,
+      'ADDITIONAL_REQUIREMENT': AdditionalReason.ADDITIONAL_REQUIREMENT,
       'TOOL_BREAKAGE': AdditionalReason.TOOL_WEAR_SCRAP,
+      'TOOL_WEAR_SCRAP': AdditionalReason.TOOL_WEAR_SCRAP,
       'MATERIAL_DEFECT': AdditionalReason.DAMAGE,
+      'DEFECTIVE_MATERIAL': AdditionalReason.DAMAGE,
+      'DAMAGE': AdditionalReason.DAMAGE,
       'SAMPLE_PREPARATION': AdditionalReason.WASTAGE,
+      'WASTAGE': AdditionalReason.WASTAGE,
       'REWORK_SCRAP': AdditionalReason.MANUFACTURING_ERROR,
+      'SCRAP_REPLACEMENT': AdditionalReason.MANUFACTURING_ERROR,
+      'MANUFACTURING_ERROR': AdditionalReason.MANUFACTURING_ERROR,
+      'OTHER': AdditionalReason.OTHER,
     };
-    return mapping[value] || value;
+    return mapping[value] || (Object.values(AdditionalReason).includes(value) ? value : AdditionalReason.OTHER);
   })
   @IsEnum(AdditionalReason)
   @IsOptional()

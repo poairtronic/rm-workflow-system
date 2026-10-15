@@ -17,9 +17,15 @@ import { Roles } from '../../auth/decorators/roles.decorator.js';
 import { UserRole } from '../../auth/enums/role.enum.js';
 import { CreateProductDto, UpdateProductDto } from '../dto/product.dto.js';
 import { MasterFilterDto } from '../dto/master-filter.dto.js';
+import {
+  CacheNamespace,
+  InvalidateCache,
+  NoCache,
+} from '../../common/cache/cache.decorators.js';
 
 @Controller(['api/products', 'products'])
 @UseGuards(JwtAuthGuard, RolesGuard)
+@CacheNamespace('products')
 export class ProductsController {
   constructor(private readonly masterDataService: MasterDataService) {}
 
@@ -51,11 +57,13 @@ export class ProductsController {
 
   @Post('backfill-barcodes')
   @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
+  @InvalidateCache('products')
   backfillBarcodes() {
     return this.masterDataService.backfillBarcodes();
   }
 
   @Get('next-code')
+  @NoCache()
   @Roles(
     UserRole.ADMIN,
     UserRole.DESIGNER,
@@ -84,12 +92,14 @@ export class ProductsController {
 
   @Post()
   @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
+  @InvalidateCache('products')
   createProduct(@Body() dto: CreateProductDto) {
     return this.masterDataService.createProduct(dto);
   }
 
   @Patch(':id')
   @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
+  @InvalidateCache('products')
   updateProduct(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateProductDto,
@@ -99,6 +109,7 @@ export class ProductsController {
 
   @Delete(':id')
   @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
+  @InvalidateCache('products')
   deleteProduct(@Param('id', ParseUUIDPipe) id: string) {
     return this.masterDataService.deleteProduct(id);
   }

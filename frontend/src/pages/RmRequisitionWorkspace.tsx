@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { FileText, Edit, Clock, Plus, AlertCircle, Eye, Search, X, CheckCircle2, RotateCcw, AlertTriangle } from 'lucide-react';
+import { FileText, Edit, Clock, Plus, AlertCircle, Search, X, CheckCircle2, RotateCcw, AlertTriangle, Lock } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { workflowService } from '../services/workflowService';
+import { useAuth } from '../contexts/AuthContext';
 
 interface DraftItem {
   poId: string;
@@ -28,6 +29,9 @@ interface DraftItem {
 }
 
 export function RmRequisitionWorkspace() {
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'ADMIN';
+
   const [drafts, setDrafts] = useState<DraftItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -286,13 +290,23 @@ export function RmRequisitionWorkspace() {
                         <Edit className="w-3.5 h-3.5 text-slate-500" />
                         <span>Resume Draft</span>
                       </button>
+                    ) : isAdmin ? (
+                      <button
+                        onClick={() => handleEdit(group.poId)}
+                        className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-50 border border-amber-300 text-amber-800 rounded-lg hover:bg-amber-100 text-xs font-bold shadow-xs transition-colors"
+                        title="Admin Override: You can edit this submitted requisition"
+                      >
+                        <Edit className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Edit (Admin)</span>
+                      </button>
                     ) : (
                       <button
                         onClick={() => handleEdit(group.poId)}
-                        className="flex items-center space-x-1.5 px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 text-xs font-semibold shadow-xs transition-colors"
+                        className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 text-xs font-semibold shadow-xs transition-colors"
+                        title="Requisition submitted and locked. Only Admins can modify."
                       >
-                        <Eye className="w-3.5 h-3.5 text-slate-500" />
-                        <span>View Details</span>
+                        <Lock className="w-3.5 h-3.5 text-slate-400" />
+                        <span>View (Locked)</span>
                       </button>
                     )}
                   </div>

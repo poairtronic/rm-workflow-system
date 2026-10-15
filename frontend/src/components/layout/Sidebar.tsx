@@ -1,18 +1,14 @@
 import { LogOut } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { ROUTE_CONFIG } from '../../routeConfig';
+import { ROUTE_CONFIG, isPathAllowedForUser } from '../../routeConfig';
 
 export function Sidebar() {
   const { currentUser, logout } = useAuth();
 
   const navItems = ROUTE_CONFIG.filter(item => {
     if (!item.isSidebar || !currentUser) return false;
-    if (currentUser.role === 'ADMIN') return true;
-    if (currentUser.effectiveModules && item.moduleKey) {
-      return currentUser.effectiveModules.includes(item.moduleKey);
-    }
-    return item.roles.includes(currentUser.role);
+    return isPathAllowedForUser(item.path, currentUser);
   });
 
   // Group items by `group` property

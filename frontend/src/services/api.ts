@@ -4,8 +4,20 @@ import { toast } from 'react-hot-toast';
 class ApiClient {
   private baseUrl: string;
 
+  private isRefreshing = false;
+  private refreshSubscribers: Array<(token: string | null) => void> = [];
+
   constructor() {
     this.baseUrl = APP_CONFIG.apiBaseUrl;
+  }
+
+  private onRefreshed(token: string | null) {
+    this.refreshSubscribers.forEach((cb) => cb(token));
+    this.refreshSubscribers = [];
+  }
+
+  private addRefreshSubscriber(cb: (token: string | null) => void) {
+    this.refreshSubscribers.push(cb);
   }
 
   private getHeaders(): HeadersInit {
@@ -19,8 +31,45 @@ class ApiClient {
     return headers;
   }
 
+  private isAuthRoute(endpoint: string): boolean {
+    return (
+      endpoint.includes('/auth/login') ||
+      endpoint.includes('/auth/refresh') ||
+      endpoint.includes('/auth/logout')
+    );
+  }
+
+  private async tryRefreshToken(): Promise<string | null> {
+    const storedRefreshToken = localStorage.getItem('rm_refresh_token');
+    if (!storedRefreshToken) {
+      return null;
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: storedRefreshToken }),
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const data = await response.json();
+      if (data?.accessToken && data?.refreshToken) {
+        localStorage.setItem('rm_access_token', data.accessToken);
+        localStorage.setItem('rm_refresh_token', data.refreshToken);
+        return data.accessToken;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   private async handleError(response: Response, endpoint: string, method: string): Promise<never> {
-    if (response.status === 401 && !endpoint.includes('/api/auth/login')) {
+    if (response.status === 401 && !this.isAuthRoute(endpoint)) {
       window.dispatchEvent(new Event('auth:unauthorized'));
     }
     
@@ -55,65 +104,119 @@ class ApiClient {
     }
   }
 
-  async get<T>(endpoint: string, responseType: 'json' | 'blob' = 'json'): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      method: 'GET',
-      headers: this.getHeaders(),
-    });
-    if (!response.ok) {
-      await this.handleError(response, endpoint, 'GET');
+  private async requestWithRetry<T>(
+    endpoint: string,
+    options: RequestInit,
+    responseType: 'json' | 'blob' = 'json',
+    isRetry = false,
+  ): Promise<T> {
+    const response = await fetch(`${this.baseUrl}${endpoint}`, options);
+
+    if (response.status === 401 && !isRetry && !this.isAuthRoute(endpoint)) {
+      if (this.isRefreshing) {
+        return new Promise<T>((resolve, reject) => {
+          this.addRefreshSubscriber(async (newToken) => {
+            if (newToken) {
+              try {
+                const retryHeaders: HeadersInit = {
+                  ...(options.headers as Record<string, string>),
+                  Authorization: `Bearer ${newToken}`,
+                };
+                const retryRes = await fetch(`${this.baseUrl}${endpoint}`, {
+                  ...options,
+                  headers: retryHeaders,
+                });
+                if (!retryRes.ok) {
+                  await this.handleError(retryRes, endpoint, options.method || 'GET');
+                }
+                if (responseType === 'blob') {
+                  resolve((await retryRes.blob()) as any);
+                } else {
+                  resolve(await this.parseResponseBody<T>(retryRes));
+                }
+              } catch (err) {
+                reject(err);
+              }
+            } else {
+              window.dispatchEvent(new Event('auth:unauthorized'));
+              reject(new Error('Session expired'));
+            }
+          });
+        });
+      }
+
+      this.isRefreshing = true;
+      const newToken = await this.tryRefreshToken();
+      this.isRefreshing = false;
+      this.onRefreshed(newToken);
+
+      if (newToken) {
+        const retryHeaders: HeadersInit = {
+          ...(options.headers as Record<string, string>),
+          Authorization: `Bearer ${newToken}`,
+        };
+        const retryRes = await fetch(`${this.baseUrl}${endpoint}`, {
+          ...options,
+          headers: retryHeaders,
+        });
+        if (!retryRes.ok) {
+          await this.handleError(retryRes, endpoint, options.method || 'GET');
+        }
+        if (responseType === 'blob') {
+          return (await retryRes.blob()) as any;
+        }
+        return this.parseResponseBody<T>(retryRes);
+      } else {
+        localStorage.removeItem('rm_access_token');
+        localStorage.removeItem('rm_refresh_token');
+        window.dispatchEvent(new Event('auth:unauthorized'));
+        await this.handleError(response, endpoint, options.method || 'GET');
+      }
     }
+
+    if (!response.ok) {
+      await this.handleError(response, endpoint, options.method || 'GET');
+    }
+
     if (responseType === 'blob') {
-      return response.blob() as any;
+      return (await response.blob()) as any;
     }
     return this.parseResponseBody<T>(response);
   }
 
+  async get<T>(endpoint: string, responseType: 'json' | 'blob' = 'json'): Promise<T> {
+    return this.requestWithRetry<T>(endpoint, { method: 'GET', headers: this.getHeaders() }, responseType);
+  }
+
   async post<T>(endpoint: string, body?: any): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    return this.requestWithRetry<T>(endpoint, {
       method: 'POST',
       headers: this.getHeaders(),
       body: body ? JSON.stringify(body) : undefined,
     });
-    if (!response.ok) {
-      await this.handleError(response, endpoint, 'POST');
-    }
-    return this.parseResponseBody<T>(response);
   }
 
   async put<T>(endpoint: string, body?: any): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    return this.requestWithRetry<T>(endpoint, {
       method: 'PUT',
       headers: this.getHeaders(),
       body: body ? JSON.stringify(body) : undefined,
     });
-    if (!response.ok) {
-      await this.handleError(response, endpoint, 'PUT');
-    }
-    return this.parseResponseBody<T>(response);
   }
 
   async patch<T>(endpoint: string, body?: any): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    return this.requestWithRetry<T>(endpoint, {
       method: 'PATCH',
       headers: this.getHeaders(),
       body: body ? JSON.stringify(body) : undefined,
     });
-    if (!response.ok) {
-      await this.handleError(response, endpoint, 'PATCH');
-    }
-    return this.parseResponseBody<T>(response);
   }
 
   async delete<T>(endpoint: string): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    return this.requestWithRetry<T>(endpoint, {
       method: 'DELETE',
       headers: this.getHeaders(),
     });
-    if (!response.ok) {
-      await this.handleError(response, endpoint, 'DELETE');
-    }
-    return this.parseResponseBody<T>(response);
   }
 
   async upload<T>(endpoint: string, formData: FormData): Promise<T> {
@@ -122,15 +225,11 @@ class ApiClient {
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    return this.requestWithRetry<T>(endpoint, {
       method: 'POST',
       headers,
       body: formData,
     });
-    if (!response.ok) {
-      await this.handleError(response, endpoint, 'UPLOAD');
-    }
-    return response.json();
   }
 }
 
@@ -155,11 +254,21 @@ import type { ProductionProcessDto, CreateProductionProcessDto, UpdateProduction
 
 export const authApi = {
   login: async (data: any) => {
-    const res = await api.post<{ accessToken: string; user: any }>('/api/auth/login', {
+    const res = await api.post<{ accessToken: string; refreshToken: string; user: any }>('/api/auth/login', {
       email: data.employeeId,
       password: data.password,
     });
-    return { token: res.accessToken, user: res.user };
+    return { token: res.accessToken, refreshToken: res.refreshToken, user: res.user };
+  },
+  refresh: async (refreshToken: string) => {
+    return api.post<{ accessToken: string; refreshToken: string; user: any }>('/api/auth/refresh', {
+      refreshToken,
+    });
+  },
+  logout: async (refreshToken?: string) => {
+    return api.post<{ success: boolean; message: string }>('/api/auth/logout', {
+      refreshToken,
+    });
   },
   getMe: () => api.get<{ status: string; user: any }>('/api/auth/me'),
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
@@ -422,6 +531,16 @@ export const vendorAnalyticsApi = {
 export const reportApi = {
   exportReport: (type: string, startDate: string, endDate: string) => 
     api.get<Blob>(`/api/reports/generation?type=${type}&startDate=${startDate}&endDate=${endDate}`, 'blob'),
+  exportTraceabilityExcel: (archive = false) =>
+    api.get<Blob>(`/api/reports/export/excel/traceability?archive=${archive}`, 'blob'),
+  exportStockMovementExcel: (archive = false) =>
+    api.get<Blob>(`/api/reports/export/excel/stock-movement?archive=${archive}`, 'blob'),
+  exportVendorSlaExcel: (archive = false) =>
+    api.get<Blob>(`/api/reports/export/excel/vendor-sla?archive=${archive}`, 'blob'),
+  exportDeliveryChallanPdf: (id: string, archive = false) =>
+    api.get<Blob>(`/api/reports/export/pdf/delivery-challan/${id}?archive=${archive}`, 'blob'),
+  exportMaterialIssueSlipPdf: (id: string, archive = false) =>
+    api.get<Blob>(`/api/reports/export/pdf/material-issue/${id}?archive=${archive}`, 'blob'),
 };
 
 export { vendorMasterApi } from './vendorMaster.service';

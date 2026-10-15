@@ -14,6 +14,7 @@ import {
 import { MaterialIssueItem } from './entities/material-issue-item.entity.js';
 import { SalesOrderComponent, ScStatus } from '../sc/entities/sc.entity.js';
 import { RmItem } from '../rm/entities/rm-item.entity.js';
+import { RmRequest, RmRequestStatus } from '../rm/entities/rm-request.entity.js';
 import { Bin } from '../inventory/entities/bin.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import {
@@ -71,10 +72,13 @@ export class MaterialIssueService {
     }
 
     if (!dto.additionalRequestId) {
-      if (
-        sc.status !== ScStatus.STORES_PENDING &&
-        sc.status !== ScStatus.PARTIALLY_ISSUED
-      ) {
+      const allowedInitialStatuses = [
+        ScStatus.STORES_PENDING,
+        ScStatus.SUBMITTED,
+        ScStatus.PARTIALLY_ISSUED,
+        'ACTIVE' as ScStatus,
+      ];
+      if (!allowedInitialStatuses.includes(sc.status)) {
         throw new ConflictException(
           `Initial Material Issue cannot be processed for SC "${sc.scNumber}". Current status is already "${sc.status}". For additional material, submit an Additional Material Request.`,
         );
@@ -91,8 +95,11 @@ export class MaterialIssueService {
         if (!additionalReq) {
           throw new BadRequestException(`Additional Request ${dto.additionalRequestId} not found or mismatch`);
         }
-        if (additionalReq.status !== AdditionalRequestStatus.APPROVED) {
-          throw new BadRequestException(`Additional Request is not APPROVED`);
+        if (
+          additionalReq.status !== AdditionalRequestStatus.APPROVED &&
+          additionalReq.status !== AdditionalRequestStatus.REQUESTED
+        ) {
+          throw new BadRequestException(`Additional Request is not APPROVED or REQUESTED`);
         }
         issueType = MaterialIssueType.ADDITIONAL_ISSUE;
       }
@@ -142,9 +149,13 @@ export class MaterialIssueService {
           );
         }
 
-        if (!dto.additionalRequestId && rmItem.rmRequest.status !== 'REVIEWED') {
+        if (
+          !dto.additionalRequestId &&
+          rmItem.rmRequest.status !== RmRequestStatus.REVIEWED &&
+          rmItem.rmRequest.status !== RmRequestStatus.SUBMITTED
+        ) {
           throw new BadRequestException(
-            `RM Request must be REVIEWED before Material Issue. Current status: ${rmItem.rmRequest.status}`,
+            `RM Request must be SUBMITTED or REVIEWED before Material Issue. Current status: ${rmItem.rmRequest.status}`,
           );
         }
         if (!rmItem.mappedProductId) {
@@ -280,11 +291,21 @@ export class MaterialIssueService {
         );
         const totalIssued = Number(sumResult[0].total) || 0;
 
-        // Update SC status
+        // Update SC status and RmRequest status
         if (totalIssued >= totalRequested) {
           sc.status = ScStatus.ISSUED;
+          await queryRunner.manager.update(
+            RmRequest,
+            { scId: dto.scId },
+            { status: RmRequestStatus.COMPLETED },
+          );
         } else {
           sc.status = ScStatus.PARTIALLY_ISSUED;
+          await queryRunner.manager.update(
+            RmRequest,
+            { scId: dto.scId, status: RmRequestStatus.SUBMITTED },
+            { status: RmRequestStatus.REVIEWED },
+          );
         }
       } else if (issueType === MaterialIssueType.ADDITIONAL_ISSUE && additionalReq) {
         additionalReq.status = AdditionalRequestStatus.ISSUED;

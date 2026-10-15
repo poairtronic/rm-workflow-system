@@ -1,39 +1,121 @@
-import { LayoutDashboard, PackageSearch, PackagePlus, BellRing, Box, Shield, Settings, PackageCheck, ShieldCheck, Network, BarChart3, FileText, FilePlus, PlaySquare, Users, Database, Truck, Mail, User } from 'lucide-react';
+import { lazy, type ElementType } from 'react';
+import {
+  LayoutDashboard,
+  PackageSearch,
+  PackagePlus,
+  BellRing,
+  Box,
+  Shield,
+  Settings,
+  PackageCheck,
+  ShieldCheck,
+  Network,
+  BarChart3,
+  FileText,
+  FilePlus,
+  Users,
+  Database,
+  Truck,
+  Mail,
+  User,
+  PlaySquare,
+} from 'lucide-react';
 import type { UserRole } from './contexts/AuthContext';
 
-import { SystemConfigurationWorkspace } from './pages/SystemConfigurationWorkspace';
-import { ProfileWorkspace } from './pages/ProfileWorkspace';
-import { AuditLogsWorkspace } from './pages/AuditLogsWorkspace';
-import { EmailCommunicationWorkspace } from './pages/EmailCommunicationWorkspace';
-import { MslAlertsWorkspace } from './pages/MslAlertsWorkspace';
-import { ProcessMasterWorkspace } from './pages/ProcessMasterWorkspace';
-import { VendorSlaWorkspace } from './pages/VendorSlaWorkspace';
-import { Type1DispatchWorkspace } from './pages/Type1DispatchWorkspace';
-import { Type2DispatchWorkspace } from './pages/Type2DispatchWorkspace';
-import { DockReceiptWorkspace } from './pages/DockReceiptWorkspace';
-import { DcMovementsWorkspace } from './pages/DcMovementsWorkspace';
-import { TraceabilityWorkspace } from './pages/TraceabilityWorkspace';
-import { PoTraceabilityWorkspace } from './pages/PoTraceabilityWorkspace';
-import { VendorDashboardWorkspace } from './pages/VendorDashboardWorkspace';
-import { DeliveryChallanPrintView } from './pages/DeliveryChallanPrintView';
-import { ReportGeneratorWorkspace } from './pages/ReportGeneratorWorkspace';
-import { RmRequisitionWorkspace } from './pages/RmRequisitionWorkspace';
-import { RmCreationWorkspace } from './pages/RmCreationWorkspace';
-import { ProductionConsumptionWorkspace } from './pages/ProductionConsumptionWorkspace';
-import { UiKitShowcase } from './pages/UiKitShowcase';
-import { OverviewPage } from './pages/OverviewPage';
-import { StoresRmIssueWorkspace } from './pages/StoresRmIssueWorkspace';
-import { StoresExtraRequestsWorkspace } from './pages/StoresExtraRequestsWorkspace';
-import { StoresReturnVerifyWorkspace } from './pages/StoresReturnVerifyWorkspace';
-import { SupplierInwardWorkspace } from './pages/SupplierInwardWorkspace';
-import { WarehousesAndBinsWorkspace } from './pages/WarehousesAndBinsWorkspace';
-import { UserMasterWorkspace } from './pages/UserMasterWorkspace';
-import { VendorMasterWorkspace } from './pages/VendorMasterWorkspace';
-import { ProductsMasterWorkspace } from './pages/ProductsMasterWorkspace';
-import { InventoryStockWorkspace } from './pages/InventoryStockWorkspace';
-import { StockMovementWorkspace } from './pages/StockMovementWorkspace';
-import type { ElementType } from 'react';
-import { ProductionRmWorkspace } from './pages/ProductionRmWorkspace';
+// Dynamic Lazy Imports for Workspace Routes (Prompt 4.1 / Phase 24A)
+export const SystemConfigurationWorkspace = lazy(() =>
+  import('./pages/SystemConfigurationWorkspace').then((m) => ({ default: m.SystemConfigurationWorkspace })),
+);
+export const ProfileWorkspace = lazy(() =>
+  import('./pages/ProfileWorkspace').then((m) => ({ default: m.ProfileWorkspace })),
+);
+export const AuditLogsWorkspace = lazy(() =>
+  import('./pages/AuditLogsWorkspace').then((m) => ({ default: m.AuditLogsWorkspace })),
+);
+export const EmailCommunicationWorkspace = lazy(() =>
+  import('./pages/EmailCommunicationWorkspace').then((m) => ({ default: m.EmailCommunicationWorkspace })),
+);
+export const MslAlertsWorkspace = lazy(() =>
+  import('./pages/MslAlertsWorkspace').then((m) => ({ default: m.MslAlertsWorkspace })),
+);
+export const ProcessMasterWorkspace = lazy(() =>
+  import('./pages/ProcessMasterWorkspace').then((m) => ({ default: m.ProcessMasterWorkspace })),
+);
+export const VendorSlaWorkspace = lazy(() =>
+  import('./pages/VendorSlaWorkspace').then((m) => ({ default: m.VendorSlaWorkspace })),
+);
+export const Type1DispatchWorkspace = lazy(() =>
+  import('./pages/Type1DispatchWorkspace').then((m) => ({ default: m.Type1DispatchWorkspace })),
+);
+export const Type2DispatchWorkspace = lazy(() =>
+  import('./pages/Type2DispatchWorkspace').then((m) => ({ default: m.Type2DispatchWorkspace })),
+);
+export const DockReceiptWorkspace = lazy(() =>
+  import('./pages/DockReceiptWorkspace').then((m) => ({ default: m.DockReceiptWorkspace })),
+);
+export const DcMovementsWorkspace = lazy(() =>
+  import('./pages/DcMovementsWorkspace').then((m) => ({ default: m.DcMovementsWorkspace })),
+);
+export const TraceabilityWorkspace = lazy(() =>
+  import('./pages/TraceabilityWorkspace').then((m) => ({ default: m.TraceabilityWorkspace })),
+);
+export const PoTraceabilityWorkspace = lazy(() =>
+  import('./pages/PoTraceabilityWorkspace').then((m) => ({ default: m.PoTraceabilityWorkspace })),
+);
+export const VendorDashboardWorkspace = lazy(() =>
+  import('./pages/VendorDashboardWorkspace').then((m) => ({ default: m.VendorDashboardWorkspace })),
+);
+export const DeliveryChallanPrintView = lazy(() =>
+  import('./pages/DeliveryChallanPrintView').then((m) => ({ default: m.DeliveryChallanPrintView })),
+);
+export const ReportGeneratorWorkspace = lazy(() =>
+  import('./pages/ReportGeneratorWorkspace').then((m) => ({ default: m.ReportGeneratorWorkspace })),
+);
+export const RmRequisitionWorkspace = lazy(() =>
+  import('./pages/RmRequisitionWorkspace').then((m) => ({ default: m.RmRequisitionWorkspace })),
+);
+export const RmCreationWorkspace = lazy(() =>
+  import('./pages/RmCreationWorkspace').then((m) => ({ default: m.RmCreationWorkspace })),
+);
+export const ProductionConsumptionWorkspace = lazy(() =>
+  import('./pages/ProductionConsumptionWorkspace').then((m) => ({ default: m.ProductionConsumptionWorkspace })),
+);
+export const UiKitShowcase = lazy(() =>
+  import('./pages/UiKitShowcase').then((m) => ({ default: m.UiKitShowcase })),
+);
+export const OverviewPage = lazy(() =>
+  import('./pages/OverviewPage').then((m) => ({ default: m.OverviewPage })),
+);
+export const StoresRmIssueWorkspace = lazy(() =>
+  import('./pages/StoresRmIssueWorkspace').then((m) => ({ default: m.StoresRmIssueWorkspace })),
+);
+export const SupplierInwardWorkspace = lazy(() =>
+  import('./pages/SupplierInwardWorkspace').then((m) => ({ default: m.SupplierInwardWorkspace })),
+);
+export const WarehousesAndBinsWorkspace = lazy(() =>
+  import('./pages/WarehousesAndBinsWorkspace').then((m) => ({ default: m.WarehousesAndBinsWorkspace })),
+);
+export const UserMasterWorkspace = lazy(() =>
+  import('./pages/UserMasterWorkspace').then((m) => ({ default: m.UserMasterWorkspace })),
+);
+export const VendorMasterWorkspace = lazy(() =>
+  import('./pages/VendorMasterWorkspace').then((m) => ({ default: m.VendorMasterWorkspace })),
+);
+export const ProductsMasterWorkspace = lazy(() =>
+  import('./pages/ProductsMasterWorkspace').then((m) => ({ default: m.ProductsMasterWorkspace })),
+);
+export const InventoryStockWorkspace = lazy(() =>
+  import('./pages/InventoryStockWorkspace').then((m) => ({ default: m.InventoryStockWorkspace })),
+);
+export const StockMovementWorkspace = lazy(() =>
+  import('./pages/StockMovementWorkspace').then((m) => ({ default: m.StockMovementWorkspace })),
+);
+export const ProductionRequestReturnWorkspace = lazy(() =>
+  import('./pages/ProductionRequestReturnWorkspace').then((m) => ({ default: m.ProductionRequestReturnWorkspace })),
+);
+export const StoresRequestReturnVerifyWorkspace = lazy(() =>
+  import('./pages/StoresRequestReturnVerifyWorkspace').then((m) => ({ default: m.StoresRequestReturnVerifyWorkspace })),
+);
 
 export interface RouteConfig {
   name: string;
@@ -51,14 +133,21 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   // EXECUTIVE & OVERVIEW (Top Priority in Navigation)
   { name: 'Overview', path: '/overview', icon: LayoutDashboard, roles: ['DESIGNER', 'STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: OverviewPage, isSidebar: true, group: 'OVERVIEW', moduleKey: 'overview' },
 
-  // RM WORKFLOW
-  { name: 'RM Creation', path: '/design/rm-creation', icon: FilePlus, roles: ['PRODUCTION', 'DESIGNER', 'ADMIN'], component: RmCreationWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'rm_creation' },
-  { name: 'My Requisitions', path: '/design/my-requisitions', icon: FileText, roles: ['PRODUCTION', 'DESIGNER', 'ADMIN'], component: RmRequisitionWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'rm_requisitions' },
+  // RM WORKFLOW - DESIGNER & STORES
+  { name: 'RM Creation', path: '/design/rm-creation', icon: FilePlus, roles: ['DESIGNER', 'ADMIN'], component: RmCreationWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'rm_creation' },
+  { name: 'My Requisitions', path: '/design/my-requisitions', icon: FileText, roles: ['DESIGNER', 'ADMIN'], component: RmRequisitionWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'rm_requisitions' },
   { name: 'RM Issue', path: '/stores/rm-issue', icon: PackageSearch, roles: ['STORES', 'ADMIN'], component: StoresRmIssueWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'rm_issue' },
-  { name: 'Extra Requests', path: '/stores/extra-requests', icon: FilePlus, roles: ['PRODUCTION', 'STORES', 'ADMIN'], component: StoresExtraRequestsWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'extra_requests' },
-  { name: 'Return Verify', path: '/stores/return-verify', icon: PackageCheck, roles: ['PRODUCTION', 'STORES', 'ADMIN'], component: StoresReturnVerifyWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'return_verify' },
-  { name: 'My RM', path: '/production/rm', icon: PackageSearch, roles: ['PRODUCTION', 'ADMIN'], component: ProductionRmWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'production_rm' },
-  { name: 'Consumption', path: '/production/consumption', icon: PlaySquare, roles: ['PRODUCTION', 'STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER'], component: ProductionConsumptionWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'consumption' },
+  { name: 'RM Request & Return Verify', path: '/stores/request-return-verify', icon: ShieldCheck, roles: ['STORES', 'PRODUCTION', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER'], component: StoresRequestReturnVerifyWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'request_return_verify' },
+
+  // RM WORKFLOW - PRODUCTION & GOVERNANCE
+  { name: 'RM Request & Return', path: '/production/request-return', icon: PackagePlus, roles: ['PRODUCTION', 'STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER'], component: ProductionRequestReturnWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'production_request_return' },
+  { name: 'Material Consumption', path: '/production/consumption', icon: PlaySquare, roles: ['ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'PRODUCTION', 'STORES'], component: ProductionConsumptionWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'consumption' },
+
+  // BACKWARDS-COMPATIBLE ALIASES FOR LEGACY ROUTES (hidden from sidebar)
+  { name: 'Extra Requests (Legacy)', path: '/stores/extra-requests', roles: ['STORES', 'ADMIN'], component: StoresRequestReturnVerifyWorkspace, isSidebar: false },
+  { name: 'Return Verify (Legacy)', path: '/stores/return-verify', roles: ['STORES', 'ADMIN'], component: StoresRequestReturnVerifyWorkspace, isSidebar: false },
+  { name: 'RM Receive & Verify (Legacy)', path: '/production/rm-verify', roles: ['PRODUCTION', 'ADMIN'], component: ProductionRequestReturnWorkspace, isSidebar: false },
+  { name: 'My RM (Legacy)', path: '/production/rm', roles: ['PRODUCTION', 'ADMIN'], component: ProductionRequestReturnWorkspace, isSidebar: false },
 
   // INVENTORY
   { name: 'Stock Overview', path: '/inventory/stock', icon: Box, roles: ['STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'DESIGNER'], component: InventoryStockWorkspace, isSidebar: true, group: 'INVENTORY', moduleKey: 'stock_overview' },
@@ -114,7 +203,7 @@ export function getRoleDefaultPath(role?: string): string {
     case 'STORES':
       return '/stores/rm-issue';
     case 'PRODUCTION':
-      return '/production/rm';
+      return '/production/request-return';
     case 'SENIOR_MANAGER':
     case 'GENERAL_MANAGER':
     case 'ADMIN':
@@ -138,10 +227,38 @@ export function isPathAllowedForUser(
     return false;
   }
 
+  const roleAllowed = matchedRoute.roles.includes(user.role as UserRole);
+
   if (matchedRoute.moduleKey && user.effectiveModules && user.effectiveModules.length > 0) {
-    return user.effectiveModules.includes(matchedRoute.moduleKey);
+    if (matchedRoute.moduleKey === 'production_rm_verify' && user.effectiveModules.includes('production_rm')) return true;
+    if (matchedRoute.moduleKey === 'request_return_verify' && (
+      user.effectiveModules.includes('extra_requests') || 
+      user.effectiveModules.includes('return_verify') || 
+      user.effectiveModules.includes('request_return_verify') || 
+      user.effectiveModules.includes('rm_issue') ||
+      roleAllowed
+    )) return true;
+    if (matchedRoute.moduleKey === 'production_request_return' && (
+      user.effectiveModules.includes('production_rm') || 
+      user.effectiveModules.includes('production_consumption') || 
+      user.effectiveModules.includes('consumption') || 
+      user.effectiveModules.includes('production_request_return') ||
+      user.effectiveModules.includes('extra_requests') ||
+      user.effectiveModules.includes('return_verify') ||
+      user.effectiveModules.includes('rm_issue') ||
+      roleAllowed
+    )) return true;
+    if ((matchedRoute.moduleKey === 'consumption' || matchedRoute.moduleKey === 'production_consumption') && (
+      user.effectiveModules.includes('consumption') || 
+      user.effectiveModules.includes('production_consumption') ||
+      roleAllowed
+    )) return true;
+
+    if (user.effectiveModules.includes(matchedRoute.moduleKey)) return true;
+    if (roleAllowed) return true;
+    return false;
   }
 
-  return matchedRoute.roles.includes(user.role as UserRole);
+  return roleAllowed;
 }
 

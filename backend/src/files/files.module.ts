@@ -6,12 +6,13 @@ import { AttachmentsModule } from '../attachments/attachments.module.js';
 import { FilesController } from './files.controller.js';
 import { FilesService } from './files.service.js';
 import { UploadedFile } from './entities/uploaded-file.entity.js';
+import { User } from '../users/entities/user.entity.js';
 import { LocalStorageProvider } from './storage/local-storage.provider.js';
 import { SupabaseStorageProvider } from './storage/supabase-storage.provider.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UploadedFile]),
+    TypeOrmModule.forFeature([UploadedFile, User]),
     ConfigModule,
     AuthModule,
     forwardRef(() => AttachmentsModule),

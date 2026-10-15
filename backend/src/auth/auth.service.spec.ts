@@ -4,9 +4,11 @@ import { JwtService } from '@nestjs/jwt';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { UnauthorizedException } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
+import crypto from 'node:crypto';
 import { AuthService } from './auth.service.js';
 import { UserRole } from './enums/role.enum.js';
 import { User } from '../users/entities/user.entity.js';
+import { RefreshToken } from './entities/refresh-token.entity.js';
 
 describe('AuthService', () => {
   let authService: AuthService;
@@ -14,6 +16,13 @@ describe('AuthService', () => {
 
   const mockUserRepo = {
     findOne: vi.fn(),
+  };
+
+  const mockRefreshTokenRepo = {
+    create: vi.fn((dto) => ({ id: 'mock-token-uuid', ...dto })),
+    save: vi.fn((entity) => Promise.resolve({ id: 'mock-token-uuid', ...entity })),
+    findOne: vi.fn(),
+    update: vi.fn(),
   };
 
   beforeEach(async () => {
@@ -35,6 +44,10 @@ describe('AuthService', () => {
         {
           provide: getRepositoryToken(User),
           useValue: mockUserRepo,
+        },
+        {
+          provide: getRepositoryToken(RefreshToken),
+          useValue: mockRefreshTokenRepo,
         },
       ],
     }).compile();
@@ -59,7 +72,7 @@ describe('AuthService', () => {
     expect(result.user.role).toBe(UserRole.DESIGNER);
   });
 
-  it('should validate credentials and login successfully for active user with valid password', async () => {
+  it('should validate credentials and login successfully returning accessToken and refreshToken', async () => {
     const passwordHash = await bcrypt.hash('Secret@123', 10);
     mockUserRepo.findOne.mockResolvedValue({
       id: 'user-1',
@@ -77,8 +90,13 @@ describe('AuthService', () => {
     });
 
     expect(result.accessToken).toBe('mock-token-for-user-1');
+    expect(result.refreshToken).toBeDefined();
+    expect(typeof result.refreshToken).toBe('string');
+    expect(result.refreshToken.length).toBe(64); // 32 bytes hex
     expect(result.user.email).toBe('designer@airtronic.com');
     expect(result.user.role).toBe('DESIGNER');
+    expect(mockRefreshTokenRepo.create).toHaveBeenCalled();
+    expect(mockRefreshTokenRepo.save).toHaveBeenCalled();
   });
 
   it('should throw UnauthorizedException on invalid password', async () => {
@@ -115,6 +133,91 @@ describe('AuthService', () => {
         password: 'Secret@123',
       }),
     ).rejects.toThrow('User account is inactive');
+  });
+
+  it('should rotate a valid refresh token successfully', async () => {
+    const rawToken = 'a'.repeat(64);
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    mockRefreshTokenRepo.findOne.mockResolvedValue({
+      id: 'token-1',
+      userId: 'user-1',
+      tokenHash,
+      expiresAt: new Date(Date.now() + 1000000),
+      isRevoked: false,
+      user: {
+        id: 'user-1',
+        name: 'Active User',
+        email: 'active@airtronic.com',
+        isActive: true,
+        role: { name: 'STORES' },
+      },
+    });
+
+    const result = await authService.rotateRefreshToken(rawToken);
+
+    expect(result.accessToken).toBe('mock-token-for-user-1');
+    expect(result.refreshToken).toBeDefined();
+    expect(result.refreshToken).not.toBe(rawToken);
+    expect(result.user.role).toBe('STORES');
+  });
+
+  it('should reject rotation and invalidate sessions if revoked token is reused (Compromise Detection)', async () => {
+    const rawToken = 'b'.repeat(64);
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    mockRefreshTokenRepo.findOne.mockResolvedValue({
+      id: 'token-revoked',
+      userId: 'user-1',
+      tokenHash,
+      expiresAt: new Date(Date.now() + 1000000),
+      isRevoked: true,
+      user: { id: 'user-1', isActive: true },
+    });
+
+    await expect(
+      authService.rotateRefreshToken(rawToken),
+    ).rejects.toThrow('Revoked refresh token reused');
+
+    expect(mockRefreshTokenRepo.update).toHaveBeenCalledWith(
+      { userId: 'user-1' },
+      { isRevoked: true },
+    );
+  });
+
+  it('should reject rotation if refresh token is expired', async () => {
+    const rawToken = 'c'.repeat(64);
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    mockRefreshTokenRepo.findOne.mockResolvedValue({
+      id: 'token-expired',
+      userId: 'user-1',
+      tokenHash,
+      expiresAt: new Date(Date.now() - 1000),
+      isRevoked: false,
+      user: { id: 'user-1', isActive: true },
+    });
+
+    await expect(
+      authService.rotateRefreshToken(rawToken),
+    ).rejects.toThrow('Refresh token expired');
+  });
+
+  it('should revoke a refresh token on logout', async () => {
+    const rawToken = 'd'.repeat(64);
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    const tokenRecord = {
+      id: 'token-logout',
+      tokenHash,
+      isRevoked: false,
+    };
+    mockRefreshTokenRepo.findOne.mockResolvedValue(tokenRecord);
+
+    const revoked = await authService.revokeRefreshToken(rawToken);
+    expect(revoked).toBe(true);
+    expect(tokenRecord.isRevoked).toBe(true);
+    expect(mockRefreshTokenRepo.save).toHaveBeenCalledWith(tokenRecord);
   });
 
   it('should create dev test tokens for roles', () => {

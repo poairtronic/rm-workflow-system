@@ -125,7 +125,7 @@ export function VerifyReturnModal({ isOpen, onClose, onSuccess, returnId, return
                   <option value="">Select destination bin...</option>
                   {bins.map((bin) => (
                     <option key={bin.id} value={bin.id}>
-                      {bin.code} - {bin.name}
+                      {bin.rack?.code ? `Rack ${bin.rack.code} - Bin ${bin.code}` : `Bin ${bin.code}`} - {bin.name}
                     </option>
                   ))}
                 </select>

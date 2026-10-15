@@ -1,48 +1,28 @@
 import { useState, useEffect } from 'react';
 import { 
-  FilePlus, 
-  Check, 
-  X, 
-  AlertCircle, 
-  Search, 
-  Send, 
   Package, 
   Clock, 
   CheckCircle2, 
   XCircle, 
   Boxes, 
-  Plus
+  Search,
+  Check,
+  X,
+  AlertCircle,
+  RefreshCw,
+  Layers,
+  ArrowUpRight
 } from 'lucide-react';
-import { workflowService, type SC } from '../services/workflowService';
+import { workflowService } from '../services/workflowService';
 import toast from 'react-hot-toast';
 import { IssueMaterialModal } from '../components/modals/IssueMaterialModal';
 import { useAuth } from '../contexts/AuthContext';
-
-const REASON_OPTIONS = [
-  { value: 'TOOL_WEAR_SCRAP', label: 'Tool Breakage / Machine Failure' },
-  { value: 'DAMAGE', label: 'Raw Material Defect / Porosity / Damage' },
-  { value: 'ADDITIONAL_REQUIREMENT', label: 'Engineering / Design Modification' },
-  { value: 'WASTAGE', label: 'First Article / Sample Setup / Wastage' },
-  { value: 'MANUFACTURING_ERROR', label: 'Machining Setup Scrap / Rework' },
-  { value: 'OTHER', label: 'Other' },
-];
 
 export function StoresExtraRequestsWorkspace() {
   const { currentUser } = useAuth();
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Form State
-  const [scList, setScList] = useState<SC[]>([]);
-  const [selectedScId, setSelectedScId] = useState<string>('');
-  const [availableRmItems, setAvailableRmItems] = useState<any[]>([]);
-  const [selectedRmItemId, setSelectedRmItemId] = useState<string>('');
-  const [extraQuantity, setExtraQuantity] = useState<string>('');
-  const [extraReason, setExtraReason] = useState<string>('MANUFACTURING_ERROR');
-  const [extraRemarks, setExtraRemarks] = useState<string>('');
-  const [submittingForm, setSubmittingForm] = useState(false);
-  const [showRequestForm, setShowRequestForm] = useState(true);
 
   // Filter & Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,7 +36,6 @@ export function StoresExtraRequestsWorkspace() {
 
   useEffect(() => {
     loadRequests();
-    loadActiveScs();
   }, []);
 
   const loadRequests = async () => {
@@ -69,77 +48,6 @@ export function StoresExtraRequestsWorkspace() {
       setError('Failed to load extra requests.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadActiveScs = async () => {
-    try {
-      const data = await workflowService.getScList();
-      const eligible = data.filter(sc => 
-        ['ISSUED', 'PARTIALLY_ISSUED', 'IN_PRODUCTION', 'STORES_PENDING', 'SUBMITTED', 'ADDITIONAL_REQUEST'].includes(sc.status)
-      );
-      setScList(eligible);
-    } catch (err) {
-      console.error('Failed to load SCs', err);
-    }
-  };
-
-  // When user selects an SC in the form, load its RM items
-  const handleSelectSc = async (scId: string) => {
-    setSelectedScId(scId);
-    setSelectedRmItemId('');
-    setAvailableRmItems([]);
-    if (!scId) return;
-
-    try {
-      const rmList = await workflowService.getRmList(scId);
-      if (rmList && rmList.length > 0 && rmList[0].items) {
-        setAvailableRmItems(rmList[0].items);
-        if (rmList[0].items.length > 0) {
-          setSelectedRmItemId(rmList[0].items[0].id);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load RM items for SC', err);
-    }
-  };
-
-  const handleSubmitRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedScId) {
-      toast.error('Please select a Sales Order Component (SC)');
-      return;
-    }
-    const qty = Number(extraQuantity);
-    if (!qty || qty <= 0) {
-      toast.error('Please enter a valid additional quantity (> 0)');
-      return;
-    }
-
-    setSubmittingForm(true);
-    try {
-      await workflowService.createAdditionalRequest(
-        selectedScId,
-        [{
-          rmItemId: selectedRmItemId || undefined,
-          quantity: qty,
-          remarks: extraRemarks.trim() || undefined
-        }],
-        extraReason,
-        extraRemarks.trim() || undefined
-      );
-
-      toast.success('Extra Material Request submitted successfully to Stores!');
-      // Reset form
-      setExtraQuantity('');
-      setExtraRemarks('');
-      await loadRequests();
-      await loadActiveScs();
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.response?.data?.message || err.message || 'Failed to submit extra request');
-    } finally {
-      setSubmittingForm(false);
     }
   };
 
@@ -174,14 +82,22 @@ export function StoresExtraRequestsWorkspace() {
 
     const q = searchQuery.toLowerCase();
     const scNum = req.salesOrderComponent?.scNumber?.toLowerCase() || '';
+    const poNum = req.salesOrderComponent?.poNumber?.toLowerCase() || '';
     const reqNum = req.requestNumber?.toLowerCase() || '';
     const remarks = req.remarks?.toLowerCase() || '';
-    const itemsMatch = req.items?.some((i: any) => i.material?.toLowerCase().includes(q)) || false;
+    const itemsMatch = req.items?.some((i: any) => 
+      (i.rmItem?.material || i.material || '').toLowerCase().includes(q)
+    ) || false;
 
-    return matchesStatus && (!q || scNum.includes(q) || reqNum.includes(q) || remarks.includes(q) || itemsMatch);
+    return matchesStatus && (!q || scNum.includes(q) || poNum.includes(q) || reqNum.includes(q) || remarks.includes(q) || itemsMatch);
   });
 
   const isStoresOrAdmin = currentUser?.role === 'STORES' || currentUser?.role === 'ADMIN';
+
+  // Metrics
+  const pendingCount = requests.filter(r => r.status === 'PENDING' || r.status === 'REQUESTED').length;
+  const approvedCount = requests.filter(r => r.status === 'APPROVED').length;
+  const issuedCount = requests.filter(r => r.status === 'ISSUED').length;
 
   if (selectedReqForIssue) {
     return (
@@ -201,20 +117,60 @@ export function StoresExtraRequestsWorkspace() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6">
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Extra Material Requests</h1>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2.5">
+            <Layers className="w-7 h-7 text-indigo-600" />
+            Extra Material Requests Queue
+          </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Request additional raw materials for active production jobs, and monitor real-time review & issue status.
+            Stores fulfillment queue for shop-floor extra material requisitions submitted by Production. Select smart bins and issue directly.
           </p>
         </div>
         <button
-          onClick={() => setShowRequestForm(!showRequestForm)}
-          className="inline-flex items-center space-x-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
+          onClick={loadRequests}
+          className="inline-flex items-center space-x-2 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold transition-colors shadow-xs"
         >
-          <Plus className="w-4 h-4" />
-          <span>{showRequestForm ? 'Collapse Request Form' : 'New Extra Request'}</span>
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <span>Refresh Queue</span>
         </button>
+      </div>
+
+      {/* KPI Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pending Fulfillment</p>
+            <p className="text-2xl font-black text-amber-600 mt-1">{pendingCount}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Awaiting store issue / bin allocation</p>
+          </div>
+          <div className="w-11 h-11 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
+            <Clock className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Approved Queue</p>
+            <p className="text-2xl font-black text-indigo-600 mt-1">{approvedCount}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Ready for immediate bin dispatch</p>
+          </div>
+          <div className="w-11 h-11 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Issued to Floor</p>
+            <p className="text-2xl font-black text-emerald-600 mt-1">{issuedCount}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Fulfilled and delivered to Production</p>
+          </div>
+          <div className="w-11 h-11 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+            <Package className="w-5 h-5" />
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -224,147 +180,13 @@ export function StoresExtraRequestsWorkspace() {
         </div>
       )}
 
-      {/* TOP SECTION: REQUEST ADDITIONAL MATERIAL FORM */}
-      {showRequestForm && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-          <div className="flex items-center space-x-2.5 mb-5 pb-4 border-b border-slate-100">
-            <div className="w-9 h-9 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
-              <FilePlus className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Request Extra Raw Material</h2>
-              <p className="text-xs text-slate-500">
-                Submit an expedited requisition to Stores for tooling scrap, defect replacement, or setup wastage.
-              </p>
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmitRequest} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Select SC / Work Order */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Target Work Order (SC) *
-                </label>
-                <select
-                  value={selectedScId}
-                  onChange={(e) => handleSelectSc(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="">Select active SC...</option>
-                  {scList.map((sc) => (
-                    <option key={sc.id} value={sc.id}>
-                      {sc.scNumber} - {sc.productName} ({sc.status})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Select Raw Material Item */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Raw Material Item *
-                </label>
-                <select
-                  value={selectedRmItemId}
-                  onChange={(e) => setSelectedRmItemId(e.target.value)}
-                  disabled={!selectedScId || availableRmItems.length === 0}
-                  required
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
-                >
-                  <option value="">Select material item...</option>
-                  {availableRmItems.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.material} - {item.grade || ''} ({item.size || ''}) [Orig Qty: {item.quantity}]
-                    </option>
-                  ))}
-                </select>
-                {selectedScId && availableRmItems.length === 0 && (
-                  <span className="text-xs text-amber-600 mt-1 block">No RM items mapped on this SC.</span>
-                )}
-              </div>
-
-              {/* Additional Quantity */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Additional Qty Required *
-                </label>
-                <input
-                  type="number"
-                  step="0.001"
-                  min="0.001"
-                  value={extraQuantity}
-                  onChange={(e) => setExtraQuantity(e.target.value)}
-                  placeholder="e.g. 5"
-                  required
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </div>
-
-              {/* Justification Reason */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Reason for Extra Request *
-                </label>
-                <select
-                  value={extraReason}
-                  onChange={(e) => setExtraReason(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  {REASON_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Detailed Remarks */}
-              <div className="md:col-span-2">
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Operational Justification / Shop Floor Notes
-                </label>
-                <input
-                  type="text"
-                  value={extraRemarks}
-                  onChange={(e) => setExtraRemarks(e.target.value)}
-                  placeholder="Explain reason for extra material (e.g. tool breakage resulted in 2 scrap pieces on machine 4)"
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-3 border-t border-slate-100">
-              <button
-                type="submit"
-                disabled={submittingForm || !selectedScId || !extraQuantity}
-                className="inline-flex items-center space-x-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {submittingForm ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Submitting Request...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    <span>Submit Request to Stores</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* BOTTOM SECTION: REAL-TIME EXTRA REQUESTS STATUS TABLE */}
+      {/* EXTRA REQUESTS FULFILLMENT TABLE */}
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
         <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
-            <h3 className="font-bold text-slate-900 text-[16px]">Extra Material Requests Status Ledger</h3>
+            <h3 className="font-bold text-slate-900 text-[16px]">Incoming Shop-Floor Requests</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Live tracking of all additional raw material requests with real-time approval and issue statuses.
+              Production requests routed directly to Stores for extra materials, pins, hardware, and defect replacements.
             </p>
           </div>
 
@@ -374,7 +196,7 @@ export function StoresExtraRequestsWorkspace() {
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
               <input
                 type="text"
-                placeholder="Search SC, Material, ID..."
+                placeholder="Search SC, PO, Material..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg w-56 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -406,11 +228,11 @@ export function StoresExtraRequestsWorkspace() {
         ) : filteredRequests.length === 0 ? (
           <div className="text-center py-16">
             <Boxes className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-            <h4 className="text-[16px] font-semibold text-slate-800">No Extra Requests Found</h4>
+            <h4 className="text-[16px] font-semibold text-slate-800">No Extra Requests in Queue</h4>
             <p className="text-xs text-slate-500 mt-1">
               {searchQuery || statusFilter !== 'ALL'
                 ? 'No requests match your current search and filter criteria.'
-                : 'No additional material requests have been recorded yet.'}
+                : 'All incoming production requisitions have been fulfilled.'}
             </p>
           </div>
         ) : (
@@ -419,13 +241,13 @@ export function StoresExtraRequestsWorkspace() {
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
                   <th className="py-3 px-4">Request #</th>
-                  <th className="py-3 px-4">Component (SC)</th>
-                  <th className="py-3 px-4">Requested Material</th>
+                  <th className="py-3 px-4">Component (SC / PO)</th>
+                  <th className="py-3 px-4">Requested Material / Item</th>
                   <th className="py-3 px-4 text-right">Extra Qty</th>
                   <th className="py-3 px-4">Reason & Justification</th>
-                  <th className="py-3 px-4">Requested Date</th>
-                  <th className="py-3 px-4 text-center">Current Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3 px-4">Requested Time</th>
+                  <th className="py-3 px-4 text-center">Status</th>
+                  <th className="py-3 px-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -435,14 +257,24 @@ export function StoresExtraRequestsWorkspace() {
                   const isIssued = req.status === 'ISSUED';
                   const isRejected = req.status === 'REJECTED';
 
+                  const totalExtraQty = req.items?.reduce((sum: number, it: any) => {
+                    const q = Number(it.quantityRequested ?? it.quantityApproved ?? it.quantity ?? 0);
+                    return sum + q;
+                  }, 0) || 0;
+
                   return (
                     <tr key={req.id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="py-3.5 px-4 font-mono font-medium text-slate-900 text-xs">
                         {req.requestNumber || req.id.slice(0, 8)}
                       </td>
                       <td className="py-3.5 px-4">
-                        <div className="font-semibold text-slate-900">
+                        <div className="font-semibold text-slate-900 flex items-center gap-1.5">
                           {req.salesOrderComponent?.scNumber || 'N/A'}
+                          {req.salesOrderComponent?.poNumber && (
+                            <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                              PO: {req.salesOrderComponent.poNumber}
+                            </span>
+                          )}
                         </div>
                         <div className="text-xs text-slate-500 truncate max-w-xs">
                           {req.salesOrderComponent?.productName || ''}
@@ -451,22 +283,34 @@ export function StoresExtraRequestsWorkspace() {
                       <td className="py-3.5 px-4">
                         {req.items && req.items.length > 0 ? (
                           <div className="space-y-1">
-                            {req.items.map((it: any) => (
-                              <div key={it.id} className="text-xs text-slate-700">
-                                <span className="font-medium text-slate-900">{it.material}</span>
-                              </div>
-                            ))}
+                            {req.items.map((it: any) => {
+                              const matName = it.rmItem?.material || it.material || 'Special Product';
+                              const grade = it.rmItem?.grade;
+                              const size = it.rmItem?.size;
+                              return (
+                                <div key={it.id} className="text-xs text-slate-700">
+                                  <span className="font-semibold text-slate-900">{matName}</span>
+                                  {(grade || size) && (
+                                    <span className="text-slate-500 ml-1.5 text-[11px]">
+                                      ({[grade, size].filter(Boolean).join(' • ')})
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         ) : (
                           <span className="text-xs text-slate-400">Not specified</span>
                         )}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-bold text-slate-900">
-                        {req.items?.reduce((sum: number, it: any) => sum + (Number(it.quantity) || 0), 0) || 0}
+                      <td className="py-3.5 px-4 text-right">
+                        <span className="inline-block px-2.5 py-1 bg-amber-50 text-amber-900 font-bold text-xs rounded-md border border-amber-200">
+                          {totalExtraQty}
+                        </span>
                       </td>
                       <td className="py-3.5 px-4">
                         <div className="text-xs font-semibold text-slate-800">
-                          {req.reason ? req.reason.replace(/_/g, ' ') : 'General Requirement'}
+                          {req.reason ? req.reason.replace(/_/g, ' ') : 'Additional Requirement'}
                         </div>
                         {req.remarks && (
                           <div className="text-xs text-slate-500 truncate max-w-sm" title={req.remarks}>
@@ -508,33 +352,42 @@ export function StoresExtraRequestsWorkspace() {
                       </td>
                       <td className="py-3.5 px-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end space-x-2">
-                          {isStoresOrAdmin && isPending && (
+                          {isStoresOrAdmin && (isPending || isApproved) && (
                             <>
+                              {isPending && (
+                                <>
+                                  <button
+                                    onClick={() => setRejectDialogReqId(req.id)}
+                                    className="px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-50 rounded border border-red-200 transition-colors"
+                                  >
+                                    Reject
+                                  </button>
+                                  <button
+                                    onClick={() => handleApprove(req.id)}
+                                    className="px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50 rounded border border-emerald-200 transition-colors"
+                                  >
+                                    Approve
+                                  </button>
+                                </>
+                              )}
                               <button
-                                onClick={() => setRejectDialogReqId(req.id)}
-                                className="px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-50 rounded border border-red-200 transition-colors"
+                                onClick={() => setSelectedReqForIssue(req)}
+                                className="px-3.5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors inline-flex items-center space-x-1.5"
                               >
-                                Reject
-                              </button>
-                              <button
-                                onClick={() => handleApprove(req.id)}
-                                className="px-2.5 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded shadow-xs transition-colors"
-                              >
-                                Approve
+                                <Package className="w-3.5 h-3.5" />
+                                <span>Issue Material</span>
+                                <ArrowUpRight className="w-3 h-3" />
                               </button>
                             </>
                           )}
-                          {isStoresOrAdmin && isApproved && (
-                            <button
-                              onClick={() => setSelectedReqForIssue(req)}
-                              className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded shadow-xs transition-colors inline-flex items-center space-x-1"
-                            >
-                              <Package className="w-3.5 h-3.5" />
-                              <span>Issue Material</span>
-                            </button>
+                          {isIssued && (
+                            <span className="text-xs text-emerald-700 font-semibold inline-flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
+                              <Check className="w-3 h-3" />
+                              Fulfilled
+                            </span>
                           )}
-                          {!isPending && !isApproved && (
-                            <span className="text-xs text-slate-400 font-medium">—</span>
+                          {isRejected && (
+                            <span className="text-xs text-red-600 font-medium">—</span>
                           )}
                         </div>
                       </td>

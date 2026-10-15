@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SystemSetting } from './entities/system-setting.entity.js';
 import { UserNotificationPreference } from './entities/user-notification-preference.entity.js';
 import { Notification } from './entities/notification.entity.js';
 import { GetNotificationsQueryDto } from './dto/get-notifications-query.dto.js';
+import { NotificationsGateway } from './notifications.gateway.js';
 
 import { AuditService } from '../audit/audit.service.js';
 
@@ -46,6 +47,7 @@ export class NotificationsService {
     @InjectRepository(Notification)
     private readonly notificationRepository: Repository<Notification>,
     private readonly auditService: AuditService,
+    @Optional() private readonly notificationsGateway?: NotificationsGateway,
   ) {}
 
   getStatus() {
@@ -223,6 +225,13 @@ export class NotificationsService {
       { isRead: true },
     );
     const count = result.affected || 0;
+    if (this.notificationsGateway) {
+      try {
+        this.notificationsGateway.sendUnreadCountToUser(userId, 0);
+      } catch {
+        // Non-blocking socket emission
+      }
+    }
     return { success: true, count, updatedCount: count };
   }
 
@@ -244,7 +253,16 @@ export class NotificationsService {
       );
     }
     notification.isRead = true;
-    return await this.notificationRepository.save(notification);
+    const saved = await this.notificationRepository.save(notification);
+    if (this.notificationsGateway) {
+      try {
+        const unreadCount = await this.getUnreadCount(userId);
+        this.notificationsGateway.sendUnreadCountToUser(userId, unreadCount);
+      } catch {
+        // Non-blocking socket emission
+      }
+    }
+    return saved;
   }
 
   /**

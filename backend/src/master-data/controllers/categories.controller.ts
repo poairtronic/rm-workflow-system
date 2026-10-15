@@ -17,9 +17,14 @@ import { Roles } from '../../auth/decorators/roles.decorator.js';
 import { UserRole } from '../../auth/enums/role.enum.js';
 import { CreateCategoryDto, UpdateCategoryDto } from '../dto/category.dto.js';
 import { MasterFilterDto } from '../dto/master-filter.dto.js';
+import {
+  CacheNamespace,
+  InvalidateCache,
+} from '../../common/cache/cache.decorators.js';
 
 @Controller(['api/categories', 'api/product-categories', 'categories'])
 @UseGuards(JwtAuthGuard, RolesGuard)
+@CacheNamespace('categories')
 export class CategoriesController {
   constructor(private readonly masterDataService: MasterDataService) {}
 
@@ -51,12 +56,14 @@ export class CategoriesController {
 
   @Post()
   @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.DESIGNER, UserRole.GENERAL_MANAGER)
+  @InvalidateCache(['categories', 'products'])
   createCategory(@Body() dto: CreateCategoryDto) {
     return this.masterDataService.createCategory(dto);
   }
 
   @Patch(':id')
   @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.DESIGNER, UserRole.GENERAL_MANAGER)
+  @InvalidateCache(['categories', 'products'])
   updateCategory(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateCategoryDto,
@@ -66,6 +73,7 @@ export class CategoriesController {
 
   @Delete(':id')
   @Roles(UserRole.ADMIN, UserRole.STORES)
+  @InvalidateCache(['categories', 'products'])
   deleteCategory(@Param('id', ParseUUIDPipe) id: string) {
     return this.masterDataService.deleteCategory(id);
   }
