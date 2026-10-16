@@ -153,53 +153,93 @@ export function PoTraceabilityWorkspace() {
           )}
 
           {/* Hydrated View */}
-          {data && !isLoading && !isError && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
-              {/* Context Header */}
-              <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden flex flex-col md:flex-row md:items-center justify-between p-6 gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-                    <FileBadge className="w-6 h-6" />
+          {data && !isLoading && !isError && (() => {
+            const safePoNumber = (data as any).poNumber || (data as any).po?.poNumber || 'PO';
+            const safeCustomerName = (data as any).customerName || (data as any).po?.customer?.name || 'Customer';
+            const safePoDate = (data as any).poDate || (data as any).po?.referenceDate || (data as any).po?.createdAt || '';
+            const safeTargetDeliveryDate = (data as any).targetDeliveryDate || (data as any).po?.referenceDate || '';
+            const safeKpis = (data as any).kpis || {
+              totalScs: (data as any).summary?.totalScCount ?? ((data as any).childComponents?.length ?? 0),
+              overallFulfillmentPercentage: (data as any).summary?.overallFulfillmentPercentage ?? 0,
+              cumulativeMaterialWeightKg: (data as any).rmSummary?.totalOriginalRm ?? 0,
+              activeVendorDispatches: ((data as any).deliveryChallans || []).filter((d: any) => d.status === 'DISPATCHED').length,
+            };
+            const safeMaterialChartData = (data as any).materialChartData || [
+              {
+                materialCategory: 'Raw Material',
+                requestedKg: ((data as any).rmSummary?.totalOriginalRm ?? 0) + ((data as any).rmSummary?.totalAdditionalIssued ?? 0),
+                consumedKg: (data as any).rmSummary?.totalConsumed ?? 0,
+              },
+            ];
+            const safeStatusDistribution = (data as any).statusDistribution || Object.entries((data as any).productionStatus?.statusBreakdown || {}).map(([name, value], idx) => ({
+              name,
+              value: Number(value),
+              color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][idx % 5],
+            }));
+            const safeScs = (data as any).scs || ((data as any).childComponents || []).map((c: any) => ({
+              scId: c.scId,
+              nomenclature: c.productName || c.scNumber,
+              quantityOrdered: c.targetQuantity || 0,
+              quantityCompleted: c.rmSummary?.totalConsumed || 0,
+              status: c.status === 'COMPLETED' ? 'CLOSED' : (c.status === 'DRAFT' ? 'DRAFT' : 'IN_PRODUCTION'),
+            }));
+            const safeDcLogs = (data as any).dcLogs || ((data as any).deliveryChallans || []).map((dc: any) => ({
+              dcNumber: dc.challanNumber || dc.dcNumber,
+              scReference: dc.scId || 'Multiple / General',
+              vendorName: dc.vendor?.name || 'N/A',
+              dispatchDate: dc.dispatchDate || '',
+              expectedReturnDate: dc.expectedReturnDate || '',
+              status: dc.status === 'DISPATCHED' ? 'ISSUED' : (dc.status === 'PARTIALLY_RETURNED' ? 'PARTIAL_RETURN' : (dc.status === 'CLOSED' || dc.status === 'RETURNED' ? 'CLOSED' : 'DRAFT')),
+            }));
+
+            return (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+                {/* Context Header */}
+                <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden flex flex-col md:flex-row md:items-center justify-between p-6 gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                      <FileBadge className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Purchase Order</h2>
+                      <p className="text-xl font-extrabold text-slate-900 font-mono">{safePoNumber}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Purchase Order</h2>
-                    <p className="text-xl font-extrabold text-slate-900 font-mono">{data.poNumber}</p>
+
+                  <div className="flex flex-wrap items-center gap-8 border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
+                    <div>
+                      <p className="text-xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Customer</p>
+                      <p className="text-sm font-bold text-slate-900">{safeCustomerName}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">PO Date</p>
+                      <p className="text-sm font-medium text-slate-800 tabular-nums">
+                        {safePoDate ? new Date(safePoDate).toLocaleDateString() : '—'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Target Delivery</p>
+                      <p className="text-sm font-medium text-slate-800 tabular-nums">
+                        {safeTargetDeliveryDate ? new Date(safeTargetDeliveryDate).toLocaleDateString() : '—'}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-8 border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
-                  <div>
-                    <p className="text-xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Customer</p>
-                    <p className="text-sm font-bold text-slate-900">{data.customerName || 'Customer'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">PO Date</p>
-                    <p className="text-sm font-medium text-slate-800 tabular-nums">
-                      {data.poDate ? new Date(data.poDate).toLocaleDateString() : '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Target Delivery</p>
-                    <p className="text-sm font-medium text-slate-800 tabular-nums">
-                      {data.targetDeliveryDate ? new Date(data.targetDeliveryDate).toLocaleDateString() : '—'}
-                    </p>
-                  </div>
+                <PoKpiMetrics kpis={safeKpis} />
+
+                <PoMaterialCharts
+                  materialData={safeMaterialChartData}
+                  statusData={safeStatusDistribution}
+                />
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  <ScAggregateGrid scs={safeScs} />
+                  <PoDeliveryChallanLog logs={safeDcLogs} />
                 </div>
               </div>
-
-              <PoKpiMetrics kpis={data.kpis} />
-
-              <PoMaterialCharts
-                materialData={data.materialChartData}
-                statusData={data.statusDistribution}
-              />
-
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <ScAggregateGrid scs={data.scs} />
-                <PoDeliveryChallanLog logs={data.dcLogs} />
-              </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}
     </div>

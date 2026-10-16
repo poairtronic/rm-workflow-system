@@ -55,6 +55,12 @@ export class DeliveryChallanController {
     return this.deliveryChallanService.getOverdueChallans();
   }
 
+  @Post('check-sla-alerts')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER)
+  async checkSlaAlerts() {
+    return this.deliveryChallanService.checkAndAlertExpectedReturnDates();
+  }
+
   @Get()
   async findAll(
     @Query('scId') scId?: string,

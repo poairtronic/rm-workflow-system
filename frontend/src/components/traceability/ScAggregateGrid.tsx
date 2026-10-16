@@ -3,10 +3,10 @@ import { ChevronRight } from 'lucide-react';
 import type { PoScSummary } from '../../types/po-traceability.dto';
 
 interface ScAggregateGridProps {
-  scs: PoScSummary[];
+  scs?: PoScSummary[];
 }
 
-export function ScAggregateGrid({ scs }: ScAggregateGridProps) {
+export function ScAggregateGrid({ scs = [] }: ScAggregateGridProps) {
   const navigate = useNavigate();
 
   const getStatusStyle = (status: string) => {

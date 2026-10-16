@@ -63,26 +63,26 @@ export class NotificationRecipientService {
 
     switch (eventType) {
       case 'RM_SUBMITTED':
-        // Business Rule: Designer submits RM -> Stores handles operational fulfillment.
+        // Business Rule: Designer submits RM -> Stores receives email/notification.
         primaryRoles = [UserRole.STORES];
         monitoringRoles = [];
         break;
 
       case 'MATERIAL_ISSUED':
-        // Business Rule: Stores issues material -> Production receives material. Senior & General Managers monitor.
+        // Business Rule: Stores issues material -> Production receives email/notification.
         primaryRoles = [UserRole.PRODUCTION];
-        monitoringRoles = [UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER];
+        monitoringRoles = [];
         break;
 
       case 'ADDITIONAL_MATERIAL_REQUESTED':
       case 'ADDITIONAL_REQUEST':
-        // Business Rule: Production requests additional material -> Stores handles fulfillment. Senior & General Managers monitor.
+        // Business Rule: Production requests additional material -> Stores receives email/notification.
         primaryRoles = [UserRole.STORES];
-        monitoringRoles = [UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER];
+        monitoringRoles = [];
         break;
 
       case 'SC_COMPLETED':
-        // Business Rule: Production completes SC -> Designer receives operational notification. Senior & General Managers monitor.
+        // Business Rule: Production completes SC -> Designer receives in-app notification.
         primaryRoles = [UserRole.DESIGNER];
         monitoringRoles = [UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER];
         break;
@@ -95,9 +95,9 @@ export class NotificationRecipientService {
         break;
 
       case 'MATERIAL_RETURNED':
-        // Production submitted return -> Stores & Managers notified
+        // Production submitted return -> Stores receives email/notification.
         primaryRoles = [UserRole.STORES];
-        monitoringRoles = [UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER];
+        monitoringRoles = [];
         break;
 
       case 'RETURN_VERIFIED':
@@ -107,29 +107,32 @@ export class NotificationRecipientService {
         break;
 
       case 'EXTRA_MATERIAL_APPROVED':
-        // Stores approved extra material -> Production & Managers notified
         primaryRoles = [UserRole.PRODUCTION];
         monitoringRoles = [UserRole.SENIOR_MANAGER];
         break;
 
       case 'EXTRA_MATERIAL_REJECTED':
-        // Stores rejected extra material -> Production & Managers notified
         primaryRoles = [UserRole.PRODUCTION];
         monitoringRoles = [UserRole.SENIOR_MANAGER];
         break;
 
       case 'EXTRA_MATERIAL_ISSUED':
-        // Stores issued extra material -> Production & Managers notified
+        // Stores issued extra material -> Production receives email/notification.
         primaryRoles = [UserRole.PRODUCTION];
-        monitoringRoles = [UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER];
+        monitoringRoles = [];
         break;
 
       case 'MSL_LOW_STOCK':
       case 'MSL_OUT_OF_STOCK':
-      case 'MSL_RESOLVED':
-        // Business Rule: MSL breaches and resolutions -> Stores manages stock replenishment. Senior & General Managers monitor.
+        // Stock reaches/breaches MSL level -> Stores receives email/notification.
         primaryRoles = [UserRole.STORES];
-        monitoringRoles = [UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER];
+        monitoringRoles = [];
+        break;
+
+      case 'MSL_RESOLVED':
+        // Stock restored -> Stores receives notification.
+        primaryRoles = [UserRole.STORES];
+        monitoringRoles = [];
         break;
 
       // Phase 19.8 — Delivery Challan events
@@ -141,8 +144,9 @@ export class NotificationRecipientService {
 
       case 'DC_APPROACHING_SLA':
       case 'DC_OVERDUE':
-        primaryRoles = [UserRole.STORES, UserRole.ADMIN];
-        monitoringRoles = [UserRole.SENIOR_MANAGER];
+        // DC reached expected return date or crossed return date -> Stores receives email/notification.
+        primaryRoles = [UserRole.STORES];
+        monitoringRoles = [];
         break;
 
       case 'DC_PARTIALLY_RETURNED':
@@ -174,8 +178,8 @@ export class NotificationRecipientService {
       }
     }
 
-    // 2. Resolve Primary Operational Roles if specific user not resolved
-    if (primaryRoles.length > 0 && recipientMap.size === 0) {
+    // 2. Resolve Primary Operational Roles
+    if (primaryRoles.length > 0) {
       const primaryUsers = await this.findActiveUsersByRoles(primaryRoles);
       for (const u of primaryUsers) {
         recipientMap.set(u.id, u);

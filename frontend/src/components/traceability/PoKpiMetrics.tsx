@@ -2,11 +2,15 @@ import { Package, TrendingUp, Scale, Truck } from 'lucide-react';
 import type { PoKpiData } from '../../types/po-traceability.dto';
 
 interface PoKpiMetricsProps {
-  kpis: PoKpiData;
+  kpis?: Partial<PoKpiData> | null;
 }
 
 export function PoKpiMetrics({ kpis }: PoKpiMetricsProps) {
-  const isGoodFulfillment = kpis.overallFulfillmentPercentage >= 90;
+  const fulfillment = kpis?.overallFulfillmentPercentage ?? 0;
+  const isGoodFulfillment = fulfillment >= 90;
+  const totalScs = kpis?.totalScs ?? 0;
+  const cumulativeWeight = kpis?.cumulativeMaterialWeightKg ?? 0;
+  const activeDispatches = kpis?.activeVendorDispatches ?? 0;
   
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
@@ -18,7 +22,7 @@ export function PoKpiMetrics({ kpis }: PoKpiMetricsProps) {
           </div>
           <div>
             <p className="text-sm font-medium text-slate-500">Total SCs</p>
-            <p className="text-2xl font-bold text-slate-900 tabular-nums">{kpis.totalScs}</p>
+            <p className="text-2xl font-bold text-slate-900 tabular-nums">{totalScs}</p>
           </div>
         </div>
       </div>
@@ -32,7 +36,7 @@ export function PoKpiMetrics({ kpis }: PoKpiMetricsProps) {
           <div>
             <p className="text-sm font-medium text-slate-500">Overall Fulfillment</p>
             <p className={`text-2xl font-bold tabular-nums ${isGoodFulfillment ? 'text-emerald-600' : 'text-amber-600'}`}>
-              {kpis.overallFulfillmentPercentage}%
+              {fulfillment}%
             </p>
           </div>
         </div>
@@ -47,7 +51,7 @@ export function PoKpiMetrics({ kpis }: PoKpiMetricsProps) {
           <div>
             <p className="text-sm font-medium text-slate-500">Cumulative Material</p>
             <p className="text-2xl font-bold text-slate-900 tabular-nums">
-              {kpis.cumulativeMaterialWeightKg.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-sm text-slate-500">KG</span>
+              {cumulativeWeight.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-sm text-slate-500">KG</span>
             </p>
           </div>
         </div>
@@ -61,7 +65,7 @@ export function PoKpiMetrics({ kpis }: PoKpiMetricsProps) {
           </div>
           <div>
             <p className="text-sm font-medium text-slate-500">Active Dispatches</p>
-            <p className="text-2xl font-bold text-slate-900 tabular-nums">{kpis.activeVendorDispatches}</p>
+            <p className="text-2xl font-bold text-slate-900 tabular-nums">{activeDispatches}</p>
           </div>
         </div>
       </div>

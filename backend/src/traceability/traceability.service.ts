@@ -1474,6 +1474,45 @@ export class TraceabilityService {
       vendors,
       childComponents,
       generatedAt: new Date().toISOString(),
+
+      // Pre-calculated fields for PO Macro-Traceability Dashboard UI
+      kpis: {
+        totalScs: totalScCount,
+        overallFulfillmentPercentage,
+        cumulativeMaterialWeightKg: QuantityCalculator.roundDecimal(totalOriginalRm),
+        activeVendorDispatches: dispatchedChallans,
+      },
+      poNumber: po.poNumber,
+      customerName: po.customer?.name || 'Customer',
+      poDate: po.referenceDate ? new Date(po.referenceDate).toISOString() : (po.createdAt ? new Date(po.createdAt).toISOString() : ''),
+      targetDeliveryDate: po.referenceDate ? new Date(po.referenceDate).toISOString() : '',
+      scs: childComponents.map((c) => ({
+        scId: c.scId,
+        nomenclature: c.productName || c.scNumber,
+        quantityOrdered: c.targetQuantity,
+        quantityCompleted: c.rmSummary.totalConsumed || 0,
+        status: c.status === 'COMPLETED' ? 'CLOSED' : (c.status === 'DRAFT' ? 'DRAFT' : 'IN_PRODUCTION'),
+      })),
+      materialChartData: [
+        {
+          materialCategory: 'Raw Material',
+          requestedKg: QuantityCalculator.roundDecimal(totalOriginalRm + totalAdditionalIssued),
+          consumedKg: QuantityCalculator.roundDecimal(totalConsumed),
+        },
+      ],
+      statusDistribution: Object.entries(statusBreakdown).map(([name, value], idx) => ({
+        name,
+        value: Number(value),
+        color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][idx % 5],
+      })),
+      dcLogs: deliveryChallans.map((dc) => ({
+        dcNumber: dc.challanNumber,
+        scReference: dc.scId || 'Multiple / General',
+        vendorName: dc.vendor?.name || 'N/A',
+        dispatchDate: dc.dispatchDate ? new Date(dc.dispatchDate).toISOString() : '',
+        expectedReturnDate: dc.expectedReturnDate ? new Date(dc.expectedReturnDate).toISOString() : '',
+        status: dc.status === DeliveryChallanStatus.DISPATCHED ? 'ISSUED' : (dc.status === DeliveryChallanStatus.PARTIALLY_RETURNED ? 'PARTIAL_RETURN' : (dc.status === DeliveryChallanStatus.CLOSED || dc.status === DeliveryChallanStatus.RETURNED ? 'CLOSED' : 'DRAFT')),
+      })),
     };
   }
 

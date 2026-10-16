@@ -14,8 +14,8 @@ import {
 import type { PoMaterialChartData, PoStatusDistribution } from '../../types/po-traceability.dto';
 
 interface PoMaterialChartsProps {
-  materialData: PoMaterialChartData[];
-  statusData: PoStatusDistribution[];
+  materialData?: PoMaterialChartData[];
+  statusData?: PoStatusDistribution[];
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -38,7 +38,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export function PoMaterialCharts({ materialData, statusData }: PoMaterialChartsProps) {
+export function PoMaterialCharts({ materialData = [], statusData = [] }: PoMaterialChartsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
       

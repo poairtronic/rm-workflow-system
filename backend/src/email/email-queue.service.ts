@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, Optional } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
 import { EmailJob } from './entities/email-job.entity.js';
@@ -8,8 +8,24 @@ import { EmailProvider } from './enums/email-provider.enum.js';
 import { TemplateResolver } from './resolvers/template.resolver.js';
 import { EmailIdempotencyService } from './email-idempotency.service.js';
 
+export const PERMITTED_EMAIL_EVENT_TYPES = new Set([
+  'RM_SUBMITTED',
+  'MATERIAL_ISSUED',
+  'ADDITIONAL_REQUEST',
+  'ADDITIONAL_MATERIAL_REQUESTED',
+  'MATERIAL_RETURNED',
+  'EXTRA_MATERIAL_ISSUED',
+  'MSL_LOW_STOCK',
+  'MSL_OUT_OF_STOCK',
+  'DC_APPROACHING_SLA',
+  'DC_OVERDUE',
+  'PASSWORD_RESET',
+  'TEST_EMAIL',
+]);
+
 @Injectable()
 export class EmailQueueService {
+  private readonly logger = new Logger(EmailQueueService.name);
   private readonly templateResolver = new TemplateResolver();
   private readonly emailIdempotencyService: EmailIdempotencyService;
 
@@ -27,6 +43,17 @@ export class EmailQueueService {
    * Enforces recipient validation, header injection protection, and server-managed state.
    */
   async enqueueJob(jobData: Partial<EmailJob>): Promise<EmailJob> {
+    // Whitelist Guard: Outgoing emails are strictly restricted to 7 business events (+ TEST_EMAIL)
+    if (jobData.eventType && !PERMITTED_EMAIL_EVENT_TYPES.has(jobData.eventType)) {
+      this.logger.warn(
+        `Email job suppressed by whitelist policy: eventType "${jobData.eventType}" is not authorized for email dispatch.`,
+      );
+      return this.emailJobRepository.create({
+        ...jobData,
+        status: EmailJobStatus.CANCELLED,
+        lastError: `Suppressed by enterprise email whitelist policy: eventType "${jobData.eventType}" is not permitted.`,
+      }) as EmailJob;
+    }
     const rawRecipient = (jobData.recipientEmail || '').trim();
 
     // Recipient Validation & Header Injection Protection

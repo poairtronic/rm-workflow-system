@@ -1,4 +1,5 @@
 import { Injectable, Logger, BadRequestException, NotFoundException, Optional } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, QueryRunner, LessThan, In, EntityManager } from 'typeorm';
 import { DeliveryChallan, DeliveryChallanType, DeliveryChallanStatus } from './entities/delivery-challan.entity.js';
@@ -1210,5 +1211,86 @@ export class DeliveryChallanService {
           `Non-critical: DC notification fire failed for event "${eventType}" on challan ${challan.id}: ${err?.message || err}`,
         );
       });
+  }
+
+  /**
+   * Enterprise Automated Sweep: Evaluates active Delivery Challans against expected return date:
+   * 1. Reached expected return date (due today or within 24h) -> DC_APPROACHING_SLA -> Email to STORES
+   * 2. Crossed expected return date (now > expectedReturnDate) -> DC_OVERDUE -> Email to STORES
+   */
+  @Cron(process.env.DC_SLA_CRON_SCHEDULE || CronExpression.EVERY_HOUR)
+  async checkAndAlertExpectedReturnDates(): Promise<{ reachedCount: number; overdueCount: number }> {
+    this.logger.log('Starting automated Delivery Challan return date reconciliation sweep.');
+    if (!this.communicationService) {
+      return { reachedCount: 0, overdueCount: 0 };
+    }
+
+    try {
+      const activeChallans = await this.challanRepo.find({
+        where: {
+          status: In([
+            DeliveryChallanStatus.OPEN,
+            DeliveryChallanStatus.DISPATCHED,
+            DeliveryChallanStatus.PARTIALLY_RETURNED,
+          ]),
+        },
+        relations: { vendor: true },
+      });
+
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+      let reachedCount = 0;
+      let overdueCount = 0;
+
+      for (const dc of activeChallans) {
+        if (!dc.expectedReturnDate) continue;
+        const expectedDate = new Date(dc.expectedReturnDate);
+        if (isNaN(expectedDate.getTime())) continue;
+
+        const expectedDateStr = expectedDate.toISOString().split('T')[0];
+
+        if (now.getTime() > expectedDate.getTime()) {
+          // Crossed expected return date -> OVERDUE
+          overdueCount++;
+          const daysOverdue = Math.max(1, Math.ceil((now.getTime() - expectedDate.getTime()) / (1000 * 60 * 60 * 24)));
+          await this.communicationService.sendEvent({
+            eventType: 'DC_OVERDUE',
+            entityType: 'DELIVERY_CHALLAN',
+            entityId: `${dc.id}_overdue_${todayStr}`,
+            metadata: {
+              challanNumber: dc.challanNumber,
+              vendorName: dc.vendor?.name || 'N/A',
+              expectedReturnDate: expectedDateStr,
+              daysOverdue,
+            },
+          }).catch((err) => {
+            this.logger.error(`Failed to dispatch DC_OVERDUE for ${dc.challanNumber}: ${err?.message || err}`);
+          });
+        } else if (expectedDate.getTime() - now.getTime() <= 24 * 60 * 60 * 1000) {
+          // Reached expected return date (due today / within 24h) -> SLA Approaching
+          reachedCount++;
+          const hoursRemaining = Math.max(0, Math.round((expectedDate.getTime() - now.getTime()) / (1000 * 60 * 60)));
+          await this.communicationService.sendEvent({
+            eventType: 'DC_APPROACHING_SLA',
+            entityType: 'DELIVERY_CHALLAN',
+            entityId: `${dc.id}_reached_${todayStr}`,
+            metadata: {
+              challanNumber: dc.challanNumber,
+              vendorName: dc.vendor?.name || 'N/A',
+              expectedReturnDate: expectedDateStr,
+              hoursRemaining,
+            },
+          }).catch((err) => {
+            this.logger.error(`Failed to dispatch DC_APPROACHING_SLA for ${dc.challanNumber}: ${err?.message || err}`);
+          });
+        }
+      }
+
+      this.logger.log(`DC return date check complete: ${reachedCount} reached return date, ${overdueCount} crossed/overdue.`);
+      return { reachedCount, overdueCount };
+    } catch (err: any) {
+      this.logger.error(`Delivery Challan return date check failed: ${err?.message || err}`);
+      return { reachedCount: 0, overdueCount: 0 };
+    }
   }
 }

@@ -32,7 +32,7 @@ export function VendorSlaWorkspace() {
   const [dossierVendorId, setDossierVendorId] = useState<string | null>(null);
 
   // Data Fetching: All SLAs
-  const { data: slas = [], isLoading } = useQuery({
+  const { data: slas = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['vendor-slas'],
     queryFn: async () => {
       const response = await vendorSlaApi.getAll();
@@ -182,10 +182,10 @@ export function VendorSlaWorkspace() {
         <div className="grid grid-cols-12 gap-8">
           {/* Left Column: Grid + Creation Form */}
           <div className="col-span-12 xl:col-span-8 space-y-8">
-            {slas.length === 0 && !isLoading ? (
+            {isError ? (
               <ErrorState
-                message="Failed to load SLAs or no SLAs exist."
-                onRetry={() => queryClient.invalidateQueries({ queryKey: ['vendor-slas'] })}
+                message="Failed to load SLAs. Please check your connection and retry."
+                onRetry={() => refetch()}
               />
             ) : (
               <SlaConfigurationGrid

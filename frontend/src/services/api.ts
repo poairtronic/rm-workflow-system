@@ -359,7 +359,8 @@ import type {
 
 export const vendorSlaApi = {
   getAll: async () => {
-    const slas = await api.get<any[]>('/api/vendors/slas');
+    const raw = await api.get<any>('/api/vendors/slas');
+    const slas = unwrapList(raw);
     return slas.map(sla => ({
       id: sla.id,
       vendorName: sla.vendor?.name || '',

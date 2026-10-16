@@ -92,4 +92,20 @@ export class ConsolidatedPoTraceabilityDto {
   vendors!: ConsolidatedVendorDto[];
   childComponents!: PoChildComponentNodeDto[];
   generatedAt!: string;
+
+  // Compatibility fields for PO Traceability UI dashboard
+  kpis?: {
+    totalScs: number;
+    overallFulfillmentPercentage: number;
+    cumulativeMaterialWeightKg: number;
+    activeVendorDispatches: number;
+  };
+  poNumber?: string;
+  customerName?: string;
+  poDate?: string;
+  targetDeliveryDate?: string;
+  scs?: any[];
+  materialChartData?: any[];
+  statusDistribution?: any[];
+  dcLogs?: any[];
 }

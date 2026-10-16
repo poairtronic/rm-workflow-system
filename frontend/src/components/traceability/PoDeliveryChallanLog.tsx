@@ -2,10 +2,10 @@ import { Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import type { PoDcLog } from '../../types/po-traceability.dto';
 
 interface PoDeliveryChallanLogProps {
-  logs: PoDcLog[];
+  logs?: PoDcLog[];
 }
 
-export function PoDeliveryChallanLog({ logs }: PoDeliveryChallanLogProps) {
+export function PoDeliveryChallanLog({ logs = [] }: PoDeliveryChallanLogProps) {
   
   const getSlaStatus = (dc: PoDcLog) => {
     if (dc.status === 'CLOSED') {

@@ -21,6 +21,8 @@ import {
   ExtraMaterialRejectedEventPayload,
   ExtraMaterialIssuedEventPayload,
 } from './workflow-notification.service.js';
+import { NotificationRecipientService } from './notification-recipient.service.js';
+import { NotificationsGateway } from './notifications.gateway.js';
 
 export interface CommunicationEventResult {
   inAppNotifications: Notification[];
@@ -43,8 +45,34 @@ export interface CommunicationEventInput {
   metadata?: Record<string, any>;
 }
 
-import { NotificationRecipientService } from './notification-recipient.service.js';
-import { NotificationsGateway } from './notifications.gateway.js';
+export const PERMITTED_EMAIL_CONFIG: Record<
+  string,
+  { allowedRoles: string[]; recipientType: 'ROLES' | 'USER' }
+> = {
+  // 1st: RM submit -> Stores
+  RM_SUBMITTED: { allowedRoles: ['STORES'], recipientType: 'ROLES' },
+  // 2nd: RM issued -> Production
+  MATERIAL_ISSUED: { allowedRoles: ['PRODUCTION'], recipientType: 'ROLES' },
+  // 3rd: Production request or return -> Stores
+  ADDITIONAL_REQUEST: { allowedRoles: ['STORES'], recipientType: 'ROLES' },
+  ADDITIONAL_MATERIAL_REQUESTED: { allowedRoles: ['STORES'], recipientType: 'ROLES' },
+  MATERIAL_RETURNED: { allowedRoles: ['STORES'], recipientType: 'ROLES' },
+  // 4th: Stores issue requested material -> Production
+  EXTRA_MATERIAL_ISSUED: { allowedRoles: ['PRODUCTION'], recipientType: 'ROLES' },
+  // 5th: Stock in MSL reached -> Stores
+  MSL_LOW_STOCK: { allowedRoles: ['STORES'], recipientType: 'ROLES' },
+  MSL_OUT_OF_STOCK: { allowedRoles: ['STORES'], recipientType: 'ROLES' },
+  // 6th: DC reached expected return date & crossed expected return date -> Stores
+  DC_APPROACHING_SLA: { allowedRoles: ['STORES'], recipientType: 'ROLES' },
+  DC_OVERDUE: { allowedRoles: ['STORES'], recipientType: 'ROLES' },
+  // 7th: Password reset -> Requesting user
+  PASSWORD_RESET: { allowedRoles: [], recipientType: 'USER' },
+  // Diagnostic test email for admin verification
+  TEST_EMAIL: {
+    allowedRoles: ['ADMIN', 'STORES', 'PRODUCTION', 'DESIGNER', 'SENIOR_MANAGER', 'GENERAL_MANAGER'],
+    recipientType: 'ROLES',
+  },
+};
 
 @Injectable()
 export class CommunicationService {
@@ -223,6 +251,7 @@ export class CommunicationService {
           templateKey: 'RM_SUBMITTED',
           subject: `[V-SMART Notification] RM Request Submitted: ${input.rmNumber || input.entityId}`,
           payload: { rmNumber: input.rmNumber || input.entityId, rmRequestId: input.entityId },
+          actorUserId,
         });
 
       case 'MATERIAL_ISSUED':
@@ -236,6 +265,7 @@ export class CommunicationService {
           templateKey: 'MATERIAL_ISSUED',
           subject: `[V-SMART Notification] Material Issued for RM: ${input.rmNumber || input.entityId}`,
           payload: { rmNumber: input.rmNumber || input.entityId, scId: input.scId },
+          actorUserId,
         });
 
       case 'ADDITIONAL_MATERIAL_REQUESTED':
@@ -250,6 +280,7 @@ export class CommunicationService {
           templateKey: 'ADDITIONAL_MATERIAL_REQUESTED',
           subject: `[V-SMART Notification] Additional Material Request: ${input.rmNumber || input.entityId}`,
           payload: { rmNumber: input.rmNumber || input.entityId, scId: input.scId },
+          actorUserId,
         });
 
       case 'SC_COMPLETED':
@@ -290,6 +321,7 @@ export class CommunicationService {
           templateKey: 'MATERIAL_RETURNED',
           subject: `[V-SMART Notification] Material Return Submitted: ${input.rmNumber || input.entityId}`,
           payload: { scNumber: input.rmNumber || input.entityId, scId: input.scId, returnId: input.entityId },
+          actorUserId,
         });
 
       case 'RETURN_VERIFIED':
@@ -342,6 +374,7 @@ export class CommunicationService {
           templateKey: 'EXTRA_MATERIAL_ISSUED',
           subject: `[V-SMART Notification] Additional Material Issued: ${input.rmNumber || input.entityId}`,
           payload: { scNumber: input.rmNumber || input.entityId, scId: input.scId, issueId: input.entityId },
+          actorUserId,
         });
 
       case 'MSL_LOW_STOCK':
@@ -543,6 +576,7 @@ export class CommunicationService {
     templateKey: string;
     subject: string;
     payload: any;
+    actorUserId?: string;
   }): Promise<CommunicationEventResult> {
     const inAppNotifications: Notification[] = [];
     const emailJobs: EmailJob[] = [];
@@ -599,51 +633,88 @@ export class CommunicationService {
       }
     }
 
-    // 2. Email Job (Channel 2 - Optional based on preference)
-    const globalEmailEnabled = await this.notificationsService.getGlobalWorkflowEmailEnabled();
-    if (globalEmailEnabled) {
-      await Promise.all(
-        uniqueTargetUsers.map(async (user) => {
-          try {
-            const isUserAllowed = await this.notificationsService.getUserWorkflowEmailEnabled(user.id);
-            if (isUserAllowed) {
-              // Use TemplateService to render template content safely
-              const rendered = this.templateService.render(params.templateKey, {
-                recipientName: user.name,
-                ...params.payload,
-              });
+    // 2. Email Job (Channel 2 - Strict Whitelist Enforcement)
+    // Business Rule: Outgoing emails are strictly restricted to 7 permitted events and authorized roles:
+    // 1st: RM_SUBMITTED -> STORES
+    // 2nd: MATERIAL_ISSUED -> PRODUCTION
+    // 3rd: ADDITIONAL_REQUEST / ADDITIONAL_MATERIAL_REQUESTED / MATERIAL_RETURNED -> STORES
+    // 4th: EXTRA_MATERIAL_ISSUED -> PRODUCTION
+    // 5th: MSL_LOW_STOCK / MSL_OUT_OF_STOCK -> STORES
+    // 6th: DC_APPROACHING_SLA / DC_OVERDUE -> STORES
+    // 7th: PASSWORD_RESET -> Target user
+    const emailRule = PERMITTED_EMAIL_CONFIG[params.eventType];
+    if (!emailRule) {
+      this.logger.log(
+        `Email dispatch suppressed: eventType "${params.eventType}" is not authorized for email dispatch.`,
+      );
+      return { inAppNotifications, emailJobs };
+    }
 
-              const idempotencyKey = this.emailIdempotencyService.generateKey({
-                eventType: params.eventType,
-                entityId: params.targetId,
-                recipientUserId: user.id,
-              });
-              const job = await this.emailQueueService.enqueueJob({
-                recipientEmail: user.email,
-                recipientUserId: user.id,
-                recipientName: user.name,
-                eventType: params.eventType,
-                templateKey: rendered.templateKey,
-                subject: rendered.subject,
-                bodyText: rendered.text,
-                bodyHtml: rendered.html,
-                payload: params.payload,
-                idempotencyKey,
-              });
-              if (job) {
-                emailJobs.push(job);
-              }
-            } else {
-              this.logger.log(`Workflow email suppressed for recipient ${user.id} (${user.email}) due to preferences.`);
-            }
-          } catch (emailErr: any) {
-            this.logger.error(`Email job enqueuing failed for recipient ${user.id}: ${emailErr?.message || emailErr}`);
-          }
-        }),
+    const globalEmailEnabled = await this.notificationsService.getGlobalWorkflowEmailEnabled();
+    if (!globalEmailEnabled) {
+      this.logger.log(`Global workflow email is disabled. Skipping email jobs for event "${params.eventType}".`);
+      return { inAppNotifications, emailJobs };
+    }
+
+    // Resolve authorized recipients for this specific email event
+    let emailRecipients: User[] = [];
+    if (emailRule.recipientType === 'ROLES') {
+      const roleUsers = await this.recipientService.findActiveUsersByRoles(emailRule.allowedRoles);
+      // Exclude actor if specified so the person taking the action doesn't get self-notified
+      emailRecipients = roleUsers.filter(
+        (u) => u && u.isActive && (!params.actorUserId || u.id !== params.actorUserId),
       );
     } else {
-      this.logger.log(`Global workflow email is disabled. Skipping email jobs.`);
+      // Direct recipient (e.g. PASSWORD_RESET or specific user)
+      emailRecipients = uniqueTargetUsers;
     }
+
+    if (emailRecipients.length === 0) {
+      this.logger.log(
+        `No active recipients found for email event "${params.eventType}" with roles: [${emailRule.allowedRoles.join(', ')}]`,
+      );
+      return { inAppNotifications, emailJobs };
+    }
+
+    await Promise.all(
+      emailRecipients.map(async (user) => {
+        try {
+          const isUserAllowed = await this.notificationsService.getUserWorkflowEmailEnabled(user.id);
+          if (isUserAllowed) {
+            // Use TemplateService to render template content safely
+            const rendered = this.templateService.render(params.templateKey, {
+              recipientName: user.name,
+              ...params.payload,
+            });
+
+            const idempotencyKey = this.emailIdempotencyService.generateKey({
+              eventType: params.eventType,
+              entityId: params.targetId,
+              recipientUserId: user.id,
+            });
+            const job = await this.emailQueueService.enqueueJob({
+              recipientEmail: user.email,
+              recipientUserId: user.id,
+              recipientName: user.name,
+              eventType: params.eventType,
+              templateKey: rendered.templateKey,
+              subject: rendered.subject,
+              bodyText: rendered.text,
+              bodyHtml: rendered.html,
+              payload: params.payload,
+              idempotencyKey,
+            });
+            if (job) {
+              emailJobs.push(job);
+            }
+          } else {
+            this.logger.log(`Workflow email suppressed for recipient ${user.id} (${user.email}) due to user preferences.`);
+          }
+        } catch (emailErr: any) {
+          this.logger.error(`Email job enqueuing failed for recipient ${user.id}: ${emailErr?.message || emailErr}`);
+        }
+      }),
+    );
 
     return { inAppNotifications, emailJobs };
   }
