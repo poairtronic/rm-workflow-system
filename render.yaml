@@ -45,7 +45,7 @@ services:
     name: v-smart-frontend
     runtime: static
     rootDir: frontend
-    buildCommand: npm install && npm run build
+    buildCommand: npm install --include=optional && npm install @rolldown/binding-linux-x64-gnu && npm run build
     staticPublishPath: dist
     routes:
       - type: rewrite
