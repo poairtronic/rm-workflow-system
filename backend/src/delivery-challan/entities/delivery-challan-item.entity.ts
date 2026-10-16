@@ -41,6 +41,9 @@ export class DeliveryChallanItem {
   @JoinColumn({ name: 'process_id', foreignKeyConstraintName: 'FK_dci_process_id' })
   process?: any;
 
+  @Column({ name: 'process_name', type: 'varchar', length: 255, nullable: true })
+  processName?: string | null;
+
   @Column({ name: 'part_number', type: 'varchar', length: 100, nullable: true })
   partNumber?: string | null;
 

@@ -70,8 +70,8 @@ export class DeliveryChallanService {
     if (dto.type !== DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD) {
       throw new BadRequestException('Invalid challan type for Type 1 creation');
     }
-    if (dto.items.some(item => !item.scId || !item.processId)) {
-      throw new BadRequestException('scId and processId are required for all items in Type 1 challan');
+    if (dto.items.some(item => !item.scId)) {
+      throw new BadRequestException('scId is required for all items in Type 1 challan');
     }
 
     if (!dto.dispatchDate) {
@@ -100,34 +100,36 @@ export class DeliveryChallanService {
     await queryRunner.startTransaction();
 
     try {
-      // Extract unique process IDs from items
+      // Extract unique process IDs from items (optional)
       const uniqueProcessIds: string[] = Array.from(
         new Set(dto.items.map(item => item.processId).filter((pid): pid is string => Boolean(pid)))
       );
 
-      // 1. Validate Vendor Process Capability for all distinct processes
-      const capabilityRepo = queryRunner.manager.getRepository(VendorProcessCapability);
-      let capabilities = await capabilityRepo.find({
-        where: { vendorId: dto.vendorId, processId: In(uniqueProcessIds), isApproved: true },
-      });
+      // 1. Validate Vendor Process Capability for all distinct processes if provided
+      if (uniqueProcessIds.length > 0) {
+        const capabilityRepo = queryRunner.manager.getRepository(VendorProcessCapability);
+        let capabilities = await capabilityRepo.find({
+          where: { vendorId: dto.vendorId, processId: In(uniqueProcessIds), isApproved: true },
+        });
 
-      if (capabilities.length !== uniqueProcessIds.length) {
-        const approvedSet = new Set(capabilities.map(c => c.processId));
-        for (const pid of uniqueProcessIds) {
-          if (!approvedSet.has(pid)) {
-            let existingCap = await capabilityRepo.findOne({
-              where: { vendorId: dto.vendorId, processId: pid },
-            });
-            if (existingCap) {
-              existingCap.isApproved = true;
-              await capabilityRepo.save(existingCap);
-            } else {
-              const newCap = capabilityRepo.create({
-                vendorId: dto.vendorId,
-                processId: pid,
-                isApproved: true,
+        if (capabilities.length !== uniqueProcessIds.length) {
+          const approvedSet = new Set(capabilities.map(c => c.processId));
+          for (const pid of uniqueProcessIds) {
+            if (!approvedSet.has(pid)) {
+              let existingCap = await capabilityRepo.findOne({
+                where: { vendorId: dto.vendorId, processId: pid },
               });
-              await capabilityRepo.save(newCap);
+              if (existingCap) {
+                existingCap.isApproved = true;
+                await capabilityRepo.save(existingCap);
+              } else {
+                const newCap = capabilityRepo.create({
+                  vendorId: dto.vendorId,
+                  processId: pid,
+                  isApproved: true,
+                });
+                await capabilityRepo.save(newCap);
+              }
             }
           }
         }
@@ -136,15 +138,18 @@ export class DeliveryChallanService {
       // 2. Compute Expected Return Date via Vendor SLA if not provided
       let expectedReturnDate = dto.expectedReturnDate ? new Date(dto.expectedReturnDate) : null;
       if (!expectedReturnDate) {
-        // Fallback: Use SLA from the first item's process or default 7 days
-        const slaRepo = queryRunner.manager.getRepository(VendorSla);
-        const sla = await slaRepo.findOne({
-          where: { vendorId: dto.vendorId, processId: uniqueProcessIds[0], isActive: true },
-        });
-
         const dispatch = new Date(dto.dispatchDate);
-        if (sla && sla.slaDays) {
-          expectedReturnDate = new Date(dispatch.getTime() + sla.slaDays * 24 * 60 * 60 * 1000);
+        if (uniqueProcessIds.length > 0) {
+          const slaRepo = queryRunner.manager.getRepository(VendorSla);
+          const sla = await slaRepo.findOne({
+            where: { vendorId: dto.vendorId, processId: uniqueProcessIds[0], isActive: true },
+          });
+
+          if (sla && sla.slaDays) {
+            expectedReturnDate = new Date(dispatch.getTime() + sla.slaDays * 24 * 60 * 60 * 1000);
+          } else {
+            expectedReturnDate = new Date(dispatch.getTime() + 7 * 24 * 60 * 60 * 1000);
+          }
         } else {
           expectedReturnDate = new Date(dispatch.getTime() + 7 * 24 * 60 * 60 * 1000);
         }
@@ -160,12 +165,18 @@ export class DeliveryChallanService {
       const uniqueProcessIdsSet = new Set(dto.items.map(item => item.processId).filter(Boolean));
       const headerProcessId = uniqueProcessIdsSet.size === 1 ? Array.from(uniqueProcessIdsSet)[0] : null;
 
+      const resolvedProcessName =
+        dto.processName?.trim() ||
+        dto.items.find(i => i.processName?.trim())?.processName?.trim() ||
+        null;
+
       const challan = queryRunner.manager.create(DeliveryChallan, {
         challanNumber,
         type: dto.type,
         vendorId: dto.vendorId,
         scId: headerScId,
         processId: headerProcessId,
+        processName: resolvedProcessName,
         dispatchDate: new Date(dto.dispatchDate),
         expectedReturnDate,
         notes: dto.notes,
@@ -203,6 +214,7 @@ export class DeliveryChallanService {
           binId: itemDto.binId ?? null,
           scId: targetScId ?? null,
           processId: (itemDto.processId || headerProcessId) ?? null,
+          processName: itemDto.processName || resolvedProcessName || null,
           batchNumber: itemDto.batchNumber ?? null,
           description: itemDto.description ?? null,
           partNumber: partNumber ?? null,
@@ -592,6 +604,7 @@ export class DeliveryChallanService {
             category: productionProcess.category ?? null,
           }
         : null,
+      processName: challan.processName || null,
     };
 
     // ─── Line Items ───────────────────────────────────────────────────────────
@@ -616,7 +629,7 @@ export class DeliveryChallanService {
         uom: item.product?.uom || (item.product?.name?.toUpperCase().includes('BAR') || item.product?.name?.toUpperCase().includes('ROD') ? 'MM' : 'NOS'),
         scNumber: item.sc?.scNumber ?? sc?.scNumber,
         poNumber: item.sc?.purchaseOrder?.poNumber ?? (sc as any)?.purchaseOrder?.poNumber,
-        processName: item.process?.name ?? productionProcess?.name,
+        processName: item.processName ?? challan.processName ?? item.process?.name ?? productionProcess?.name,
         batchNumber: item.batchNumber,
         description: item.description ?? null,
       };
@@ -686,6 +699,7 @@ export class DeliveryChallanService {
         expectedReturnDate: challan.expectedReturnDate ?? null,
         actualReturnDate: challan.actualReturnDate ?? null,
         notes: challan.notes ?? null,
+        processName: challan.processName ?? null,
       },
       vendor: vendorInfo,
       references,

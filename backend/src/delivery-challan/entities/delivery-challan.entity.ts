@@ -65,6 +65,9 @@ export class DeliveryChallan {
   @JoinColumn({ name: 'process_id' })
   process?: ProductionProcess | null;
 
+  @Column({ name: 'process_name', type: 'varchar', length: 255, nullable: true })
+  processName?: string | null;
+
   @Column({ name: 'dispatch_date', type: 'timestamptz' })
   dispatchDate: Date;
 

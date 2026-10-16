@@ -37,6 +37,11 @@ export class DeliveryChallanItemDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(255)
+  processName?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(100)
   partNumber?: string;
 

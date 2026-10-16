@@ -19,6 +19,7 @@ export function Type1DispatchWizard() {
       scBlocks: [
         {
           scId: '',
+          processName: '',
           processId: '',
           items: [{ productId: '', binId: '', batchNumber: '', quantity: '' as any, description: '' }]
         }
@@ -97,19 +98,22 @@ export function Type1DispatchWizard() {
   });
 
   const onSubmit = (data: any) => {
+    const mainProcessName = data.scBlocks?.[0]?.processName?.trim() || undefined;
     const payload = {
       type: data.type,
       vendorId: data.vendorId,
       dispatchDate: new Date().toISOString(),
       expectedReturnDate: data.expectedReturnDate,
       notes: data.notes?.trim() || undefined,
+      processName: mainProcessName,
       items: data.scBlocks.flatMap((block: any) => 
         block.items.map((item: any) => ({
           ...item,
           productId: item.productId || undefined,
           binId: item.binId || undefined,
           scId: block.scId,
-          processId: block.processId,
+          processId: block.processId || undefined,
+          processName: block.processName?.trim() || mainProcessName || undefined,
           partNumber: item.partNumber || undefined,
           partName: item.partName || undefined,
           description: item.description?.trim() || undefined,
@@ -244,9 +248,9 @@ export function Type1DispatchWizard() {
                   Dispatch Group {index + 1}
                 </h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Sales Component (SC Code)</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Sales Component (SC Code) *</label>
                     <Controller
                       name={`scBlocks.${index}.scId`}
                       control={methods.control}
@@ -275,11 +279,21 @@ export function Type1DispatchWizard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Target Production Process</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Process Name (Printed on DC)</label>
+                    <input
+                      type="text"
+                      {...register(`scBlocks.${index}.processName`)}
+                      placeholder="e.g. HEAT TREATMENT..."
+                      className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                    <p className="mt-1 text-[11px] text-slate-500">Printed directly under W. No. on physical DC.</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Target Production Process (Optional)</label>
                     <Controller
                       name={`scBlocks.${index}.processId`}
                       control={methods.control}
-                      rules={{ required: 'Process is required' }}
+                      rules={{ required: false }}
                       render={({ field }) => {
                         const scId = watch(`scBlocks.${index}.scId`);
                         const approvedProcessIds = new Set(
@@ -289,6 +303,7 @@ export function Type1DispatchWizard() {
                           const isApproved = approvedProcessIds.has(p.id);
                           return {
                             id: p.id,
+                            name: p.name,
                             primary: `${p.code} - ${p.name}${isApproved ? ' (Approved Vendor SLA)' : ''}`,
                             isApproved
                           };
@@ -299,7 +314,13 @@ export function Type1DispatchWizard() {
                             value={field.value}
                             onChange={(val) => {
                               field.onChange(val);
-                              if (index === 0 && vendorId && slaList) {
+                              // Auto-fill Process Name if empty
+                              const selectedProcess = options.find((o: any) => o.id === val);
+                              const currentProcessName = methods.getValues(`scBlocks.${index}.processName`);
+                              if (selectedProcess && !currentProcessName?.trim()) {
+                                setValue(`scBlocks.${index}.processName`, selectedProcess.name, { shouldValidate: true });
+                              }
+                              if (index === 0 && vendorId && slaList && val) {
                                 const sla = slaList.find((s: any) => s.vendorId === vendorId && s.processId === val);
                                 if (sla?.slaDays) {
                                   const date = new Date();
@@ -308,7 +329,7 @@ export function Type1DispatchWizard() {
                                 }
                               }
                             }}
-                            placeholder="Select Process..."
+                            placeholder="Select Process (Optional)..."
                             disabled={!scId || !vendorId}
                             options={options}
                           />
@@ -326,7 +347,7 @@ export function Type1DispatchWizard() {
           <div className="flex justify-center pt-2">
             <button
               type="button"
-              onClick={() => appendBlock({ scId: '', processId: '', items: [{ productId: '', binId: '', batchNumber: '', quantity: '' as any, description: '' }] })}
+              onClick={() => appendBlock({ scId: '', processName: '', processId: '', items: [{ productId: '', binId: '', batchNumber: '', quantity: '' as any, description: '' }] })}
               className="inline-flex items-center gap-2 px-6 py-2.5 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition-colors border border-slate-200"
             >
               <Plus className="w-4 h-4" />
@@ -338,7 +359,7 @@ export function Type1DispatchWizard() {
           <div className="pt-6 mt-6 border-t border-slate-200 flex items-center justify-end">
             {!isValid && (
               <span className="text-xs text-amber-600 mr-4 font-medium">
-                Please select Process, Return Date, and enter Quantity &gt; 0 to lock DC
+                Please select SC, Return Date, and enter Quantity &gt; 0 to lock DC
               </span>
             )}
             <button

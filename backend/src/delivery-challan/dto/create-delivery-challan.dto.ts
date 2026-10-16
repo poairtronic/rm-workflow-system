@@ -27,6 +27,10 @@ export class CreateDeliveryChallanDto {
   @IsUUID()
   processId?: string;
 
+  @IsOptional()
+  @IsString()
+  processName?: string;
+
   @IsISO8601()
   dispatchDate: string;
 

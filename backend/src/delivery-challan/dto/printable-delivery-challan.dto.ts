@@ -30,6 +30,7 @@ export interface PrintableChallanMeta {
   expectedReturnDate: Date | null;
   actualReturnDate: Date | null;
   notes: string | null;
+  processName?: string | null;
 }
 
 // ─── Vendor Details ───────────────────────────────────────────────────────────
@@ -74,6 +75,7 @@ export interface PrintableReferences {
   sc: PrintableScReference | null;
   pos: PrintablePoReference[];
   process: PrintableProcessReference | null;
+  processName?: string | null;
 }
 
 // ─── Line Items ───────────────────────────────────────────────────────────────

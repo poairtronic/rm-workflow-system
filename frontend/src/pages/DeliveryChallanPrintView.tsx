@@ -127,7 +127,7 @@ export function DeliveryChallanPrintView() {
     ? `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`
     : rawDate;
 
-  const processName = references.process?.processName || dc.processName || '';
+  const processName = challan.processName || dc.processName || references.processName || '';
   const dcNumber = challan.challanNumber || dc.dcNumber || 'SDC/2627/0001';
   const notes = challan.notes || dc.notes || 'HT AND RETURN';
 
@@ -282,7 +282,7 @@ export function DeliveryChallanPrintView() {
               </div>
               
               <div className="p-2 text-center text-[11px] font-bold uppercase tracking-wider text-slate-800 bg-white flex-1 flex items-center justify-center">
-                {processName || (challan.type === 'GENERAL_INVENTORY_OUTWARD' || dc.type === 'GENERAL_INVENTORY_OUTWARD' ? 'STOCK CONVERSION' : 'PROCESS TYPE')}
+                {processName || (challan.type === 'GENERAL_INVENTORY_OUTWARD' || dc.type === 'GENERAL_INVENTORY_OUTWARD' ? 'STOCK CONVERSION' : '—')}
               </div>
             </div>
           </div>
