@@ -18,15 +18,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload as ChartAgeingBucket;
     return (
-      <div className="bg-white border border-slate-200 rounded-lg shadow-md p-4 min-w-[200px]">
-        <p className="text-sm font-semibold text-slate-900 mb-2 border-b border-slate-100 pb-1.5">{label}</p>
+      <div className="bg-white dark:bg-[#161a2e] border border-slate-200 dark:border-[#283056] rounded-lg shadow-md p-4 min-w-[200px]">
+        <p className="text-sm font-semibold text-slate-900 dark:text-white mb-2 border-b border-slate-100 dark:border-slate-800 pb-1.5">{label}</p>
         <div className="flex justify-between items-center mb-1">
-          <span className="text-xs text-slate-500 uppercase tracking-wider">Open DCs:</span>
-          <span className="font-bold tabular-nums text-slate-900">{data.dcCount}</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">Open DCs:</span>
+          <span className="font-bold tabular-nums text-slate-900 dark:text-white">{data.dcCount}</span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-xs text-slate-500 uppercase tracking-wider">Custody Balance:</span>
-          <span className="font-bold tabular-nums text-slate-900">{data.balanceQty} units</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">Custody Balance:</span>
+          <span className="font-bold tabular-nums text-slate-900 dark:text-white">{data.balanceQty} units</span>
         </div>
       </div>
     );
@@ -83,22 +83,22 @@ export function AgeingDistributionCharts({ distribution }: AgeingDistributionCha
       <div className="h-72 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255, 255, 255, 0.08)" />
             <XAxis 
               dataKey="name" 
-              tick={{ fontSize: 12, fill: '#64748B', fontWeight: 500 }} 
+              tick={{ fontSize: 12, fill: '#94A3B8', fontWeight: 500 }} 
               axisLine={false} 
               tickLine={false} 
               dy={8}
             />
             <YAxis 
               allowDecimals={false}
-              tick={{ fontSize: 12, fill: '#64748B' }} 
+              tick={{ fontSize: 12, fill: '#94A3B8' }} 
               axisLine={false} 
               tickLine={false} 
               dx={-8}
             />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#F8FAFC', opacity: 0.8 }} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255, 255, 255, 0.04)' }} />
             <Bar dataKey="dcCount" name="Open DCs" radius={[6, 6, 0, 0]} barSize={52}>
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.color} />

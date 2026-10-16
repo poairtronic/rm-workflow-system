@@ -45,8 +45,10 @@ export function SystemConfigurationWorkspace() {
       const res = await systemSettingsApi.getConfig();
       if (res) {
         if (res.appearance) {
-          const t = res.appearance.theme || 'Enterprise Light';
-          const d = res.appearance.density || 'Compact';
+          const localTheme = localStorage.getItem('rm_theme_preference');
+          const t = localTheme || res.appearance.theme || 'Modern Dark';
+          const localDensity = localStorage.getItem('rm_data_density');
+          const d = localDensity || res.appearance.density || 'Compact';
           setTheme(t);
           setDensity(d);
           applyTheme(t);

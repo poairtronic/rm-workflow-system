@@ -415,6 +415,139 @@ html.theme-modern-dark ::-webkit-scrollbar-thumb:hover {
   background: #2b3254;
 }
 
+/* Ensure buttons without explicit background classes remain transparent */
+html.dark button:not([class*="bg-"]):not([class*="btn-"]),
+html.theme-modern-dark button:not([class*="bg-"]):not([class*="btn-"]) {
+  background-color: transparent !important;
+}
+
+/* Secondary pastel surface opacities (e.g. bg-indigo-50/50, bg-emerald-50/50, etc.) */
+html.dark [class*="bg-indigo-50"],
+html.theme-modern-dark [class*="bg-indigo-50"],
+html.dark [class*="bg-blue-50"],
+html.theme-modern-dark [class*="bg-blue-50"] {
+  background-color: rgba(99, 102, 241, 0.14) !important;
+  color: #818cf8 !important;
+  border-color: rgba(99, 102, 241, 0.25) !important;
+}
+
+html.dark [class*="bg-emerald-50"],
+html.theme-modern-dark [class*="bg-emerald-50"],
+html.dark [class*="bg-green-50"],
+html.theme-modern-dark [class*="bg-green-50"] {
+  background-color: rgba(16, 185, 129, 0.14) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.25) !important;
+}
+
+html.dark [class*="bg-amber-50"],
+html.theme-modern-dark [class*="bg-amber-50"],
+html.dark [class*="bg-yellow-50"],
+html.theme-modern-dark [class*="bg-yellow-50"] {
+  background-color: rgba(245, 158, 11, 0.14) !important;
+  color: #fbbf24 !important;
+  border-color: rgba(245, 158, 11, 0.25) !important;
+}
+
+html.dark [class*="bg-rose-50"],
+html.theme-modern-dark [class*="bg-rose-50"],
+html.dark [class*="bg-red-50"],
+html.theme-modern-dark [class*="bg-red-50"] {
+  background-color: rgba(244, 63, 94, 0.14) !important;
+  color: #fb7185 !important;
+  border-color: rgba(244, 63, 94, 0.25) !important;
+}
+
+html.dark [class*="bg-purple-50"],
+html.theme-modern-dark [class*="bg-purple-50"],
+html.dark [class*="bg-violet-50"],
+html.theme-modern-dark [class*="bg-violet-50"] {
+  background-color: rgba(168, 85, 247, 0.14) !important;
+  color: #c084fc !important;
+  border-color: rgba(168, 85, 247, 0.25) !important;
+}
+
+/* Neutral Surfaces: slate-200, slate-300, gray-200, gray-300 */
+html.dark [class*="bg-slate-200"],
+html.theme-modern-dark [class*="bg-slate-200"],
+html.dark [class*="bg-gray-200"],
+html.theme-modern-dark [class*="bg-gray-200"],
+html.dark [class*="bg-slate-300"],
+html.theme-modern-dark [class*="bg-slate-300"] {
+  background-color: #1a1e33 !important;
+  color: #cbd5e1 !important;
+  border-color: #2b3254 !important;
+}
+
+html.dark [class*="hover:bg-slate-200"]:hover,
+html.theme-modern-dark [class*="hover:bg-slate-200"]:hover,
+html.dark [class*="hover:bg-slate-100"]:hover,
+html.theme-modern-dark [class*="hover:bg-slate-100"]:hover {
+  background-color: #1a1e33 !important;
+}
+
+/* ==========================================================================
+   RECHARTS ULTRA-MODERN DARK THEME ENGINE
+   ========================================================================== */
+html.dark .recharts-cartesian-grid line,
+html.theme-modern-dark .recharts-cartesian-grid line {
+  stroke: #1e233d !important;
+  stroke-opacity: 0.8 !important;
+}
+
+html.dark .recharts-cartesian-axis-line,
+html.theme-modern-dark .recharts-cartesian-axis-line {
+  stroke: #1e233d !important;
+}
+
+html.dark .recharts-cartesian-axis-tick text,
+html.dark .recharts-cartesian-axis-tick-value,
+html.dark .recharts-text,
+html.dark .recharts-label,
+html.theme-modern-dark .recharts-cartesian-axis-tick text,
+html.theme-modern-dark .recharts-cartesian-axis-tick-value,
+html.theme-modern-dark .recharts-text,
+html.theme-modern-dark .recharts-label {
+  fill: #94a3b8 !important;
+  color: #94a3b8 !important;
+}
+
+html.dark .recharts-legend-item-text,
+html.theme-modern-dark .recharts-legend-item-text {
+  color: #cbd5e1 !important;
+}
+
+html.dark .recharts-default-tooltip,
+html.theme-modern-dark .recharts-default-tooltip {
+  background-color: #161a2e !important;
+  border: 1px solid #283056 !important;
+  color: #f8fafc !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7) !important;
+}
+
+html.dark .recharts-tooltip-item,
+html.theme-modern-dark .recharts-tooltip-item {
+  color: #f1f5f9 !important;
+}
+
+html.dark .recharts-tooltip-label,
+html.theme-modern-dark .recharts-tooltip-label {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+html.dark .recharts-tooltip-cursor,
+html.theme-modern-dark .recharts-tooltip-cursor {
+  fill: rgba(255, 255, 255, 0.04) !important;
+  stroke: rgba(99, 102, 241, 0.2) !important;
+}
+
+html.dark .recharts-pie-sector path,
+html.theme-modern-dark .recharts-pie-sector path {
+  stroke: #121526 !important;
+}
+
 /* ==========================================================================
    ENTERPRISE SLATE THEME (Clean Light Muted Gray)
    ========================================================================== */

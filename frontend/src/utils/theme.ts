@@ -3,9 +3,9 @@ export type DataDensity = 'Compact' | 'Comfortable';
 
 export function getCurrentTheme(): string {
   try {
-    return localStorage.getItem('rm_theme_preference') || 'Enterprise Light';
+    return localStorage.getItem('rm_theme_preference') || 'Modern Dark';
   } catch {
-    return 'Enterprise Light';
+    return 'Modern Dark';
   }
 }
 
@@ -40,7 +40,7 @@ export function applyDensity(density: string) {
 
 export function initThemeAndDensity() {
   try {
-    const savedTheme = localStorage.getItem('rm_theme_preference') || 'Enterprise Light';
+    const savedTheme = localStorage.getItem('rm_theme_preference') || 'Modern Dark';
     const savedDensity = localStorage.getItem('rm_data_density') || 'Compact';
     applyTheme(savedTheme);
     applyDensity(savedDensity);

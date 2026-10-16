@@ -8,8 +8,22 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <title>V-SMART | Enterprise Material & DC Governance</title>
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('rm_theme_preference') || 'Modern Dark';
+          if (t === 'Modern Dark' || !localStorage.getItem('rm_theme_preference')) {
+            document.documentElement.classList.add('dark', 'theme-modern-dark');
+          } else if (t === 'Enterprise Slate') {
+            document.documentElement.classList.add('theme-enterprise-slate');
+          }
+          var d = localStorage.getItem('rm_data_density') || 'Compact';
+          document.documentElement.classList.add(d === 'Comfortable' ? 'density-comfortable' : 'density-compact');
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body>
+  <body class="bg-[#F8FAFC] dark:bg-[#090a10] text-slate-900 dark:text-slate-100">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

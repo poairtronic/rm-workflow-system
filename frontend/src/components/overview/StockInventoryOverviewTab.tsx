@@ -92,21 +92,22 @@ export function StockInventoryOverviewTab({ data }: StockInventoryOverviewTabPro
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={barData} margin={{ top: 10, right: 10, left: -20, bottom: 25 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255, 255, 255, 0.08)" />
                 <XAxis
                   dataKey="name"
                   interval={0}
                   angle={-15}
                   textAnchor="end"
-                  tick={{ fontSize: 10, fill: '#64748b' }}
+                  tick={{ fontSize: 10, fill: '#94a3b8' }}
                   axisLine={false}
                   tickLine={false}
                 />
-                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                 <Tooltip
-                  cursor={{ fill: 'rgba(241, 245, 249, 0.6)' }}
+                  cursor={{ fill: 'rgba(255, 255, 255, 0.04)' }}
                   formatter={(val: any) => [`${val} transactions`, 'Count']}
-                  contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
+                  contentStyle={{ backgroundColor: '#161a2e', borderRadius: '8px', border: '1px solid #283056', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)', fontSize: '12px' }}
+                  itemStyle={{ color: '#f1f5f9' }}
                 />
                 <Bar dataKey="count" fill="#3b82f6" radius={[6, 6, 0, 0]} className="cursor-pointer focus:outline-none" />
               </BarChart>
@@ -141,12 +142,13 @@ export function StockInventoryOverviewTab({ data }: StockInventoryOverviewTabPro
                   className="cursor-pointer focus:outline-none"
                 >
                   {pieData.map((entry) => (
-                    <Cell key={entry.name} fill={entry.color} stroke="#ffffff" strokeWidth={2} className="focus:outline-none" />
+                    <Cell key={entry.name} fill={entry.color} stroke="none" className="focus:outline-none" />
                   ))}
                 </Pie>
                 <Tooltip
                   formatter={(val: any) => [`${Number(val).toLocaleString()} units`, 'Quantity']}
-                  contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
+                  contentStyle={{ backgroundColor: '#161a2e', borderRadius: '8px', border: '1px solid #283056', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)', fontSize: '12px' }}
+                  itemStyle={{ color: '#f1f5f9' }}
                 />
                 <Legend
                   verticalAlign="bottom"

@@ -105,17 +105,18 @@ export function SlaComplianceChart({ vendorId, vendorName, onClearSelection }: S
               data={chartData}
               margin={{ top: 5, right: 10, left: -25, bottom: 5 }}
             >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748B' }} dy={8} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748B' }} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255, 255, 255, 0.08)" />
+              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94A3B8' }} dy={8} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94A3B8' }} />
               <Tooltip
-                cursor={{ fill: '#F8FAFC' }}
+                cursor={{ fill: 'rgba(255, 255, 255, 0.04)' }}
                 formatter={(val: any, name: any) => [`${val} Days`, name]}
-                contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                contentStyle={{ backgroundColor: '#161a2e', borderRadius: '8px', border: '1px solid #283056', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)', fontSize: '12px' }}
+                itemStyle={{ color: '#f1f5f9' }}
               />
               <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-              <Bar dataKey="agreedTat" name="Agreed SLA (Days)" fill="#94A3B8" radius={[4, 4, 0, 0]} maxBarSize={32} />
-              <Bar dataKey="actualDelivery" name="Actual Delivery (Days)" fill="#2563EB" radius={[4, 4, 0, 0]} maxBarSize={32} />
+              <Bar dataKey="agreedTat" name="Agreed SLA (Days)" fill="#64748B" radius={[4, 4, 0, 0]} maxBarSize={32} />
+              <Bar dataKey="actualDelivery" name="Actual Delivery (Days)" fill="#3B82F6" radius={[4, 4, 0, 0]} maxBarSize={32} />
             </BarChart>
           </ResponsiveContainer>
         </div>

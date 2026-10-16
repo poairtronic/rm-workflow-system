@@ -21,13 +21,13 @@ interface PoMaterialChartsProps {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white border border-slate-200 rounded-lg shadow-md p-3">
-        <p className="text-sm font-semibold text-slate-900 mb-2">{label || payload[0]?.name}</p>
+      <div className="bg-white dark:bg-[#161a2e] border border-slate-200 dark:border-[#283056] rounded-lg shadow-md p-3">
+        <p className="text-sm font-semibold text-slate-900 dark:text-white mb-2">{label || payload[0]?.name}</p>
         {payload.map((entry: any, index: number) => (
-          <p key={index} className="text-xs text-slate-600 flex items-center gap-2">
+          <p key={index} className="text-xs text-slate-600 dark:text-slate-300 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }}></span>
             <span className="capitalize">{entry.name}:</span>
-            <span className="font-bold tabular-nums text-slate-900">
+            <span className="font-bold tabular-nums text-slate-900 dark:text-white">
               {entry.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {entry.name.includes('Kg') || entry.dataKey?.includes('Kg') ? 'KG' : ''}
             </span>
           </p>
@@ -50,9 +50,9 @@ export function PoMaterialCharts({ materialData = [], statusData = [] }: PoMater
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={materialData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-              <XAxis dataKey="materialCategory" tick={{ fontSize: 12, fill: '#64748B' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={(val) => `${val}kg`} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255, 255, 255, 0.08)" />
+              <XAxis dataKey="materialCategory" tick={{ fontSize: 12, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 12, fill: '#94A3B8' }} axisLine={false} tickLine={false} tickFormatter={(val) => `${val}kg`} />
               <Tooltip content={<CustomTooltip />} />
               <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
               <Bar dataKey="requestedKg" name="Requested" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={30} />

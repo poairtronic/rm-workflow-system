@@ -214,17 +214,17 @@ export function StoresRequestReturnVerifyWorkspace() {
       )}
 
       {/* Primary Tab Switcher */}
-      <div className="flex items-center space-x-3 border-b border-slate-200 pb-1">
+      <div className="flex items-center space-x-3 border-b border-slate-200 dark:border-[#1e233d] pb-1">
         <button
           type="button"
           onClick={() => setActiveTab('RECEIVE')}
           className={`flex items-center space-x-2.5 px-5 py-3 rounded-t-xl font-bold text-sm transition-all relative border-b-2 cursor-pointer ${
             activeTab === 'RECEIVE'
-              ? 'border-emerald-600 text-emerald-700 bg-emerald-50/50 shadow-xs'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+              ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/30 shadow-xs'
+              : 'border-transparent bg-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#161a2e]'
           }`}
         >
-          <ArrowDownLeft className="w-4 h-4 text-emerald-600" />
+          <ArrowDownLeft className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           <span>1. Receive Returns</span>
           {pendingReturnsCount > 0 && (
             <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs font-black bg-emerald-600 text-white">
@@ -238,11 +238,11 @@ export function StoresRequestReturnVerifyWorkspace() {
           onClick={() => setActiveTab('ISSUE')}
           className={`flex items-center space-x-2.5 px-5 py-3 rounded-t-xl font-bold text-sm transition-all relative border-b-2 cursor-pointer ${
             activeTab === 'ISSUE'
-              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50 shadow-xs'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+              ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/30 shadow-xs'
+              : 'border-transparent bg-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#161a2e]'
           }`}
         >
-          <ArrowUpRight className="w-4 h-4 text-indigo-600" />
+          <ArrowUpRight className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
           <span>2. Issue Extra Requests</span>
           {pendingRequestsCount > 0 && (
             <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs font-black bg-indigo-600 text-white">

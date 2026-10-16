@@ -39,10 +39,10 @@ export function AppLayout() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#090a10] text-slate-900 dark:text-slate-100 overflow-x-clip transition-colors duration-150">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#090a10] text-slate-900 dark:text-slate-100 overflow-x-clip">
       <Sidebar />
       <TopBar onOpenScanner={() => { setScannedBarcode(''); setIsScannerOpen(true); }} />
-      <main className="ml-[260px] mt-16 p-8 bg-[#F8FAFC] dark:bg-[#090a10] min-h-[calc(100vh-64px)] max-w-[calc(100vw-260px)] transition-colors duration-150">
+      <main className="ml-[260px] mt-16 p-8 bg-[#F8FAFC] dark:bg-[#090a10] min-h-[calc(100vh-64px)] max-w-[calc(100vw-260px)]">
         <ErrorBoundary>
           <Suspense fallback={<RouteLoadingSkeleton />}>
             <Outlet />
