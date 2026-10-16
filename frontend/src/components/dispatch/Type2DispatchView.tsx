@@ -50,6 +50,7 @@ export function Type2DispatchView() {
     defaultValues: {
       type: 'GENERAL_INVENTORY_OUTWARD',
       vendorId: '',
+      processName: 'STOCK CONVERSION',
       notes: '',
       scBlocks: [{
         scId: null,
@@ -99,8 +100,10 @@ export function Type2DispatchView() {
 
   const onConfirm = () => {
     handleSubmit((data) => {
+      const customProcessName = data.processName?.trim() || 'STOCK CONVERSION';
       const payload = {
         ...data,
+        processName: customProcessName,
         items: data.scBlocks[0].items.map((item: any, idx: number) => ({
           ...item,
           partNumber: item.partNumber || `DC2-${String(idx + 1).padStart(3, '0')}`,
@@ -109,6 +112,7 @@ export function Type2DispatchView() {
           outputProductId: item.outputProductId || undefined,
           expectedOutputQuantity: item.expectedOutputQuantity ? Number(item.expectedOutputQuantity) : undefined,
           outputBinId: item.outputBinId || undefined,
+          processName: customProcessName,
         }))
       };
       createDcMutation.mutate(payload);
@@ -164,7 +168,7 @@ export function Type2DispatchView() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Vendor Destination</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Vendor Destination *</label>
                   <Controller
                     name="vendorId"
                     control={methods.control}
@@ -187,6 +191,20 @@ export function Type2DispatchView() {
                   {errors.vendorId && (
                     <p className="mt-1 text-xs text-red-500">{errors.vendorId.message as string}</p>
                   )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Process Name (Printed on DC)
+                  </label>
+                  <input
+                    type="text"
+                    {...register('processName')}
+                    placeholder="e.g. STOCK CONVERSION, HEAT TREATMENT..."
+                    className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Printed directly under W. No. on physical DC.
+                  </p>
                 </div>
               </div>
               <div>
@@ -254,10 +272,14 @@ export function Type2DispatchView() {
                     <p className="text-sm font-bold text-slate-900">{selectedVendor?.name || 'Selected Vendor'}</p>
                   </div>
                   <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Process Name (Printed on DC)</p>
+                    <p className="text-sm font-bold text-slate-900">{watch('processName') || 'STOCK CONVERSION'}</p>
+                  </div>
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
                     <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Total Line Items</p>
                     <p className="text-sm font-bold text-slate-900 tabular-nums">{items.length}</p>
                   </div>
-                  <div className="sm:col-span-2 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
                     <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Purpose / Notes</p>
                     <p className="text-sm text-slate-800">{notes || 'No notes provided'}</p>
                   </div>

@@ -447,17 +447,24 @@ export const deliveryChallanApi = {
     const isType1 = data.type === 'PRODUCTION_PROCESS_OUTWARD';
     const endpoint = isType1 ? '/api/delivery-challans/type-1' : '/api/delivery-challans/type-2';
     
+    const resolvedProcessName =
+      data.processName?.trim() ||
+      data.scBlocks?.[0]?.processName?.trim() ||
+      undefined;
+
     const backendPayload = {
       type: data.type,
       vendorId: data.vendorId,
       ...(isType1 && data.scId && { scId: data.scId, processId: data.processId }),
       ...(isType1 && { expectedReturnDate: data.expectedReturnDate }),
+      processName: resolvedProcessName,
       dispatchDate: new Date().toISOString(),
       notes: data.notes || '',
       items: data.items.map((i: any) => ({
         productId: i.productId,
         binId: i.binId || undefined,
         quantityDispatched: Number(i.quantity) || Number(i.quantityDispatched),
+        processName: i.processName?.trim() || resolvedProcessName,
         ...(isType1 && { scId: i.scId, processId: i.processId, description: i.description, batchNumber: i.batchNumber }),
         ...(!isType1 && {
           outputProductId: i.outputProductId || undefined,

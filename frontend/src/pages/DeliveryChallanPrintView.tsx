@@ -127,7 +127,14 @@ export function DeliveryChallanPrintView() {
     ? `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`
     : rawDate;
 
-  const processName = challan.processName || dc.processName || references.processName || '';
+  const processName =
+    challan.processName ||
+    dc.processName ||
+    references.processName ||
+    dc.groups?.[0]?.processName ||
+    dc.lineItems?.[0]?.processName ||
+    dc.items?.[0]?.processName ||
+    '';
   const dcNumber = challan.challanNumber || dc.dcNumber || 'SDC/2627/0001';
   const notes = challan.notes || dc.notes || 'HT AND RETURN';
 

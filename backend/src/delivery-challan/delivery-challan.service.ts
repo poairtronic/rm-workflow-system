@@ -310,12 +310,19 @@ export class DeliveryChallanService {
       }
 
       const challanNumber = await this.generateNextChallanNumber(queryRunner, dispatchDate);
+
+      const resolvedProcessName =
+        dto.processName?.trim() ||
+        dto.items.find(i => i.processName?.trim())?.processName?.trim() ||
+        'STOCK CONVERSION';
+
       const challan = queryRunner.manager.create(DeliveryChallan, {
         challanNumber,
         type: dto.type,
         vendorId: dto.vendorId,
         scId: dto.scId,
         processId: dto.processId,
+        processName: resolvedProcessName,
         dispatchDate: new Date(dto.dispatchDate),
         expectedReturnDate: dto.expectedReturnDate ? new Date(dto.expectedReturnDate) : null,
         notes: dto.notes,
@@ -386,6 +393,7 @@ export class DeliveryChallanService {
           outputBinId: itemDto.outputBinId ?? null,
           scId: itemDto.scId ?? null,
           processId: (itemDto.processId || dto.processId) ?? null,
+          processName: itemDto.processName || resolvedProcessName || null,
           batchNumber: itemDto.batchNumber ?? null,
           description: itemDto.description ?? null,
           partNumber: partNumber ?? null,
