@@ -1,27 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { KeyRound, Mail, ArrowRight, ArrowLeft, Loader2, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { KeyRound, ArrowLeft, Loader2, CheckCircle2, Sun, Moon } from 'lucide-react';
 import { authApi } from '../services/api';
+import { getCurrentTheme, applyTheme } from '../utils/theme';
 
 export function ForgotPasswordPage() {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [currentTheme, setCurrentTheme] = useState(() => getCurrentTheme());
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      setCurrentTheme(e.detail?.theme || getCurrentTheme());
+    };
+    window.addEventListener('theme-changed', handler);
+    return () => window.removeEventListener('theme-changed', handler);
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = currentTheme === 'Modern Dark' ? 'Enterprise Light' : 'Modern Dark';
+    setCurrentTheme(nextTheme);
+    applyTheme(nextTheme);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
+    if (!identifier.trim()) return;
 
     setIsLoading(true);
     setErrorMessage('');
 
     try {
-      await authApi.forgotPassword(email.trim());
+      await authApi.forgotPassword(identifier.trim());
       setSubmitted(true);
     } catch (err: any) {
       setErrorMessage(
-        err?.message || 'Unable to process your request at this time. Please try again later.',
+        err?.message || 'Unable to process your request at this time. Please try again.',
       );
     } finally {
       setIsLoading(false);
@@ -29,230 +45,152 @@ export function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 text-slate-800 flex flex-col justify-between relative overflow-hidden font-sans">
-      {/* Background Visual Elements: Subtle modern industrial ambient gradients & pattern */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-slate-100/80 to-indigo-50/40 pointer-events-none" />
-      <div
-        className="absolute inset-0 opacity-[0.035] pointer-events-none"
-        style={{
-          backgroundImage:
-            'radial-gradient(circle at 1px 1px, rgba(15, 23, 42, 0.6) 1px, transparent 0)',
-          backgroundSize: '24px 24px',
-        }}
-      />
-      <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-200/30 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-blue-200/30 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen bg-slate-50 dark:bg-[#090a10] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative transition-colors font-sans">
+      {/* Top Right Quick Theme Switcher */}
+      <div className="absolute top-4 right-4">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="p-2 rounded-lg text-slate-500 dark:text-[#8896ab] hover:text-primary dark:hover:text-indigo-400 hover:bg-slate-200/60 dark:hover:bg-[#161a2e] border border-transparent dark:border-[#1e233d] transition-colors cursor-pointer"
+          title={currentTheme === 'Modern Dark' ? 'Switch to Light Mode' : 'Switch to Modern Dark Mode'}
+        >
+          {currentTheme === 'Modern Dark' ? (
+            <Sun className="w-4 h-4 text-amber-400" />
+          ) : (
+            <Moon className="w-4 h-4 text-slate-600" />
+          )}
+        </button>
+      </div>
 
-      {/* Main Content Container */}
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-6 py-8 md:py-12 flex-1 flex flex-col justify-between">
-        {/* Top Navbar / Brand Header */}
-        <header className="flex items-center justify-between pb-6">
-          <Link to="/login" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
-              <ShieldCheck className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <span className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                V-SMART
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/80">
-                  Secure Portal
-                </span>
-              </span>
-              <p className="text-[11px] text-slate-500 font-medium tracking-wide">
-                Velan Stock, Material &amp; Asset Resource Tracker
-              </p>
-            </div>
-          </Link>
-        </header>
-
-        {/* Center Split Grid */}
-        <main className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center py-8 my-auto">
-          {/* Left Column: Enterprise Hero Branding */}
-          <div className="lg:col-span-7 flex flex-col space-y-6 pr-0 lg:pr-8">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-50 border border-indigo-200/80 w-fit">
-              <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
-              <span className="text-xs font-semibold tracking-wide text-indigo-800">
-                Enterprise Identity &amp; Access Management
-              </span>
-            </div>
-
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.12]">
-              Optimizing yield,{' '}
-              <br className="hidden sm:inline" />
-              tracking{' '}
-              <span className="text-indigo-600">
-                real-time cost.
-              </span>
-            </h1>
-
-            <p className="text-base sm:text-lg text-slate-600 max-w-xl leading-relaxed font-normal">
-              Unify supply workflows, machine telemetry, automated indents, and operational costs
-              into a single control plane built for modern heavy industry.
-            </p>
-
-            <div className="pt-2 flex flex-wrap items-center gap-6 text-xs text-slate-500 font-medium">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                <span>Single Sign-On Security</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                <span>Role-Based Access Control</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                <span>Audit Trail Compliant</span>
-              </div>
-            </div>
+      {/* Brand Header */}
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="flex justify-center">
+          <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-lg">
+            <KeyRound className="w-6 h-6 text-white" />
           </div>
+        </div>
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+          Forgot Password
+        </h2>
+        <p className="mt-2 text-center text-sm text-slate-600 dark:text-slate-400">
+          Velan Stock, Material &amp; Asset Resource Tracker
+        </p>
+      </div>
 
-          {/* Right Column: Interactive Card Matching Reference Screenshot */}
-          <div className="lg:col-span-5 flex justify-center lg:justify-end">
-            <div className="w-full max-w-md bg-white rounded-3xl p-8 sm:p-10 shadow-xl shadow-slate-200/70 border border-slate-200/80 text-slate-900 transition-all">
-              {submitted ? (
-                /* Success State */
-                <div className="text-center py-4 space-y-5 animate-in fade-in duration-300">
-                  <div className="w-14 h-14 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
-                    <CheckCircle2 className="w-7 h-7 text-emerald-600" />
-                  </div>
+      {/* Centered Auth Card */}
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white dark:bg-[#121526] py-8 px-4 shadow sm:rounded-xl sm:px-10 border border-slate-200 dark:border-[#1e233d]">
+          {submitted ? (
+            /* Success State */
+            <div className="text-center space-y-5 animate-in fade-in duration-300">
+              <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl flex items-center justify-center mx-auto shadow-sm">
+                <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+              </div>
 
-                  <div className="space-y-2">
-                    <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-                      Check Your Email
-                    </h2>
-                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-xs mx-auto">
-                      If an account is associated with{' '}
-                      <span className="font-semibold text-slate-900 break-all">{email}</span>, we
-                      have sent a secure password reset link.
-                    </p>
-                  </div>
+              <div className="space-y-1.5">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  Check Your Inbox
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                  If an account exists for <strong className="text-slate-900 dark:text-white break-all">{identifier}</strong>, we have sent a password reset link.
+                </p>
+              </div>
 
-                  <div className="bg-slate-50 rounded-xl p-3.5 text-left border border-slate-100">
-                    <p className="text-[11px] text-slate-500 leading-normal">
-                      • The link is valid for <strong>60 minutes</strong>.
-                      <br />
-                      • If you do not see it shortly, check your spam or junk folder.
-                    </p>
-                  </div>
+              <div className="bg-slate-50 dark:bg-[#0e111f] rounded-lg p-3 text-left border border-slate-200 dark:border-[#1e233d]">
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  • The reset link is valid for <strong>60 minutes</strong>.
+                  <br />
+                  • If you don't receive an email, please verify the address or check spam.
+                </p>
+              </div>
 
-                  <div className="pt-2 space-y-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSubmitted(false);
-                        setEmail('');
-                      }}
-                      className="w-full py-2.5 px-4 text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50/60 hover:bg-indigo-50 rounded-xl transition-colors"
-                    >
-                      Try another email address
-                    </button>
+              <div className="space-y-3 pt-2">
+                <Link
+                  to="/login"
+                  className="w-full flex justify-center items-center h-10 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors cursor-pointer"
+                >
+                  Return to Sign In
+                </Link>
 
-                    <Link
-                      to="/login"
-                      className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors w-full"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                      Return to Sign In
-                    </Link>
-                  </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubmitted(false);
+                    setIdentifier('');
+                  }}
+                  className="w-full text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline transition-colors py-1 cursor-pointer"
+                >
+                  Try another email / ID
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Reset Request Form */
+            <form className="space-y-6" onSubmit={handleSubmit}>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Enter your registered Employee ID or email address to receive a secure password reset link.
+              </p>
+
+              <div>
+                <label
+                  htmlFor="identifier"
+                  className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+                >
+                  Employee ID / Email
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="identifier"
+                    name="identifier"
+                    type="text"
+                    required
+                    autoComplete="username"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="Enter your ID or email"
+                    className="w-full h-10 px-3.5 rounded-lg border border-slate-200 dark:border-[#1e233d] text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50 dark:bg-[#0e111f] dark:text-white transition-colors"
+                  />
                 </div>
-              ) : (
-                /* Form State matching Screenshot 2 */
-                <div className="space-y-6">
-                  {/* Top Key Icon Badge */}
-                  <div className="flex justify-center">
-                    <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-center shadow-sm">
-                      <KeyRound className="w-6 h-6 text-indigo-600" />
-                    </div>
-                  </div>
+              </div>
 
-                  {/* Title & Subtitle */}
-                  <div className="text-center space-y-1.5">
-                    <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-                      Forgot Password
-                    </h2>
-                    <p className="text-xs sm:text-sm text-slate-500">
-                      Enter your email and we'll send you a password reset link
-                    </p>
-                  </div>
-
-                  {/* Form */}
-                  <form onSubmit={handleSubmit} className="space-y-5">
-                    <div>
-                      <label
-                        htmlFor="email-address"
-                        className="block text-[11px] font-bold tracking-wider text-slate-700 uppercase mb-2"
-                      >
-                        Email Address
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                          <Mail className="w-4 h-4" />
-                        </div>
-                        <input
-                          id="email-address"
-                          name="email"
-                          type="email"
-                          required
-                          autoComplete="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="admin@airtronic.com"
-                          className="w-full pl-10 pr-4 py-3 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 focus:bg-white transition-all"
-                        />
-                      </div>
-                    </div>
-
-                    {errorMessage && (
-                      <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-600 font-medium">
-                        {errorMessage}
-                      </div>
-                    )}
-
-                    <button
-                      type="submit"
-                      disabled={isLoading || !email.trim()}
-                      className="w-full py-3 px-4 rounded-xl font-semibold text-sm text-white bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Sending Link...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Send Reset Link</span>
-                          <ArrowRight className="w-4 h-4" />
-                        </>
-                      )}
-                    </button>
-                  </form>
-
-                  {/* Bottom Return to Sign In Link */}
-                  <div className="text-center pt-2">
-                    <Link
-                      to="/login"
-                      className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 transition-colors"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                      Return to Sign In
-                    </Link>
-                  </div>
+              {errorMessage && (
+                <div className="bg-red-50 dark:bg-red-950/30 p-3 rounded-lg border border-red-200 dark:border-red-900/50">
+                  <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+                    {errorMessage}
+                  </p>
                 </div>
               )}
-            </div>
-          </div>
-        </main>
 
-        {/* Footer */}
-        <footer className="pt-6 border-t border-slate-200/80 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>© 2026 V-SMART Enterprise Systems. All rights reserved.</p>
-          <div className="flex items-center gap-6 text-[11px] text-slate-400">
-            <span className="hover:text-slate-600 transition-colors cursor-pointer">Privacy Policy</span>
-            <span className="hover:text-slate-600 transition-colors cursor-pointer">Security Standards</span>
-            <span className="hover:text-slate-600 transition-colors cursor-pointer">Support Portal</span>
+              <div>
+                <button
+                  type="submit"
+                  disabled={isLoading || !identifier.trim()}
+                  className="w-full flex justify-center items-center h-10 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    'Send Reset Link'
+                  )}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-center pt-2">
+                <Link
+                  to="/login"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline transition-colors"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  Return to Sign In
+                </Link>
+              </div>
+            </form>
+          )}
+
+          <div className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
+            For access issues, please contact IT Support.
           </div>
-        </footer>
+        </div>
       </div>
     </div>
   );
