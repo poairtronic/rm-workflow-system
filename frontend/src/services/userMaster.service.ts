@@ -19,7 +19,9 @@ export const userMasterApi = {
   deactivate: (id: string) => api.patch<{ success: boolean; message: string }>(`/api/users/${id}/deactivate`),
   resetPassword: (id: string, newPassword?: string) =>
     api.post<{ success: boolean; message: string }>(`/api/users/${id}/reset-password`, { newPassword }),
-  deleteUser: (id: string) =>
-    api.delete<{ success: boolean; message: string }>(`/api/users/${id}`),
+  deleteUser: (id: string, reassignToAdmin = false) =>
+    api.delete<{ success: boolean; message: string }>(
+      `/api/users/${id}${reassignToAdmin ? '?reassignToAdmin=true' : ''}`,
+    ),
 };
 

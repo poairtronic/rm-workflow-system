@@ -9,6 +9,7 @@ import {
   UseGuards,
   Put,
   Req,
+  Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
@@ -85,8 +86,14 @@ export class UsersController {
 
   @Delete(':id')
   @Roles(UserRole.ADMIN)
-  remove(@Param('id') id: string, @Req() req: any) {
+  remove(
+    @Param('id') id: string,
+    @Req() req: any,
+    @Query('force') force?: string,
+    @Query('reassignToAdmin') reassignToAdmin?: string,
+  ) {
     const currentUserId = req?.user?.userId || req?.user?.sub || req?.user?.id;
-    return this.usersService.deleteUser(id, currentUserId);
+    const isForce = force === 'true' || reassignToAdmin === 'true';
+    return this.usersService.deleteUser(id, currentUserId, isForce);
   }
 }

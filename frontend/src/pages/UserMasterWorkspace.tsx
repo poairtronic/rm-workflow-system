@@ -61,6 +61,8 @@ export function UserMasterWorkspace() {
 
   // Delete User Confirmation State
   const [deleteUserTarget, setDeleteUserTarget] = useState<UserMasterDto | null>(null);
+  const [reassignHistorical, setReassignHistorical] = useState(false);
+  const [historicalNotice, setHistoricalNotice] = useState<string | null>(null);
 
   // Access Control Drawer State
   const [accessDrawerTarget, setAccessDrawerTarget] = useState<UserMasterDto | null>(null);
@@ -138,15 +140,26 @@ export function UserMasterWorkspace() {
   });
 
   const deleteUserMutation = useMutation({
-    mutationFn: (id: string) => userMasterApi.deleteUser(id),
+    mutationFn: ({ id, reassignToAdmin }: { id: string; reassignToAdmin?: boolean }) =>
+      userMasterApi.deleteUser(id, reassignToAdmin),
     onSuccess: (res) => {
       toast.success(res?.message || 'User deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['users-master'] });
       setDeleteUserTarget(null);
+      setReassignHistorical(false);
+      setHistoricalNotice(null);
     },
     onError: (err: any) => {
-      toast.error(err?.message || 'Failed to delete user');
-      setDeleteUserTarget(null);
+      const msg = err?.message || 'Failed to delete user';
+      toast.error(msg);
+      if (msg.includes('authored historical records')) {
+        setHistoricalNotice(msg);
+        setReassignHistorical(true);
+      } else {
+        setDeleteUserTarget(null);
+        setReassignHistorical(false);
+        setHistoricalNotice(null);
+      }
     },
   });
 
@@ -292,7 +305,11 @@ export function UserMasterWorkspace() {
             {currentUser?.role === 'ADMIN' && !isSelf && (
               <button
                 type="button"
-                onClick={() => setDeleteUserTarget(u)}
+                onClick={() => {
+                  setDeleteUserTarget(u);
+                  setReassignHistorical(false);
+                  setHistoricalNotice(null);
+                }}
                 className="text-xs px-2.5 py-1 rounded-md font-semibold border border-red-200 dark:border-rose-500/30 text-red-700 dark:text-rose-400 bg-red-50/50 dark:bg-rose-500/10 hover:bg-red-100 dark:hover:bg-rose-500/20 transition-all flex items-center gap-1 cursor-pointer"
                 title="Permanently delete user account"
               >
@@ -601,21 +618,54 @@ export function UserMasterWorkspace() {
       {/* Confirm User Deletion Dialog */}
       <ConfirmDialog
         isOpen={!!deleteUserTarget}
-        onClose={() => setDeleteUserTarget(null)}
+        onClose={() => {
+          setDeleteUserTarget(null);
+          setReassignHistorical(false);
+          setHistoricalNotice(null);
+        }}
         onConfirm={() => {
           if (deleteUserTarget) {
-            deleteUserMutation.mutate(deleteUserTarget.id);
+            deleteUserMutation.mutate({
+              id: deleteUserTarget.id,
+              reassignToAdmin: reassignHistorical,
+            });
           }
         }}
         title="Delete User Account"
         message={
-          <span>
-            Are you sure you want to permanently delete user{' '}
-            <strong className="text-gray-900">{deleteUserTarget?.name}</strong> (
-            {deleteUserTarget?.email})? This action cannot be undone.
-          </span>
+          <div className="space-y-3">
+            <p>
+              Are you sure you want to permanently delete user{' '}
+              <strong className="text-gray-900 dark:text-white">
+                {deleteUserTarget?.name}
+              </strong>{' '}
+              ({deleteUserTarget?.email})? This action cannot be undone.
+            </p>
+            {historicalNotice && (
+              <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg p-3 text-xs text-red-800 dark:text-red-300">
+                <p className="font-semibold mb-1">Historical Records Detected</p>
+                <p>{historicalNotice}</p>
+              </div>
+            )}
+            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-lg p-3 text-xs text-amber-800 dark:text-amber-300 space-y-1.5">
+              <label className="flex items-start space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={reassignHistorical}
+                  onChange={(e) => setReassignHistorical(e.target.checked)}
+                  className="rounded border-amber-300 text-primary focus:ring-primary h-4 w-4 mt-0.5"
+                />
+                <span className="font-medium text-amber-900 dark:text-amber-200">
+                  Reassign historical records (DCs, Requisitions, Issues, Stock) to my admin account
+                </span>
+              </label>
+              <p className="text-[11px] text-amber-700 dark:text-amber-400 pl-6 leading-relaxed">
+                If enabled, operational records authored by this user will be transferred to your administrator account so audit history is preserved while deleting this login.
+              </p>
+            </div>
+          </div>
         }
-        confirmText="Delete User"
+        confirmText={reassignHistorical ? 'Reassign & Delete' : 'Delete User'}
         isDanger={true}
       />
     </div>
