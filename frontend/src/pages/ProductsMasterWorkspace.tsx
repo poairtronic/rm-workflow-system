@@ -26,7 +26,7 @@ import type {
   Rack,
   Bin,
 } from '../services/masterDataService';
-import { api } from '../services/api';
+import { inventoryService } from '../services/inventoryService';
 import { MultiSelectFilter } from '../components/ui';
 import {
   Plus,
@@ -122,34 +122,25 @@ export function ProductsMasterWorkspace() {
     try {
       setIsLoading(true);
       setError(null);
-      const [prodRes, catRes, famRes, whRes, locRes, rackRes, binRes, bal1, bal2, bal3, bal4] =
+      const [prodRes, catRes, famRes, whRes, locRes, rackRes, binRes, balRes] =
         await Promise.all([
-          masterDataService.getProducts({ pageSize: 1000 }),
-          masterDataService.getCategories({ pageSize: 100 }),
-          masterDataService.getFamilies({ pageSize: 100 }),
-          masterDataService.getWarehouses({ pageSize: 100 }).catch(() => ({ data: [] })),
-          masterDataService.getLocations({ pageSize: 100 }).catch(() => ({ data: [] })),
-          masterDataService.getRacks({ pageSize: 100 }).catch(() => ({ data: [] })),
-          masterDataService.getBins({ pageSize: 100 }).catch(() => ({ data: [] })),
-          api.get<any>('/api/inventory/balances?pageSize=100&page=1').catch(() => ({ data: [] })),
-          api.get<any>('/api/inventory/balances?pageSize=100&page=2').catch(() => ({ data: [] })),
-          api.get<any>('/api/inventory/balances?pageSize=100&page=3').catch(() => ({ data: [] })),
-          api.get<any>('/api/inventory/balances?pageSize=100&page=4').catch(() => ({ data: [] })),
-        ]);
-      setProducts(prodRes.data || []);
-      setCategories(catRes.data || []);
-      setFamilies(famRes.data || []);
-      setWarehouses(whRes.data || []);
-      setLocations(locRes.data || []);
-      setRacks(rackRes.data || []);
-      setBins(binRes.data || []);
-      const allBalances = [
-        ...(bal1.data || []),
-        ...(bal2.data || []),
-        ...(bal3.data || []),
-        ...(bal4.data || []),
-      ];
-      setBalances(allBalances);
+           masterDataService.getProducts({ pageSize: 1000 }),
+           masterDataService.getCategories({ pageSize: 100 }),
+           masterDataService.getFamilies({ pageSize: 100 }),
+           masterDataService.getWarehouses({ pageSize: 100 }).catch(() => ({ data: [] })),
+           masterDataService.getLocations({ pageSize: 100 }).catch(() => ({ data: [] })),
+           masterDataService.getRacks({ pageSize: 1000 }).catch(() => ({ data: [] })),
+           masterDataService.getBins({ pageSize: 1000 }).catch(() => ({ data: [] })),
+           inventoryService.getAllBalances({ page: 1, pageSize: 2000 }).catch(() => ({ data: [] })),
+         ]);
+       setProducts(prodRes.data || []);
+       setCategories(catRes.data || []);
+       setFamilies(famRes.data || []);
+       setWarehouses(whRes.data || []);
+       setLocations(locRes.data || []);
+       setRacks(rackRes.data || []);
+       setBins(binRes.data || []);
+       setBalances(balRes.data || []);
     } catch (err: any) {
       console.error('Failed to load products master data', err);
       setError(err.message || 'Failed to load products master data');
@@ -524,52 +515,26 @@ export function ProductsMasterWorkspace() {
       if (bal.binId) entry.binIds.add(bal.binId);
       
       const bin = binMap.get(bal.binId);
-      if (bin) {
-        if (bin.rackId) {
-          entry.rackIds.add(bin.rackId);
-          const rack = rackMap.get(bin.rackId);
-          if (rack) {
-            let isBinArea = false;
-            if (rack.locationId) {
-              entry.locationIds.add(rack.locationId);
-              const loc = locMap.get(rack.locationId);
-              if (loc) {
-                isBinArea = loc.name.toLowerCase().includes('bin');
-                if (loc.warehouseId) {
-                  entry.warehouseIds.add(loc.warehouseId);
-                }
-              }
-            }
-            
-            // Flatten presentation based on Location Name
-            if (isBinArea) {
-              if (bal.binCode && !entry.binLabels.includes(bal.binCode)) {
-                entry.binLabels.push(bal.binCode);
-              }
-            } else {
-              if (rack.code && !entry.binLabels.includes(rack.code)) {
-                entry.binLabels.push(rack.code);
-              }
-            }
-          }
-        } else {
-          if (bal.binCode && !entry.binLabels.includes(bal.binCode)) {
-            entry.binLabels.push(bal.binCode);
-          }
-        }
-        
-        // Also capture from populated relations if any (fallback)
-        if (bin.rack?.locationId) {
-          entry.locationIds.add(bin.rack.locationId);
-          const loc = locMap.get(bin.rack.locationId) || bin.rack.location;
-          if (loc?.warehouseId) {
-            entry.warehouseIds.add(loc.warehouseId);
-          }
-        }
+      const bLocationId = (bal as any).locationId || (bin?.rackId ? rackMap.get(bin.rackId)?.locationId : null);
+      const bRackId = (bal as any).rackId || bin?.rackId;
+      const bWarehouseId = (bal as any).warehouseId || (bLocationId ? locMap.get(bLocationId)?.warehouseId : null);
+
+      if (bRackId) entry.rackIds.add(bRackId);
+      if (bLocationId) entry.locationIds.add(bLocationId);
+      if (bWarehouseId) entry.warehouseIds.add(bWarehouseId);
+
+      const loc = bLocationId ? locMap.get(bLocationId) : null;
+      const isBinArea = loc ? loc.name.toLowerCase().includes('bin') : false;
+      const primaryLabel = isBinArea 
+        ? (bal.binCode || bin?.code) 
+        : (bal.rackCode || (bRackId ? rackMap.get(bRackId)?.code : null) || bal.binCode || bin?.code);
+
+      if (primaryLabel && !entry.binLabels.includes(primaryLabel)) {
+        entry.binLabels.push(primaryLabel);
       }
     }
     return map;
-  }, [balances, bins, racks, locations]);
+  }, [balances, bins, racks, locations, binMap, rackMap, locMap]);
 
   // Cascading options based on selected parent filters
   const filteredLocationOptions = useMemo(() => {
@@ -578,7 +543,7 @@ export function ProductsMasterWorkspace() {
   }, [locations, selectedWarehouses]);
 
   const filteredRackOptions = useMemo(() => {
-    let result = racks;
+    let result = racks.filter((r) => !r.code.startsWith('BIN-') && !r.code.startsWith('BIN '));
     if (selectedWarehouses.length > 0) {
       const allowedLocIds = new Set(
         locations.filter((l) => selectedWarehouses.includes(l.warehouseId)).map((l) => l.id)
@@ -592,29 +557,38 @@ export function ProductsMasterWorkspace() {
   }, [racks, locations, selectedWarehouses, selectedLocations]);
 
   const filteredBinOptions = useMemo(() => {
-    // Only standalone bins located in bin/box storage areas
     let result = bins.filter((b) => {
       const rack = rackMap.get(b.rackId);
       const loc = rack ? locMap.get(rack.locationId) : null;
-      return loc && (
-        loc.code === 'LOC-BINS' ||
-        loc.code === 'LOC-BOXES' ||
-        loc.name.toLowerCase().includes('bin') ||
-        loc.name.toLowerCase().includes('box')
+      return (
+        b.code.startsWith('BIN') ||
+        b.code.startsWith('BOX') ||
+        b.code === 'BLUE BOX' ||
+        b.code === 'NONE' ||
+        (loc && (
+          loc.code === 'BIN-AREA' ||
+          loc.code === 'LOC-BINS' ||
+          loc.name.toLowerCase().includes('bin') ||
+          loc.name.toLowerCase().includes('box')
+        ))
       );
     });
 
-    if (selectedRacks.length > 0) {
-      return result.filter((b) => selectedRacks.includes(b.rackId));
-    }
     if (selectedLocations.length > 0) {
       const allowedRackIds = new Set(
         racks.filter((r) => selectedLocations.includes(r.locationId)).map((r) => r.id)
       );
       return result.filter((b) => allowedRackIds.has(b.rackId));
     }
+    if (selectedWarehouses.length > 0) {
+      return result.filter((b) => {
+        const rack = rackMap.get(b.rackId);
+        const loc = rack ? locMap.get(rack.locationId) : null;
+        return loc && selectedWarehouses.includes(loc.warehouseId);
+      });
+    }
     return result;
-  }, [bins, racks, rackMap, locMap, selectedRacks, selectedLocations]);
+  }, [bins, racks, rackMap, locMap, selectedLocations, selectedWarehouses]);
 
   // Multi-Filter Computation
   const filteredProducts = useMemo(() => {

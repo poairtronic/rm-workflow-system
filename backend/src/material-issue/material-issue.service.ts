@@ -76,11 +76,34 @@ export class MaterialIssueService {
         ScStatus.STORES_PENDING,
         ScStatus.SUBMITTED,
         ScStatus.PARTIALLY_ISSUED,
+        ScStatus.IN_PRODUCTION,
         'ACTIVE' as ScStatus,
       ];
       if (!allowedInitialStatuses.includes(sc.status)) {
         throw new ConflictException(
           `Initial Material Issue cannot be processed for SC "${sc.scNumber}". Current status is already "${sc.status}". For additional material, submit an Additional Material Request.`,
+        );
+      }
+
+      // Check if all items for this SC are already fully issued
+      const allRmItems = await queryRunner.manager.find(RmItem, {
+        where: { scId: dto.scId },
+      });
+      const totalRequested = allRmItems.reduce(
+        (sum, item) => sum + Number(item.quantity),
+        0,
+      );
+      const sumInitialRes = await queryRunner.manager.query(
+        `SELECT COALESCE(SUM(mii.quantity_issued), 0) as total 
+         FROM material_issue_items mii 
+         JOIN material_issues mi ON mi.id = mii.material_issue_id 
+         WHERE mi.sc_id = $1 AND mi.issue_type = 'INITIAL_ISSUE'`,
+        [dto.scId],
+      );
+      const totalAlreadyIssued = Number(sumInitialRes[0]?.total) || 0;
+      if (totalRequested > 0 && totalAlreadyIssued >= totalRequested) {
+        throw new ConflictException(
+          `All raw materials for SC "${sc.scNumber}" have already been fully issued (${totalAlreadyIssued} of ${totalRequested}). For additional material, submit an Additional Material Request.`,
         );
       }
     }
@@ -291,9 +314,20 @@ export class MaterialIssueService {
         );
         const totalIssued = Number(sumResult[0].total) || 0;
 
+        // Check if production has received any materials for this SC so far
+        const receiptCheck = await queryRunner.manager.query(
+          `SELECT COUNT(mri.id) as cnt
+           FROM material_receipt_items mri
+           JOIN material_receipts mr ON mr.id = mri.material_receipt_id
+           JOIN material_issues mi ON mi.id = mr.material_issue_id
+           WHERE mi.sc_id = $1`,
+          [dto.scId],
+        );
+        const hasReceipts = Number(receiptCheck[0]?.cnt) > 0;
+
         // Update SC status and RmRequest status
         if (totalIssued >= totalRequested) {
-          sc.status = ScStatus.ISSUED;
+          sc.status = hasReceipts ? ScStatus.IN_PRODUCTION : ScStatus.ISSUED;
           await queryRunner.manager.update(
             RmRequest,
             { scId: dto.scId },
@@ -303,7 +337,7 @@ export class MaterialIssueService {
           sc.status = ScStatus.PARTIALLY_ISSUED;
           await queryRunner.manager.update(
             RmRequest,
-            { scId: dto.scId, status: RmRequestStatus.SUBMITTED },
+            { scId: dto.scId },
             { status: RmRequestStatus.REVIEWED },
           );
         }
@@ -366,6 +400,7 @@ export class MaterialIssueService {
     const qb = this.issueRepo
       .createQueryBuilder('issue')
       .leftJoinAndSelect('issue.salesOrderComponent', 'sc')
+      .leftJoinAndSelect('sc.purchaseOrder', 'purchaseOrder')
       .leftJoinAndSelect('issue.items', 'items')
       .leftJoinAndSelect('items.rmItem', 'rmItem')
       .leftJoinAndSelect('issue.issuedBy', 'issuedBy')
@@ -384,7 +419,7 @@ export class MaterialIssueService {
     const issue = await this.issueRepo.findOne({
       where: { id },
       relations: {
-        salesOrderComponent: true,
+        salesOrderComponent: { purchaseOrder: true },
         items: { rmItem: true },
         issuedBy: true,
         receipts: { items: true },

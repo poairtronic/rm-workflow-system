@@ -85,7 +85,9 @@ class ApiClient {
     } catch {}
     
     // Global toast for errors, skip 401 as it's handled by AuthContext
-    if (response.status !== 401) {
+    if (response.status === 429) {
+      toast.error('Too many requests. Please wait a moment.', { id: 'rate-limit-error' });
+    } else if (response.status !== 401) {
       toast.error(errorMsg);
     }
     

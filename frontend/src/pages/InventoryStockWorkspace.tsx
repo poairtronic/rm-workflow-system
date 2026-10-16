@@ -203,8 +203,9 @@ export function InventoryStockWorkspace() {
   const filteredFamilyOptions = families.filter((f) => selectedCategories.length === 0 || selectedCategories.includes(f.categoryId));
   const filteredLocationOptions = locations.filter((l) => selectedWarehouses.length === 0 || selectedWarehouses.includes(l.warehouseId));
   
-  // All racks in selected locations/warehouses
+  // All racks in selected locations/warehouses (excluding placeholder shelving and bins)
   const filteredRackOptions = racks.filter((r) => {
+    if (r.code.startsWith('BIN-') || r.code.startsWith('BIN ')) return false;
     if (selectedLocations.length > 0 && !selectedLocations.includes(r.locationId)) return false;
     if (selectedWarehouses.length > 0) {
       const loc = locMap.get(r.locationId);
@@ -213,19 +214,24 @@ export function InventoryStockWorkspace() {
     return true;
   });
 
-  // Only standalone bins (located in Bin/Box storage areas), filtered by rack/location if selected
+  // All bins in Bin Area (or standalone box/bin storage units)
   const filteredBinOptions = bins.filter((b) => {
     const rack = rackMap.get(b.rackId);
     const loc = rack ? locMap.get(rack.locationId) : null;
-    const isStandaloneBinArea = loc && (
-      loc.code === 'LOC-BINS' ||
-      loc.code === 'LOC-BOXES' ||
-      loc.name.toLowerCase().includes('bin') ||
-      loc.name.toLowerCase().includes('box')
+    const isBinStorage = (
+      b.code.startsWith('BIN') ||
+      b.code.startsWith('BOX') ||
+      b.code === 'BLUE BOX' ||
+      b.code === 'NONE' ||
+      (loc && (
+        loc.code === 'BIN-AREA' ||
+        loc.code === 'LOC-BINS' ||
+        loc.name.toLowerCase().includes('bin') ||
+        loc.name.toLowerCase().includes('box')
+      ))
     );
-    if (!isStandaloneBinArea) return false;
+    if (!isBinStorage) return false;
 
-    if (selectedRacks.length > 0 && !selectedRacks.includes(b.rackId)) return false;
     if (selectedLocations.length > 0 && rack && !selectedLocations.includes(rack.locationId)) return false;
     if (selectedWarehouses.length > 0 && loc && !selectedWarehouses.includes(loc.warehouseId)) return false;
     return true;
@@ -257,22 +263,15 @@ export function InventoryStockWorkspace() {
       }
 
       // Warehouse, Location, Rack, Bin
-      if (selectedBins.length > 0 && !selectedBins.includes(b.binId)) return false;
-      
       const bin = binMap.get(b.binId);
-      if (bin) {
-        if (selectedRacks.length > 0 && !selectedRacks.includes(bin.rackId)) return false;
-        const rack = rackMap.get(bin.rackId);
-        if (rack) {
-          if (selectedLocations.length > 0 && !selectedLocations.includes(rack.locationId)) return false;
-          const loc = locMap.get(rack.locationId);
-          if (loc) {
-            if (selectedWarehouses.length > 0 && !selectedWarehouses.includes(loc.warehouseId)) return false;
-          }
-        }
-      } else {
-        if (selectedRacks.length > 0 || selectedLocations.length > 0 || selectedWarehouses.length > 0) return false;
-      }
+      const bLocationId = (b as any).locationId || (bin?.rackId ? rackMap.get(bin.rackId)?.locationId : null);
+      const bRackId = (b as any).rackId || bin?.rackId;
+      const bWarehouseId = (b as any).warehouseId || (bLocationId ? locMap.get(bLocationId)?.warehouseId : null);
+
+      if (selectedBins.length > 0 && !selectedBins.includes(b.binId)) return false;
+      if (selectedRacks.length > 0 && (!bRackId || !selectedRacks.includes(bRackId))) return false;
+      if (selectedLocations.length > 0 && (!bLocationId || !selectedLocations.includes(bLocationId))) return false;
+      if (selectedWarehouses.length > 0 && (!bWarehouseId || !selectedWarehouses.includes(bWarehouseId))) return false;
 
       // UOM
       if (uomFilter && b.uom !== uomFilter) return false;
@@ -316,11 +315,13 @@ export function InventoryStockWorkspace() {
     { key: 'warehouseLocation', header: 'Warehouse Location', render: (r) => {
         const bin = binMap.get(r.binId);
         let primaryLabel = r.binCode || 'N/A';
+        let locLabel = (r as any).locationName || '';
         if (bin && bin.rackId) {
           const rack = rackMap.get(bin.rackId);
           if (rack && rack.locationId) {
             const loc = locMap.get(rack.locationId);
             if (loc) {
+              locLabel = loc.name;
               const isBinArea = loc.name.toLowerCase().includes('bin');
               if (isBinArea) {
                 primaryLabel = bin.code;
@@ -330,7 +331,12 @@ export function InventoryStockWorkspace() {
             }
           }
         }
-        return <span className="font-mono text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-700">{primaryLabel}</span>;
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className="font-mono text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-700 w-fit">{primaryLabel}</span>
+            {locLabel && <span className="text-[10px] text-slate-400 font-medium">{locLabel}</span>}
+          </div>
+        );
     } },
     { key: 'warehouseName', header: 'Warehouse', render: (r) => r.warehouseName || 'N/A' },
     { key: 'latestLotBatchNumber', header: 'Lot/Batch', render: (r) => r.latestLotBatchNumber || 'N/A' },

@@ -24,10 +24,10 @@ export function Sidebar() {
       <div className="h-16 flex items-center px-6 border-b border-slate-200 dark:border-[#1a1e33]">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-indigo-600/15 border border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black text-sm shadow-xs">
-            R
+            V
           </div>
           <div>
-            <span className="font-bold text-base tracking-tight text-slate-900 dark:text-white block leading-none">RMRIT</span>
+            <span className="font-bold text-base tracking-tight text-slate-900 dark:text-white block leading-none">V-SMART</span>
             <span className="text-[10px] text-slate-400 dark:text-[#7a879e] font-medium tracking-wider uppercase">Material Governance</span>
           </div>
         </div>

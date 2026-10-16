@@ -402,7 +402,7 @@ describe('Phase 15.12 — Controlled Email Template System (T001–T068)', () =>
   // T016
   it('T016: Client cannot choose arbitrary subject', () => {
     const rendered = templateService.render('RM_SUBMITTED', { rmNumber: 'RM-100' });
-    expect(rendered.subject).toContain('[RMRIT Notification]');
+    expect(rendered.subject).toContain('[V-SMART Notification]');
   });
 
   // T017

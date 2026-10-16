@@ -46,6 +46,7 @@ export class EmailAuditService {
     if (errorMsg.includes('401')) return 'OAUTH_AUTH_FAILURE';
     if (errorMsg.includes('403')) return 'INSUFFICIENT_PERMISSION';
     if (errorMsg.includes('ECONNRESET') || errorMsg.includes('ETIMEDOUT')) return 'NETWORK_TIMEOUT';
+    if (errorMsg.includes('invalid_grant')) return 'OAUTH_REFRESH_TOKEN_EXPIRED';
     if (errorMsg.includes('recipient')) return 'INVALID_RECIPIENT';
     return 'PROVIDER_ERROR';
   }

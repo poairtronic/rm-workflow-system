@@ -221,7 +221,7 @@ export class CommunicationService {
           title: `RM Request Submitted: ${input.rmNumber || input.entityId}`,
           message: `RM Request ${input.rmNumber || input.entityId} was submitted.`,
           templateKey: 'RM_SUBMITTED',
-          subject: `[RMRIT Notification] RM Request Submitted: ${input.rmNumber || input.entityId}`,
+          subject: `[V-SMART Notification] RM Request Submitted: ${input.rmNumber || input.entityId}`,
           payload: { rmNumber: input.rmNumber || input.entityId, rmRequestId: input.entityId },
         });
 
@@ -234,7 +234,7 @@ export class CommunicationService {
           title: `Material Issued for RM: ${input.rmNumber || input.entityId}`,
           message: `Material has been issued for RM Request ${input.rmNumber || input.entityId}.`,
           templateKey: 'MATERIAL_ISSUED',
-          subject: `[RMRIT Notification] Material Issued for RM: ${input.rmNumber || input.entityId}`,
+          subject: `[V-SMART Notification] Material Issued for RM: ${input.rmNumber || input.entityId}`,
           payload: { rmNumber: input.rmNumber || input.entityId, scId: input.scId },
         });
 
@@ -248,7 +248,7 @@ export class CommunicationService {
           title: `Additional Material Request: ${input.rmNumber || input.entityId}`,
           message: `Additional material request has been created for RM Request ${input.rmNumber || input.entityId}.`,
           templateKey: 'ADDITIONAL_MATERIAL_REQUESTED',
-          subject: `[RMRIT Notification] Additional Material Request: ${input.rmNumber || input.entityId}`,
+          subject: `[V-SMART Notification] Additional Material Request: ${input.rmNumber || input.entityId}`,
           payload: { rmNumber: input.rmNumber || input.entityId, scId: input.scId },
         });
 
@@ -261,7 +261,7 @@ export class CommunicationService {
           title: `SC Completed: ${input.scNumber || input.entityId}`,
           message: `Sales Order Component ${input.scNumber || input.entityId} has been completed.`,
           templateKey: 'SC_COMPLETED',
-          subject: `[RMRIT Notification] SC Completed: ${input.scNumber || input.entityId}`,
+          subject: `[V-SMART Notification] SC Completed: ${input.scNumber || input.entityId}`,
           payload: { scNumber: input.scNumber || input.entityId, scId: input.entityId },
         });
 
@@ -275,7 +275,7 @@ export class CommunicationService {
           title: `Material Received for SC: ${input.rmNumber || input.entityId}`,
           message: `Material receipt has been confirmed for SC ${input.rmNumber || input.entityId}.`,
           templateKey: 'MATERIAL_RECEIVED',
-          subject: `[RMRIT Notification] Material Received: ${input.rmNumber || input.entityId}`,
+          subject: `[V-SMART Notification] Material Received: ${input.rmNumber || input.entityId}`,
           payload: { scNumber: input.rmNumber || input.entityId, scId: input.scId, receiptId: input.entityId },
         });
 
@@ -288,7 +288,7 @@ export class CommunicationService {
           title: `Material Return Submitted: ${input.rmNumber || input.entityId}`,
           message: `Material return has been submitted for SC ${input.rmNumber || input.entityId} and awaits Stores acknowledgment.`,
           templateKey: 'MATERIAL_RETURNED',
-          subject: `[RMRIT Notification] Material Return Submitted: ${input.rmNumber || input.entityId}`,
+          subject: `[V-SMART Notification] Material Return Submitted: ${input.rmNumber || input.entityId}`,
           payload: { scNumber: input.rmNumber || input.entityId, scId: input.scId, returnId: input.entityId },
         });
 
@@ -301,7 +301,7 @@ export class CommunicationService {
           title: `Material Return Acknowledged: ${input.rmNumber || input.entityId}`,
           message: `Material return for SC ${input.rmNumber || input.entityId} has been verified and acknowledged by Stores.`,
           templateKey: 'RETURN_VERIFIED',
-          subject: `[RMRIT Notification] Material Return Acknowledged: ${input.rmNumber || input.entityId}`,
+          subject: `[V-SMART Notification] Material Return Acknowledged: ${input.rmNumber || input.entityId}`,
           payload: { scNumber: input.rmNumber || input.entityId, scId: input.scId, returnId: input.entityId },
         });
 
@@ -314,7 +314,7 @@ export class CommunicationService {
           title: `Additional Material Approved: ${input.rmNumber || input.entityId}`,
           message: `Additional material request for SC ${input.rmNumber || input.entityId} has been APPROVED by Stores.`,
           templateKey: 'EXTRA_MATERIAL_APPROVED',
-          subject: `[RMRIT Notification] Additional Material Approved: ${input.rmNumber || input.entityId}`,
+          subject: `[V-SMART Notification] Additional Material Approved: ${input.rmNumber || input.entityId}`,
           payload: { scNumber: input.rmNumber || input.entityId, scId: input.scId, requestId: input.entityId },
         });
 
@@ -327,7 +327,7 @@ export class CommunicationService {
           title: `Additional Material Rejected: ${input.rmNumber || input.entityId}`,
           message: `Additional material request for SC ${input.rmNumber || input.entityId} has been REJECTED by Stores.`,
           templateKey: 'EXTRA_MATERIAL_REJECTED',
-          subject: `[RMRIT Notification] Additional Material Rejected: ${input.rmNumber || input.entityId}`,
+          subject: `[V-SMART Notification] Additional Material Rejected: ${input.rmNumber || input.entityId}`,
           payload: { scNumber: input.rmNumber || input.entityId, scId: input.scId, requestId: input.entityId },
         });
 
@@ -340,7 +340,7 @@ export class CommunicationService {
           title: `Additional Material Issued: ${input.rmNumber || input.entityId}`,
           message: `Additional material has been issued by Stores for SC ${input.rmNumber || input.entityId}.`,
           templateKey: 'EXTRA_MATERIAL_ISSUED',
-          subject: `[RMRIT Notification] Additional Material Issued: ${input.rmNumber || input.entityId}`,
+          subject: `[V-SMART Notification] Additional Material Issued: ${input.rmNumber || input.entityId}`,
           payload: { scNumber: input.rmNumber || input.entityId, scId: input.scId, issueId: input.entityId },
         });
 
@@ -353,7 +353,7 @@ export class CommunicationService {
           title: `Low Stock Alert: ${input.metadata?.productName || input.entityId}`,
           message: `Product ${input.metadata?.productName || input.entityId} has dropped below Minimum Stock Level (${input.metadata?.currentStock ?? 0} / ${input.metadata?.minimumInventory ?? 0}). Deficit: ${input.metadata?.deficit ?? 0}.`,
           templateKey: 'MSL_LOW_STOCK',
-          subject: `[RMRIT Alert] Low Stock Warning: ${input.metadata?.productName || input.entityId}`,
+          subject: `[V-SMART Alert] Low Stock Warning: ${input.metadata?.productName || input.entityId}`,
           payload: {
             productName: input.metadata?.productName || input.entityId,
             productId: input.entityId,
@@ -372,7 +372,7 @@ export class CommunicationService {
           title: `OUT OF STOCK: ${input.metadata?.productName || input.entityId}`,
           message: `Product ${input.metadata?.productName || input.entityId} is completely OUT OF STOCK (0 / ${input.metadata?.minimumInventory ?? 0}). Immediate replenishment required.`,
           templateKey: 'MSL_OUT_OF_STOCK',
-          subject: `[RMRIT Alert] CRITICAL: OUT OF STOCK: ${input.metadata?.productName || input.entityId}`,
+          subject: `[V-SMART Alert] CRITICAL: OUT OF STOCK: ${input.metadata?.productName || input.entityId}`,
           payload: {
             productName: input.metadata?.productName || input.entityId,
             productId: input.entityId,
@@ -391,7 +391,7 @@ export class CommunicationService {
           title: `Stock Restored: ${input.metadata?.productName || input.entityId}`,
           message: `Stock for product ${input.metadata?.productName || input.entityId} has been restored to or above Minimum Stock Level (${input.metadata?.currentStock ?? 0} / ${input.metadata?.minimumInventory ?? 0}).`,
           templateKey: 'MSL_RESOLVED',
-          subject: `[RMRIT Notice] Stock Restored: ${input.metadata?.productName || input.entityId}`,
+          subject: `[V-SMART Notice] Stock Restored: ${input.metadata?.productName || input.entityId}`,
           payload: {
             productName: input.metadata?.productName || input.entityId,
             productId: input.entityId,
@@ -410,7 +410,7 @@ export class CommunicationService {
           title: `Delivery Challan Created: ${input.metadata?.challanNumber || input.entityId}`,
           message: `A new Delivery Challan ${input.metadata?.challanNumber || input.entityId} has been created for vendor ${input.metadata?.vendorName || 'N/A'}.`,
           templateKey: 'DC_CREATED',
-          subject: `[RMRIT] Delivery Challan Created: ${input.metadata?.challanNumber || input.entityId}`,
+          subject: `[V-SMART] Delivery Challan Created: ${input.metadata?.challanNumber || input.entityId}`,
           payload: {
             challanNumber: input.metadata?.challanNumber,
             vendorName: input.metadata?.vendorName,
@@ -428,7 +428,7 @@ export class CommunicationService {
           title: `Delivery Challan Dispatched: ${input.metadata?.challanNumber || input.entityId}`,
           message: `Delivery Challan ${input.metadata?.challanNumber || input.entityId} dispatched to ${input.metadata?.vendorName || 'N/A'}.`,
           templateKey: 'DC_DISPATCHED',
-          subject: `[RMRIT] Delivery Challan Dispatched: ${input.metadata?.challanNumber || input.entityId}`,
+          subject: `[V-SMART] Delivery Challan Dispatched: ${input.metadata?.challanNumber || input.entityId}`,
           payload: {
             challanNumber: input.metadata?.challanNumber,
             vendorName: input.metadata?.vendorName,
@@ -446,7 +446,7 @@ export class CommunicationService {
           title: `SLA Alert: Challan ${input.metadata?.challanNumber || input.entityId} approaching deadline`,
           message: `Delivery Challan ${input.metadata?.challanNumber || input.entityId} is approaching its return deadline. Hours remaining: ${input.metadata?.hoursRemaining ?? 'N/A'}.`,
           templateKey: 'DC_APPROACHING_SLA',
-          subject: `[RMRIT] SLA Alert: Challan ${input.metadata?.challanNumber || input.entityId} approaching deadline`,
+          subject: `[V-SMART] SLA Alert: Challan ${input.metadata?.challanNumber || input.entityId} approaching deadline`,
           payload: {
             challanNumber: input.metadata?.challanNumber,
             vendorName: input.metadata?.vendorName,
@@ -464,7 +464,7 @@ export class CommunicationService {
           title: `OVERDUE: Challan ${input.metadata?.challanNumber || input.entityId} not returned`,
           message: `Delivery Challan ${input.metadata?.challanNumber || input.entityId} is OVERDUE. Days overdue: ${input.metadata?.daysOverdue ?? 'N/A'}.`,
           templateKey: 'DC_OVERDUE',
-          subject: `[RMRIT] OVERDUE: Delivery Challan ${input.metadata?.challanNumber || input.entityId} not returned`,
+          subject: `[V-SMART] OVERDUE: Delivery Challan ${input.metadata?.challanNumber || input.entityId} not returned`,
           payload: {
             challanNumber: input.metadata?.challanNumber,
             vendorName: input.metadata?.vendorName,
@@ -482,7 +482,7 @@ export class CommunicationService {
           title: `Partial Return Received: Challan ${input.metadata?.challanNumber || input.entityId}`,
           message: `Partial return received for Delivery Challan ${input.metadata?.challanNumber || input.entityId}.`,
           templateKey: 'DC_PARTIALLY_RETURNED',
-          subject: `[RMRIT] Partial Return Received: Challan ${input.metadata?.challanNumber || input.entityId}`,
+          subject: `[V-SMART] Partial Return Received: Challan ${input.metadata?.challanNumber || input.entityId}`,
           payload: {
             challanNumber: input.metadata?.challanNumber,
             vendorName: input.metadata?.vendorName,
@@ -500,7 +500,7 @@ export class CommunicationService {
           title: `Challan Fully Returned: ${input.metadata?.challanNumber || input.entityId}`,
           message: `All items from Delivery Challan ${input.metadata?.challanNumber || input.entityId} have been returned.`,
           templateKey: 'DC_RETURNED',
-          subject: `[RMRIT] Challan Fully Returned: ${input.metadata?.challanNumber || input.entityId}`,
+          subject: `[V-SMART] Challan Fully Returned: ${input.metadata?.challanNumber || input.entityId}`,
           payload: {
             challanNumber: input.metadata?.challanNumber,
             vendorName: input.metadata?.vendorName,
@@ -517,7 +517,7 @@ export class CommunicationService {
           title: `Delivery Challan Closed: ${input.metadata?.challanNumber || input.entityId}`,
           message: `Delivery Challan ${input.metadata?.challanNumber || input.entityId} has been administratively closed.`,
           templateKey: 'DC_CLOSED',
-          subject: `[RMRIT] Delivery Challan Closed: ${input.metadata?.challanNumber || input.entityId}`,
+          subject: `[V-SMART] Delivery Challan Closed: ${input.metadata?.challanNumber || input.entityId}`,
           payload: {
             challanNumber: input.metadata?.challanNumber,
             vendorName: input.metadata?.vendorName,

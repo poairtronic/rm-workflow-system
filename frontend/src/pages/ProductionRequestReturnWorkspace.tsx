@@ -3,6 +3,7 @@ import { RotateCcw, Send, PackagePlus } from 'lucide-react';
 import { PageHeader, SearchSelect, type SearchSelectOption } from '../components/ui';
 import { workflowService, type SC } from '../services/workflowService';
 import { masterDataService, type Product } from '../services/masterDataService';
+import { inventoryService, type ProductBinBalance } from '../services/inventoryService';
 import { unwrapList } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -21,6 +22,40 @@ export function ProductionRequestReturnWorkspace() {
   const [requestRemarks, setRequestRemarks] = useState('');
   const [submittingReq, setSubmittingReq] = useState(false);
   const [requestHistory, setRequestHistory] = useState<any[]>([]);
+
+  // PRODUCT STOCK AVAILABILITY STATE (STORES STOCK)
+  const [productStockLoading, setProductStockLoading] = useState(false);
+  const [productStockBalances, setProductStockBalances] = useState<ProductBinBalance[]>([]);
+
+  useEffect(() => {
+    if (!selectedProductId) {
+      setProductStockBalances([]);
+      return;
+    }
+    let isCancelled = false;
+    const fetchStock = async () => {
+      setProductStockLoading(true);
+      try {
+        const balances = await inventoryService.getBalancesByProduct(selectedProductId);
+        if (!isCancelled) {
+          setProductStockBalances(Array.isArray(balances) ? balances : []);
+        }
+      } catch (err) {
+        console.error('Failed to load product stock balances', err);
+        if (!isCancelled) {
+          setProductStockBalances([]);
+        }
+      } finally {
+        if (!isCancelled) {
+          setProductStockLoading(false);
+        }
+      }
+    };
+    fetchStock();
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedProductId]);
 
   // TAB 2: RETURN FORM STATE
   const [selectedScIdForRet, setSelectedScIdForRet] = useState('');
@@ -213,6 +248,29 @@ export function ProductionRequestReturnWorkspace() {
     }));
   }, [products]);
 
+  const selectedProduct = useMemo(
+    () => products.find((p) => p.id === selectedProductId),
+    [products, selectedProductId]
+  );
+
+  const availableStoresStock = useMemo(() => {
+    return productStockBalances.reduce(
+      (sum, b) => sum + (Number(b.currentQuantity) || 0),
+      0
+    );
+  }, [productStockBalances]);
+
+  const stockLocationDetails = useMemo(() => {
+    return productStockBalances
+      .filter((b) => (Number(b.currentQuantity) || 0) > 0)
+      .map((b) => {
+        const loc = b.locationName || 'Stores';
+        const binOrRack = b.binCode || b.rackCode;
+        const qtyStr = `${Number(b.currentQuantity).toLocaleString()} ${selectedProduct?.uom || 'units'}`;
+        return binOrRack ? `${loc} (${binOrRack}): ${qtyStr}` : `${loc}: ${qtyStr}`;
+      });
+  }, [productStockBalances, selectedProduct?.uom]);
+
   const selectedItemData = receivedItems.find((it) => it.rmItemId === selectedRmItemId);
 
   return (
@@ -292,9 +350,16 @@ export function ProductionRequestReturnWorkspace() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Qty Needed *
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Qty Needed *
+                    </label>
+                    {selectedProductId && !productStockLoading && (
+                      <span className={`text-[11px] font-bold ${availableStoresStock > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                        Stores: {availableStoresStock.toLocaleString()} {selectedProduct?.uom || ''}
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="number"
                     step="0.001"
@@ -305,6 +370,47 @@ export function ProductionRequestReturnWorkspace() {
                     placeholder="e.g. 5"
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
                   />
+
+                  {/* Available Stock in Stores Indicator */}
+                  {selectedProductId ? (
+                    productStockLoading ? (
+                      <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
+                        <div className="w-2.5 h-2.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                        <span>Checking stores stock...</span>
+                      </div>
+                    ) : availableStoresStock > 0 ? (
+                      <div className="mt-1.5 space-y-1">
+                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>Available in Stores: {availableStoresStock.toLocaleString()} {selectedProduct?.uom || 'units'}</span>
+                        </div>
+                        {stockLocationDetails.length > 0 && (
+                          <p className="text-[10px] text-slate-600 font-medium truncate" title={stockLocationDetails.join(', ')}>
+                            📍 {stockLocationDetails.join(', ')}
+                          </p>
+                        )}
+                        {requestQty !== '' && Number(requestQty) > availableStoresStock && (
+                          <p className="text-[10px] text-amber-700 font-semibold bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 mt-0.5">
+                            ⚠️ Exceeds available stock ({availableStoresStock} {selectedProduct?.uom || 'units'}).
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="mt-1.5 space-y-0.5">
+                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-50 text-rose-800 border border-rose-300">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                          <span>Stores Stock: 0 {selectedProduct?.uom || 'units'} (Out of Stock)</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500">
+                          Item will be queued for Stores procurement.
+                        </p>
+                      </div>
+                    )
+                  ) : (
+                    <p className="mt-1.5 text-[11px] text-slate-400 italic">
+                      Select product above to see stock
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">

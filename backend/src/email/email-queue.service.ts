@@ -43,7 +43,7 @@ export class EmailQueueService {
 
     const sanitizedSubject = jobData.subject
       ? jobData.subject.replace(/[\r\n]+/g, ' ').trim()
-      : jobData.subject || 'RMRIT Notification';
+      : jobData.subject || 'V-SMART Notification';
 
     const sanitizedRecipientName = jobData.recipientName
       ? jobData.recipientName.replace(/[\r\n]+/g, ' ').replace(/"/g, '').trim()
@@ -337,7 +337,7 @@ export class EmailQueueService {
     await queryRunner.startTransaction();
 
     try {
-      const recovered: Array<{ id: string }> = await queryRunner.query(
+      const rawResult = await queryRunner.query(
         `
         UPDATE "email_jobs"
         SET "status" = CASE WHEN "attempts" >= "max_attempts" THEN $3 ELSE $4 END,
@@ -364,8 +364,13 @@ export class EmailQueueService {
         ],
       );
 
+      // In TypeORM with postgres driver, UPDATE queries return [rows, rowCount]
+      const recoveredRows = Array.isArray(rawResult)
+        ? (Array.isArray(rawResult[0]) ? rawResult[0] : rawResult.filter((r) => r && typeof r === 'object' && 'id' in r))
+        : [];
+
       await queryRunner.commitTransaction();
-      return recovered.length;
+      return recoveredRows.length;
     } catch (error) {
       await queryRunner.rollbackTransaction();
       throw error;

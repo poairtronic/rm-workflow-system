@@ -8,10 +8,10 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter.js';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 
 process.on('unhandledRejection', (reason) => {
-  console.error('[RMRIT Backend] Unhandled Rejection:', reason);
+  console.error('[V-SMART Backend] Unhandled Rejection:', reason);
 });
 process.on('uncaughtException', (err) => {
-  console.error('[RMRIT Backend] Uncaught Exception:', err);
+  console.error('[V-SMART Backend] Uncaught Exception:', err);
 });
 
 // Zero-dependency recursive XSS & String Trimmer
@@ -41,6 +41,15 @@ async function bootstrap() {
     // Trust proxy for accurate client IP resolution behind reverse proxies (Render)
     const expressApp = app.getHttpAdapter().getInstance();
     expressApp.set('trust proxy', 1);
+
+    // Health check endpoint for Render / uptime monitors
+    expressApp.get('/health', (_req: any, res: any) => {
+      res.status(200).json({
+        status: 'ok',
+        service: 'v-smart-backend',
+        timestamp: new Date().toISOString(),
+      });
+    });
 
     // Security headers via Helmet (CSP disabled to allow API-first & future Swagger UI)
     app.use(
@@ -94,9 +103,9 @@ async function bootstrap() {
 
     // Interactive OpenAPI / Swagger UI
     const swaggerConfig = new DocumentBuilder()
-      .setTitle('RMRIT — Manufacturing & Traceability API')
+      .setTitle('V-SMART — Manufacturing & Traceability API')
       .setDescription(
-        'Raw-Material Requirements & Inventory Traceability System REST API with Bearer JWT security.',
+        'Velan Stock, Material & Asset Resource Tracker System REST API with Bearer JWT security.',
       )
       .setVersion('1.0.0')
       .addBearerAuth(
@@ -132,10 +141,10 @@ async function bootstrap() {
 
     const port = process.env.PORT ?? 3000;
     await app.listen(port, '0.0.0.0');
-    console.log(`[RMRIT Backend] Running on http://0.0.0.0:${port}`);
-    console.log(`[RMRIT Swagger] Interactive API docs available at http://localhost:${port}/api/docs`);
+    console.log(`🚀 V-SMART Backend running on: http://0.0.0.0:${port}/api`);
+    console.log(`[V-SMART Swagger] Interactive API docs available at http://localhost:${port}/api/docs`);
   } catch (err: any) {
-    console.error('[RMRIT Backend] Startup exception:', err?.message || err);
+    console.error('[V-SMART Backend] Startup exception:', err?.message || err);
   }
 }
 await bootstrap();

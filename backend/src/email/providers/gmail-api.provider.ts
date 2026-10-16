@@ -193,7 +193,17 @@ export class GmailApiProvider implements IEmailProvider {
         error?.response?.data?.error?.code;
 
       const isRetryable = this.determineRetryable(statusCode, error);
-      const sanitizedError = this.maskSecrets(rawErrorMessage);
+      let sanitizedError = this.maskSecrets(rawErrorMessage);
+
+      const errDescription = error?.response?.data?.error_description || '';
+      const errType = error?.response?.data?.error || '';
+      if (
+        rawErrorMessage.includes('invalid_grant') ||
+        errType === 'invalid_grant' ||
+        errDescription.toLowerCase().includes('expired or revoked')
+      ) {
+        sanitizedError = `invalid_grant: Google OAuth2 Refresh Token expired or revoked (${errDescription || 'Token expired'}). Regenerate GMAIL_REFRESH_TOKEN via Google OAuth Playground.`;
+      }
 
       this.logger.error(
         `Gmail API send failure for [Recipient: ${message.to}] (Status: ${statusCode || 'N/A'}, Retryable: ${isRetryable}): ${sanitizedError}`,
@@ -211,6 +221,16 @@ export class GmailApiProvider implements IEmailProvider {
    * Determines whether a Gmail API error is retryable.
    */
   public determineRetryable(statusCode: any, error?: any): boolean {
+    const errStr = String(error?.message || error || '').toLowerCase();
+    if (
+      errStr.includes('invalid_grant') ||
+      errStr.includes('unauthorized_client') ||
+      errStr.includes('invalid_client') ||
+      errStr.includes('access_denied')
+    ) {
+      return false;
+    }
+
     const code = Number(statusCode);
     if (!isNaN(code)) {
       if (code === 429 || code >= 500) {
@@ -221,7 +241,6 @@ export class GmailApiProvider implements IEmailProvider {
       }
     }
 
-    const errStr = String(error?.message || error).toLowerCase();
     if (
       errStr.includes('econnreset') ||
       errStr.includes('etimedout') ||

@@ -377,8 +377,14 @@ export function ProductionConsumptionWorkspace() {
                         Linked PO: {selectedSc.purchaseOrder.poNumber}
                       </span>
                     )}
-                    <span className="px-2.5 py-0.5 rounded text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                      {selectedSc.status}
+                    <span className={`px-2.5 py-0.5 rounded text-xs font-semibold border ${
+                      accounting?.isPartiallyIssued || (totalIssued < totalRequired && totalIssued > 0)
+                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border-purple-300'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}>
+                      {accounting?.isPartiallyIssued || (totalIssued < totalRequired && totalIssued > 0)
+                        ? `PARTIALLY ISSUED (${totalIssued}/${totalRequired} Dispatched)`
+                        : selectedSc.status.replace(/_/g, ' ')}
                     </span>
                   </div>
                   <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
@@ -414,7 +420,15 @@ export function ProductionConsumptionWorkspace() {
                 <div className="bg-white dark:bg-[#121526] border border-slate-200 dark:border-[#1a1e33] p-3.5 rounded-xl shadow-2xs">
                   <div className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">2. Issued</div>
                   <div className="text-xl font-black text-indigo-700 dark:text-indigo-300 mt-1">{totalIssued}</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">Stores Dispatched</div>
+                  <div className="text-[10px] mt-0.5">
+                    {totalIssued < totalRequired ? (
+                      <span className="font-semibold text-purple-600 dark:text-purple-400">
+                        {totalRequired - totalIssued} Pending Stores
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">Stores Dispatched</span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="bg-white dark:bg-[#121526] border border-slate-200 dark:border-[#1a1e33] p-3.5 rounded-xl shadow-2xs">
@@ -533,6 +547,7 @@ export function ProductionConsumptionWorkspace() {
                                 <th className="py-3 px-4">Material Specification</th>
                                 <th className="py-3 px-3 text-right">Required</th>
                                 <th className="py-3 px-3 text-right text-indigo-700 dark:text-indigo-400">Issued</th>
+                                <th className="py-3 px-3 text-right text-purple-700 dark:text-purple-400">Pending Stores</th>
                                 <th className="py-3 px-3 text-right text-blue-700 dark:text-blue-400">Received</th>
                                 <th className="py-3 px-3 text-right text-emerald-700 dark:text-emerald-400">Consumed</th>
                                 <th className="py-3 px-3 text-right text-amber-700 dark:text-amber-400">Returned</th>
@@ -544,6 +559,7 @@ export function ProductionConsumptionWorkspace() {
                             <tbody className="divide-y divide-slate-100 dark:divide-[#1a1e33]">
                               {accounting.items.map((item) => {
                                 const percent = item.issued > 0 ? Math.round((item.consumed / item.issued) * 100) : 0;
+                                const unissued = item.unissued ?? Math.max(0, item.required - item.issued);
                                 return (
                                   <tr key={item.rmItemId} className="hover:bg-slate-50/60 dark:hover:bg-[#161a2e]/60 transition-colors">
                                     <td className="py-3 px-4">
@@ -554,6 +570,15 @@ export function ProductionConsumptionWorkspace() {
                                     </td>
                                     <td className="py-3 px-3 text-right font-medium text-slate-700 dark:text-slate-300">{item.required}</td>
                                     <td className="py-3 px-3 text-right font-bold text-indigo-700 dark:text-indigo-400">{item.issued}</td>
+                                    <td className="py-3 px-3 text-right font-semibold">
+                                      {unissued > 0 ? (
+                                        <span className="text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/50 px-2 py-0.5 rounded text-[11px] border border-purple-200 dark:border-purple-800">
+                                          {unissued} pending
+                                        </span>
+                                      ) : (
+                                        <span className="text-slate-400 font-medium">0</span>
+                                      )}
+                                    </td>
                                     <td className="py-3 px-3 text-right font-medium text-blue-700 dark:text-blue-400">{item.received}</td>
                                     <td className="py-3 px-3 text-right font-bold text-emerald-700 dark:text-emerald-400">{item.consumed}</td>
                                     <td className="py-3 px-3 text-right font-medium text-amber-700 dark:text-amber-400">

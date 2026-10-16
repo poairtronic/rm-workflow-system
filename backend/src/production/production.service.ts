@@ -183,9 +183,34 @@ export class ProductionService {
         await queryRunner.manager.save(MaterialReceipt, savedReceipt);
       }
 
-      if (sc.status !== ScStatus.IN_PRODUCTION) {
-        sc.status = ScStatus.IN_PRODUCTION;
-        await queryRunner.manager.save(SalesOrderComponent, sc);
+      // Check if all RM items for this SC are fully issued
+      const allRmItems = await queryRunner.manager.find(RmItem, {
+        where: { scId: sc.id },
+      });
+      const totalRequested = allRmItems.reduce(
+        (sum, item) => sum + Number(item.quantity),
+        0,
+      );
+      const sumResult = await queryRunner.manager.query(
+        `SELECT SUM(mii.quantity_issued) as total 
+         FROM material_issue_items mii 
+         JOIN material_issues mi ON mi.id = mii.material_issue_id 
+         WHERE mi.sc_id = $1 AND mi.issue_type = 'INITIAL_ISSUE'`,
+        [sc.id],
+      );
+      const totalIssued = Number(sumResult[0]?.total) || 0;
+
+      if (totalIssued >= totalRequested) {
+        if (sc.status !== ScStatus.IN_PRODUCTION) {
+          sc.status = ScStatus.IN_PRODUCTION;
+          await queryRunner.manager.save(SalesOrderComponent, sc);
+        }
+      } else {
+        // Still partially issued! Maintain PARTIALLY_ISSUED so Stores and all queues know more material is due
+        if (sc.status !== ScStatus.PARTIALLY_ISSUED) {
+          sc.status = ScStatus.PARTIALLY_ISSUED;
+          await queryRunner.manager.save(SalesOrderComponent, sc);
+        }
       }
 
       await queryRunner.commitTransaction();
@@ -775,6 +800,8 @@ export class ProductionService {
         returned + pendingReturned,
       );
 
+      const unissued = Math.max(0, QuantityCalculator.roundDecimal(required - issued));
+
       return {
         rmItemId: rmItem.id,
         material: rmItem.material,
@@ -782,6 +809,7 @@ export class ProductionService {
         size: rmItem.size,
         required,
         issued,
+        unissued,
         received,
         consumed,
         returned,
@@ -843,6 +871,11 @@ export class ProductionService {
       ),
     }));
 
+    const totalRequired = QuantityCalculator.roundDecimal(itemsSummary.reduce((sum, i) => sum + i.required, 0));
+    const totalIssued = QuantityCalculator.roundDecimal(itemsSummary.reduce((sum, i) => sum + i.issued, 0));
+    const totalUnissued = Math.max(0, QuantityCalculator.roundDecimal(totalRequired - totalIssued));
+    const isPartiallyIssued = totalIssued > 0 && totalIssued < totalRequired;
+
     return {
       scId: sc.id,
       scNumber: sc.scNumber,
@@ -850,6 +883,10 @@ export class ProductionService {
       productName: sc.productName,
       targetQuantity: sc.targetQuantity,
       poNumber: sc.purchaseOrder?.poNumber || null,
+      totalRequired,
+      totalIssued,
+      totalUnissued,
+      isPartiallyIssued,
       items: itemsSummary,
       consumptions: consumptionsList,
       issues: issuesList,

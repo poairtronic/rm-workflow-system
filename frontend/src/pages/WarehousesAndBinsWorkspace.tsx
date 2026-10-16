@@ -655,7 +655,7 @@ function RacksAndBinsRowView({
     try {
       const res = await masterDataService.getRacks({
         parentId: location.id,
-        pageSize: 100,
+        pageSize: 500,
       });
       setRacks(res.data);
     } catch (err: any) {
@@ -839,7 +839,7 @@ function RackBoxCard({
   const { currentUser } = useAuth();
   const isAdmin = currentUser?.role === 'ADMIN';
 
-  const [bins, setBins] = useState<Bin[]>([]);
+  const [bins, setBins] = useState<Bin[]>((rack as any).bins || []);
   const [isLoading, setIsLoading] = useState(false);
   const [binToDelete, setBinToDelete] = useState<Bin | null>(null);
   const [isDeletingBin, setIsDeletingBin] = useState(false);
@@ -862,8 +862,12 @@ function RackBoxCard({
   };
 
   useEffect(() => {
-    loadBins();
-  }, [rack.id]);
+    if ((rack as any).bins && Array.isArray((rack as any).bins)) {
+      setBins((rack as any).bins);
+    } else {
+      loadBins();
+    }
+  }, [rack.id, (rack as any).bins]);
 
   const locName = locationName.toLowerCase();
   const isBinArea = locName.includes('bin');

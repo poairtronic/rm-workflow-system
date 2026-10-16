@@ -116,6 +116,9 @@ export const ProductionRequestReturnWorkspace = lazy(() =>
 export const StoresRequestReturnVerifyWorkspace = lazy(() =>
   import('./pages/StoresRequestReturnVerifyWorkspace').then((m) => ({ default: m.StoresRequestReturnVerifyWorkspace })),
 );
+export const ProductionRmVerifyWorkspace = lazy(() =>
+  import('./pages/ProductionRmVerifyWorkspace').then((m) => ({ default: m.ProductionRmVerifyWorkspace })),
+);
 
 export interface RouteConfig {
   name: string;
@@ -140,14 +143,16 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   { name: 'RM Request & Return Verify', path: '/stores/request-return-verify', icon: ShieldCheck, roles: ['STORES', 'PRODUCTION', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER'], component: StoresRequestReturnVerifyWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'request_return_verify' },
 
   // RM WORKFLOW - PRODUCTION & GOVERNANCE
+  { name: 'RM Receipt', path: '/production/rm-receipt', icon: PackageCheck, roles: ['PRODUCTION', 'STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER'], component: ProductionRmVerifyWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'production_rm_verify' },
   { name: 'RM Request & Return', path: '/production/request-return', icon: PackagePlus, roles: ['PRODUCTION', 'STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER'], component: ProductionRequestReturnWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'production_request_return' },
   { name: 'Material Consumption', path: '/production/consumption', icon: PlaySquare, roles: ['ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'PRODUCTION', 'STORES'], component: ProductionConsumptionWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'consumption' },
 
   // BACKWARDS-COMPATIBLE ALIASES FOR LEGACY ROUTES (hidden from sidebar)
   { name: 'Extra Requests (Legacy)', path: '/stores/extra-requests', roles: ['STORES', 'ADMIN'], component: StoresRequestReturnVerifyWorkspace, isSidebar: false },
   { name: 'Return Verify (Legacy)', path: '/stores/return-verify', roles: ['STORES', 'ADMIN'], component: StoresRequestReturnVerifyWorkspace, isSidebar: false },
-  { name: 'RM Receive & Verify (Legacy)', path: '/production/rm-verify', roles: ['PRODUCTION', 'ADMIN'], component: ProductionRequestReturnWorkspace, isSidebar: false },
-  { name: 'My RM (Legacy)', path: '/production/rm', roles: ['PRODUCTION', 'ADMIN'], component: ProductionRequestReturnWorkspace, isSidebar: false },
+  { name: 'RM Receive & Verify (Legacy)', path: '/production/rm-verify', roles: ['PRODUCTION', 'STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER'], component: ProductionRmVerifyWorkspace, isSidebar: false },
+  { name: 'Stores RM Receipt (Legacy)', path: '/stores/rm-receipt', roles: ['PRODUCTION', 'STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER'], component: ProductionRmVerifyWorkspace, isSidebar: false },
+  { name: 'My RM (Legacy)', path: '/production/rm', roles: ['PRODUCTION', 'STORES', 'ADMIN'], component: ProductionRmVerifyWorkspace, isSidebar: false },
 
   // INVENTORY
   { name: 'Stock Overview', path: '/inventory/stock', icon: Box, roles: ['STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'DESIGNER'], component: InventoryStockWorkspace, isSidebar: true, group: 'INVENTORY', moduleKey: 'stock_overview' },
@@ -203,7 +208,7 @@ export function getRoleDefaultPath(role?: string): string {
     case 'STORES':
       return '/stores/rm-issue';
     case 'PRODUCTION':
-      return '/production/request-return';
+      return '/production/rm-receipt';
     case 'SENIOR_MANAGER':
     case 'GENERAL_MANAGER':
     case 'ADMIN':
@@ -230,7 +235,13 @@ export function isPathAllowedForUser(
   const roleAllowed = matchedRoute.roles.includes(user.role as UserRole);
 
   if (matchedRoute.moduleKey && user.effectiveModules && user.effectiveModules.length > 0) {
-    if (matchedRoute.moduleKey === 'production_rm_verify' && user.effectiveModules.includes('production_rm')) return true;
+    if (
+      (matchedRoute.moduleKey === 'production_rm_verify' || matchedRoute.moduleKey === 'rm_receipt') &&
+      (user.effectiveModules.includes('production_rm') ||
+        user.effectiveModules.includes('rm_issue') ||
+        user.effectiveModules.includes('production_rm_verify') ||
+        roleAllowed)
+    ) return true;
     if (matchedRoute.moduleKey === 'request_return_verify' && (
       user.effectiveModules.includes('extra_requests') || 
       user.effectiveModules.includes('return_verify') || 

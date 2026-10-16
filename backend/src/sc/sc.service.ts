@@ -267,6 +267,7 @@ export class ScService {
         { status: ScStatus.STORES_PENDING },
         { status: ScStatus.PARTIALLY_ISSUED },
         { status: ScStatus.ADDITIONAL_REQUEST },
+        { status: ScStatus.IN_PRODUCTION },
       ],
       relations: {
         purchaseOrder: { customer: true },
@@ -277,7 +278,28 @@ export class ScService {
         createdAt: 'ASC',
       },
     });
-    return this.groupByPo(scs);
+
+    const filteredScs: SalesOrderComponent[] = [];
+    for (const sc of scs) {
+      if (sc.status === ScStatus.IN_PRODUCTION) {
+        const totalReq = (sc.rmRequest?.items || []).reduce((s, i) => s + (Number(i.quantity) || 0), 0);
+        const sumResult = await this.scRepo.query(
+          `SELECT COALESCE(SUM(mii.quantity_issued), 0) as total
+           FROM material_issue_items mii
+           JOIN material_issues mi ON mi.id = mii.material_issue_id
+           WHERE mi.sc_id = $1 AND mi.issue_type = 'INITIAL_ISSUE'`,
+          [sc.id],
+        );
+        const totalIss = Number(sumResult[0]?.total) || 0;
+        if (totalReq > 0 && totalIss < totalReq) {
+          filteredScs.push(sc);
+        }
+      } else {
+        filteredScs.push(sc);
+      }
+    }
+
+    return this.groupByPo(filteredScs);
   }
 
   async getProductionGrouped() {

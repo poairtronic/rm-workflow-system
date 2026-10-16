@@ -16,6 +16,11 @@ interface DraftItem {
     status: string; // RmRequestStatus
     scStatus: string; // ScStatus
     itemCount: number;
+    totalRequired?: number;
+    totalIssued?: number;
+    remainingQuantity?: number;
+    isFullyIssued?: boolean;
+    isPartiallyIssued?: boolean;
   }[];
   updatedAt: string;
 }
@@ -107,15 +112,31 @@ export function StoresRmIssueWorkspace() {
     setSelectedScForIssue({ id: scId, num: scNumber });
   };
 
+  const checkIsScFullyIssued = (sc: DraftItem['scs'][0]) => {
+    if (sc.isFullyIssued !== undefined) return sc.isFullyIssued;
+    if (sc.totalRequired !== undefined && sc.totalIssued !== undefined) {
+      return sc.totalRequired > 0 && sc.totalIssued >= sc.totalRequired;
+    }
+    return sc.scStatus === 'ISSUED' || sc.scStatus === 'COMPLETED';
+  };
+
+  const checkIsScPartiallyIssued = (sc: DraftItem['scs'][0]) => {
+    if (sc.isPartiallyIssued !== undefined) return sc.isPartiallyIssued;
+    if (sc.totalRequired !== undefined && sc.totalIssued !== undefined) {
+      return sc.totalIssued > 0 && sc.totalIssued < sc.totalRequired;
+    }
+    return sc.scStatus === 'PARTIALLY_ISSUED';
+  };
+
   const selectedPo = queues.find((q) => q.poId === selectedPoId);
   const poCompletedCount = selectedPo
-    ? selectedPo.scs.filter((s) => s.scStatus === 'ISSUED' || s.scStatus === 'COMPLETED' || s.scStatus === 'IN_PRODUCTION' || s.status === 'COMPLETED').length
+    ? selectedPo.scs.filter((s) => checkIsScFullyIssued(s)).length
     : 0;
   const isSelectedPoCompleted = selectedPo
     ? selectedPo.scs.length > 0 && poCompletedCount === selectedPo.scs.length
     : false;
   const isSelectedPoPartial = selectedPo
-    ? !isSelectedPoCompleted && selectedPo.scs.some((s) => s.scStatus === 'PARTIALLY_ISSUED')
+    ? !isSelectedPoCompleted && selectedPo.scs.some((s) => checkIsScPartiallyIssued(s) || ((s.totalIssued || 0) > 0))
     : false;
 
   if (selectedScForReview) {
@@ -195,8 +216,8 @@ export function StoresRmIssueWorkspace() {
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
               {queues.map((po) => {
-                const isPoCompleted = po.scs.length > 0 && po.scs.every(s => s.scStatus === 'ISSUED' || s.scStatus === 'COMPLETED' || s.scStatus === 'IN_PRODUCTION' || s.status === 'COMPLETED');
-                const isPoPartial = !isPoCompleted && po.scs.some(s => s.scStatus === 'PARTIALLY_ISSUED');
+                const isPoCompleted = po.scs.length > 0 && po.scs.every(s => checkIsScFullyIssued(s));
+                const isPoPartial = !isPoCompleted && po.scs.some(s => checkIsScPartiallyIssued(s) || ((s.totalIssued || 0) > 0));
 
                 return (
                   <button
@@ -262,7 +283,8 @@ export function StoresRmIssueWorkspace() {
                 
                 <div className="flex-1 overflow-y-auto p-5 space-y-4">
                   {selectedPo.scs.map((sc) => {
-                    const isScIssued = sc.scStatus === 'ISSUED' || sc.scStatus === 'IN_PRODUCTION' || sc.scStatus === 'COMPLETED';
+                    const isScFullyIssued = checkIsScFullyIssued(sc);
+                    const isScPartial = checkIsScPartiallyIssued(sc);
 
                     return (
                     <div key={sc.scId} className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
@@ -271,17 +293,34 @@ export function StoresRmIssueWorkspace() {
                           <h4 className="font-bold text-lg text-slate-900">{sc.scNumber}</h4>
                           <p className="text-sm text-slate-500">Product: {sc.productName}</p>
                         </div>
-                        <div>{renderStatusBadge(sc.scStatus === 'PARTIALLY_ISSUED' ? sc.scStatus : sc.status)}</div>
+                        <div>
+                          {isScPartial ? (
+                            <span className="px-2.5 py-1 text-xs font-semibold bg-purple-100 text-purple-800 rounded-md border border-purple-200">
+                              Partially Issued ({sc.totalIssued || 0}/{sc.totalRequired || 0})
+                            </span>
+                          ) : isScFullyIssued ? (
+                            <span className="px-2.5 py-1 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-md border border-emerald-200">
+                              Fully Issued
+                            </span>
+                          ) : (
+                            renderStatusBadge(sc.scStatus === 'PARTIALLY_ISSUED' ? sc.scStatus : sc.status)
+                          )}
+                        </div>
                       </div>
                       
-                      <div className="text-sm text-slate-600 mb-6">
-                        {sc.itemCount} Material Item(s) requested.
+                      <div className="text-sm text-slate-600 mb-6 flex items-center justify-between">
+                        <span>{sc.itemCount} Material Item(s) requested.</span>
+                        {isScPartial && (
+                          <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-md border border-purple-200">
+                            Remaining: {sc.remainingQuantity ?? (sc.totalRequired! - sc.totalIssued!)} units to issue
+                          </span>
+                        )}
                       </div>
                       
                       <div className="flex justify-end space-x-3 border-t border-slate-100 pt-4">
                         {sc.status === 'REJECTED' ? (
                           <span className="text-xs text-red-600 font-medium italic">Requisition Rejected by Stores</span>
-                        ) : isScIssued ? (
+                        ) : isScFullyIssued ? (
                           <span className="inline-flex items-center text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
                             ✓ Material Fully Issued
                           </span>
@@ -311,10 +350,12 @@ export function StoresRmIssueWorkspace() {
                             </button>
                             <button 
                               onClick={() => handleOpenIssueModal(sc.scId, sc.scNumber)}
-                              className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 font-medium rounded-lg transition-colors shadow-sm cursor-pointer"
+                              className={`flex items-center space-x-2 px-4 py-2 text-white font-medium rounded-lg transition-colors shadow-sm cursor-pointer ${
+                                isScPartial ? 'bg-purple-600 hover:bg-purple-700' : 'bg-indigo-600 hover:bg-indigo-700'
+                              }`}
                             >
                               <PackagePlus className="w-4 h-4" />
-                              <span>Issue Material</span>
+                              <span>{isScPartial ? 'Issue Remaining Material' : 'Issue Material'}</span>
                             </button>
                           </div>
                         )}

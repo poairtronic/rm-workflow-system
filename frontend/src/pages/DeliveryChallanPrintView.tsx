@@ -15,7 +15,7 @@ export function DeliveryChallanPrintView() {
     enabled: !!id,
   });
 
-  // Remove browser print header/footer title (RMRIT) dynamically during print
+  // Remove browser print header/footer title (V-SMART) dynamically during print
   useEffect(() => {
     const originalTitle = document.title;
     const handleBeforePrint = () => {

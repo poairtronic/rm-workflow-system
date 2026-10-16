@@ -19,7 +19,7 @@ export function ChallanPrintHeader({ dcNumber, issueDate, vendorName, destinatio
             <Box className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-black uppercase tracking-tight">RMRIT Manufacturing Ltd.</h1>
+            <h1 className="text-xl font-black text-black uppercase tracking-tight">V-SMART Manufacturing Ltd.</h1>
             <p className="text-xs text-black">123 Industrial Estate, Phase II</p>
             <p className="text-xs text-black">Bangalore, Karnataka - 560100, India</p>
           </div>

@@ -82,7 +82,7 @@ export class PdfGeneratorService {
             {
               width: '*',
               stack: [
-                { text: 'RMRIT MANUFACTURING SYSTEMS', style: 'companyName' },
+                { text: 'V-SMART MANUFACTURING SYSTEMS', style: 'companyName' },
                 { text: 'Industrial Raw Material & Supply Chain Workflow Suite', style: 'companySubtitle' },
                 { text: 'Factory Unit 1, Manufacturing Zone, Industrial Corridor', style: 'companyAddress' },
               ],
@@ -271,7 +271,7 @@ export class PdfGeneratorService {
             {
               width: '*',
               stack: [
-                { text: 'RMRIT MANUFACTURING SYSTEMS', style: 'companyName' },
+                { text: 'V-SMART MANUFACTURING SYSTEMS', style: 'companyName' },
                 { text: 'Internal Material Movement & Floor Transfer', style: 'companySubtitle' },
               ],
             },

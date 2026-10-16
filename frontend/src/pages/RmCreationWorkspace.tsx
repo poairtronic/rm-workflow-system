@@ -824,22 +824,30 @@ export function RmCreationWorkspace() {
                 </span>
               </div>
               
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm whitespace-nowrap">
+              <div className="rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
+                <table className="w-full table-fixed text-left text-sm border-collapse">
+                  <colgroup>
+                    <col className="w-[32%]" />
+                    <col className="w-[20%]" />
+                    <col className="w-[14%]" />
+                    <col className="w-[18%]" />
+                    <col className="w-[11%]" />
+                    <col className="w-[5%]" />
+                  </colgroup>
                   <thead>
-                    <tr className="text-slate-500 border-b border-slate-200 text-xs uppercase tracking-wide">
-                      <th className="pb-3 font-semibold min-w-[280px]">RM Product Master *</th>
-                      <th className="pb-3 font-semibold">Part Name *</th>
-                      <th className="pb-3 font-semibold w-44">Part Number (Auto) *</th>
-                      <th className="pb-3 font-semibold">Spec / Grade *</th>
-                      <th className="pb-3 font-semibold w-40">Required Qty *</th>
-                      <th className="pb-3 font-semibold w-16 text-center">Actions</th>
+                    <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-600 text-xs uppercase font-bold tracking-wider">
+                      <th className="py-2.5 px-2.5">RM Product Master *</th>
+                      <th className="py-2.5 px-2.5">Part Name *</th>
+                      <th className="py-2.5 px-2.5">Part No. (Auto) *</th>
+                      <th className="py-2.5 px-2.5">Spec / Grade *</th>
+                      <th className="py-2.5 px-2.5">Required Qty *</th>
+                      <th className="py-2.5 px-1.5 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {card.items.map((item) => (
-                      <tr key={item.id} className="hover:bg-slate-50/50">
-                        <td className="py-3 pr-4 min-w-[280px]">
+                      <tr key={item.id} className="hover:bg-blue-50/20 transition-colors">
+                        <td className="py-2.5 px-2.5 align-top min-w-0">
                           <SearchSelect
                             value={item.productId}
                             onChange={(id) => handleUpdateItem(card.id, item.id, 'productId', id)}
@@ -848,35 +856,35 @@ export function RmCreationWorkspace() {
                             className="w-full text-sm"
                           />
                         </td>
-                        <td className="py-3 pr-4">
+                        <td className="py-2.5 px-2.5 align-top min-w-0">
                           <input
                             type="text"
                             value={item.partName ?? item.remarks ?? ''}
                             onChange={(e) => handleUpdateItem(card.id, item.id, 'partName', e.target.value)}
                             placeholder="e.g. APG DIA 14"
-                            className="w-full px-3 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white"
+                            className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white font-medium text-slate-800 placeholder:text-slate-400 shadow-2xs"
                           />
                         </td>
-                        <td className="py-3 pr-4 w-44">
+                        <td className="py-2.5 px-2.5 align-top min-w-0">
                           <input
                             type="text"
                             value={item.partNumber || ''}
                             onChange={(e) => handleUpdateItem(card.id, item.id, 'partNumber', e.target.value)}
                             placeholder="e.g. PRD 001"
-                            className="w-full px-3 py-1.5 border border-indigo-200 bg-indigo-50/40 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-mono font-bold text-indigo-950 placeholder:text-indigo-300"
+                            className="w-full px-2.5 py-1.5 border border-indigo-200 bg-indigo-50/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-mono font-bold text-indigo-950 placeholder:text-indigo-300 shadow-2xs"
                             title="Auto-generated sequential Part Number (editable)"
                           />
                         </td>
-                        <td className="py-3 pr-4">
+                        <td className="py-2.5 px-2.5 align-top min-w-0">
                           <input
                             type="text"
                             value={item.spec}
                             onChange={(e) => handleUpdateItem(card.id, item.id, 'spec', e.target.value)}
                             placeholder="e.g. EN8 / SS316 / DIA 25mm"
-                            className="w-full px-3 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white"
+                            className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white text-slate-800 placeholder:text-slate-400 shadow-2xs"
                           />
                         </td>
-                        <td className="py-3 pr-4">
+                        <td className="py-2.5 px-2.5 align-top min-w-0">
                           {(() => {
                             const p = products.find((prod) => prod.id === item.productId);
                             const uom = p?.uom?.toUpperCase() || 'NOS';
@@ -889,13 +897,13 @@ export function RmCreationWorkspace() {
                                   step="0.001"
                                   value={item.quantity}
                                   onChange={(e) => handleUpdateItem(card.id, item.id, 'quantity', Number(e.target.value))}
-                                  className="w-full px-3 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 tabular-nums text-sm font-semibold"
+                                  className="w-full px-2 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 tabular-nums text-sm font-semibold text-slate-900 shadow-2xs"
                                 />
                                 {item.productId && (
-                                  <div className="flex items-center space-x-1 mt-1 text-[11px] font-semibold text-slate-500">
-                                    <span>In Warehouse:</span>
+                                  <div className="flex items-center space-x-1 mt-1 text-[11px] font-semibold text-slate-500 truncate" title={`In Warehouse: ${avail !== null ? avail : 'Checking...'} ${uom}`}>
+                                    <span>Stock:</span>
                                     <span className={avail !== null && avail > 0 ? 'text-emerald-600' : 'text-amber-600'}>
-                                      {avail !== null ? avail : 'Checking...'} {uom}
+                                      {avail !== null ? avail : '...'} {uom}
                                     </span>
                                   </div>
                                 )}
@@ -903,10 +911,11 @@ export function RmCreationWorkspace() {
                             );
                           })()}
                         </td>
-                        <td className="py-3 text-center">
+                        <td className="py-2.5 px-1.5 align-top text-center min-w-0">
                           <button
+                            type="button"
                             onClick={() => handleRemoveItemFromSc(card.id, item.id)}
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30"
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer disabled:opacity-30 inline-flex items-center justify-center"
                             disabled={card.items.length === 1}
                             title="Remove Material Row"
                           >

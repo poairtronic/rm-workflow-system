@@ -101,6 +101,7 @@ export class InventoryController {
   @Roles(
     UserRole.STORES,
     UserRole.ADMIN,
+    UserRole.PRODUCTION,
     UserRole.DESIGNER,
     UserRole.SENIOR_MANAGER,
     UserRole.GENERAL_MANAGER,

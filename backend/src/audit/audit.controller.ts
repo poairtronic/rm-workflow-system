@@ -65,7 +65,7 @@ export class AuditController {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="rmrit_audit_logs_${Date.now()}.csv"`,
+      `attachment; filename="v_smart_audit_logs_${Date.now()}.csv"`,
     );
     res.send(csvContent);
   }

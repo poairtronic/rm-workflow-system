@@ -61,7 +61,7 @@ import { MasterDataCacheModule } from './common/cache/master-data-cache.module.j
           url: dbUrl,
           entities: [RefreshToken, ...ALL_ENTITIES.filter((e) => e !== RefreshToken)],
           autoLoadEntities: true,
-          synchronize: !(configService.get("NODE_ENV") === "production") && (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")),
+          synchronize: configService.get("TYPEORM_SYNC") === "true" || (!(configService.get("NODE_ENV") === "production") && (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1"))),
           ssl: isSsl ? { rejectUnauthorized: false } : false,
           retryAttempts: 2,
           retryDelay: 3000,
@@ -73,7 +73,7 @@ import { MasterDataCacheModule } from './common/cache/master-data-cache.module.j
       {
         name: 'default',
         ttl: 60000,
-        limit: 120,
+        limit: 10000, // Enterprise ERP safe limit: prevents false-positive ThrottlerException on grid loading
       },
     ]),
     AuthModule,

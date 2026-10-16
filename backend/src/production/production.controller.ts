@@ -28,7 +28,7 @@ export class ProductionController {
   constructor(private readonly productionService: ProductionService) {}
 
   @Post('receipt')
-  @Roles(UserRole.PRODUCTION, UserRole.ADMIN)
+  @Roles(UserRole.PRODUCTION, UserRole.STORES, UserRole.ADMIN)
   receiveMaterial(@Body() dto: CreateProductionReceiptDto, @Req() req: any) {
     return this.productionService.receiveMaterial(dto, req.user.userId);
   }

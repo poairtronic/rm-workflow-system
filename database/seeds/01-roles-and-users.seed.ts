@@ -33,7 +33,7 @@ export const SEED_ROLES = [
 
 export async function getSeedUsers() {
   const defaultPasswordHash = await bcrypt.hash(
-    process.env.SEED_DEFAULT_PASSWORD || 'Password@123',
+    process.env.SEED_DEFAULT_PASSWORD || 'airtronic123A@',
     10,
   );
 

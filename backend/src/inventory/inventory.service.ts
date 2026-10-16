@@ -151,6 +151,11 @@ export class InventoryService {
         msl: b.product?.minimumInventory,
         binId: b.binId,
         binCode: b.bin?.code,
+        rackId: b.bin?.rackId,
+        rackCode: b.bin?.rack?.code,
+        locationId: b.bin?.rack?.locationId,
+        locationName: b.bin?.rack?.location?.name,
+        warehouseId: b.bin?.rack?.location?.warehouseId,
         warehouseName: b.bin?.rack?.location?.warehouse?.name || 'Unknown',
         currentQuantity: Number(b.currentQuantity),
         latestLotBatchNumber: latestTx?.lotBatchNumber || null

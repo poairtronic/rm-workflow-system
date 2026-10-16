@@ -1332,7 +1332,8 @@ export class MasterDataService {
     const qb = this.rackRepo
       .createQueryBuilder('r')
       .leftJoinAndSelect('r.location', 'location')
-      .leftJoinAndSelect('location.warehouse', 'warehouse');
+      .leftJoinAndSelect('location.warehouse', 'warehouse')
+      .leftJoinAndSelect('r.bins', 'bins');
 
     if (parentId) {
       qb.andWhere('r.locationId = :parentId', { parentId });

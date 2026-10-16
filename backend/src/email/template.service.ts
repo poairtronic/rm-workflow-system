@@ -108,7 +108,7 @@ export class TemplateService {
         const greeting = name ? `Hello ${name},\n\n` : '';
         const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
         return {
-          subject: `[RMRIT Notification] RM Request Submitted: ${rmNum}`,
+          subject: `[V-SMART Notification] RM Request Submitted: ${rmNum}`,
           text: `${greeting}An RM Request (${rmNum}) has been submitted for Stores review.`,
           html: `<h3>RM Request Submitted</h3>${htmlGreeting}<p>An RM Request (<strong>${escRmNum}</strong>) has been submitted for Stores review.</p>`,
         };
@@ -127,7 +127,7 @@ export class TemplateService {
         const greeting = name ? `Hello ${name},\n\n` : '';
         const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
         return {
-          subject: `[RMRIT Notification] Material Issued for RM: ${rmNum}`,
+          subject: `[V-SMART Notification] Material Issued for RM: ${rmNum}`,
           text: `${greeting}Material has been issued by Stores for RM Request ${rmNum}.`,
           html: `<h3>Material Issued</h3>${htmlGreeting}<p>Material has been issued by Stores for RM Request <strong>${escRmNum}</strong>.</p>`,
         };
@@ -146,7 +146,7 @@ export class TemplateService {
         const greeting = name ? `Hello ${name},\n\n` : '';
         const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
         return {
-          subject: `[RMRIT Notification] Additional Material Request: ${rmNum}`,
+          subject: `[V-SMART Notification] Additional Material Request: ${rmNum}`,
           text: `${greeting}An additional material request was created for RM Request ${rmNum}.`,
           html: `<h3>Additional Material Request</h3>${htmlGreeting}<p>An additional material request was created for RM Request <strong>${escRmNum}</strong>.</p>`,
         };
@@ -165,7 +165,7 @@ export class TemplateService {
         const greeting = name ? `Hello ${name},\n\n` : '';
         const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
         return {
-          subject: `[RMRIT Notification] SC Completed: ${scNum}`,
+          subject: `[V-SMART Notification] SC Completed: ${scNum}`,
           text: `${greeting}Sales Component ${scNum} has reached COMPLETED status.`,
           html: `<h3>SC Completed</h3>${htmlGreeting}<p>Sales Component <strong>${escScNum}</strong> has reached COMPLETED status.</p>`,
         };
@@ -187,7 +187,7 @@ export class TemplateService {
         const min = vars.minimumInventory !== undefined ? vars.minimumInventory : 'N/A';
         const deficit = vars.deficit !== undefined ? vars.deficit : 'N/A';
         return {
-          subject: `[RMRIT Alert] Low Stock Warning: ${prod}`,
+          subject: `[V-SMART Alert] Low Stock Warning: ${prod}`,
           text: `${greeting}Warning: Product ${prod} has dropped below Minimum Stock Level.\nCurrent Stock: ${stock}\nMinimum Required: ${min}\nDeficit: ${deficit}\n\nPlease take appropriate procurement action.`,
           html: `<h3>Low Stock Alert</h3>${htmlGreeting}<p>Warning: Product <strong>${escProd}</strong> has dropped below Minimum Stock Level.</p><ul><li><strong>Current Stock:</strong> ${stock}</li><li><strong>Minimum Required:</strong> ${min}</li><li><strong>Deficit:</strong> ${deficit}</li></ul><p>Please take appropriate procurement action.</p>`,
         };
@@ -207,7 +207,7 @@ export class TemplateService {
         const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
         const min = vars.minimumInventory !== undefined ? vars.minimumInventory : 'N/A';
         return {
-          subject: `[RMRIT Alert] CRITICAL: OUT OF STOCK: ${prod}`,
+          subject: `[V-SMART Alert] CRITICAL: OUT OF STOCK: ${prod}`,
           text: `${greeting}CRITICAL: Product ${prod} is completely OUT OF STOCK (Current Stock: 0, Minimum Required: ${min}).\n\nImmediate restocking is required.`,
           html: `<h3>CRITICAL: Out of Stock Alert</h3>${htmlGreeting}<p>CRITICAL: Product <strong>${escProd}</strong> is completely <strong>OUT OF STOCK</strong> (Current Stock: 0, Minimum Required: ${min}).</p><p>Immediate restocking is required.</p>`,
         };
@@ -228,7 +228,7 @@ export class TemplateService {
         const stock = vars.currentStock !== undefined ? vars.currentStock : 'N/A';
         const min = vars.minimumInventory !== undefined ? vars.minimumInventory : 'N/A';
         return {
-          subject: `[RMRIT Notice] Stock Restored: ${prod}`,
+          subject: `[V-SMART Notice] Stock Restored: ${prod}`,
           text: `${greeting}Notice: Stock for product ${prod} has been replenished to or above Minimum Stock Level.\nCurrent Stock: ${stock}\nMinimum Level: ${min}`,
           html: `<h3>Stock Restored</h3>${htmlGreeting}<p>Notice: Stock for product <strong>${escProd}</strong> has been replenished to or above Minimum Stock Level.</p><p><strong>Current Stock:</strong> ${stock} (Minimum Level: ${min})</p>`,
         };
@@ -249,7 +249,7 @@ export class TemplateService {
         const greeting = name ? `Hello ${name},\n\n` : '';
         const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
         return {
-          subject: `[RMRIT Notification] Material Received: ${scNum}`,
+          subject: `[V-SMART Notification] Material Received: ${scNum}`,
           text: `${greeting}Material receipt has been confirmed for SC ${scNum}.`,
           html: `<h3>Material Received</h3>${htmlGreeting}<p>Material receipt has been confirmed for SC <strong>${escScNum}</strong>.</p>`,
         };
@@ -268,7 +268,7 @@ export class TemplateService {
         const greeting = name ? `Hello ${name},\n\n` : '';
         const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
         return {
-          subject: `[RMRIT Notification] Material Return Submitted: ${scNum}`,
+          subject: `[V-SMART Notification] Material Return Submitted: ${scNum}`,
           text: `${greeting}Material return has been submitted for SC ${scNum} and awaits Stores acknowledgment.`,
           html: `<h3>Material Return Submitted</h3>${htmlGreeting}<p>Material return has been submitted for SC <strong>${escScNum}</strong> and awaits Stores acknowledgment.</p>`,
         };
@@ -287,7 +287,7 @@ export class TemplateService {
         const greeting = name ? `Hello ${name},\n\n` : '';
         const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
         return {
-          subject: `[RMRIT Notification] Material Return Acknowledged: ${scNum}`,
+          subject: `[V-SMART Notification] Material Return Acknowledged: ${scNum}`,
           text: `${greeting}Material return for SC ${scNum} has been verified and acknowledged by Stores.`,
           html: `<h3>Material Return Acknowledged</h3>${htmlGreeting}<p>Material return for SC <strong>${escScNum}</strong> has been verified and acknowledged by Stores.</p>`,
         };
@@ -306,7 +306,7 @@ export class TemplateService {
         const greeting = name ? `Hello ${name},\n\n` : '';
         const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
         return {
-          subject: `[RMRIT Notification] Additional Material Approved: ${scNum}`,
+          subject: `[V-SMART Notification] Additional Material Approved: ${scNum}`,
           text: `${greeting}Additional material request for SC ${scNum} has been APPROVED by Stores.`,
           html: `<h3>Additional Material Approved</h3>${htmlGreeting}<p>Additional material request for SC <strong>${escScNum}</strong> has been APPROVED by Stores.</p>`,
         };
@@ -325,7 +325,7 @@ export class TemplateService {
         const greeting = name ? `Hello ${name},\n\n` : '';
         const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
         return {
-          subject: `[RMRIT Notification] Additional Material Rejected: ${scNum}`,
+          subject: `[V-SMART Notification] Additional Material Rejected: ${scNum}`,
           text: `${greeting}Additional material request for SC ${scNum} has been REJECTED by Stores.`,
           html: `<h3>Additional Material Rejected</h3>${htmlGreeting}<p>Additional material request for SC <strong>${escScNum}</strong> has been REJECTED by Stores.</p>`,
         };
@@ -344,7 +344,7 @@ export class TemplateService {
         const greeting = name ? `Hello ${name},\n\n` : '';
         const htmlGreeting = name ? `<p>Hello ${name},</p>` : '';
         return {
-          subject: `[RMRIT Notification] Additional Material Issued: ${scNum}`,
+          subject: `[V-SMART Notification] Additional Material Issued: ${scNum}`,
           text: `${greeting}Additional material has been issued by Stores for SC ${scNum}.`,
           html: `<h3>Additional Material Issued</h3>${htmlGreeting}<p>Additional material has been issued by Stores for SC <strong>${escScNum}</strong>.</p>`,
         };
@@ -363,7 +363,7 @@ export class TemplateService {
         const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
         const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
         return {
-          subject: `[RMRIT] Delivery Challan Created: ${vars.challanNumber || 'N/A'}`,
+          subject: `[V-SMART] Delivery Challan Created: ${vars.challanNumber || 'N/A'}`,
           text: `${name}A new Delivery Challan has been created.\nChallan Number: ${vars.challanNumber || 'N/A'}\nVendor: ${vars.vendorName || 'N/A'}\nDispatch Date: ${vars.dispatchDate || 'N/A'}`,
           html: `<h3>Delivery Challan Created</h3>${htmlName}<p>A new Delivery Challan <strong>${cn}</strong> has been created for vendor <strong>${vendor}</strong>.</p><p><strong>Dispatch Date:</strong> ${escape(vars.dispatchDate || 'N/A')}<br/><strong>Expected Return:</strong> ${escape(vars.expectedReturnDate || 'N/A')}</p>`,
         };
@@ -380,7 +380,7 @@ export class TemplateService {
         const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
         const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
         return {
-          subject: `[RMRIT] Delivery Challan Dispatched: ${vars.challanNumber || 'N/A'}`,
+          subject: `[V-SMART] Delivery Challan Dispatched: ${vars.challanNumber || 'N/A'}`,
           text: `${name}Delivery Challan ${vars.challanNumber || 'N/A'} has been dispatched to vendor ${vars.vendorName || 'N/A'}.\nExpected Return: ${vars.expectedReturnDate || 'N/A'}`,
           html: `<h3>Delivery Challan Dispatched</h3>${htmlName}<p>Challan <strong>${cn}</strong> has been dispatched to vendor <strong>${vendor}</strong>.</p><p><strong>Dispatch Date:</strong> ${escape(vars.dispatchDate || 'N/A')}<br/><strong>Expected Return:</strong> ${escape(vars.expectedReturnDate || 'N/A')}</p>`,
         };
@@ -398,7 +398,7 @@ export class TemplateService {
         const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
         const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
         return {
-          subject: `[RMRIT] SLA Alert: Challan ${vars.challanNumber || 'N/A'} approaching return deadline`,
+          subject: `[V-SMART] SLA Alert: Challan ${vars.challanNumber || 'N/A'} approaching return deadline`,
           text: `${name}SLA Warning: Delivery Challan ${vars.challanNumber || 'N/A'} is approaching its expected return date.\nVendor: ${vars.vendorName || 'N/A'}\nExpected Return: ${vars.expectedReturnDate}\nHours Remaining: ${hours}`,
           html: `<h3>⚠️ SLA Warning: Challan Approaching Deadline</h3>${htmlName}<p>Delivery Challan <strong>${cn}</strong> from vendor <strong>${vendor}</strong> is approaching its expected return date.</p><p><strong>Expected Return:</strong> ${escape(vars.expectedReturnDate)}<br/><strong>Hours Remaining:</strong> ${hours}</p><p>Please follow up with the vendor immediately.</p>`,
         };
@@ -416,7 +416,7 @@ export class TemplateService {
         const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
         const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
         return {
-          subject: `[RMRIT] OVERDUE: Delivery Challan ${vars.challanNumber || 'N/A'} not returned`,
+          subject: `[V-SMART] OVERDUE: Delivery Challan ${vars.challanNumber || 'N/A'} not returned`,
           text: `${name}OVERDUE: Delivery Challan ${vars.challanNumber || 'N/A'} has not been returned.\nVendor: ${vars.vendorName || 'N/A'}\nExpected Return: ${vars.expectedReturnDate}\nDays Overdue: ${days}\n\nImmediate follow-up required.`,
           html: `<h3>🚨 OVERDUE: Delivery Challan Not Returned</h3>${htmlName}<p>OVERDUE: Delivery Challan <strong>${cn}</strong> from vendor <strong>${vendor}</strong> has not been returned.</p><p><strong>Expected Return:</strong> ${escape(vars.expectedReturnDate)}<br/><strong>Days Overdue:</strong> ${days}</p><p><strong>Immediate follow-up is required.</strong></p>`,
         };
@@ -433,7 +433,7 @@ export class TemplateService {
         const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
         const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
         return {
-          subject: `[RMRIT] Partial Return Received: Challan ${vars.challanNumber || 'N/A'}`,
+          subject: `[V-SMART] Partial Return Received: Challan ${vars.challanNumber || 'N/A'}`,
           text: `${name}Partial return received for Delivery Challan ${vars.challanNumber || 'N/A'} from vendor ${vars.vendorName || 'N/A'}.\nQuantity Returned: ${vars.returnedQty || 'N/A'}\nQuantity Pending: ${vars.pendingQty || 'N/A'}`,
           html: `<h3>Partial Return Received</h3>${htmlName}<p>Partial return received for Challan <strong>${cn}</strong> from vendor <strong>${vendor}</strong>.</p><ul><li><strong>Quantity Returned:</strong> ${vars.returnedQty || 'N/A'}</li><li><strong>Quantity Pending:</strong> ${vars.pendingQty || 'N/A'}</li></ul>`,
         };
@@ -450,7 +450,7 @@ export class TemplateService {
         const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
         const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
         return {
-          subject: `[RMRIT] Challan Fully Returned: ${vars.challanNumber || 'N/A'}`,
+          subject: `[V-SMART] Challan Fully Returned: ${vars.challanNumber || 'N/A'}`,
           text: `${name}All items from Delivery Challan ${vars.challanNumber || 'N/A'} have been returned from vendor ${vars.vendorName || 'N/A'}.\nActual Return Date: ${vars.actualReturnDate || 'N/A'}`,
           html: `<h3>Delivery Challan Fully Returned</h3>${htmlName}<p>All items from Challan <strong>${cn}</strong> have been returned by vendor <strong>${vendor}</strong>.</p><p><strong>Return Date:</strong> ${escape(vars.actualReturnDate || 'N/A')}</p>`,
         };
@@ -467,7 +467,7 @@ export class TemplateService {
         const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
         const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
         return {
-          subject: `[RMRIT] Delivery Challan Closed: ${vars.challanNumber || 'N/A'}`,
+          subject: `[V-SMART] Delivery Challan Closed: ${vars.challanNumber || 'N/A'}`,
           text: `${name}Delivery Challan ${vars.challanNumber || 'N/A'} with vendor ${vars.vendorName || 'N/A'} has been administratively closed.`,
           html: `<h3>Delivery Challan Closed</h3>${htmlName}<p>Challan <strong>${cn}</strong> with vendor <strong>${vendor}</strong> has been administratively closed and archived.</p>`,
         };

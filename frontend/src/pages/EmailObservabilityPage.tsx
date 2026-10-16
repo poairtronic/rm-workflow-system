@@ -92,7 +92,7 @@ export const EmailObservabilityPage: React.FC = () => {
             Email Queue Health &amp; Observability
           </h1>
           <p className="subtitle" style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>
-            Read-only operational status and health metrics of the RMRIT email delivery queue.
+            Read-only operational status and health metrics of the V-SMART email delivery queue.
           </p>
         </div>
 
@@ -125,7 +125,7 @@ export const EmailObservabilityPage: React.FC = () => {
         <Card title="Loading Queue Metrics...">
           <div className="flex-center p-8 text-center">
             <span className="badge badge-warning">
-              Retrieving database-aggregated email metrics from RMRIT server...
+              Retrieving database-aggregated email metrics from V-SMART server...
             </span>
           </div>
         </Card>

@@ -9,7 +9,7 @@ export class ExcelReportService {
   constructor(@Optional() private readonly filesService?: FilesService) {}
 
   /**
-   * Applies corporate RMRIT navy styling, frozen headers, and auto-column width
+   * Applies corporate V-SMART navy styling, frozen headers, and auto-column width
    */
   public applyWorksheetFormatting(sheet: ExcelJS.Worksheet) {
     sheet.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }];
@@ -20,7 +20,7 @@ export class ExcelReportService {
       cell.fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FF1E3A8A' }, // RMRIT Navy
+        fgColor: { argb: 'FF1E3A8A' }, // V-SMART Navy
       };
       cell.font = {
         name: 'Segoe UI',
@@ -75,7 +75,7 @@ export class ExcelReportService {
     consumptions: any[];
   }): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'RMRIT Industrial Traceability System';
+    workbook.creator = 'V-SMART Industrial Traceability System';
     workbook.created = new Date();
 
     // Tab 1: SC & PO Summary
@@ -159,7 +159,7 @@ export class ExcelReportService {
     transactions: any[];
   }): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'RMRIT Industrial Traceability System';
+    workbook.creator = 'V-SMART Industrial Traceability System';
     workbook.created = new Date();
 
     // Tab 1: Current Stock Balances
@@ -223,7 +223,7 @@ export class ExcelReportService {
     slaBreaches: any[];
   }): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'RMRIT Industrial Traceability System';
+    workbook.creator = 'V-SMART Industrial Traceability System';
     workbook.created = new Date();
 
     // Tab 1: Active Challans

@@ -930,6 +930,25 @@ export class RmService {
       order: { updatedAt: 'DESC' },
     });
 
+    const scIds = requests
+      .map((r) => r.salesOrderComponent?.id || r.scId)
+      .filter((id): id is string => !!id);
+
+    const issuedMap = new Map<string, number>();
+    if (scIds.length > 0) {
+      const issueSums: { scId: string; totalIssued: string }[] = await this.dataSource.query(
+        `SELECT mi.sc_id as "scId", COALESCE(SUM(mii.quantity_issued), 0) as "totalIssued"
+         FROM material_issue_items mii
+         JOIN material_issues mi ON mi.id = mii.material_issue_id
+         WHERE mi.sc_id = ANY($1) AND mi.issue_type = 'INITIAL_ISSUE'
+         GROUP BY mi.sc_id`,
+        [scIds],
+      );
+      for (const row of issueSums) {
+        issuedMap.set(row.scId, Number(row.totalIssued) || 0);
+      }
+    }
+
     const grouped = new Map<string, any>();
     
     for (const req of requests) {
@@ -946,15 +965,28 @@ export class RmService {
       }
 
       const group = grouped.get(po.id);
-      
+      const scId = req.salesOrderComponent?.id || req.scId || req.id;
+      const totalIssued = QuantityCalculator.roundDecimal(issuedMap.get(scId) || 0);
+      const totalRequired = QuantityCalculator.roundDecimal(
+        (req.items || []).reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
+      );
+      const isFullyIssued = totalRequired > 0 && totalIssued >= totalRequired;
+      const isPartiallyIssued = totalIssued > 0 && totalIssued < totalRequired;
+      const remainingQuantity = Math.max(0, QuantityCalculator.roundDecimal(totalRequired - totalIssued));
+
       group.scs.push({
         rmId: req.id,
-        scId: req.salesOrderComponent?.id || req.scId || req.id,
+        scId,
         scNumber: req.salesOrderComponent?.scNumber || req.purchaseOrder?.poNumber || 'SC',
         productName: req.salesOrderComponent?.productName || 'Material Component',
         status: req.status,
         scStatus: req.salesOrderComponent?.status || ScStatus.SUBMITTED,
         itemCount: req.items?.length || 0,
+        totalRequired,
+        totalIssued,
+        remainingQuantity,
+        isFullyIssued,
+        isPartiallyIssued,
       });
 
       if (req.updatedAt > group.updatedAt) group.updatedAt = req.updatedAt;

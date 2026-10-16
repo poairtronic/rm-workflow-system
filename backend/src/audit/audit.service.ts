@@ -56,7 +56,7 @@ export class AuditService implements OnModuleInit {
       metadata: {
         ...data.metadata,
         ipAddress: data.metadata?.ipAddress || '127.0.0.1',
-        userAgent: data.metadata?.userAgent || 'RMRIT Enterprise Web Client',
+        userAgent: data.metadata?.userAgent || 'V-SMART Enterprise Web Client',
       },
     });
 
@@ -113,7 +113,7 @@ export class AuditService implements OnModuleInit {
       } : {
         id: 'SYSTEM',
         name: 'System Admin',
-        email: 'system@rmrit.internal',
+        email: 'system@v-smart.internal',
         department: 'SYSTEM',
       },
       oldValues: l.oldValues,

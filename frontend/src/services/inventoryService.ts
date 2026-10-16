@@ -17,6 +17,11 @@ export interface StockBalance {
   msl?: number;
   binId: string;
   binCode?: string;
+  rackId?: string;
+  rackCode?: string;
+  locationId?: string;
+  locationName?: string;
+  warehouseId?: string;
   warehouseName?: string;
   currentQuantity: number;
   latestLotBatchNumber?: string;
@@ -45,9 +50,12 @@ export interface StockTransaction {
 }
 
 export interface ProductBinBalance {
-  id: string;
+  id?: string;
   binId: string;
   binCode?: string;
+  rackCode?: string;
+  rackName?: string;
+  locationName?: string;
   warehouseName?: string;
   productId: string;
   currentQuantity: number;

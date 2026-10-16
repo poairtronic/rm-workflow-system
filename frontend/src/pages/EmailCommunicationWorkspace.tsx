@@ -29,7 +29,7 @@ export function EmailCommunicationWorkspace() {
   // Test Email Modal State
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   const [testRecipient, setTestRecipient] = useState('posuppportairtronic@gmail.com');
-  const [testSubject, setTestSubject] = useState('RMRIT Communication Test');
+  const [testSubject, setTestSubject] = useState('V-SMART Communication Test');
   const [testMessage, setTestMessage] = useState('This is a real-time verification email dispatched via Gmail API.');
   const [sendingTest, setSendingTest] = useState(false);
 
@@ -229,7 +229,7 @@ export function EmailCommunicationWorkspace() {
               </div>
               <div className="flex justify-between pl-3">
                 <span className="text-slate-500">Dead Letter:</span>
-                <span className="font-bold text-amber-600">9</span>
+                <span className="font-bold text-amber-600">{metrics?.deadLetter || 0}</span>
               </div>
             </div>
           </div>
@@ -360,7 +360,7 @@ export function EmailCommunicationWorkspace() {
                       </td>
 
                       <td className="py-3.5 px-4 text-xs text-slate-700 max-w-[280px] truncate" title={log.subject}>
-                        {log.subject || 'RMRIT Notification'}
+                        {log.subject || 'V-SMART Notification'}
                       </td>
 
                       <td className="py-3.5 px-4 whitespace-nowrap">

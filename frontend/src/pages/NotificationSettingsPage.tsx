@@ -102,7 +102,7 @@ export const NotificationSettingsPage: React.FC = () => {
           Notifications &amp; Alerts
         </h1>
         <p className="subtitle" style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>
-          Manage how RMRIT communicates workflow updates across email and in-app channels.
+          Manage how V-SMART communicates workflow updates across email and in-app channels.
         </p>
       </div>
 
@@ -149,7 +149,7 @@ export const NotificationSettingsPage: React.FC = () => {
       {loading ? (
         <Card title="Loading Settings...">
           <div className="flex-center p-6 text-center">
-            <span className="badge badge-warning">Retrieving notification configuration from RMRIT server...</span>
+            <span className="badge badge-warning">Retrieving notification configuration from V-SMART server...</span>
           </div>
         </Card>
       ) : (
@@ -158,7 +158,7 @@ export const NotificationSettingsPage: React.FC = () => {
           {isAdmin && (
             <Card
               title="GLOBAL EMAIL NOTIFICATIONS"
-              subtitle="Control workflow email notifications across the entire RMRIT application."
+              subtitle="Control workflow email notifications across the entire V-SMART application."
               className="primary-card"
             >
               <div
@@ -230,7 +230,7 @@ export const NotificationSettingsPage: React.FC = () => {
           {/* USER: Personal Workflow Email Preference */}
           <Card
             title="WORKFLOW EMAILS"
-            subtitle="Receive email notifications for approved RMRIT workflow events."
+            subtitle="Receive email notifications for approved V-SMART workflow events."
           >
             <div
               style={{
@@ -314,7 +314,7 @@ export const NotificationSettingsPage: React.FC = () => {
             </h5>
             <ul style={{ margin: 0, paddingLeft: '20px' }}>
               <li>
-                <strong>In-App Notifications:</strong> Always created and available in the RMRIT interface regardless of email preference settings.
+                <strong>In-App Notifications:</strong> Always created and available in the V-SMART interface regardless of email preference settings.
               </li>
               <li>
                 <strong>Workflow Email Suppression:</strong> Turning off workflow email suppresses outgoing email delivery without affecting in-app notifications.

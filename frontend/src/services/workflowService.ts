@@ -31,7 +31,10 @@ export interface MaterialIssue {
   issueNumber: string;
   issueType: string;
   remarks?: string;
+  salesOrderComponent?: SC;
   items: any[];
+  receipts?: any[];
+  issuedBy?: any;
   createdAt: string;
 }
 
@@ -42,6 +45,7 @@ export interface AccountingItem {
   size: string;
   required: number;
   issued: number;
+  unissued?: number;
   received: number;
   consumed: number;
   returned: number;
@@ -103,6 +107,10 @@ export interface MaterialAccounting {
   productName?: string;
   targetQuantity?: number;
   poNumber?: string | null;
+  totalRequired?: number;
+  totalIssued?: number;
+  totalUnissued?: number;
+  isPartiallyIssued?: boolean;
   items: AccountingItem[];
   consumptions?: ConsumptionLogEntry[];
   issues?: IssueLogEntry[];

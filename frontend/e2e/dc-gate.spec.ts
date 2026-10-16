@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * RMRIT Real Gate E2E Specification
+ * V-SMART Real Gate E2E Specification
  * 
  * Flow:
  * 1. Log in as STORES.
