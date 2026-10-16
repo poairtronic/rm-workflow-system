@@ -102,36 +102,36 @@ export function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-900 text-slate-100 flex flex-col justify-between relative overflow-hidden font-sans">
+    <div className="min-h-screen w-full bg-slate-50 text-slate-800 flex flex-col justify-between relative overflow-hidden font-sans">
       {/* Background Visual Enhancements */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950/60 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-slate-100/80 to-indigo-50/40 pointer-events-none" />
       <div
-        className="absolute inset-0 opacity-[0.03] pointer-events-none"
+        className="absolute inset-0 opacity-[0.035] pointer-events-none"
         style={{
           backgroundImage:
-            'radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.4) 1px, transparent 0)',
-          backgroundSize: '28px 28px',
+            'radial-gradient(circle at 1px 1px, rgba(15, 23, 42, 0.6) 1px, transparent 0)',
+          backgroundSize: '24px 24px',
         }}
       />
-      <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-200/30 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-blue-200/30 rounded-full blur-3xl pointer-events-none" />
 
       {/* Main Content Container */}
       <div className="relative z-10 w-full max-w-7xl mx-auto px-6 py-8 md:py-12 flex-1 flex flex-col justify-between">
         {/* Top Navbar / Brand Header */}
         <header className="flex items-center justify-between pb-6">
           <Link to="/login" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
               <ShieldCheck className="w-5 h-5 text-white" />
             </div>
             <div>
-              <span className="text-xl font-bold tracking-tight text-white flex items-center gap-1.5">
+              <span className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
                 V-SMART
-                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/80">
                   Secure Portal
                 </span>
               </span>
-              <p className="text-[11px] text-slate-400 font-medium tracking-wide">
+              <p className="text-[11px] text-slate-500 font-medium tracking-wide">
                 Velan Stock, Material &amp; Asset Resource Tracker
               </p>
             </div>
@@ -142,38 +142,38 @@ export function ResetPasswordPage() {
         <main className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center py-8 my-auto">
           {/* Left Column: Enterprise Security Branding */}
           <div className="lg:col-span-7 flex flex-col space-y-6 pr-0 lg:pr-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 w-fit">
-              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
-              <span className="text-xs font-semibold tracking-wide text-indigo-300">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-50 border border-indigo-200/80 w-fit">
+              <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
+              <span className="text-xs font-semibold tracking-wide text-indigo-800">
                 Encrypted Credential Protection
               </span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-[1.15]">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.12]">
               Secure your account,{' '}
               <br className="hidden sm:inline" />
               resume{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-violet-300 to-blue-400">
+              <span className="text-indigo-600">
                 seamless operations.
               </span>
             </h1>
 
-            <p className="text-base sm:text-lg text-slate-300/90 max-w-xl leading-relaxed font-normal">
+            <p className="text-base sm:text-lg text-slate-600 max-w-xl leading-relaxed font-normal">
               Set a strong, high-entropy password to protect critical inventory records, engineering
               specifications, and production dispatch workflows.
             </p>
 
-            <div className="pt-4 flex flex-wrap items-center gap-6 text-xs text-slate-400 font-medium">
+            <div className="pt-2 flex flex-wrap items-center gap-6 text-xs text-slate-500 font-medium">
               <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                 <span>Bcrypt Password Encryption</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                 <span>Automatic Session Revocation</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                 <span>Zero-Trust Architecture</span>
               </div>
             </div>
@@ -181,7 +181,7 @@ export function ResetPasswordPage() {
 
           {/* Right Column: Interactive Card */}
           <div className="lg:col-span-5 flex justify-center lg:justify-end">
-            <div className="w-full max-w-md bg-white rounded-3xl p-8 sm:p-10 shadow-2xl shadow-indigo-950/40 border border-slate-100 text-slate-900 transition-all">
+            <div className="w-full max-w-md bg-white rounded-3xl p-8 sm:p-10 shadow-xl shadow-slate-200/70 border border-slate-200/80 text-slate-900 transition-all">
               {isVerifying ? (
                 /* Verifying State */
                 <div className="py-12 text-center space-y-4">
@@ -439,12 +439,12 @@ export function ResetPasswordPage() {
         </main>
 
         {/* Footer */}
-        <footer className="pt-6 border-t border-slate-800/60 text-xs text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <footer className="pt-6 border-t border-slate-200/80 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© 2026 V-SMART Enterprise Systems. All rights reserved.</p>
           <div className="flex items-center gap-6 text-[11px] text-slate-400">
-            <span className="hover:text-slate-300 transition-colors">Privacy Policy</span>
-            <span className="hover:text-slate-300 transition-colors">Security Standards</span>
-            <span className="hover:text-slate-300 transition-colors">Support Portal</span>
+            <span className="hover:text-slate-600 transition-colors cursor-pointer">Privacy Policy</span>
+            <span className="hover:text-slate-600 transition-colors cursor-pointer">Security Standards</span>
+            <span className="hover:text-slate-600 transition-colors cursor-pointer">Support Portal</span>
           </div>
         </footer>
       </div>
