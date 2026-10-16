@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -9,13 +9,17 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
 import { User } from '../users/entities/user.entity.js';
 import { Role } from '../roles/entities/role.entity.js';
 import { RefreshToken } from './entities/refresh-token.entity.js';
+import { PasswordResetToken } from './entities/password-reset-token.entity.js';
 import { PermissionsModule } from '../permissions/permissions.module.js';
+import { EmailModule } from '../email/email.module.js';
 
 @Module({
   imports: [
+    ConfigModule,
     PermissionsModule,
+    forwardRef(() => EmailModule),
     PassportModule.register({ defaultStrategy: 'jwt' }),
-    TypeOrmModule.forFeature([User, Role, RefreshToken]),
+    TypeOrmModule.forFeature([User, Role, RefreshToken, PasswordResetToken]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

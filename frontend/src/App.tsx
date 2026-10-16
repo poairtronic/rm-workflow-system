@@ -6,6 +6,8 @@ import { AppLayout } from './components/layout/AppLayout';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { LoginView } from './pages/LoginView';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { UnauthorizedView } from './pages/UnauthorizedView';
 import { ROUTE_CONFIG, getRoleDefaultPath } from './routeConfig';
 import { PrintableDocumentLayout } from './components/layout/PrintableDocumentLayout';
@@ -29,6 +31,8 @@ function App() {
           <Suspense fallback={<RouteLoadingSkeleton />}>
             <Routes>
               <Route path="/login" element={<LoginView />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/unauthorized" element={<UnauthorizedView />} />
               
               <Route element={<ProtectedRoute />}>

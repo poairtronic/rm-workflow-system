@@ -3,7 +3,10 @@ import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -11,8 +14,10 @@ import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
 import { User } from '../users/entities/user.entity.js';
 import { RefreshToken } from './entities/refresh-token.entity.js';
+import { PasswordResetToken } from './entities/password-reset-token.entity.js';
 import { UserRole } from './enums/role.enum.js';
 import { LoginDto } from './dto/login.dto.js';
+import { EmailQueueService } from '../email/email-queue.service.js';
 
 export interface TokenUser {
   userId: string;
@@ -31,6 +36,11 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepository: Repository<RefreshToken>,
+    @InjectRepository(PasswordResetToken)
+    private readonly passwordResetTokenRepository: Repository<PasswordResetToken>,
+    @Inject(forwardRef(() => EmailQueueService))
+    private readonly emailQueueService: EmailQueueService,
+    private readonly configService: ConfigService,
   ) {}
 
   async validateUserCredentials(email: string, pass: string): Promise<User> {
@@ -292,6 +302,207 @@ export class AuthService {
       success: true,
       user: userWithoutPass,
       message: 'Profile updated successfully',
+    };
+  }
+
+  /**
+   * Generates a secure, single-use password reset token and enqueues
+   * an email with the reset link. Returns a generic message to prevent user enumeration.
+   */
+  async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+    const normalizedEmail = (email || '').toLowerCase().trim();
+    const genericSuccessMessage =
+      'If an account exists with this email address, a password reset link has been dispatched to it.';
+
+    if (!normalizedEmail) {
+      return { success: true, message: genericSuccessMessage };
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { email: normalizedEmail },
+    });
+
+    // Anti-enumeration: return success even if user does not exist or is inactive
+    if (!user || !user.isActive) {
+      return { success: true, message: genericSuccessMessage };
+    }
+
+    // Invalidate any existing unused reset tokens for this user
+    await this.passwordResetTokenRepository.update(
+      { userId: user.id, isUsed: false },
+      { isUsed: true },
+    );
+
+    // Generate cryptographically secure 32-byte hex token
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    // Token expires in 60 minutes
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    const resetTokenEntity = this.passwordResetTokenRepository.create({
+      userId: user.id,
+      tokenHash,
+      expiresAt,
+      isUsed: false,
+    });
+    await this.passwordResetTokenRepository.save(resetTokenEntity);
+
+    // Determine frontend base URL
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') ||
+      process.env.FRONTEND_URL ||
+      'http://localhost:5173';
+    const cleanFrontendUrl = frontendUrl.replace(/\/+$/, '');
+    const resetUrl = `${cleanFrontendUrl}/reset-password?token=${rawToken}`;
+
+    try {
+      await this.emailQueueService.enqueueJob({
+        recipientEmail: user.email,
+        recipientName: user.name || 'Team Member',
+        recipientUserId: user.id,
+        eventType: 'PASSWORD_RESET',
+        templateKey: 'PASSWORD_RESET',
+        subject: '[V-SMART] Password Reset Request',
+        payload: {
+          resetUrl,
+          recipientName: user.name || 'Team Member',
+          expiresInMinutes: 60,
+        },
+      });
+    } catch (err: any) {
+      console.error('Failed to enqueue password reset email:', err?.message || err);
+    }
+
+    return {
+      success: true,
+      message: genericSuccessMessage,
+    };
+  }
+
+  /**
+   * Validates whether a password reset token is active, unused, and not expired.
+   */
+  async verifyResetToken(
+    rawToken: string,
+  ): Promise<{ valid: boolean; email?: string; message?: string }> {
+    if (!rawToken || typeof rawToken !== 'string') {
+      return { valid: false, message: 'Invalid or missing reset token.' };
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(rawToken.trim()).digest('hex');
+
+    const record = await this.passwordResetTokenRepository.findOne({
+      where: { tokenHash },
+      relations: { user: true },
+    });
+
+    if (!record) {
+      return { valid: false, message: 'This password reset link is invalid or has expired.' };
+    }
+
+    if (record.isUsed) {
+      return {
+        valid: false,
+        message: 'This password reset link has already been used. Please request a new one.',
+      };
+    }
+
+    if (new Date() > record.expiresAt) {
+      return {
+        valid: false,
+        message: 'This password reset link has expired. Please request a new one.',
+      };
+    }
+
+    if (!record.user || !record.user.isActive) {
+      return {
+        valid: false,
+        message: 'The associated user account is inactive or disabled.',
+      };
+    }
+
+    // Mask the email for user confirmation, e.g., d***r@airtronic.com
+    const emailParts = record.user.email.split('@');
+    let maskedEmail = record.user.email;
+    if (emailParts.length === 2 && emailParts[0].length > 2) {
+      const u = emailParts[0];
+      maskedEmail = `${u[0]}***${u[u.length - 1]}@${emailParts[1]}`;
+    }
+
+    return {
+      valid: true,
+      email: maskedEmail,
+    };
+  }
+
+  /**
+   * Resets the user's password using a valid token, hashes it with bcrypt,
+   * invalidates the reset token, and revokes all active refresh tokens.
+   */
+  async resetPassword(
+    rawToken: string,
+    newPassword: string,
+  ): Promise<{ success: boolean; message: string }> {
+    if (!rawToken || typeof rawToken !== 'string') {
+      throw new BadRequestException('Reset token is required.');
+    }
+
+    if (!newPassword || newPassword.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters long.');
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(rawToken.trim()).digest('hex');
+
+    const record = await this.passwordResetTokenRepository.findOne({
+      where: { tokenHash },
+      relations: { user: true },
+    });
+
+    if (!record) {
+      throw new BadRequestException('This password reset link is invalid or does not exist.');
+    }
+
+    if (record.isUsed) {
+      throw new BadRequestException(
+        'This password reset link has already been used. Please request a new one.',
+      );
+    }
+
+    if (new Date() > record.expiresAt) {
+      throw new BadRequestException(
+        'This password reset link has expired. Please request a new one.',
+      );
+    }
+
+    const user = record.user;
+    if (!user || !user.isActive) {
+      throw new BadRequestException('The associated user account is inactive or disabled.');
+    }
+
+    // Hash new password using bcrypt 10 rounds
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.userRepository.save(user);
+
+    // Mark current token as used
+    record.isUsed = true;
+    await this.passwordResetTokenRepository.save(record);
+
+    // Invalidate any other pending reset tokens for this user
+    await this.passwordResetTokenRepository.update(
+      { userId: user.id, isUsed: false },
+      { isUsed: true },
+    );
+
+    // Revoke all existing refresh tokens for security
+    await this.refreshTokenRepository.update(
+      { userId: user.id, isRevoked: false },
+      { isRevoked: true },
+    );
+
+    return {
+      success: true,
+      message: 'Your password has been reset successfully. You can now log in with your new password.',
     };
   }
 }

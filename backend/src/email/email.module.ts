@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EmailJob } from './entities/email-job.entity.js';
@@ -17,7 +17,7 @@ import { EmailObservabilityService } from './email-observability.service.js';
 import { EmailController } from './email.controller.js';
 
 @Module({
-  imports: [ConfigModule, AuthModule, TypeOrmModule.forFeature([EmailJob, EmailLog])],
+  imports: [ConfigModule, forwardRef(() => AuthModule), TypeOrmModule.forFeature([EmailJob, EmailLog])],
   controllers: [EmailController],
   providers: [
     EmailIdempotencyService,

@@ -7,17 +7,20 @@ import {
   HttpStatus,
   Post,
   Patch,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AuthService } from './auth.service.js';
 import { UserRole } from './enums/role.enum.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshTokenDto, LogoutDto } from './dto/refresh-token.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
+import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
+import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { PermissionsService } from '../permissions/permissions.service.js';
 
 @ApiTags('auth')
@@ -91,6 +94,36 @@ export class AuthController {
       success: true,
       message: 'Logged out successfully',
     };
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: 'Request password reset link via registered email' })
+  @ApiResponse({
+    status: 200,
+    description: 'Generic success message returned to prevent user enumeration.',
+  })
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto.email);
+  }
+
+  @ApiOperation({ summary: 'Validate if a password reset token is active and valid' })
+  @ApiQuery({ name: 'token', required: true, description: 'Raw reset token from email link' })
+  @ApiResponse({ status: 200, description: 'Token validation result.' })
+  @Get('verify-reset-token')
+  async verifyResetToken(@Query('token') token: string) {
+    return this.authService.verifyResetToken(token);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: 'Reset user password using a valid reset token' })
+  @ApiResponse({ status: 200, description: 'Password reset successful.' })
+  @ApiResponse({ status: 400, description: 'Token invalid, expired, already used, or invalid password.' })
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto.token, dto.newPassword);
   }
 
   @Get('roles')

@@ -73,10 +73,12 @@ import { SystemModule } from '../permissions/entities/system-module.entity.js';
 import { RoleModulePermission } from '../permissions/entities/role-module-permission.entity.js';
 import { UserModulePermission } from '../permissions/entities/user-module-permission.entity.js';
 import { RefreshToken } from '../auth/entities/refresh-token.entity.js';
+import { PasswordResetToken } from '../auth/entities/password-reset-token.entity.js';
 export const ALL_ENTITIES = [
   Role,
   User,
   RefreshToken,
+  PasswordResetToken,
   SystemModule,
   RoleModulePermission,
   UserModulePermission,

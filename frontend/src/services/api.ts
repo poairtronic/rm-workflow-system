@@ -35,7 +35,10 @@ class ApiClient {
     return (
       endpoint.includes('/auth/login') ||
       endpoint.includes('/auth/refresh') ||
-      endpoint.includes('/auth/logout')
+      endpoint.includes('/auth/logout') ||
+      endpoint.includes('/auth/forgot-password') ||
+      endpoint.includes('/auth/verify-reset-token') ||
+      endpoint.includes('/auth/reset-password')
     );
   }
 
@@ -275,6 +278,14 @@ export const authApi = {
   getMe: () => api.get<{ status: string; user: any }>('/api/auth/me'),
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
     api.post<{ success: boolean; message: string }>('/api/auth/change-password', data),
+  forgotPassword: (email: string) =>
+    api.post<{ success: boolean; message: string }>('/api/auth/forgot-password', { email }),
+  verifyResetToken: (token: string) =>
+    api.get<{ valid: boolean; email?: string; message?: string }>(
+      `/api/auth/verify-reset-token?token=${encodeURIComponent(token)}`,
+    ),
+  resetPassword: (data: { token: string; newPassword: string }) =>
+    api.post<{ success: boolean; message: string }>('/api/auth/reset-password', data),
 };
 
 export const productionProcessApi = {

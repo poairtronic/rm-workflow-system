@@ -83,15 +83,36 @@ export class TemplateService {
       key: 'PASSWORD_RESET',
       aliases: ['AUTH_PASSWORD_RESET'],
       requiredVars: ['resetUrl'],
-      allowedVars: ['recipientName', 'resetUrl'],
+      allowedVars: ['recipientName', 'resetUrl', 'expiresInMinutes'],
       render: (vars, escape) => {
-        const name = vars.recipientName ? `${escape(vars.recipientName)}` : 'User';
-        const rawName = vars.recipientName || 'User';
+        const name = vars.recipientName ? escape(vars.recipientName) : 'Team Member';
+        const rawName = vars.recipientName || 'Team Member';
         const url = escape(vars.resetUrl);
+        const expiresMinutes = vars.expiresInMinutes || 60;
         return {
-          subject: 'Security Notice: Password Reset Request',
-          text: `Hello ${rawName},\n\nA password reset request was received for your account. Reset link: ${vars.resetUrl}\n\nIf you did not request this, please contact Security.`,
-          html: `<h3>Security Notice: Password Reset Request</h3><p>Hello ${name},</p><p>A password reset request was received for your account. Reset link: <a href="${url}">${url}</a></p><p>If you did not request this, please contact Security.</p>`,
+          subject: '[V-SMART] Password Reset Request',
+          text: `Hello ${rawName},\n\nA password reset request was received for your V-SMART account.\n\nClick the link below to reset your password (valid for ${expiresMinutes} minutes):\n${vars.resetUrl}\n\nIf you did not request this, you can safely ignore this email. Your password will remain unchanged.`,
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+              <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); padding: 28px 24px; text-align: center;">
+                <div style="display: inline-block; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 8px; padding: 6px 14px; margin-bottom: 12px;">
+                  <span style="color: #ffffff; font-weight: 700; font-size: 14px; letter-spacing: 0.5px;">V-SMART PORTAL</span>
+                </div>
+                <h1 style="color: #ffffff; font-size: 20px; font-weight: 700; margin: 0;">Password Reset Request</h1>
+              </div>
+              <div style="padding: 32px 28px;">
+                <p style="color: #1e293b; font-size: 15px; line-height: 1.6; margin-top: 0;">Hello <strong>${name}</strong>,</p>
+                <p style="color: #475569; font-size: 14px; line-height: 1.6;">We received a request to reset the password for your V-SMART Enterprise account. Click the button below to choose a new password:</p>
+                <div style="text-align: center; margin: 28px 0;">
+                  <a href="${url}" style="background-color: #2563eb; color: #ffffff; padding: 12px 28px; text-decoration: none; font-size: 14px; font-weight: 600; border-radius: 8px; display: inline-block; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);">Reset Password</a>
+                </div>
+                <p style="color: #64748b; font-size: 12px; line-height: 1.5;">This password reset link is valid for <strong>${expiresMinutes} minutes</strong>. If you did not make this request, you can safely ignore this email; your existing password will remain unchanged.</p>
+                <div style="border-top: 1px solid #f1f5f9; margin-top: 24px; padding-top: 16px;">
+                  <p style="color: #94a3b8; font-size: 11px; margin: 0; word-break: break-all;">If the button above does not work, copy and paste this URL into your browser:<br/><a href="${url}" style="color: #2563eb; text-decoration: none;">${url}</a></p>
+                </div>
+              </div>
+            </div>
+          `.trim(),
         };
       },
     },
