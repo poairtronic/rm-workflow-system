@@ -160,8 +160,19 @@ export function EmailCommunicationWorkspace() {
   const totalJobs = metrics?.total || totalLogs || 0;
   const sentJobs = metrics?.sent || 0;
   const failedJobs = metrics?.failed || 0;
-  const successRate = totalJobs > 0 ? Math.round((sentJobs / (sentJobs + failedJobs || 1)) * 100) : 100;
-  const isHealthy = failedJobs === 0;
+
+  // Operational Health: healthy if latest send succeeded or last successful send is >= last failure
+  const lastSuccessTime = metrics?.lastSuccessfulSend?.timestamp ? new Date(metrics.lastSuccessfulSend.timestamp).getTime() : 0;
+  const lastFailureTime = metrics?.lastFailure?.timestamp ? new Date(metrics.lastFailure.timestamp).getTime() : 0;
+  const latestLogSent = logs && logs.length > 0 && logs[0].status === 'SENT';
+  const isHealthy = latestLogSent || lastSuccessTime >= lastFailureTime || failedJobs === 0;
+
+  // Recent success rate (based on current operational window)
+  const recentLogs = logs.slice(0, 20);
+  const recentSent = recentLogs.filter(l => l.status === 'SENT').length;
+  const successRate = recentLogs.length > 0
+    ? Math.round((recentSent / recentLogs.length) * 100)
+    : (isHealthy ? 100 : 0);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-16">
@@ -196,7 +207,7 @@ export function EmailCommunicationWorkspace() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
           {/* 1. System Health */}
           <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
-            <div className="flex items-center gap-2 text-xs font-bold text-amber-500 uppercase tracking-wider mb-2">
+            <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider mb-2 ${isHealthy ? 'text-emerald-600' : 'text-amber-500'}`}>
               <Radio className="w-4 h-4" />
               System Health
             </div>

@@ -31,6 +31,14 @@ services:
         value: 7d
       - key: FRONTEND_URL
         value: https://v-smart-frontend.onrender.com
+      - key: GMAIL_CLIENT_ID
+        sync: false
+      - key: GMAIL_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_REFRESH_TOKEN
+        sync: false
+      - key: GMAIL_SENDER_EMAIL
+        value: posuppportairtronic@gmail.com
 
   # 2. Frontend Static Site (React 19 / Vite SPA)
   - type: web
