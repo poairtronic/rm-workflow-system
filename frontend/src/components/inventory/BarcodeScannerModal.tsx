@@ -817,7 +817,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                     }
                   }}
                   placeholder="Scan barcode, or search by product name, code (e.g. RM-0001), or barcode..."
-                  className="w-full h-12 pl-12 pr-28 rounded-xl border-2 border-blue-500/60 focus:border-blue-600 dark:border-blue-500/40 dark:focus:border-blue-400 bg-white dark:bg-[#0e111f] text-sm sm:text-base font-medium text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-950 shadow-inner"
+                  className="w-full h-12 pl-12 pr-28 rounded-xl border-2 border-blue-500/60 focus:border-blue-600 dark:border-blue-500/40 dark:focus:border-blue-400 bg-white dark:bg-[#0e111f] text-sm sm:text-base font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-950 shadow-inner"
                   autoFocus
                 />
                 <div className="absolute right-2 flex items-center gap-1.5">
