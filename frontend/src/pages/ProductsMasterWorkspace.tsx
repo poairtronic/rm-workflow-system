@@ -894,7 +894,7 @@ export function ProductsMasterWorkspace() {
         sortable: true,
         render: (row) => (
           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-            {row.uom || 'KG'}
+            {row.uom || 'NOS'}
           </span>
         ),
       },
@@ -907,7 +907,7 @@ export function ProductsMasterWorkspace() {
           const mslVal = Number(row.minimumInventory) || 0;
           return mslVal > 0 ? (
             <span className="font-semibold text-gray-900 tabular-nums">
-              {mslVal.toLocaleString()} {row.uom || 'KG'}
+              {mslVal.toLocaleString()} {row.uom || 'NOS'}
             </span>
           ) : (
             <span className="text-xs text-gray-400 italic">Not Monitored</span>

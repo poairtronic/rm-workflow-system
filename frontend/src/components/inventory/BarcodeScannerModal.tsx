@@ -961,11 +961,11 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                       </div>
                       <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                         <span>Code: <strong className="font-mono text-slate-700 dark:text-slate-300">{foundProduct.code || '—'}</strong></span>
-                        <span>Total Inventory: <strong className="text-slate-900 dark:text-white font-semibold">{Number(foundProduct.totalQuantity || 0).toLocaleString()} {foundProduct.uom || 'KG'}</strong></span>
+                        <span>Total Inventory: <strong className="text-slate-900 dark:text-white font-semibold">{Number(foundProduct.totalQuantity || 0).toLocaleString()} {foundProduct.uom || 'NOS'}</strong></span>
                         <span>
                           MSL:{' '}
                           <span className={Number(foundProduct.totalQuantity || 0) < Number(foundProduct.minimumInventory || 0) ? 'text-amber-600 font-bold' : 'text-emerald-600 font-bold'}>
-                            {foundProduct.minimumInventory || '0'}
+                            {foundProduct.minimumInventory ? `${foundProduct.minimumInventory} ${foundProduct.uom || 'NOS'}` : '0'}
                           </span>
                         </span>
                       </div>

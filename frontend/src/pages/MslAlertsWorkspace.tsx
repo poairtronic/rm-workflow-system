@@ -42,7 +42,7 @@ export function MslAlertsWorkspace() {
       currentStock: Number(item.currentStock) || 0,
       mslThreshold: Number(item.minimumInventory) || 0,
       deficit: Number(item.deficitQty) || 0,
-      unit: 'KG',
+      unit: item.uom || 'NOS',
       severity: item.status === 'BELOW_MSL' ? 'LOW_STOCK' : item.status as any,
     }));
   }, [response]);

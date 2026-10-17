@@ -21,6 +21,7 @@ export interface MslAlertEvaluationResult {
   status?: MslStockStatus;
   currentStock?: number;
   minimumInventory?: number;
+  uom?: string;
   eventResult?: CommunicationEventResult;
 }
 
@@ -110,6 +111,7 @@ export class MslAlertService {
               minimumInventory: result.minimumInventory,
               deficit: result.deficit,
               alertId: savedAlert?.id,
+              uom: result.uom,
             },
           });
         } catch (commErr: any) {
@@ -127,6 +129,7 @@ export class MslAlertService {
         status: result.status,
         currentStock: result.currentStock,
         minimumInventory: result.minimumInventory,
+        uom: result.uom,
         eventResult,
       };
     }
@@ -153,6 +156,7 @@ export class MslAlertService {
               currentStock: result.currentStock,
               minimumInventory: result.minimumInventory,
               alertId: resolvedAlert?.id,
+              uom: result.uom,
             },
           });
         } catch (commErr: any) {

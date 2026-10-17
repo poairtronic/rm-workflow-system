@@ -382,9 +382,15 @@ export class CommunicationService {
           eventType: 'MSL_LOW_STOCK',
           targetUsers,
           targetEntity: 'PRODUCT',
+      case 'MSL_LOW_STOCK': {
+        const uomSuffix = input.metadata?.uom ? ` ${input.metadata.uom}` : '';
+        return this.orchestrateChannelDelivery({
+          eventType: 'MSL_LOW_STOCK',
+          targetUsers,
+          targetEntity: 'PRODUCT',
           targetId: input.entityId,
           title: `Low Stock Alert: ${input.metadata?.productName || input.entityId}`,
-          message: `Product ${input.metadata?.productName || input.entityId} has dropped below Minimum Stock Level (${input.metadata?.currentStock ?? 0} / ${input.metadata?.minimumInventory ?? 0}). Deficit: ${input.metadata?.deficit ?? 0}.`,
+          message: `Product ${input.metadata?.productName || input.entityId} has dropped below Minimum Stock Level (${input.metadata?.currentStock ?? 0} / ${input.metadata?.minimumInventory ?? 0}${uomSuffix}). Deficit: ${input.metadata?.deficit ?? 0}${uomSuffix}.`,
           templateKey: 'MSL_LOW_STOCK',
           subject: `[V-SMART Alert] Low Stock Warning: ${input.metadata?.productName || input.entityId}`,
           payload: {
@@ -393,17 +399,20 @@ export class CommunicationService {
             currentStock: input.metadata?.currentStock,
             minimumInventory: input.metadata?.minimumInventory,
             deficit: input.metadata?.deficit,
+            uom: input.metadata?.uom,
           },
         });
+      }
 
-      case 'MSL_OUT_OF_STOCK':
+      case 'MSL_OUT_OF_STOCK': {
+        const uomSuffix = input.metadata?.uom ? ` ${input.metadata.uom}` : '';
         return this.orchestrateChannelDelivery({
           eventType: 'MSL_OUT_OF_STOCK',
           targetUsers,
           targetEntity: 'PRODUCT',
           targetId: input.entityId,
           title: `OUT OF STOCK: ${input.metadata?.productName || input.entityId}`,
-          message: `Product ${input.metadata?.productName || input.entityId} is completely OUT OF STOCK (0 / ${input.metadata?.minimumInventory ?? 0}). Immediate replenishment required.`,
+          message: `Product ${input.metadata?.productName || input.entityId} is completely OUT OF STOCK (0 / ${input.metadata?.minimumInventory ?? 0}${uomSuffix}). Immediate replenishment required.`,
           templateKey: 'MSL_OUT_OF_STOCK',
           subject: `[V-SMART Alert] CRITICAL: OUT OF STOCK: ${input.metadata?.productName || input.entityId}`,
           payload: {
@@ -412,17 +421,20 @@ export class CommunicationService {
             currentStock: 0,
             minimumInventory: input.metadata?.minimumInventory,
             deficit: input.metadata?.deficit,
+            uom: input.metadata?.uom,
           },
         });
+      }
 
-      case 'MSL_RESOLVED':
+      case 'MSL_RESOLVED': {
+        const uomSuffix = input.metadata?.uom ? ` ${input.metadata.uom}` : '';
         return this.orchestrateChannelDelivery({
           eventType: 'MSL_RESOLVED',
           targetUsers,
           targetEntity: 'PRODUCT',
           targetId: input.entityId,
           title: `Stock Restored: ${input.metadata?.productName || input.entityId}`,
-          message: `Stock for product ${input.metadata?.productName || input.entityId} has been restored to or above Minimum Stock Level (${input.metadata?.currentStock ?? 0} / ${input.metadata?.minimumInventory ?? 0}).`,
+          message: `Stock for product ${input.metadata?.productName || input.entityId} has been restored to or above Minimum Stock Level (${input.metadata?.currentStock ?? 0} / ${input.metadata?.minimumInventory ?? 0}${uomSuffix}).`,
           templateKey: 'MSL_RESOLVED',
           subject: `[V-SMART Notice] Stock Restored: ${input.metadata?.productName || input.entityId}`,
           payload: {
@@ -430,8 +442,10 @@ export class CommunicationService {
             productId: input.entityId,
             currentStock: input.metadata?.currentStock,
             minimumInventory: input.metadata?.minimumInventory,
+            uom: input.metadata?.uom,
           },
         });
+      }
 
       // Phase 19.8 — Delivery Challan Events
       case 'DC_CREATED':

@@ -109,7 +109,7 @@ export const BarcodeBadge: React.FC<BarcodeBadgeProps> = ({ product, onPrint }) 
             </div>
             <div className="flex justify-between text-[10px]">
               <span>Code: <strong className="font-mono">{product.code || '—'}</strong></span>
-              <span>UOM: <strong className="font-mono">{product.uom || 'KG'}</strong></span>
+              <span>UOM: <strong className="font-mono">{product.uom || 'NOS'}</strong></span>
             </div>
           </div>
 

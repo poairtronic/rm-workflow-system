@@ -130,7 +130,7 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
                 <div class="barcode-wrapper">${svgMarkup}</div>
                 <div class="label-footer">
                   ${showCode && codeText ? `<span class="prod-code">${codeText}</span>` : ''}
-                  ${showUomMsl ? `<span class="prod-uom">UOM: ${prod.uom || 'KG'}${prod.minimumInventory ? ` | MSL: ${prod.minimumInventory}` : ''}</span>` : ''}
+                  ${showUomMsl ? `<span class="prod-uom">UOM: ${prod.uom || 'NOS'}${prod.minimumInventory ? ` | MSL: ${prod.minimumInventory} ${prod.uom || 'NOS'}` : ''}</span>` : ''}
                 </div>
               </div>
             `;
@@ -156,7 +156,7 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
                 <div class="barcode-wrapper">${svgMarkup}</div>
                 <div class="label-footer">
                   ${showCode && codeText ? `<span class="prod-code">${codeText}</span>` : ''}
-                  ${showUomMsl ? `<span class="prod-uom">UOM: ${prod.uom || 'KG'}${prod.minimumInventory ? ` | MSL: ${prod.minimumInventory}` : ''}</span>` : ''}
+                  ${showUomMsl ? `<span class="prod-uom">UOM: ${prod.uom || 'NOS'}${prod.minimumInventory ? ` | MSL: ${prod.minimumInventory} ${prod.uom || 'NOS'}` : ''}</span>` : ''}
                 </div>
               </div>
             `;
@@ -624,8 +624,8 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
                 )}
                 {showUomMsl && (
                   <span className="text-[8px] font-semibold shrink-0">
-                    UOM: {activeProduct.uom || 'KG'}
-                    {activeProduct.minimumInventory ? ` | MSL: ${activeProduct.minimumInventory}` : ''}
+                    UOM: {activeProduct.uom || 'NOS'}
+                    {activeProduct.minimumInventory ? ` | MSL: ${activeProduct.minimumInventory} ${activeProduct.uom || 'NOS'}` : ''}
                   </span>
                 )}
               </div>

@@ -225,7 +225,7 @@ export function StockMovementWorkspace() {
   const productOptions: SearchSelectOption[] = products.map(p => ({
     id: p.id,
     primary: p.name,
-    secondary: `${p.code ? `${p.code} • ` : ''}${p.uom || 'KG'}${p.minimumInventory ? ` (MSL: ${p.minimumInventory})` : ''}`
+    secondary: `${p.code ? `${p.code} • ` : ''}${p.uom || 'NOS'}${p.minimumInventory ? ` (MSL: ${p.minimumInventory} ${p.uom || 'NOS'})` : ''}`
   }));
 
   // Options for Single Bin SearchSelect (Stock In / Stock Out / Normal Adjust)

@@ -2443,6 +2443,7 @@ export class TraceabilityService {
     filter: InventoryMslFilterDto,
   ): Promise<InventoryMslStatusResponseDto> {
     const products = await this.productRepo.find({
+      where: { isActive: true },
       relations: {
         family: {
           category: true,
@@ -2514,6 +2515,7 @@ export class TraceabilityService {
         maximumInventory,
         deficitQty,
         status,
+        uom: prod.uom || 'NOS',
       });
     }
 

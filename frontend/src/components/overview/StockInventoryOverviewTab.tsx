@@ -212,7 +212,7 @@ export function StockInventoryOverviewTab({ data }: StockInventoryOverviewTabPro
                       {item.bin_code}
                     </td>
                     <td className="py-2.5 px-3 sm:px-4 text-center font-bold text-slate-500 dark:text-slate-400">
-                      {item.uom || 'KG'}
+                      {item.uom || 'NOS'}
                     </td>
                     <td className="py-2.5 px-3 sm:px-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
                       {currentQty.toLocaleString()}
@@ -220,7 +220,7 @@ export function StockInventoryOverviewTab({ data }: StockInventoryOverviewTabPro
                     <td className="py-2.5 px-3 sm:px-4 text-right">
                       {minQty > 0 ? (
                         <span className={`font-semibold ${isLow ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                          {minQty.toLocaleString()} {isLow && '⚠️'}
+                          {minQty.toLocaleString()} {item.uom || 'NOS'} {isLow && '⚠️'}
                         </span>
                       ) : (
                         <span className="text-slate-400">—</span>

@@ -131,6 +131,7 @@ export class InventoryMslItemDto {
   maximumInventory?: number | null;
   deficitQty!: number;
   status!: string; // 'NORMAL' | 'BELOW_MSL' | 'CRITICAL' | 'OUT_OF_STOCK'
+  uom!: string;
 }
 
 export class InventoryMslSummaryDto {

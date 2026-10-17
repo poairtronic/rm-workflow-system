@@ -22,6 +22,7 @@ export interface MslCalculationResult {
   isBreached: boolean;
   deficit?: number;
   excess?: number;
+  uom?: string;
 }
 
 /**
@@ -76,6 +77,7 @@ export function computeMslResult(
     familyId?: string;
     minimumInventory: number;
     maximumInventory?: number | null;
+    uom?: string;
   },
   currentStock: number,
 ): MslCalculationResult {
@@ -110,6 +112,7 @@ export function computeMslResult(
     isBreached,
     deficit,
     excess,
+    uom: product.uom || 'NOS',
   };
 }
 

@@ -27,7 +27,7 @@ import { DcMovementsWorkspaceView } from '../components/dispatch/DcMovementsWork
 import { triggerBarcodeScanner } from '../hooks/useBarcodeScanner';
 import { ExportDropdown } from '../components/common/ExportDropdown';
 import type { ExportColumn } from '../utils/exportUtils';
-const UOM_OPTIONS = ['NOS', 'KGS', 'MTRS', 'LTRS', 'BOX', 'PACK', 'SET', 'ROLL'];
+const UOM_OPTIONS = ['MM', 'NOS', 'PC', 'KG', 'KGS', 'MTRS', 'LTRS', 'BOX', 'PACK', 'SET', 'ROLL'];
 
 export function InventoryStockWorkspace() {
   const navigate = useNavigate();
