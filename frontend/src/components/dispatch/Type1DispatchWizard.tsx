@@ -348,24 +348,24 @@ export function Type1DispatchWizard() {
             <button
               type="button"
               onClick={() => appendBlock({ scId: '', processName: '', processId: '', items: [{ productId: '', binId: '', batchNumber: '', quantity: '' as any, description: '' }] })}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition-colors border border-slate-200"
+              className="w-full sm:w-auto min-h-[44px] inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition-colors border border-slate-200 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               Add Another Dispatch Group (SC)
             </button>
           </div>
 
-          {/* Footer Action */}
-          <div className="pt-6 mt-6 border-t border-slate-200 flex items-center justify-end">
+          {/* Footer Action: Sticky on mobile */}
+          <div className="pt-4 sm:pt-6 mt-6 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 sm:gap-0 sticky bottom-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm -mx-4 -mb-4 px-4 py-3 sm:static sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:m-0 z-10 border-t border-slate-200 dark:border-slate-800 sm:border-0 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] sm:shadow-none pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-0">
             {!isValid && (
-              <span className="text-xs text-amber-600 mr-4 font-medium">
+              <span className="text-xs text-amber-600 sm:mr-4 font-medium text-center sm:text-left">
                 Please select SC, Return Date, and enter Quantity &gt; 0 to lock DC
               </span>
             )}
             <button
               type="submit"
               disabled={!isValid || createDcMutation.isPending}
-              className="inline-flex items-center justify-center gap-2 px-8 h-12 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-blue-500/20"
+              className="w-full sm:w-auto min-h-[44px] inline-flex items-center justify-center gap-2 px-8 h-12 bg-blue-600 text-white text-base sm:text-sm font-medium rounded-xl sm:rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-blue-500/20 cursor-pointer"
             >
               {createDcMutation.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

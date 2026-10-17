@@ -276,54 +276,54 @@ export function DcMovementsWorkspaceView() {
   return (
     <div className="space-y-4">
       {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
+        <div className="bg-white dark:bg-[#121526] border border-slate-200 dark:border-[#1e233d] rounded-2xl p-3.5 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/60 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
             <Truck className="w-5 h-5" />
           </div>
-          <div>
-            <div className="text-[11px] font-medium text-slate-500">Total DC Movements</div>
-            <div className="text-xl font-bold text-slate-900">{stats.total}</div>
+          <div className="min-w-0">
+            <div className="text-[11px] font-medium text-slate-500 dark:text-[#8896ab] truncate">Total DC Movements</div>
+            <div className="text-xl font-bold text-slate-900 dark:text-white truncate">{stats.total}</div>
           </div>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600">
+        <div className="bg-white dark:bg-[#121526] border border-slate-200 dark:border-[#1e233d] rounded-2xl p-3.5 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/60 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
             <ArrowUpRight className="w-5 h-5" />
           </div>
-          <div>
-            <div className="text-[11px] font-medium text-slate-500">Outward (Dispatched)</div>
-            <div className="text-xl font-bold text-amber-700">{stats.outwardCount}</div>
+          <div className="min-w-0">
+            <div className="text-[11px] font-medium text-slate-500 dark:text-[#8896ab] truncate">Outward (Dispatched)</div>
+            <div className="text-xl font-bold text-amber-700 dark:text-amber-400 truncate">{stats.outwardCount}</div>
           </div>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+        <div className="bg-white dark:bg-[#121526] border border-slate-200 dark:border-[#1e233d] rounded-2xl p-3.5 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
             <ArrowDownLeft className="w-5 h-5" />
           </div>
-          <div>
-            <div className="text-[11px] font-medium text-slate-500">Inward (Returned)</div>
-            <div className="text-xl font-bold text-emerald-700">{stats.inwardCount}</div>
+          <div className="min-w-0">
+            <div className="text-[11px] font-medium text-slate-500 dark:text-[#8896ab] truncate">Inward (Returned)</div>
+            <div className="text-xl font-bold text-emerald-700 dark:text-emerald-400 truncate">{stats.inwardCount}</div>
           </div>
         </div>
       </div>
 
       {/* Search and Filters Bar */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div className="bg-white dark:bg-[#121526] border border-slate-200 dark:border-[#1e233d] rounded-2xl p-3.5 sm:p-4 shadow-xs space-y-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3">
           {/* Universal Search */}
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by Part #, Product Name, Vendor, Process Type (e.g. Heating), DC #, Bin..."
-              className="w-full pl-9 pr-9 h-10 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:bg-white transition-all font-medium"
+              placeholder="Search by Part #, Product Name, Vendor, Process Type, DC #, Bin..."
+              className="w-full pl-10 pr-9 h-11 bg-slate-50 dark:bg-[#0e111f] border border-slate-200 dark:border-[#1e233d] rounded-xl text-base sm:text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-primary focus:bg-white dark:focus:bg-[#121526] transition-all font-medium"
             />
             {searchTerm && (
               <button
                 type="button"
                 onClick={() => setSearchTerm('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -331,7 +331,7 @@ export function DcMovementsWorkspaceView() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-between sm:justify-end">
             <ExportDropdown
               data={filteredMovements}
               columns={exportColumns}
@@ -349,7 +349,7 @@ export function DcMovementsWorkspaceView() {
               type="button"
               onClick={() => refetch()}
               disabled={isLoading || isRefetching}
-              className="h-10 px-3.5 inline-flex items-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
+              className="min-h-[44px] h-11 px-3.5 inline-flex items-center gap-1.5 border border-slate-200 dark:border-[#1e233d] bg-white dark:bg-[#0e111f] hover:bg-slate-50 dark:hover:bg-[#161a2e] text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
               title="Refresh ledger"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? 'animate-spin' : ''}`} />
@@ -359,22 +359,22 @@ export function DcMovementsWorkspaceView() {
         </div>
 
         {/* Filter Controls Row */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 text-xs">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1.5 text-slate-500 font-semibold">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-slate-100 dark:border-[#1e233d] text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 text-slate-500 dark:text-[#8896ab] font-semibold mr-1">
               <Filter className="w-3.5 h-3.5" />
               <span>Filters:</span>
             </div>
 
             {/* DC Type Filter */}
-            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#0e111f] p-1 rounded-xl border border-slate-200 dark:border-[#1e233d] overflow-x-auto touch-pan-x">
               <button
                 type="button"
                 onClick={() => setTypeFilter('ALL')}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
+                className={`min-h-[36px] px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
                   typeFilter === 'ALL'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white dark:bg-[#1e233d] text-slate-900 dark:text-white shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 All DC Types
@@ -382,10 +382,10 @@ export function DcMovementsWorkspaceView() {
               <button
                 type="button"
                 onClick={() => setTypeFilter('TYPE_1')}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
+                className={`min-h-[36px] px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
                   typeFilter === 'TYPE_1'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white dark:bg-[#1e233d] text-slate-900 dark:text-white shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 Type 1 (Process)
@@ -393,61 +393,61 @@ export function DcMovementsWorkspaceView() {
               <button
                 type="button"
                 onClick={() => setTypeFilter('TYPE_2')}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
+                className={`min-h-[36px] px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
                   typeFilter === 'TYPE_2'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white dark:bg-[#1e233d] text-slate-900 dark:text-white shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                Type 2 (Stock Conversion)
+                Type 2 (Stock)
               </button>
             </div>
 
             {/* Direction Filter */}
-            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#0e111f] p-1 rounded-xl border border-slate-200 dark:border-[#1e233d] overflow-x-auto touch-pan-x">
               <button
                 type="button"
                 onClick={() => setDirectionFilter('ALL')}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
+                className={`min-h-[36px] px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
                   directionFilter === 'ALL'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white dark:bg-[#1e233d] text-slate-900 dark:text-white shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                All Movements
+                All
               </button>
               <button
                 type="button"
                 onClick={() => setDirectionFilter('OUTWARD')}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors inline-flex items-center gap-1 ${
+                className={`min-h-[36px] px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer whitespace-nowrap ${
                   directionFilter === 'OUTWARD'
-                    ? 'bg-white text-amber-800 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white dark:bg-[#1e233d] text-amber-800 dark:text-amber-400 shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <ArrowUpRight className="w-3.5 h-3.5 text-amber-600" />
-                Outward (Dispatches)
+                Outward
               </button>
               <button
                 type="button"
                 onClick={() => setDirectionFilter('INWARD')}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors inline-flex items-center gap-1 ${
+                className={`min-h-[36px] px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer whitespace-nowrap ${
                   directionFilter === 'INWARD'
-                    ? 'bg-white text-emerald-800 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white dark:bg-[#1e233d] text-emerald-800 dark:text-emerald-400 shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-600" />
-                Inward (Returns)
+                Inward
               </button>
             </div>
           </div>
 
           {/* Counts pill */}
-          <div className="flex items-center gap-2 text-slate-500 font-medium">
+          <div className="flex items-center gap-2 text-slate-500 dark:text-[#8896ab] font-medium text-xs">
             <span>
-              Showing <strong className="text-slate-900">{filteredMovements.length}</strong> of{' '}
-              <strong className="text-slate-900">{(rawMovements as any[]).length}</strong> movements
+              Showing <strong className="text-slate-900 dark:text-white">{filteredMovements.length}</strong> of{' '}
+              <strong className="text-slate-900 dark:text-white">{(rawMovements as any[]).length}</strong> movements
             </span>
           </div>
         </div>

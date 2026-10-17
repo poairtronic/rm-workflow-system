@@ -24,8 +24,8 @@ export function DispatchPayloadGrid({ blockIndex }: { blockIndex: number }) {
   });
 
   return (
-    <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-4 mt-6">
-      <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200">
+    <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-3 sm:p-4 mt-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-200">
         <div>
           <h3 className="text-sm font-bold text-slate-800">Items Payload</h3>
           <p className="text-xs text-slate-500">
@@ -50,7 +50,7 @@ export function DispatchPayloadGrid({ blockIndex }: { blockIndex: number }) {
             uom: 'NOS', 
             description: '' 
           })}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
+          className="inline-flex items-center justify-center gap-1.5 min-h-[44px] sm:min-h-0 px-4 sm:px-3 py-2 sm:py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer w-full sm:w-auto"
         >
           <Plus className="w-4 h-4 text-primary" />
           Add Item

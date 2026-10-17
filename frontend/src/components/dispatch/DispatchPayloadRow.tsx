@@ -330,21 +330,21 @@ export function DispatchPayloadRow({
     (!isType1 ? defaultPartNo : (scItemId === 'sc_assembly' ? selectedSc?.scNumber || '' : ''));
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs space-y-4 hover:border-slate-300 transition-all">
+    <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-4 shadow-xs space-y-3.5 sm:space-y-4 hover:border-slate-300 transition-all">
       {/* Item Header Bar: S.No., Badge, and Action */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-        <div className="flex items-center gap-2.5">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-100 gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-md font-mono font-bold text-xs bg-slate-900 text-white shadow-2xs">
             S.No. {String(index + 1).padStart(2, '0')}
           </span>
 
           {partNumberVal && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs truncate max-w-[150px] sm:max-w-none">
               Part No: {partNumberVal}
             </span>
           )}
 
-          <span className="text-xs text-slate-500 font-medium">
+          <span className="hidden sm:inline text-xs text-slate-500 font-medium">
             {isType1 ? 'Production Process Component' : 'Stock Conversion Item'}
           </span>
         </div>
@@ -353,7 +353,7 @@ export function DispatchPayloadRow({
           type="button"
           onClick={() => remove(index)}
           disabled={!canRemove}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="min-h-[36px] inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-rose-600 sm:text-slate-400 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0 cursor-pointer"
           title="Remove this item"
         >
           <Trash2 className="w-3.5 h-3.5" />
@@ -363,22 +363,22 @@ export function DispatchPayloadRow({
 
       {isType1 ? (
         /* ================= TYPE 1: PRODUCTION PROCESS (MULTI-LINE) ================= */
-        <div className="space-y-3.5">
-          {/* Line 1: Part Selection, Auto Part No., & Quantity */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-start">
+        <div className="space-y-3 sm:space-y-3.5">
+          {/* Line 1: Part Selection, Auto Part No., & Quantity (Single column on mobile, gap: 12px) */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-3.5 items-start">
             <div className="md:col-span-6">
               <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 SC Item / Component Part Name *
               </label>
               {!selectedSc ? (
-                <div className="w-full h-9 px-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-400 flex items-center font-medium">
+                <div className="w-full min-h-[44px] sm:min-h-0 h-11 sm:h-9 px-3 rounded-lg bg-slate-50 border border-slate-200 text-base sm:text-xs text-slate-400 flex items-center font-medium">
                   Select SC Code first...
                 </div>
               ) : (
                 <select
                   value={scItemId || ''}
                   onChange={(e) => handleType1ItemSelect(e.target.value)}
-                  className="w-full h-9 px-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium cursor-pointer"
+                  className="w-full min-h-[44px] sm:min-h-0 h-11 sm:h-9 px-3 rounded-lg bg-white border border-slate-200 text-base sm:text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium cursor-pointer"
                 >
                   {scRmItems.length > 0 && (
                     <optgroup label={`SC Products / Materials (${scRmItems.length})`}>
@@ -418,7 +418,7 @@ export function DispatchPayloadRow({
                 type="text"
                 readOnly
                 value={partNumberVal || '—'}
-                className="w-full h-9 px-2.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-mono font-bold text-blue-700 text-center select-none cursor-default shadow-2xs"
+                className="w-full min-h-[44px] sm:min-h-0 h-11 sm:h-9 px-2.5 rounded-lg bg-slate-100 border border-slate-200 text-base sm:text-xs font-mono font-bold text-blue-700 text-center select-none cursor-default shadow-2xs"
                 title="Auto-assigned part number from RM Requisition"
               />
             </div>
@@ -440,7 +440,7 @@ export function DispatchPayloadRow({
                     return (!isNaN(num) && num > 0) || 'Quantity must be > 0';
                   },
                 })}
-                className="w-full h-9 px-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 font-semibold tabular-nums focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
+                className="w-full min-h-[44px] sm:min-h-0 h-11 sm:h-9 px-3 rounded-lg bg-white border border-slate-200 text-base sm:text-xs text-slate-900 font-semibold tabular-nums focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
                 placeholder="0.00"
               />
             </div>
@@ -450,7 +450,7 @@ export function DispatchPayloadRow({
           {selectedSc && scItemId && (() => {
             if (scItemId === 'sc_assembly') {
               return (
-                <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-100 text-[11px] text-indigo-950">
+                <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg bg-indigo-50 border border-indigo-100 text-[11px] text-indigo-950">
                   <span className="font-mono font-bold bg-indigo-200/70 text-indigo-800 px-2 py-0.5 rounded text-[10px]">
                     SC: {selectedSc.scNumber}
                   </span>
@@ -465,7 +465,7 @@ export function DispatchPayloadRow({
             const pNum = activeIt.partNumber || activeIt.part_number;
             const pName = activeIt.partName || activeIt.part_name;
             return (
-              <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-100 text-[11px] text-blue-950">
+              <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-100 text-[11px] text-blue-950">
                 {pNum && (
                   <span className="font-mono font-bold bg-blue-200/70 text-blue-800 px-2 py-0.5 rounded text-[10px]">
                     {pNum}
@@ -505,14 +505,14 @@ export function DispatchPayloadRow({
           <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.partName` as const)} />
 
           {/* Line 2: Batch & Description (Entered in next line) */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-start pt-2 border-t border-slate-100">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-3.5 items-start pt-2 border-t border-slate-100">
             <div className="md:col-span-4">
               <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
                 Batch / Heat No. (Optional)
               </label>
               <input
                 {...register(`scBlocks.${blockIndex}.items.${index}.batchNumber` as const)}
-                className="w-full h-9 px-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
+                className="w-full min-h-[44px] sm:min-h-0 h-11 sm:h-9 px-3 rounded-lg bg-white border border-slate-200 text-base sm:text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
                 placeholder="e.g. HT-992"
               />
             </div>
@@ -523,7 +523,7 @@ export function DispatchPayloadRow({
               </label>
               <input
                 {...register(`scBlocks.${blockIndex}.items.${index}.description` as const)}
-                className="w-full h-9 px-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
+                className="w-full min-h-[44px] sm:min-h-0 h-11 sm:h-9 px-3 rounded-lg bg-white border border-slate-200 text-base sm:text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
                 placeholder="Specific instructions or description printed directly below this line item..."
               />
             </div>
@@ -531,9 +531,9 @@ export function DispatchPayloadRow({
         </div>
       ) : (
         /* ================= TYPE 2: STOCK CONVERSION (MULTI-LINE) ================= */
-        <div className="space-y-4">
-          {/* Line 1: Outward RM Material & Custom Vendor Identity */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3.5 items-start">
+        <div className="space-y-3 sm:space-y-4">
+          {/* Line 1: Outward RM Material & Custom Vendor Identity (Single column on mobile, gap: 12px) */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-3.5 items-start">
             {/* 1a. Internal RM Stock (Searchable Dropdown) */}
             <div className="md:col-span-5">
               <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
@@ -561,7 +561,7 @@ export function DispatchPayloadRow({
                     searchPlaceholder="Type product name, code, or barcode..."
                     options={productOptions}
                     error={Boolean(fieldState.error)}
-                    triggerClassName="h-9 py-1 text-xs"
+                    triggerClassName="min-h-[44px] sm:min-h-0 h-11 sm:h-9 text-base sm:text-xs"
                   />
                 )}
               />
@@ -582,7 +582,7 @@ export function DispatchPayloadRow({
                 readOnly
                 value={partNumberVal}
                 {...register(`scBlocks.${blockIndex}.items.${index}.partNumber` as const)}
-                className="w-full h-9 px-2.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-mono font-bold text-blue-700 text-center select-none cursor-default shadow-2xs"
+                className="w-full min-h-[44px] sm:min-h-0 h-11 sm:h-9 px-2.5 rounded-lg bg-slate-100 border border-slate-200 text-base sm:text-xs font-mono font-bold text-blue-700 text-center select-none cursor-default shadow-2xs"
                 title="Auto-generated DC Part Number printed for Vendor"
               />
             </div>
@@ -598,7 +598,7 @@ export function DispatchPayloadRow({
                 {...register(`scBlocks.${blockIndex}.items.${index}.partName` as const, {
                   required: !isType1 ? 'DC Material Name is required' : false,
                 })}
-                className="w-full h-9 px-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
+                className="w-full min-h-[44px] sm:min-h-0 h-11 sm:h-9 px-3 rounded-lg bg-white border border-slate-200 text-base sm:text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
                 title="Material name printed on the Delivery Challan for vendor"
               />
             </div>
@@ -641,7 +641,7 @@ export function DispatchPayloadRow({
                     }
                   },
                 })}
-                className={`w-full h-9 px-3 rounded-lg bg-white border text-xs text-slate-900 font-semibold tabular-nums focus:outline-none focus:ring-1 focus:border-transparent ${
+                className={`w-full min-h-[44px] sm:min-h-0 h-11 sm:h-9 px-3 rounded-lg bg-white border text-base sm:text-xs text-slate-900 font-semibold tabular-nums focus:outline-none focus:ring-1 focus:border-transparent ${
                   isQtyInvalid && binId
                     ? 'border-rose-300 focus:ring-rose-500'
                     : 'border-slate-200 focus:ring-primary'
@@ -652,7 +652,7 @@ export function DispatchPayloadRow({
           </div>
 
           {/* Line 2: Warehouse Bin Location & Converted Return Product */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3.5 items-start bg-slate-50/80 p-3 rounded-xl border border-slate-200/80">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-3.5 items-start bg-slate-50/80 p-3 sm:p-3.5 rounded-xl border border-slate-200/80">
             {/* 2a. Source Rack */}
             <div className="md:col-span-3">
               <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
@@ -662,7 +662,7 @@ export function DispatchPayloadRow({
                 value={selectedRackId || ''}
                 onChange={(e) => handleRackChange(e.target.value)}
                 disabled={!productId}
-                className="w-full h-9 px-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
+                className="w-full min-h-[44px] sm:min-h-0 h-11 sm:h-9 px-3 rounded-lg bg-white border border-slate-200 text-base sm:text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
               >
                 <option value="">{selectedRackName ? selectedRackName : '— Select Rack —'}</option>
                 {racksWithStock.length > 0 && (
@@ -693,7 +693,7 @@ export function DispatchPayloadRow({
                 value={binId || ''}
                 onChange={(e) => handleBinChange(e.target.value)}
                 disabled={!productId}
-                className={`w-full h-9 px-3 rounded-lg bg-white border text-xs text-slate-900 focus:outline-none focus:ring-1 focus:border-transparent font-medium ${
+                className={`w-full min-h-[44px] sm:min-h-0 h-11 sm:h-9 px-3 rounded-lg bg-white border text-base sm:text-xs text-slate-900 focus:outline-none focus:ring-1 focus:border-transparent font-medium ${
                   !binId && productId ? 'border-amber-300' : 'border-slate-200 focus:ring-primary'
                 }`}
               >
@@ -756,7 +756,7 @@ export function DispatchPayloadRow({
                     searchPlaceholder="Type output material name, code, barcode..."
                     options={outputProductOptions}
                     error={Boolean(fieldState.error)}
-                    triggerClassName="h-9 py-1 text-xs border-emerald-300 focus:border-emerald-500 focus:ring-emerald-100"
+                    triggerClassName="min-h-[44px] sm:min-h-0 h-11 sm:h-9 text-base sm:text-xs border-emerald-300 focus:border-emerald-500 focus:ring-emerald-100"
                   />
                 )}
               />
@@ -786,20 +786,20 @@ export function DispatchPayloadRow({
                     return (!isNaN(num) && num > 0) || 'Expected qty must be > 0';
                   },
                 })}
-                className="w-full h-9 px-3 rounded-lg bg-white border border-emerald-300 text-xs text-slate-900 text-right font-semibold tabular-nums focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full min-h-[44px] sm:min-h-0 h-11 sm:h-9 px-3 rounded-lg bg-white border border-emerald-300 text-base sm:text-xs text-slate-900 text-right font-semibold tabular-nums focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
             </div>
           </div>
 
           {/* Line 3: Tracking & Notes (Entered in next line) */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-start pt-1">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-3.5 items-start pt-1">
             <div className="md:col-span-4">
               <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
                 Batch / Heat No. (Optional)
               </label>
               <input
                 {...register(`scBlocks.${blockIndex}.items.${index}.batchNumber` as const)}
-                className="w-full h-9 px-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
+                className="w-full min-h-[44px] sm:min-h-0 h-11 sm:h-9 px-3 rounded-lg bg-white border border-slate-200 text-base sm:text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
                 placeholder="e.g. HT-992"
               />
             </div>
@@ -810,7 +810,7 @@ export function DispatchPayloadRow({
               </label>
               <input
                 {...register(`scBlocks.${blockIndex}.items.${index}.description` as const)}
-                className="w-full h-9 px-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
+                className="w-full min-h-[44px] sm:min-h-0 h-11 sm:h-9 px-3 rounded-lg bg-white border border-slate-200 text-base sm:text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent font-medium"
                 placeholder="Specific instructions or description printed directly below this line item..."
               />
             </div>

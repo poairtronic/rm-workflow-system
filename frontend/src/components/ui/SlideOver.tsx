@@ -43,31 +43,31 @@ export function SlideOver({
         <div 
           className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity duration-300"
           onClick={onClose}
-          aria-hidden="true"
+          aria-hidden="true" 
         />
 
-        <div className="fixed inset-y-0 right-0 flex max-w-full pl-10 pointer-events-none">
+        <div className="fixed inset-y-0 right-0 flex max-w-full pl-0 sm:pl-10 pointer-events-none">
           <div 
             ref={panelRef}
             role="dialog"
             aria-modal="true"
-            className={cn("w-screen pointer-events-auto transform transition ease-in-out duration-300", width, className)}
+            className={cn("w-full sm:w-screen max-w-full pointer-events-auto transform transition ease-in-out duration-300", width, className)}
           >
-            <div className="flex flex-col h-full bg-white shadow-2xl border-l border-slate-200">
-              <div className="px-6 py-5 bg-slate-50/80 border-b border-slate-200">
-                <div className="flex items-center justify-between">
-                  <div className="text-lg font-bold text-slate-900">{title}</div>
+            <div className="flex flex-col h-full bg-white dark:bg-[#121526] shadow-2xl border-l border-slate-200 dark:border-[#1e233d]">
+              <div className="px-4 py-3.5 sm:px-6 sm:py-5 bg-slate-50/80 dark:bg-[#0e111f] border-b border-slate-200 dark:border-[#1e233d] shrink-0">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate">{title}</div>
                   <button
                     type="button"
-                    className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer"
+                    className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#1c223c] transition-colors focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer shrink-0"
                     onClick={onClose}
+                    aria-label="Close drawer"
                   >
-                    <span className="sr-only">Close panel</span>
                     <X className="h-5 w-5" aria-hidden="true" />
                   </button>
                 </div>
               </div>
-              <div className="relative flex-1 p-6 overflow-y-auto">
+              <div className="relative flex-1 p-4 sm:p-6 overflow-y-auto">
                 {children}
               </div>
             </div>

@@ -17,20 +17,20 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <div className={cn('mb-6 flex flex-col md:flex-row md:items-start md:justify-between gap-4', className)}>
-      <div className="flex-1 space-y-1">
+    <div className={cn('mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4', className)}>
+      <div className="flex-1 space-y-1 min-w-0">
         {breadcrumbs && (
-          <nav aria-label="breadcrumb" className="text-sm font-medium text-gray-500 mb-2">
+          <nav aria-label="breadcrumb" className="text-xs sm:text-sm font-medium text-gray-500 dark:text-[#8896ab] mb-1 truncate">
             {breadcrumbs}
           </nav>
         )}
-        <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white truncate">{title}</h1>
         {subtitle && (
-          <p className="text-sm text-gray-500">{subtitle}</p>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-[#8896ab]">{subtitle}</p>
         )}
       </div>
       {actionSlot && (
-        <div className="flex items-center space-x-3 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0 w-full sm:w-auto">
           {actionSlot}
         </div>
       )}

@@ -246,7 +246,7 @@ export function SearchSelect({
         onClick={() => setIsOpen(!isOpen)}
         onKeyDown={handleKeyDown}
         className={cn(
-          'relative w-full min-w-0 max-w-full rounded-lg border bg-white dark:bg-[#0e111f] dark:border-slate-700 py-2 pl-3.5 pr-10 text-left shadow-xs transition-colors duration-150 sm:text-sm focus:outline-none focus:ring-2 focus:ring-offset-0',
+          'relative w-full min-w-0 max-w-full min-h-[44px] h-11 sm:h-9 rounded-xl sm:rounded-lg border bg-white dark:bg-[#0e111f] dark:border-slate-700 py-2 pl-3.5 pr-10 text-left shadow-2xs transition-colors duration-150 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-offset-0',
           error
             ? 'border-red-300 text-red-900 dark:text-red-400 focus:border-red-500 focus:ring-red-200'
             : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 focus:border-blue-600 focus:ring-blue-100',
@@ -310,7 +310,7 @@ export function SearchSelect({
               <input
                 type="text"
                 ref={inputRef}
-                className="block w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50/70 dark:bg-[#0e111f] px-3 py-1.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-xs focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40"
+                className="block w-full min-h-[40px] rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50/70 dark:bg-[#0e111f] px-3 py-1.5 text-base sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-2xs focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40"
                 placeholder={searchPlaceholder || 'Type to filter...'}
                 value={searchTerm}
                 onChange={(e) => {

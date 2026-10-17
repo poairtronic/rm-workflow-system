@@ -22,7 +22,7 @@ import { toast } from 'react-hot-toast';
 import { MultiSelectFilter } from '../components/ui/MultiSelectFilter';
 import { masterDataService } from '../services/masterDataService';
 import type { Product, Category, Family, Warehouse, Location, Rack, Bin } from '../services/masterDataService';
-import { Filter, Search, RefreshCw } from 'lucide-react';
+import { Filter, Search, RefreshCw, ChevronDown, RotateCcw } from 'lucide-react';
 import { DcMovementsWorkspaceView } from '../components/dispatch/DcMovementsWorkspaceView';
 import { triggerBarcodeScanner } from '../hooks/useBarcodeScanner';
 import { ExportDropdown } from '../components/common/ExportDropdown';
@@ -71,6 +71,33 @@ export function InventoryStockWorkspace() {
   const [uomFilter, setUomFilter] = useState<string>('');
   const [mslFilter, setMslFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [showFilters, setShowFilters] = useState(false);
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (selectedCategories.length > 0) count++;
+    if (selectedFamilies.length > 0) count++;
+    if (selectedWarehouses.length > 0) count++;
+    if (selectedLocations.length > 0) count++;
+    if (selectedRacks.length > 0) count++;
+    if (selectedBins.length > 0) count++;
+    if (uomFilter) count++;
+    if (mslFilter) count++;
+    if (statusFilter) count++;
+    return count;
+  }, [selectedCategories, selectedFamilies, selectedWarehouses, selectedLocations, selectedRacks, selectedBins, uomFilter, mslFilter, statusFilter]);
+
+  const resetAllFilters = () => {
+    setSelectedCategories([]);
+    setSelectedFamilies([]);
+    setSelectedWarehouses([]);
+    setSelectedLocations([]);
+    setSelectedRacks([]);
+    setSelectedBins([]);
+    setUomFilter('');
+    setMslFilter('');
+    setStatusFilter('');
+  };
 
   // Overview Tab State
   const [balances, setBalances] = useState<StockBalance[]>([]);
@@ -382,12 +409,12 @@ export function InventoryStockWorkspace() {
       key: 'actions',
       header: 'Actions',
       render: (r) => (
-        <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
             title="Stock In to this Bin"
             onClick={() => handleOpenMovement('STOCK_IN', r.productId, r.binId)}
-            className="p-1 rounded text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+            className="min-h-[36px] min-w-[36px] p-2 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 transition-colors flex items-center justify-center cursor-pointer"
           >
             <ArrowDownToLine className="w-4 h-4" />
           </button>
@@ -395,7 +422,7 @@ export function InventoryStockWorkspace() {
             type="button"
             title="Stock Out from this Bin"
             onClick={() => handleOpenMovement('STOCK_OUT', r.productId, r.binId)}
-            className="p-1 rounded text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-colors"
+            className="min-h-[36px] min-w-[36px] p-2 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-700 transition-colors flex items-center justify-center cursor-pointer"
           >
             <ArrowUpFromLine className="w-4 h-4" />
           </button>
@@ -403,7 +430,7 @@ export function InventoryStockWorkspace() {
             type="button"
             title="Adjust Stock in this Bin"
             onClick={() => handleOpenMovement('ADJUST', r.productId, r.binId)}
-            className="p-1 rounded text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+            className="min-h-[36px] min-w-[36px] p-2 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-700 transition-colors flex items-center justify-center cursor-pointer"
           >
             <SlidersHorizontal className="w-4 h-4" />
           </button>
@@ -528,62 +555,63 @@ export function InventoryStockWorkspace() {
   ];
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
       <PageHeader
         title="Stock Overview & Ledger"
         subtitle="View current inventory balances, manage physical movements, and audit transactions"
         breadcrumbs={<span>Inventory / Stock Overview</span>}
         actionSlot={
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
             <button
               type="button"
               onClick={() => triggerBarcodeScanner()}
-              className="inline-flex items-center px-3 py-1.5 border border-blue-300 text-xs font-semibold rounded-md text-blue-800 bg-blue-50 hover:bg-blue-100 transition-colors shadow-2xs cursor-pointer group"
+              className="min-h-[44px] h-11 px-3 sm:px-3.5 border border-blue-300 dark:border-blue-800 text-xs font-semibold rounded-xl text-blue-800 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors shadow-2xs cursor-pointer group flex items-center shrink-0"
               title="Hardware Barcode Scanner (Press F2 anywhere)"
             >
-              <Barcode className="w-3.5 h-3.5 mr-1.5 text-blue-600 group-hover:scale-110 transition-transform" />
+              <Barcode className="w-4 h-4 mr-1.5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
               Quick Scan
-              <kbd className="ml-1.5 px-1 py-0.2 text-[9px] font-mono bg-white rounded border border-blue-200 text-blue-700">
+              <kbd className="ml-1.5 px-1.5 py-0.5 text-[9px] font-mono bg-white dark:bg-[#121526] rounded border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">
                 F2
               </kbd>
             </button>
             <button
               type="button"
               onClick={() => handleOpenMovement('STOCK_IN')}
-              className="inline-flex items-center px-3 py-1.5 border border-emerald-300 text-xs font-medium rounded-md text-emerald-800 bg-emerald-50 hover:bg-emerald-100 transition-colors shadow-sm"
+              className="min-h-[44px] h-11 px-3 sm:px-3.5 border border-emerald-300 dark:border-emerald-800 text-xs font-semibold rounded-xl text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors shadow-xs flex items-center shrink-0 cursor-pointer"
             >
-              <ArrowDownToLine className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
+              <ArrowDownToLine className="w-4 h-4 mr-1.5 text-emerald-600 dark:text-emerald-400" />
               Stock In
             </button>
             <button
               type="button"
               onClick={() => handleOpenMovement('STOCK_OUT')}
-              className="inline-flex items-center px-3 py-1.5 border border-rose-300 text-xs font-medium rounded-md text-rose-800 bg-rose-50 hover:bg-rose-100 transition-colors shadow-sm"
+              className="min-h-[44px] h-11 px-3 sm:px-3.5 border border-rose-300 dark:border-rose-800 text-xs font-semibold rounded-xl text-rose-800 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors shadow-xs flex items-center shrink-0 cursor-pointer"
             >
-              <ArrowUpFromLine className="w-3.5 h-3.5 mr-1.5 text-rose-600" />
+              <ArrowUpFromLine className="w-4 h-4 mr-1.5 text-rose-600 dark:text-rose-400" />
               Stock Out
             </button>
             <button
               type="button"
               onClick={() => handleOpenMovement('ADJUST')}
-              className="inline-flex items-center px-3 py-1.5 border border-blue-300 text-xs font-medium rounded-md text-blue-800 bg-blue-50 hover:bg-blue-100 transition-colors shadow-sm"
+              className="min-h-[44px] h-11 px-3 sm:px-3.5 border border-blue-300 dark:border-blue-800 text-xs font-semibold rounded-xl text-blue-800 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors shadow-xs flex items-center shrink-0 cursor-pointer"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
+              <SlidersHorizontal className="w-4 h-4 mr-1.5 text-blue-600 dark:text-blue-400" />
               Adjust
             </button>
           </div>
         }
       />
 
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+      {/* Responsive Tabs Navigation */}
+      <div className="border-b border-gray-200 dark:border-[#1e233d]">
+        <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto touch-pan-x no-scrollbar pb-1" aria-label="Tabs">
           <button
             onClick={() => setActiveTab('OVERVIEW')}
             className={`
-              whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
+              whitespace-nowrap py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm min-h-[44px] flex items-center cursor-pointer shrink-0
               ${activeTab === 'OVERVIEW'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-primary text-primary dark:text-indigo-400 dark:border-indigo-500 font-bold'
+                : 'border-transparent text-gray-500 dark:text-[#8896ab] hover:text-gray-700 dark:hover:text-white hover:border-gray-300'
               }
             `}
           >
@@ -592,10 +620,10 @@ export function InventoryStockWorkspace() {
           <button
             onClick={() => setActiveTab('LEDGER')}
             className={`
-              whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
+              whitespace-nowrap py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm min-h-[44px] flex items-center cursor-pointer shrink-0
               ${activeTab === 'LEDGER'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-primary text-primary dark:text-indigo-400 dark:border-indigo-500 font-bold'
+                : 'border-transparent text-gray-500 dark:text-[#8896ab] hover:text-gray-700 dark:hover:text-white hover:border-gray-300'
               }
             `}
           >
@@ -604,10 +632,10 @@ export function InventoryStockWorkspace() {
           <button
             onClick={() => setActiveTab('DC_MOVEMENTS')}
             className={`
-              whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2
+              whitespace-nowrap py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm min-h-[44px] flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0
               ${activeTab === 'DC_MOVEMENTS'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-primary text-primary dark:text-indigo-400 dark:border-indigo-500 font-bold'
+                : 'border-transparent text-gray-500 dark:text-[#8896ab] hover:text-gray-700 dark:hover:text-white hover:border-gray-300'
               }
             `}
           >
@@ -620,22 +648,44 @@ export function InventoryStockWorkspace() {
       
       {activeTab === 'OVERVIEW' && (
         <div className="space-y-4">
-          <div className="flex flex-col gap-4 bg-white p-4 rounded-lg shadow-sm border border-slate-200">
-            {/* Row 1: Search & Actions */}
-            <div className="flex justify-between items-center">
-              <div className="w-1/2 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <div className="flex flex-col gap-3 bg-white dark:bg-[#121526] p-3.5 sm:p-4 rounded-2xl shadow-xs border border-slate-200 dark:border-[#1e233d]">
+            {/* Row 1: Search & Primary Actions Stacked Cleanly on Mobile */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3">
+              <div className="relative flex-1">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                   <Search className="h-4 w-4 text-slate-400" />
                 </div>
                 <input
                   type="text"
-                  placeholder="Search products or bins..."
-                  className="pl-10 h-10 w-full rounded-lg border border-slate-300 bg-slate-50 text-sm focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                  placeholder="Search products, codes, or bins..."
+                  className="pl-10 pr-3 h-11 w-full rounded-xl border border-slate-300 dark:border-[#1e233d] bg-slate-50 dark:bg-[#0e111f] text-base sm:text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:bg-white dark:focus:bg-[#121526] focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all font-medium"
                   value={balancesSearch}
                   onChange={(e) => setBalancesSearch(e.target.value)}
                 />
               </div>
-              <div className="flex items-center gap-2">
+
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-between sm:justify-end">
+                {/* Secondary Filters Collapsible Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`min-h-[44px] h-11 px-3.5 flex items-center gap-2 rounded-xl border text-xs font-semibold transition-colors cursor-pointer ${
+                    activeFilterCount > 0 || showFilters
+                      ? 'border-indigo-300 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300'
+                      : 'border-slate-300 dark:border-[#1e233d] bg-white dark:bg-[#0e111f] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#161a2e]'
+                  }`}
+                  title="Toggle Advanced Filters"
+                >
+                  <Filter className="w-3.5 h-3.5" />
+                  <span>Filters</span>
+                  {activeFilterCount > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-600 text-white">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                </button>
+
                 <ExportDropdown
                   data={filteredBalances}
                   columns={exportOverviewColumns}
@@ -650,20 +700,12 @@ export function InventoryStockWorkspace() {
                     'Status Filter': statusFilter || 'All',
                   }}
                 />
-                <button
-                  type="button"
-                  onClick={() => triggerBarcodeScanner()}
-                  className="h-10 px-3 flex items-center gap-2 border border-blue-200 bg-blue-50/70 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 rounded-lg text-blue-700 dark:text-blue-300 text-xs font-semibold transition-colors shadow-2xs cursor-pointer"
-                  title="Scan Product Barcode (F2)"
-                >
-                  <Barcode className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  <span>Scan Barcode</span>
-                </button>
+
                 <button
                   type="button"
                   onClick={loadData}
                   disabled={isBalancesLoading}
-                  className="h-10 px-3 flex items-center justify-center border border-slate-300 bg-white hover:bg-slate-50 rounded-lg text-slate-600 transition-colors shadow-sm"
+                  className="min-h-[44px] h-11 px-3.5 flex items-center justify-center border border-slate-300 dark:border-[#1e233d] bg-white dark:bg-[#0e111f] hover:bg-slate-50 dark:hover:bg-[#161a2e] rounded-xl text-slate-600 dark:text-slate-300 transition-colors shadow-xs cursor-pointer shrink-0"
                   title="Refresh data"
                 >
                   <RefreshCw className={`w-4 h-4 ${isBalancesLoading ? 'animate-spin' : ''}`} />
@@ -671,84 +713,101 @@ export function InventoryStockWorkspace() {
               </div>
             </div>
 
-            {/* Row 2: Filter Dropdowns */}
-            <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-slate-100 text-xs">
-              <div className="flex items-center gap-1.5 text-slate-500 font-semibold mr-1">
-                <Filter className="w-3.5 h-3.5" />
-                <span>Filters:</span>
+            {/* Row 2: Collapsible Secondary Filter Panel */}
+            {showFilters && (
+              <div className="pt-3 border-t border-slate-100 dark:border-[#1e233d] space-y-2.5 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-[#8896ab]">
+                  <span className="font-semibold uppercase tracking-wider text-[10px]">Filter Attributes:</span>
+                  {activeFilterCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={resetAllFilters}
+                      className="text-xs text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      Reset All ({activeFilterCount})
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
+                  <MultiSelectFilter
+                    label="Category"
+                    placeholder="All Categories"
+                    options={categories.map((c) => ({ id: c.id, label: c.name }))}
+                    selectedValues={selectedCategories}
+                    onChange={setSelectedCategories}
+                  />
+                  <MultiSelectFilter
+                    label="Family"
+                    placeholder="All Families"
+                    options={filteredFamilyOptions.map((f) => ({ id: f.id, label: f.name, subtext: f.category?.name }))}
+                    selectedValues={selectedFamilies}
+                    onChange={setSelectedFamilies}
+                  />
+                  <MultiSelectFilter
+                    label="Warehouse"
+                    placeholder="All Warehouses"
+                    options={warehouses.map((w) => ({ id: w.id, label: w.name, subtext: w.code }))}
+                    selectedValues={selectedWarehouses}
+                    onChange={setSelectedWarehouses}
+                  />
+                  <MultiSelectFilter
+                    label="Location"
+                    placeholder="All Locations"
+                    options={filteredLocationOptions.map((l) => ({ id: l.id, label: l.name, subtext: l.code }))}
+                    selectedValues={selectedLocations}
+                    onChange={setSelectedLocations}
+                  />
+                  <MultiSelectFilter
+                    label="Rack"
+                    placeholder="All Racks"
+                    options={filteredRackOptions.map((r) => ({ id: r.id, label: r.name, subtext: r.code }))}
+                    selectedValues={selectedRacks}
+                    onChange={setSelectedRacks}
+                  />
+                  <MultiSelectFilter
+                    label="Bin"
+                    placeholder="All Bins"
+                    options={filteredBinOptions.map((b) => ({ id: b.id, label: b.code, subtext: b.name }))}
+                    selectedValues={selectedBins}
+                    onChange={setSelectedBins}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                  <select
+                    value={uomFilter}
+                    onChange={(e) => setUomFilter(e.target.value)}
+                    className="min-h-[40px] px-3 rounded-xl border border-slate-300 dark:border-[#1e233d] bg-white dark:bg-[#0e111f] text-xs text-slate-700 dark:text-slate-200 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer font-medium"
+                  >
+                    <option value="">All UOMs</option>
+                    {UOM_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={mslFilter}
+                    onChange={(e) => setMslFilter(e.target.value)}
+                    className="min-h-[40px] px-3 rounded-xl border border-slate-300 dark:border-[#1e233d] bg-white dark:bg-[#0e111f] text-xs text-slate-700 dark:text-slate-200 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer font-medium"
+                  >
+                    <option value="">All MSL Monitoring</option>
+                    <option value="BELOW">Below MSL (Critical)</option>
+                    <option value="AT">Near MSL (Low)</option>
+                    <option value="ABOVE">Above MSL (Ok)</option>
+                  </select>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="min-h-[40px] px-3 rounded-xl border border-slate-300 dark:border-[#1e233d] bg-white dark:bg-[#0e111f] text-xs text-slate-700 dark:text-slate-200 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer font-medium"
+                  >
+                    <option value="">All Status</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </select>
+                </div>
               </div>
-              <MultiSelectFilter
-                label="Category"
-                placeholder="All Categories"
-                options={categories.map((c) => ({ id: c.id, label: c.name }))}
-                selectedValues={selectedCategories}
-                onChange={setSelectedCategories}
-              />
-              <MultiSelectFilter
-                label="Family"
-                placeholder="All Families"
-                options={filteredFamilyOptions.map((f) => ({ id: f.id, label: f.name, subtext: f.category?.name }))}
-                selectedValues={selectedFamilies}
-                onChange={setSelectedFamilies}
-              />
-              <MultiSelectFilter
-                label="Warehouse"
-                placeholder="All Warehouses"
-                options={warehouses.map((w) => ({ id: w.id, label: w.name, subtext: w.code }))}
-                selectedValues={selectedWarehouses}
-                onChange={setSelectedWarehouses}
-              />
-              <MultiSelectFilter
-                label="Location"
-                placeholder="All Locations"
-                options={filteredLocationOptions.map((l) => ({ id: l.id, label: l.name, subtext: l.code }))}
-                selectedValues={selectedLocations}
-                onChange={setSelectedLocations}
-              />
-              <MultiSelectFilter
-                label="Rack"
-                placeholder="All Racks"
-                options={filteredRackOptions.map((r) => ({ id: r.id, label: r.name, subtext: r.code }))}
-                selectedValues={selectedRacks}
-                onChange={setSelectedRacks}
-              />
-              <MultiSelectFilter
-                label="Bin"
-                placeholder="All Bins"
-                options={filteredBinOptions.map((b) => ({ id: b.id, label: b.code, subtext: b.name }))}
-                selectedValues={selectedBins}
-                onChange={setSelectedBins}
-              />
-              <select
-                value={uomFilter}
-                onChange={(e) => setUomFilter(e.target.value)}
-                className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
-              >
-                <option value="">All UOMs</option>
-                {UOM_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-              <select
-                value={mslFilter}
-                onChange={(e) => setMslFilter(e.target.value)}
-                className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
-              >
-                <option value="">All MSL Monitoring</option>
-                <option value="BELOW">Below MSL (Critical)</option>
-                <option value="AT">Near MSL (Low)</option>
-                <option value="ABOVE">Above MSL (Ok)</option>
-              </select>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-8 px-2.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer"
-              >
-                <option value="">All Status</option>
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
-              </select>
-            </div>
+            )}
           </div>
           
           <DataTable
@@ -763,11 +822,11 @@ export function InventoryStockWorkspace() {
       )}
 
       {activeTab === 'LEDGER' && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="bg-white dark:bg-[#121526] border border-slate-200 dark:border-[#1e233d] rounded-2xl p-3.5 sm:p-4 shadow-xs space-y-3 sm:space-y-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3">
             {/* Real-Time Search Bar */}
             <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={txSearch}
@@ -775,29 +834,29 @@ export function InventoryStockWorkspace() {
                   setTxSearch(e.target.value);
                   setTxPage(1);
                 }}
-                placeholder="Search normal stock movements (product name/code, bin, batch, reason, user)..."
-                className="w-full pl-9 pr-9 h-10 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary focus:bg-white transition-all font-medium"
+                placeholder="Search normal movements (product, bin, batch, reason)..."
+                className="w-full pl-10 pr-9 h-11 bg-slate-50 dark:bg-[#0e111f] border border-slate-200 dark:border-[#1e233d] rounded-xl text-base sm:text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-primary focus:bg-white dark:focus:bg-[#121526] transition-all font-medium"
               />
               {txSearch && (
                 <button
                   type="button"
                   onClick={() => setTxSearch('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
 
-            {/* Filter and Refresh */}
-            <div className="flex items-center gap-2">
+            {/* Filter and Action Buttons */}
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-between sm:justify-end">
               <select
                 value={txTypeFilter}
                 onChange={(e) => {
                   setTxTypeFilter(e.target.value);
                   setTxPage(1);
                 }}
-                className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer font-medium"
+                className="min-h-[44px] h-11 px-3 rounded-xl border border-slate-300 dark:border-[#1e233d] bg-white dark:bg-[#0e111f] text-xs text-slate-700 dark:text-slate-200 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer font-medium flex-1 sm:flex-none"
               >
                 <option value="">All Movement Types</option>
                 <option value="STOCK_IN">Stock In</option>
@@ -828,7 +887,7 @@ export function InventoryStockWorkspace() {
                 type="button"
                 onClick={fetchTransactions}
                 disabled={isTransactionsLoading}
-                className="h-10 px-3 flex items-center justify-center border border-slate-300 bg-white hover:bg-slate-50 rounded-lg text-slate-600 transition-colors shadow-sm cursor-pointer"
+                className="min-h-[44px] h-11 px-3.5 flex items-center justify-center border border-slate-300 dark:border-[#1e233d] bg-white dark:bg-[#0e111f] hover:bg-slate-50 dark:hover:bg-[#161a2e] rounded-xl text-slate-600 dark:text-slate-300 transition-colors shadow-xs cursor-pointer shrink-0"
                 title="Refresh transactions"
               >
                 <RefreshCw className={`w-4 h-4 ${isTransactionsLoading ? 'animate-spin' : ''}`} />
@@ -858,34 +917,34 @@ export function InventoryStockWorkspace() {
       >
         <div className="space-y-6">
           {selectedBalance && (
-            <div className="bg-gray-50 p-4 rounded-lg border">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="bg-gray-50 dark:bg-[#0e111f] p-4 rounded-xl border border-slate-200 dark:border-[#1e233d]">
+              <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <p className="text-sm text-gray-500">Bin</p>
-                  <p className="font-medium">{selectedBalance.binCode}</p>
+                  <p className="text-xs text-slate-500 dark:text-[#8896ab]">Bin</p>
+                  <p className="font-semibold text-sm text-slate-900 dark:text-white">{selectedBalance.binCode}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Warehouse</p>
-                  <p className="font-medium">{selectedBalance.warehouseName}</p>
+                  <p className="text-xs text-slate-500 dark:text-[#8896ab]">Warehouse</p>
+                  <p className="font-semibold text-sm text-slate-900 dark:text-white">{selectedBalance.warehouseName}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Current Qty</p>
-                  <p className="font-medium">{selectedBalance.currentQuantity} {selectedBalance.uom}</p>
+                  <p className="text-xs text-slate-500 dark:text-[#8896ab]">Current Qty</p>
+                  <p className="font-semibold text-sm text-slate-900 dark:text-white">{selectedBalance.currentQuantity} {selectedBalance.uom}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">MSL</p>
-                  <p className="font-medium">{selectedBalance.msl ?? 'N/A'}</p>
+                  <p className="text-xs text-slate-500 dark:text-[#8896ab]">MSL</p>
+                  <p className="font-semibold text-sm text-slate-900 dark:text-white">{selectedBalance.msl ?? 'N/A'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Latest Lot/Batch</p>
-                  <p className="font-medium">{selectedBalance.latestLotBatchNumber || 'N/A'}</p>
+                  <p className="text-xs text-slate-500 dark:text-[#8896ab]">Latest Lot/Batch</p>
+                  <p className="font-semibold text-sm text-slate-900 dark:text-white">{selectedBalance.latestLotBatchNumber || 'N/A'}</p>
                 </div>
               </div>
             </div>
           )}
 
-          <div className="mt-6">
-            <h4 className="text-sm font-medium text-gray-900 mb-4">Recent Transactions</h4>
+          <div className="mt-4 sm:mt-6">
+            <h4 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white mb-3">Recent Transactions</h4>
             <DataTable
               data={balanceTransactions}
               columns={[

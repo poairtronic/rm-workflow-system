@@ -539,20 +539,20 @@ export function StockMovementWorkspace() {
       {/* Main Workspace Card */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
         {/* Workspace Header */}
-        <div className="px-8 py-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
+        <div className="px-4 py-5 sm:px-8 sm:py-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-50 dark:bg-blue-900/30 text-primary rounded-xl border border-blue-100 dark:border-blue-800">
+            <div className="p-2.5 bg-blue-50 dark:bg-blue-900/30 text-primary rounded-xl border border-blue-100 dark:border-blue-800 shrink-0">
               {mode === 'STOCK_IN' && <ArrowDownToLine className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />}
               {mode === 'STOCK_OUT' && <ArrowUpFromLine className="w-6 h-6 text-rose-600 dark:text-rose-400" />}
               {mode === 'ADJUST' && <SlidersHorizontal className="w-6 h-6 text-blue-600 dark:text-blue-400" />}
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white">
                 {mode === 'STOCK_IN' && 'Stock In (Direct Receipt)'}
                 {mode === 'STOCK_OUT' && 'Stock Out (Direct Issue)'}
                 {mode === 'ADJUST' && 'Stock Adjustment & Reconciliation'}
               </h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
                 {mode === 'STOCK_IN' && 'Inward raw material into warehouse bins. Increases physical balance and writes ledger record.'}
                 {mode === 'STOCK_OUT' && 'Direct issue of material from warehouse bins. Validates balance and records reason.'}
                 {mode === 'ADJUST' && 'Cycle count reconciliation. Correct physical variance with audit documentation.'}
@@ -561,11 +561,11 @@ export function StockMovementWorkspace() {
           </div>
 
           {/* Mode Switcher Tabs */}
-          <div className="mt-6 flex flex-wrap gap-2">
+          <div className="mt-5 sm:mt-6 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => handleModeChange('STOCK_IN')}
-              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
+              className={`min-h-[44px] flex-1 sm:flex-none justify-center inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer ${
                 mode === 'STOCK_IN'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
@@ -578,7 +578,7 @@ export function StockMovementWorkspace() {
             <button
               type="button"
               onClick={() => handleModeChange('STOCK_OUT')}
-              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
+              className={`min-h-[44px] flex-1 sm:flex-none justify-center inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer ${
                 mode === 'STOCK_OUT'
                   ? 'bg-rose-600 text-white shadow-sm'
                   : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
@@ -591,7 +591,7 @@ export function StockMovementWorkspace() {
             <button
               type="button"
               onClick={() => handleModeChange('ADJUST')}
-              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
+              className={`min-h-[44px] flex-1 sm:flex-none justify-center inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer ${
                 mode === 'ADJUST'
                   ? 'bg-primary text-white shadow-sm'
                   : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
@@ -608,11 +608,11 @@ export function StockMovementWorkspace() {
               <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">
                 Adjustment Workflow Option
               </div>
-              <div className="inline-flex p-1 bg-slate-200/70 dark:bg-slate-800 rounded-xl border border-slate-300/60 dark:border-slate-700">
+              <div className="inline-flex flex-col sm:flex-row w-full sm:w-auto p-1 bg-slate-200/70 dark:bg-slate-800 rounded-xl border border-slate-300/60 dark:border-slate-700 gap-1 sm:gap-0">
                 <button
                   type="button"
                   onClick={() => handleAdjustmentTypeChange('NORMAL')}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`min-h-[40px] inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     adjustmentType === 'NORMAL'
                       ? 'bg-white dark:bg-slate-900 text-primary shadow-sm ring-1 ring-black/5 dark:ring-white/10'
                       : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
@@ -625,7 +625,7 @@ export function StockMovementWorkspace() {
                 <button
                   type="button"
                   onClick={() => handleAdjustmentTypeChange('TRANSFER')}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`min-h-[40px] inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     adjustmentType === 'TRANSFER'
                       ? 'bg-primary text-white shadow-sm'
                       : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
@@ -639,9 +639,9 @@ export function StockMovementWorkspace() {
           )}
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Form Body: 12px gap on mobile, 24px on desktop */}
+        <form onSubmit={handleSubmit} className="p-4 sm:p-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             {/* Left Column: Material & Locations */}
             <div className="space-y-5">
               <h2 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
@@ -775,11 +775,11 @@ export function StockMovementWorkspace() {
                   {/* Adjustment Direction Toggle */}
                   {mode === 'ADJUST' && adjustmentType === 'NORMAL' && (
                     <FormField label="Adjustment Direction" required>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                         <button
                           type="button"
                           onClick={() => setDirection('INCREASE')}
-                          className={`py-2.5 px-4 text-sm font-semibold rounded-lg border text-center transition-all cursor-pointer ${
+                          className={`min-h-[44px] py-2.5 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg border text-center transition-all cursor-pointer ${
                             direction === 'INCREASE'
                               ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-400 shadow-sm ring-1 ring-emerald-500'
                               : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
@@ -790,7 +790,7 @@ export function StockMovementWorkspace() {
                         <button
                           type="button"
                           onClick={() => setDirection('DECREASE')}
-                          className={`py-2.5 px-4 text-sm font-semibold rounded-lg border text-center transition-all cursor-pointer ${
+                          className={`min-h-[44px] py-2.5 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg border text-center transition-all cursor-pointer ${
                             direction === 'DECREASE'
                               ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-500 text-rose-700 dark:text-rose-400 shadow-sm ring-1 ring-rose-500'
                               : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
@@ -850,7 +850,7 @@ export function StockMovementWorkspace() {
                     <span className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold">Automatic In & Out</span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {/* Source Bin Preview Card */}
                     <div
                       className={`p-3.5 rounded-xl border transition-all ${
@@ -980,7 +980,8 @@ export function StockMovementWorkspace() {
                 />
               </FormField>
 
-              <div className="grid grid-cols-2 gap-4">
+              {/* Lot / Batch and Cost: 1 column on mobile (12px gap), 2 columns on desktop */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <FormField label="Lot / Batch Number" hint="Optional tracking ID">
                   <TextInput
                     value={lotBatchNumber}
@@ -1011,8 +1012,8 @@ export function StockMovementWorkspace() {
             </div>
           </div>
 
-          {/* Form Actions Footer */}
-          <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          {/* Form Actions Footer: Sticky on mobile with 44px thumb-friendly buttons */}
+          <div className="mt-8 pt-4 sm:pt-6 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 sticky bottom-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm -mx-4 -mb-4 px-4 py-3 sm:static sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:m-0 z-10 border-t border-slate-200 dark:border-slate-800 sm:border-0 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] sm:shadow-none pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-0">
             <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
               <Info className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />
               <span>
@@ -1022,12 +1023,12 @@ export function StockMovementWorkspace() {
               </span>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => navigate(-1)}
                 disabled={isSubmitting}
-                className="px-5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                className="flex-1 sm:flex-none min-h-[44px] px-5 py-2.5 rounded-xl sm:rounded-lg border border-slate-200 dark:border-slate-700 text-base sm:text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer text-center"
               >
                 Cancel
               </button>
@@ -1042,7 +1043,7 @@ export function StockMovementWorkspace() {
                     : 'primary'
                 }
                 disabled={!isFormValid}
-                className="px-6 py-2.5 font-semibold text-sm rounded-lg shadow-sm"
+                className="flex-1 sm:flex-none min-h-[44px] px-6 py-2.5 font-semibold text-base sm:text-sm rounded-xl sm:rounded-lg shadow-sm"
               >
                 {isSubmitting
                   ? 'Processing...'

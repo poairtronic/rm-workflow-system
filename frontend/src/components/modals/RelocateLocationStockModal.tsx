@@ -365,8 +365,8 @@ export function RelocateLocationStockModal({
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-200 dark:border-[#1e233d]">
+        {/* Footer Actions: Sticky on mobile bottom sheet */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-200 dark:border-[#1e233d] sticky bottom-0 bg-white dark:bg-[#121526] -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 px-4 py-3 sm:px-6 sm:py-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] sm:shadow-none z-10">
           <div className="text-xs text-slate-500 dark:text-slate-400">
             {allAssigned ? (
               <span className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1.5">
@@ -380,13 +380,13 @@ export function RelocateLocationStockModal({
             )}
           </div>
 
-          <div className="flex items-center space-x-2.5 justify-end">
+          <div className="flex items-center space-x-2.5 justify-end w-full sm:w-auto">
             <Button
               type="button"
               variant="secondary"
               onClick={onClose}
               disabled={isSubmitting}
-              className="cursor-pointer"
+              className="cursor-pointer flex-1 sm:flex-none min-h-[44px]"
             >
               Cancel
             </Button>
@@ -394,12 +394,12 @@ export function RelocateLocationStockModal({
               type="submit"
               variant="danger"
               disabled={!allAssigned || isSubmitting || eligibleBins.length === 0}
-              className="cursor-pointer font-semibold"
+              className="cursor-pointer font-semibold flex-1 sm:flex-none min-h-[44px]"
             >
               {isSubmitting ? (
                 'Shifting Inventory...'
               ) : (
-                <div className="flex items-center space-x-1.5">
+                <div className="flex items-center justify-center space-x-1.5">
                   <Truck className="w-4 h-4 mr-1" />
                   <span>Shift Stock & Delete Location</span>
                 </div>

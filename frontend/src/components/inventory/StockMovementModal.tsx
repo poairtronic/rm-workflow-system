@@ -185,8 +185,8 @@ export function StockMovementModal({
     isReasonValid &&
     !isSubmitting;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!isFormValid) return;
 
     setIsSubmitting(true);
@@ -238,11 +238,40 @@ export function StockMovementModal({
     </div>
   );
 
+  const footerActions = (
+    <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5 sm:gap-3 w-full">
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={onClose}
+        disabled={isSubmitting}
+        className="w-full sm:w-auto"
+      >
+        Cancel
+      </Button>
+      <Button
+        type="button"
+        onClick={() => handleSubmit()}
+        variant={mode === 'STOCK_OUT' ? 'danger' : 'primary'}
+        disabled={!isFormValid}
+        className="w-full sm:w-auto"
+      >
+        {isSubmitting
+          ? 'Processing...'
+          : mode === 'STOCK_IN'
+          ? 'Confirm Stock In'
+          : mode === 'STOCK_OUT'
+          ? 'Confirm Stock Out'
+          : 'Confirm Adjustment'}
+      </Button>
+    </div>
+  );
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} className="sm:max-w-lg">
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} footer={footerActions} className="sm:max-w-lg">
+      <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
         {/* Mode Explanatory Notice */}
-        <div className="rounded-md bg-slate-50 p-3 border border-slate-200 text-xs text-slate-600 flex items-start space-x-2">
+        <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 flex items-start space-x-2">
           <Info className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
           <div>
             {mode === 'STOCK_IN' && (
@@ -303,7 +332,7 @@ export function StockMovementModal({
 
         {/* Selected Bin Stock Info */}
         {productId && binId && (
-          <div className="p-2.5 rounded-md bg-sky-50 border border-sky-100 flex items-center justify-between text-xs text-sky-800">
+          <div className="p-2.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/50 flex items-center justify-between text-xs text-sky-800 dark:text-sky-300">
             <span>Available Balance in this Bin:</span>
             <span className="font-semibold text-sm">
               {availableBalance} {uom}
@@ -318,10 +347,10 @@ export function StockMovementModal({
               <button
                 type="button"
                 onClick={() => setDirection('INCREASE')}
-                className={`py-2 px-3 text-sm font-medium rounded-md border text-center transition-colors ${
+                className={`min-h-[44px] py-2 px-3 text-sm font-semibold rounded-lg border text-center transition-colors cursor-pointer ${
                   direction === 'INCREASE'
-                    ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-sm'
-                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-400 shadow-sm'
+                    : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-50'
                 }`}
               >
                 + Increase (+)
@@ -329,10 +358,10 @@ export function StockMovementModal({
               <button
                 type="button"
                 onClick={() => setDirection('DECREASE')}
-                className={`py-2 px-3 text-sm font-medium rounded-md border text-center transition-colors ${
+                className={`min-h-[44px] py-2 px-3 text-sm font-semibold rounded-lg border text-center transition-colors cursor-pointer ${
                   direction === 'DECREASE'
-                    ? 'bg-rose-50 border-rose-500 text-rose-700 shadow-sm'
-                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                    ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-500 text-rose-700 dark:text-rose-400 shadow-sm'
+                    : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-50'
                 }`}
               >
                 - Decrease (−)
@@ -381,8 +410,8 @@ export function StockMovementModal({
           />
         </FormField>
 
-        {/* Lot / Batch and Cost */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Lot / Batch and Cost: 1 column on mobile (gap 12px), 2 columns on desktop */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <FormField label="Lot/Batch Number" hint="Optional tracking ID">
             <TextInput
               value={lotBatchNumber}
@@ -411,31 +440,6 @@ export function StockMovementModal({
             rows={2}
           />
         </FormField>
-
-        {/* Action Buttons */}
-        <div className="pt-3 border-t border-gray-200 flex items-center justify-end space-x-3">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onClose}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant={mode === 'STOCK_OUT' ? 'danger' : 'primary'}
-            disabled={!isFormValid}
-          >
-            {isSubmitting
-              ? 'Processing...'
-              : mode === 'STOCK_IN'
-              ? 'Confirm Stock In'
-              : mode === 'STOCK_OUT'
-              ? 'Confirm Stock Out'
-              : 'Confirm Adjustment'}
-          </Button>
-        </div>
       </form>
     </Modal>
   );

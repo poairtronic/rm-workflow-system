@@ -166,7 +166,7 @@ export function Type2DispatchView() {
               <h2 className="text-[15px] font-semibold text-slate-900 mb-6 uppercase tracking-wide border-b border-slate-100 pb-4">
                 Dispatch Context
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 mb-6">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Vendor Destination *</label>
                   <Controller
@@ -185,6 +185,7 @@ export function Type2DispatchView() {
                           secondary: v.code ? `[${v.code}] ${v.category || ''}`.trim() : (v.category || ''),
                         }))}
                         error={Boolean(fieldState.error)}
+                        triggerClassName="min-h-[44px] sm:min-h-0 h-11 sm:h-10 text-base sm:text-sm"
                       />
                     )}
                   />
@@ -200,7 +201,7 @@ export function Type2DispatchView() {
                     type="text"
                     {...register('processName')}
                     placeholder="e.g. STOCK CONVERSION, HEAT TREATMENT..."
-                    className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    className="w-full min-h-[44px] sm:min-h-0 h-11 sm:h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-base sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                   />
                   <p className="mt-1 text-[11px] text-slate-500">
                     Printed directly under W. No. on physical DC.
@@ -214,7 +215,7 @@ export function Type2DispatchView() {
                 <textarea
                   {...register('notes')}
                   placeholder="E.g., R&D Testing, Machine Maintenance (Optional)..."
-                  className="w-full min-h-20 p-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
+                  className="w-full min-h-20 p-3.5 rounded-lg bg-white border border-slate-200 text-base sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
                 />
               </div>
             </div>
@@ -222,13 +223,13 @@ export function Type2DispatchView() {
             {/* Payload Selector Grid */}
             <DispatchPayloadGrid blockIndex={0} />
 
-            {/* Action Bar */}
-            <div className="mt-8 flex justify-end">
+            {/* Action Bar: Sticky on mobile */}
+            <div className="mt-8 flex justify-end sticky bottom-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm -mx-4 -mb-4 px-4 py-3 sm:static sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:m-0 z-10 border-t border-slate-200 dark:border-slate-800 sm:border-0 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] sm:shadow-none pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-0">
               <button
                 type="button"
                 onClick={() => setIsReviewing(true)}
                 disabled={!isFormValid}
-                className="inline-flex items-center gap-2 px-6 h-11 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-hover transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 min-h-[44px] h-11 bg-primary text-white text-base sm:text-sm font-semibold rounded-xl sm:rounded-lg hover:bg-primary-hover transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 <ClipboardList className="w-4 h-4" />
                 Review Dispatch
@@ -353,11 +354,11 @@ export function Type2DispatchView() {
               </div>
 
               {/* Action Buttons */}
-              <div className="px-6 py-4 border-t border-slate-200 bg-slate-50/50 flex items-center justify-between">
+              <div className="px-4 py-3 sm:px-6 sm:py-4 border-t border-slate-200 flex flex-col-reverse sm:flex-row items-center justify-between gap-2.5 sm:gap-0 sticky bottom-0 z-10 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] sm:shadow-none bg-white sm:bg-slate-50/50">
                 <button
                   type="button"
                   onClick={() => setIsReviewing(false)}
-                  className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-lg bg-white transition-colors"
+                  className="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 text-base sm:text-sm font-medium text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-xl sm:rounded-lg bg-white transition-colors cursor-pointer text-center"
                 >
                   Back to Edit
                 </button>
@@ -365,7 +366,7 @@ export function Type2DispatchView() {
                   type="button"
                   onClick={onConfirm}
                   disabled={!isConfirmed || createDcMutation.isPending}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-hover shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto min-h-[44px] sm:min-h-0 inline-flex items-center justify-center gap-2 px-6 py-2.5 sm:py-2 bg-primary text-white text-base sm:text-sm font-semibold rounded-xl sm:rounded-lg hover:bg-primary-hover shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {createDcMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   {createDcMutation.isPending ? 'Generating...' : 'Generate DC'}

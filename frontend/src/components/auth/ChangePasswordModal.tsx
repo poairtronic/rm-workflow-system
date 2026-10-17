@@ -79,7 +79,7 @@ export function ChangePasswordModal({ isOpen, onClose }: ChangePasswordModalProp
         </div>
       }
     >
-      <form onSubmit={handleSubmit} className="p-6 space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <FormField label="Current Password" required>
           <div className="relative">
             <TextInput
@@ -179,14 +179,15 @@ export function ChangePasswordModal({ isOpen, onClose }: ChangePasswordModalProp
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-          <Button type="button" variant="secondary" onClick={handleClose} disabled={isSubmitting}>
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3 pt-3 border-t border-slate-100 sticky bottom-0 bg-white dark:bg-[#121526] -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 px-4 py-3 sm:px-6 sm:py-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] sm:shadow-none z-10">
+          <Button type="button" variant="secondary" onClick={handleClose} disabled={isSubmitting} className="w-full sm:w-auto">
             Cancel
           </Button>
           <Button
             type="submit"
             variant="primary"
             disabled={!isFormValid || isSubmitting}
+            className="w-full sm:w-auto"
           >
             {isSubmitting ? 'Updating...' : 'Update Password'}
           </Button>
