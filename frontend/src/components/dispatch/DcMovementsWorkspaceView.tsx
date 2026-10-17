@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { deliveryChallanApi } from '../../services/api';
 import { DataTable, type ColumnDef } from '../ui';
+import { ExportDropdown } from '../common/ExportDropdown';
+import type { ExportColumn } from '../../utils/exportUtils';
 
 export function DcMovementsWorkspaceView() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -235,6 +237,42 @@ export function DcMovementsWorkspaceView() {
     },
   ];
 
+  const exportColumns: ExportColumn<any>[] = [
+    {
+      header: 'Date',
+      accessor: (row) =>
+        row.date
+          ? new Date(row.date).toLocaleString('en-IN', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : '—',
+    },
+    { header: 'DC Number', accessor: (row) => row.challanNumber || '' },
+    { header: 'DC Type', accessor: (row) => row.challanTypeLabel || '' },
+    { header: 'Direction', accessor: (row) => row.direction || '' },
+    { header: 'Vendor / Subcontractor', accessor: (row) => row.vendorName || '' },
+    {
+      header: 'SC / Part No.',
+      accessor: (row) => (row.partNumber !== '—' ? row.partNumber : row.scNumber || ''),
+    },
+    { header: 'Material / Product', accessor: (row) => row.productName || '' },
+    { header: 'Product Code', accessor: (row) => row.productCode || '' },
+    {
+      header: 'Qty Movement',
+      isNumeric: true,
+      accessor: (row) =>
+        `${row.direction === 'OUTWARD' ? '-' : '+'}${Math.abs(
+          Number(row.rawQuantity || row.quantity)
+        ).toFixed(3)} ${row.uom || ''}`,
+    },
+    { header: 'Stage / Bin', accessor: (row) => row.location || '' },
+    { header: 'Status', accessor: (row) => (row.status || '').replace('_', ' ') },
+  ];
+
   return (
     <div className="space-y-4">
       {/* Summary KPI Cards */}
@@ -294,11 +332,24 @@ export function DcMovementsWorkspaceView() {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
+            <ExportDropdown
+              data={filteredMovements}
+              columns={exportColumns}
+              fileName="DC_Movements"
+              reportTitle="Delivery Challan Movements Ledger"
+              reportSubtitle={`Showing ${filteredMovements.length} movements`}
+              metadata={{
+                'Total Movements': filteredMovements.length,
+                'DC Type Filter': typeFilter,
+                'Direction Filter': directionFilter,
+                Search: searchTerm || 'All',
+              }}
+            />
             <button
               type="button"
               onClick={() => refetch()}
               disabled={isLoading || isRefetching}
-              className="h-10 px-3.5 inline-flex items-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-xs transition-colors"
+              className="h-10 px-3.5 inline-flex items-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
               title="Refresh ledger"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? 'animate-spin' : ''}`} />

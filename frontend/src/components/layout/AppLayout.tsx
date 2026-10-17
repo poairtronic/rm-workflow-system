@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { RouteLoadingSkeleton } from '../common/RouteLoadingSkeleton';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
+import { BottomNav } from './BottomNav';
 import { ErrorBoundary } from './ErrorBoundary';
 import { BarcodeScannerModal } from '../inventory/BarcodeScannerModal';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
@@ -10,6 +11,7 @@ import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 export function AppLayout() {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleScan = useCallback((barcode: string) => {
     setScannedBarcode(barcode);
@@ -39,16 +41,22 @@ export function AppLayout() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#090a10] text-slate-900 dark:text-slate-100 overflow-x-clip">
-      <Sidebar />
-      <TopBar onOpenScanner={() => { setScannedBarcode(''); setIsScannerOpen(true); }} />
-      <main className="ml-[260px] mt-16 p-8 bg-[#F8FAFC] dark:bg-[#090a10] min-h-[calc(100vh-64px)] max-w-[calc(100vw-260px)]">
+    <div className="min-h-[100dvh] bg-[#F8FAFC] dark:bg-[#090a10] text-slate-900 dark:text-slate-100 overflow-x-hidden flex flex-col">
+      <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
+      <TopBar
+        onOpenScanner={() => { setScannedBarcode(''); setIsScannerOpen(true); }}
+        onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
+      />
+      <main className="md:ml-[260px] ml-0 mt-16 p-3 sm:p-5 md:p-8 pb-20 md:pb-8 bg-[#F8FAFC] dark:bg-[#090a10] min-h-[calc(100dvh-64px)] max-w-full md:max-w-[calc(100vw-260px)] flex-1 overflow-x-hidden">
         <ErrorBoundary>
           <Suspense fallback={<RouteLoadingSkeleton />}>
             <Outlet />
           </Suspense>
         </ErrorBoundary>
       </main>
+
+      {/* Mobile Fixed Bottom Navigation Bar for top 4 core modules */}
+      <BottomNav />
 
       {/* Global Hardware Barcode Scanner Interface */}
       <BarcodeScannerModal

@@ -45,41 +45,42 @@ export function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#090a10] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative transition-colors font-sans">
+    <div className="min-h-[100dvh] bg-slate-50 dark:bg-[#090a10] flex flex-col justify-center py-8 px-4 sm:px-6 lg:px-8 relative transition-colors font-sans overflow-x-hidden">
       {/* Top Right Quick Theme Switcher */}
-      <div className="absolute top-4 right-4">
+      <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20">
         <button
           type="button"
           onClick={toggleTheme}
-          className="p-2 rounded-lg text-slate-500 dark:text-[#8896ab] hover:text-primary dark:hover:text-indigo-400 hover:bg-slate-200/60 dark:hover:bg-[#161a2e] border border-transparent dark:border-[#1e233d] transition-colors cursor-pointer"
+          className="w-11 h-11 flex items-center justify-center rounded-xl text-slate-500 dark:text-[#8896ab] hover:text-primary dark:hover:text-indigo-400 hover:bg-slate-200/60 dark:hover:bg-[#161a2e] border border-slate-200/60 dark:border-[#1e233d] bg-white/70 dark:bg-[#0d0f1b]/70 backdrop-blur-xs transition-colors cursor-pointer"
           title={currentTheme === 'Modern Dark' ? 'Switch to Light Mode' : 'Switch to Modern Dark Mode'}
+          aria-label="Toggle theme"
         >
           {currentTheme === 'Modern Dark' ? (
-            <Sun className="w-4 h-4 text-amber-400" />
+            <Sun className="w-5 h-5 text-amber-400" />
           ) : (
-            <Moon className="w-4 h-4 text-slate-600" />
+            <Moon className="w-5 h-5 text-slate-600" />
           )}
         </button>
       </div>
 
       {/* Brand Header */}
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+      <div className="w-full max-w-sm sm:max-w-md mx-auto text-center">
         <div className="flex justify-center">
           <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-lg">
             <KeyRound className="w-6 h-6 text-white" />
           </div>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+        <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
           Forgot Password
         </h2>
-        <p className="mt-2 text-center text-sm text-slate-600 dark:text-slate-400">
+        <p className="mt-1.5 text-center text-xs sm:text-sm text-slate-600 dark:text-slate-400">
           Velan Stock, Material &amp; Asset Resource Tracker
         </p>
       </div>
 
       {/* Centered Auth Card */}
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white dark:bg-[#121526] py-8 px-4 shadow sm:rounded-xl sm:px-10 border border-slate-200 dark:border-[#1e233d]">
+      <div className="mt-6 sm:mt-8 w-full max-w-sm sm:max-w-md mx-auto">
+        <div className="bg-white dark:bg-[#121526] py-6 sm:py-8 px-5 sm:px-8 shadow-xl sm:shadow-lg rounded-2xl border border-slate-200 dark:border-[#1e233d]">
           {submitted ? (
             /* Success State */
             <div className="text-center space-y-5 animate-in fade-in duration-300">
@@ -107,7 +108,7 @@ export function ForgotPasswordPage() {
               <div className="space-y-3 pt-2">
                 <Link
                   to="/login"
-                  className="w-full flex justify-center items-center h-10 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors cursor-pointer"
+                  className="w-full min-h-[44px] h-11 flex justify-center items-center px-4 border border-transparent rounded-xl shadow-sm text-base sm:text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors cursor-pointer"
                 >
                   Return to Sign In
                 </Link>
@@ -118,7 +119,7 @@ export function ForgotPasswordPage() {
                     setSubmitted(false);
                     setIdentifier('');
                   }}
-                  className="w-full text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline transition-colors py-1 cursor-pointer"
+                  className="w-full min-h-[44px] text-xs sm:text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline transition-colors py-2 flex items-center justify-center cursor-pointer"
                 >
                   Try another email / ID
                 </button>
@@ -126,15 +127,15 @@ export function ForgotPasswordPage() {
             </div>
           ) : (
             /* Reset Request Form */
-            <form className="space-y-6" onSubmit={handleSubmit}>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
+            <form className="space-y-5" onSubmit={handleSubmit}>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
                 Enter your registered Employee ID or email address to receive a secure password reset link.
               </p>
 
               <div>
                 <label
                   htmlFor="identifier"
-                  className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+                  className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
                 >
                   Employee ID / Email
                 </label>
@@ -148,14 +149,14 @@ export function ForgotPasswordPage() {
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
                     placeholder="Enter your ID or email"
-                    className="w-full h-10 px-3.5 rounded-lg border border-slate-200 dark:border-[#1e233d] text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50 dark:bg-[#0e111f] dark:text-white transition-colors"
+                    className="w-full min-h-[44px] h-11 px-3.5 rounded-xl border border-slate-200 dark:border-[#1e233d] text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50 dark:bg-[#0e111f] dark:text-white transition-colors"
                   />
                 </div>
               </div>
 
               {errorMessage && (
-                <div className="bg-red-50 dark:bg-red-950/30 p-3 rounded-lg border border-red-200 dark:border-red-900/50">
-                  <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+                <div className="bg-red-50 dark:bg-red-950/30 p-3 rounded-xl border border-red-200 dark:border-red-900/50">
+                  <p className="text-xs sm:text-sm text-red-600 dark:text-red-400 font-medium">
                     {errorMessage}
                   </p>
                 </div>
@@ -165,7 +166,7 @@ export function ForgotPasswordPage() {
                 <button
                   type="submit"
                   disabled={isLoading || !identifier.trim()}
-                  className="w-full flex justify-center items-center h-10 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="w-full min-h-[44px] h-11 flex justify-center items-center px-4 border border-transparent rounded-xl shadow-sm text-base sm:text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {isLoading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />

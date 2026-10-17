@@ -10,6 +10,8 @@ import type { ProcessDcReturnDto } from '../types/dc-return.dto';
 import { ActiveCustodyBoard } from '../components/dispatch/ActiveCustodyBoard';
 import { ReconciliationGrid } from '../components/dispatch/ReconciliationGrid';
 import { MultiSelectFilter } from '../components/ui';
+import { ExportDropdown } from '../components/common/ExportDropdown';
+import type { ExportColumn } from '../utils/exportUtils';
 
 // Status badge
 function StatusBadge({ status }: { status: string }) {
@@ -313,6 +315,50 @@ export function DockReceiptWorkspace() {
   const canReturn = selectedDc && !isClosed && hasRemainingItems;
   const canClose = selectedDc && !isClosed;
 
+  const exportDcColumns: ExportColumn<any>[] = [
+    { header: 'DC Number', accessor: (dc) => dc.challanNumber || dc.dcNumber || 'N/A' },
+    { header: 'Status', accessor: (dc) => (dc.status || '').replace('_', ' ') },
+    { header: 'Vendor / Destination', accessor: (dc) => dc.vendor?.name || dc.vendorName || dc.destinationEntity || 'N/A' },
+    {
+      header: 'Items & Materials',
+      accessor: (dc) => {
+        if (dc.items && Array.isArray(dc.items) && dc.items.length > 0) {
+          return dc.items
+            .map(
+              (i: any) =>
+                `${i.productName || i.partName || i.product?.name || 'Item'} (${Math.abs(
+                  Number(i.quantityDispatched ?? i.quantity ?? 0)
+                )} ${i.uom || ''})`
+            )
+            .join('; ');
+        }
+        return 'N/A';
+      },
+    },
+    {
+      header: 'Issue Date',
+      accessor: (dc) => (dc.issueDate ? new Date(dc.issueDate).toLocaleDateString('en-IN') : 'N/A'),
+    },
+    {
+      header: 'Target Return',
+      accessor: (dc) =>
+        dc.expectedReturnDate ? new Date(dc.expectedReturnDate).toLocaleDateString('en-IN') : 'N/A',
+    },
+    {
+      header: 'SLA Status',
+      accessor: (dc) => {
+        if (dc.status === 'CLOSED' || dc.status === 'RETURNED') return 'Closed';
+        if (!dc.expectedReturnDate) return 'No SLA';
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const target = new Date(dc.expectedReturnDate);
+        target.setHours(0, 0, 0, 0);
+        const diff = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        return diff < 0 ? 'Overdue' : diff === 0 ? 'Due Today' : 'On Track';
+      },
+    },
+  ];
+
   return (
     <div className="max-w-[1600px] mx-auto w-full pb-24">
       <div className="mb-8 flex items-center justify-between">
@@ -381,6 +427,19 @@ export function DockReceiptWorkspace() {
                 className="w-full sm:w-auto"
               />
 
+              <ExportDropdown
+                data={filteredChallans}
+                columns={exportDcColumns}
+                fileName="DC_Returns_Custody_Board"
+                reportTitle="DC Returns & Active Custody Board"
+                reportSubtitle={`Showing ${filteredChallans.length} delivery challans`}
+                metadata={{
+                  'Total Challans': filteredChallans.length,
+                  'Vendor Filter': selectedVendors.length ? `${selectedVendors.length} filtered` : 'All Vendors',
+                  Search: searchTerm || 'All',
+                }}
+              />
+
               {(selectedVendors.length > 0 || searchTerm) && (
                 <button
                   type="button"
@@ -388,7 +447,7 @@ export function DockReceiptWorkspace() {
                     setSelectedVendors([]);
                     setSearchTerm('');
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+                  className="inline-flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm cursor-pointer"
                   title="Reset all filters"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />

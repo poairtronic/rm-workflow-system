@@ -118,41 +118,42 @@ export function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#090a10] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative transition-colors font-sans">
+    <div className="min-h-[100dvh] bg-slate-50 dark:bg-[#090a10] flex flex-col justify-center py-8 px-4 sm:px-6 lg:px-8 relative transition-colors font-sans overflow-x-hidden">
       {/* Top Right Quick Theme Switcher */}
-      <div className="absolute top-4 right-4">
+      <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20">
         <button
           type="button"
           onClick={toggleTheme}
-          className="p-2 rounded-lg text-slate-500 dark:text-[#8896ab] hover:text-primary dark:hover:text-indigo-400 hover:bg-slate-200/60 dark:hover:bg-[#161a2e] border border-transparent dark:border-[#1e233d] transition-colors cursor-pointer"
+          className="w-11 h-11 flex items-center justify-center rounded-xl text-slate-500 dark:text-[#8896ab] hover:text-primary dark:hover:text-indigo-400 hover:bg-slate-200/60 dark:hover:bg-[#161a2e] border border-slate-200/60 dark:border-[#1e233d] bg-white/70 dark:bg-[#0d0f1b]/70 backdrop-blur-xs transition-colors cursor-pointer"
           title={currentTheme === 'Modern Dark' ? 'Switch to Light Mode' : 'Switch to Modern Dark Mode'}
+          aria-label="Toggle theme"
         >
           {currentTheme === 'Modern Dark' ? (
-            <Sun className="w-4 h-4 text-amber-400" />
+            <Sun className="w-5 h-5 text-amber-400" />
           ) : (
-            <Moon className="w-4 h-4 text-slate-600" />
+            <Moon className="w-5 h-5 text-slate-600" />
           )}
         </button>
       </div>
 
       {/* Brand Header */}
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+      <div className="w-full max-w-sm sm:max-w-md mx-auto text-center">
         <div className="flex justify-center">
           <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-lg">
             <Lock className="w-6 h-6 text-white" />
           </div>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+        <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
           Set New Password
         </h2>
-        <p className="mt-2 text-center text-sm text-slate-600 dark:text-slate-400">
+        <p className="mt-1.5 text-center text-xs sm:text-sm text-slate-600 dark:text-slate-400">
           Velan Stock, Material &amp; Asset Resource Tracker
         </p>
       </div>
 
       {/* Centered Auth Card */}
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white dark:bg-[#121526] py-8 px-4 shadow sm:rounded-xl sm:px-10 border border-slate-200 dark:border-[#1e233d]">
+      <div className="mt-6 sm:mt-8 w-full max-w-sm sm:max-w-md mx-auto">
+        <div className="bg-white dark:bg-[#121526] py-6 sm:py-8 px-5 sm:px-8 shadow-xl sm:shadow-lg rounded-2xl border border-slate-200 dark:border-[#1e233d]">
           {isVerifying ? (
             /* Verifying Token State */
             <div className="py-10 text-center space-y-4">
@@ -180,7 +181,7 @@ export function ResetPasswordPage() {
               <div className="space-y-3 pt-2">
                 <Link
                   to="/forgot-password"
-                  className="w-full flex justify-center items-center h-10 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors cursor-pointer"
+                  className="w-full min-h-[44px] h-11 flex justify-center items-center px-4 border border-transparent rounded-xl shadow-sm text-base sm:text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors cursor-pointer"
                 >
                   Request a New Reset Link
                 </Link>
@@ -188,7 +189,7 @@ export function ResetPasswordPage() {
                 <div className="pt-2">
                   <Link
                     to="/login"
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline transition-colors"
+                    className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline transition-colors py-1"
                   >
                     <ArrowLeft className="w-3.5 h-3.5" />
                     Return to Sign In
@@ -216,7 +217,7 @@ export function ResetPasswordPage() {
                 <button
                   type="button"
                   onClick={() => navigate('/login', { replace: true })}
-                  className="w-full flex justify-center items-center h-10 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors cursor-pointer"
+                  className="w-full min-h-[44px] h-11 flex justify-center items-center px-4 border border-transparent rounded-xl shadow-sm text-base sm:text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors cursor-pointer"
                 >
                   Proceed to Sign In
                 </button>
@@ -225,7 +226,7 @@ export function ResetPasswordPage() {
           ) : (
             /* Set New Password Form */
             <form className="space-y-5" onSubmit={handleSubmit}>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
                 {userEmail ? (
                   <span>
                     Setting new password for <strong className="text-slate-900 dark:text-white">{userEmail}</strong>
@@ -239,7 +240,7 @@ export function ResetPasswordPage() {
               <div>
                 <label
                   htmlFor="new-password"
-                  className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+                  className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
                 >
                   New Password
                 </label>
@@ -252,7 +253,7 @@ export function ResetPasswordPage() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full h-10 px-3.5 pr-10 rounded-lg border border-slate-200 dark:border-[#1e233d] text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50 dark:bg-[#0e111f] dark:text-white transition-colors"
+                    className="w-full min-h-[44px] h-11 px-3.5 pr-10 rounded-xl border border-slate-200 dark:border-[#1e233d] text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50 dark:bg-[#0e111f] dark:text-white transition-colors"
                   />
                   <button
                     type="button"
@@ -268,7 +269,7 @@ export function ResetPasswordPage() {
               <div>
                 <label
                   htmlFor="confirm-password"
-                  className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+                  className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
                 >
                   Confirm Password
                 </label>
@@ -281,7 +282,7 @@ export function ResetPasswordPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full h-10 px-3.5 pr-10 rounded-lg border border-slate-200 dark:border-[#1e233d] text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50 dark:bg-[#0e111f] dark:text-white transition-colors"
+                    className="w-full min-h-[44px] h-11 px-3.5 pr-10 rounded-xl border border-slate-200 dark:border-[#1e233d] text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50 dark:bg-[#0e111f] dark:text-white transition-colors"
                   />
                   <button
                     type="button"
@@ -346,8 +347,8 @@ export function ResetPasswordPage() {
               </div>
 
               {errorMessage && (
-                <div className="bg-red-50 dark:bg-red-950/30 p-3 rounded-lg border border-red-200 dark:border-red-900/50">
-                  <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+                <div className="bg-red-50 dark:bg-red-950/30 p-3 rounded-xl border border-red-200 dark:border-red-900/50">
+                  <p className="text-xs sm:text-sm text-red-600 dark:text-red-400 font-medium">
                     {errorMessage}
                   </p>
                 </div>
@@ -357,7 +358,7 @@ export function ResetPasswordPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting || !isFormValid}
-                  className="w-full flex justify-center items-center h-10 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="w-full min-h-[44px] h-11 flex justify-center items-center px-4 border border-transparent rounded-xl shadow-sm text-base sm:text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {isSubmitting ? (
                     <Loader2 className="w-5 h-5 animate-spin" />

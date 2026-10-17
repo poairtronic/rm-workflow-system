@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Search, LogOut, KeyRound, X, Truck, Package, Settings, Building2, ExternalLink, Sun, Moon, Barcode } from 'lucide-react';
+import { Search, LogOut, KeyRound, X, Truck, Package, Settings, Building2, ExternalLink, Sun, Moon, Barcode, Menu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
@@ -11,13 +11,15 @@ import { triggerBarcodeScanner } from '../../hooks/useBarcodeScanner';
 
 interface TopBarProps {
   onOpenScanner?: () => void;
+  onToggleMobileMenu?: () => void;
 }
 
-export function TopBar({ onOpenScanner }: TopBarProps = {}) {
+export function TopBar({ onOpenScanner, onToggleMobileMenu }: TopBarProps = {}) {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [currentTheme, setCurrentTheme] = useState(() => getCurrentTheme());
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -332,14 +334,209 @@ export function TopBar({ onOpenScanner }: TopBarProps = {}) {
 
   const handleSelectResult = (path: string) => {
     setIsOpen(false);
+    setIsMobileSearchOpen(false);
     setSearchQuery('');
     navigate(path);
   };
 
+  const renderSearchResults = () => {
+    if (!searchResults) return null;
+    if (searchResults.totalCount === 0) {
+      return (
+        <div className="p-6 text-center text-slate-500 text-xs">
+          <p className="font-semibold text-slate-700 dark:text-slate-200 mb-1">No matching records found for "{searchQuery}"</p>
+          <p>Try searching with a Part Number, Product Name, Vendor Name, or Process Type (e.g. Heating / Heat Treatment).</p>
+        </div>
+      );
+    }
+    return (
+      <>
+        {/* Delivery Challans */}
+        {searchResults.dcs.length > 0 && (
+          <div className="p-2">
+            <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Truck className="w-3.5 h-3.5 text-blue-600" />
+              Delivery Challans ({searchResults.dcs.length})
+            </div>
+            <div className="space-y-1 mt-1">
+              {searchResults.dcs.map((dc: any) => {
+                const dcNum = dc.challanNumber || dc.dcNumber || 'DC';
+                const vendorName = dc.vendorName || dc.vendor?.name || 'External Vendor';
+                const process = dc.processName || dc.process?.name || dc.notes || '';
+                const part = dc.partNumber || dc.items?.[0]?.partNumber || dc.items?.[0]?.part_number || '';
+                const product = dc.productName || dc.items?.[0]?.productName || dc.items?.[0]?.product?.name || '';
+
+                return (
+                  <button
+                    key={dc.id}
+                    type="button"
+                    onClick={() => handleSelectResult(`/dispatch/returns`)}
+                    className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-[#141829] transition-colors flex items-center justify-between group cursor-pointer"
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-xs text-blue-700 dark:text-blue-400">{dcNum}</span>
+                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">{vendorName}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                        {process && <span className="bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/40 px-1.5 py-0.2 rounded font-medium">{process}</span>}
+                        {part && part !== '—' && <span className="font-mono bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-1.5 py-0.2 rounded font-medium">Part: {part}</span>}
+                        {product && <span className="text-slate-600 dark:text-slate-400">Product: {product}</span>}
+                      </div>
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-600 transition-colors shrink-0 ml-2" />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Processes */}
+        {searchResults.processes.length > 0 && (
+          <div className="p-2">
+            <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Settings className="w-3.5 h-3.5 text-indigo-600" />
+              Manufacturing Processes ({searchResults.processes.length})
+            </div>
+            <div className="space-y-1 mt-1">
+              {searchResults.processes.map((proc: any) => (
+                <button
+                  key={proc.id}
+                  type="button"
+                  onClick={() => handleSelectResult(`/governance/process-master`)}
+                  className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-[#141829] transition-colors flex items-center justify-between group cursor-pointer"
+                >
+                  <div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white">{proc.nomenclature || proc.name}</div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">{proc.internalCode || proc.code} • UOM: {proc.baseUom || 'NOS'}</div>
+                  </div>
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-600 transition-colors shrink-0 ml-2" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Vendors */}
+        {searchResults.vendors.length > 0 && (
+          <div className="p-2">
+            <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-emerald-600" />
+              Vendors ({searchResults.vendors.length})
+            </div>
+            <div className="space-y-1 mt-1">
+              {searchResults.vendors.map((v: any) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => handleSelectResult(`/masters/vendors`)}
+                  className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-[#141829] transition-colors flex items-center justify-between group cursor-pointer"
+                >
+                  <div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white">{v.name}</div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">{v.code ? `[${v.code}] ` : ''}{v.category || 'External Vendor'}</div>
+                  </div>
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-emerald-600 transition-colors shrink-0 ml-2" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Products */}
+        {searchResults.products.length > 0 && (
+          <div className="p-2">
+            <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Package className="w-3.5 h-3.5 text-purple-600" />
+              Products Master ({searchResults.products.length})
+            </div>
+            <div className="space-y-1 mt-1">
+              {searchResults.products.map((prod: any) => (
+                <button
+                  key={prod.id}
+                  type="button"
+                  onClick={() => handleSelectResult(`/masters/products`)}
+                  className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-[#141829] transition-colors flex items-center justify-between group cursor-pointer"
+                >
+                  <div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white">{prod.name}</div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">{prod.code || ''} {prod.uom ? `• ${prod.uom}` : ''}</div>
+                  </div>
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-purple-600 transition-colors shrink-0 ml-2" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
+
   return (
-    <header className="fixed top-0 right-0 left-65 h-16 bg-white/90 dark:bg-[#0d0f1b]/90 backdrop-blur-md border-b border-slate-200 dark:border-[#1a1e33] z-20 flex items-center px-6 justify-between transition-colors duration-150">
-      {/* Search Input Container */}
-      <div className="flex items-center gap-4 flex-1" ref={dropdownRef}>
+    <header className="fixed top-0 right-0 md:left-[260px] left-0 h-16 bg-white/90 dark:bg-[#0d0f1b]/90 backdrop-blur-md border-b border-slate-200 dark:border-[#1a1e33] z-20 flex items-center px-3 sm:px-4 md:px-6 justify-between transition-colors duration-150">
+      {/* Mobile Hamburger & Logo */}
+      <div className="flex items-center gap-2 md:hidden">
+        <button
+          type="button"
+          onClick={onToggleMobileMenu}
+          className="p-1.5 -ml-1 rounded-lg text-slate-600 dark:text-[#8896ab] hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#161a2e] transition-colors cursor-pointer"
+          aria-label="Open Navigation Menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <div className="flex items-center gap-1.5 font-bold text-sm tracking-tight text-slate-900 dark:text-white">
+          <div className="w-6 h-6 rounded bg-indigo-600/15 border border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black text-xs">
+            V
+          </div>
+          <span className="truncate max-w-[85px] xs:max-w-none">V-SMART</span>
+        </div>
+      </div>
+
+      {/* Full-width Mobile Search Bar Overlay */}
+      {isMobileSearchOpen && (
+        <div className="absolute inset-0 bg-white dark:bg-[#0d0f1b] z-30 px-3 flex items-center gap-2 animate-in fade-in duration-150">
+          <Search className="w-4 h-4 text-slate-400 dark:text-[#55627a] shrink-0" />
+          <input
+            ref={inputRef}
+            type="text"
+            autoFocus
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setIsOpen(true);
+            }}
+            placeholder="Search Part #, Product, Vendor..."
+            className="flex-1 py-1.5 bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none font-medium"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setIsOpen(false);
+              }}
+              className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setIsMobileSearchOpen(false);
+              setIsOpen(false);
+              setSearchQuery('');
+            }}
+            className="text-xs font-semibold text-primary dark:text-indigo-400 px-2 py-1 hover:bg-slate-100 dark:hover:bg-[#161a2e] rounded cursor-pointer"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {/* Desktop Search Input Container */}
+      <div className="hidden md:flex items-center gap-4 flex-1" ref={dropdownRef}>
         <div className="relative group max-w-lg w-full">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-[#55627a] group-focus-within:text-primary dark:group-focus-within:text-indigo-400 transition-colors" />
           <input
@@ -374,144 +571,37 @@ export function TopBar({ onOpenScanner }: TopBarProps = {}) {
             </kbd>
           </div>
 
-          {/* Live Search Results Dropdown */}
+          {/* Desktop Search Results Dropdown */}
           {isOpen && searchQuery.trim().length > 0 && searchResults && (
-            <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl max-h-[480px] overflow-y-auto z-50 divide-y divide-slate-100 animate-in fade-in-50 zoom-in-95 duration-150">
-              
-              {searchResults.totalCount === 0 ? (
-                <div className="p-6 text-center text-slate-500 text-xs">
-                  <p className="font-semibold text-slate-700 mb-1">No matching records found for "{searchQuery}"</p>
-                  <p>Try searching with a Part Number, Product Name, Vendor Name, or Process Type (e.g. Heating / Heat Treatment).</p>
-                </div>
-              ) : (
-                <>
-                  {/* Delivery Challans */}
-                  {searchResults.dcs.length > 0 && (
-                    <div className="p-2">
-                      <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <Truck className="w-3.5 h-3.5 text-blue-600" />
-                        Delivery Challans ({searchResults.dcs.length})
-                      </div>
-                      <div className="space-y-1 mt-1">
-                        {searchResults.dcs.map((dc: any) => {
-                          const dcNum = dc.challanNumber || dc.dcNumber || 'DC';
-                          const vendorName = dc.vendorName || dc.vendor?.name || 'External Vendor';
-                          const process = dc.processName || dc.process?.name || dc.notes || '';
-                          const part = dc.partNumber || dc.items?.[0]?.partNumber || dc.items?.[0]?.part_number || '';
-                          const product = dc.productName || dc.items?.[0]?.productName || dc.items?.[0]?.product?.name || '';
-
-                          return (
-                            <button
-                              key={dc.id}
-                              type="button"
-                              onClick={() => handleSelectResult(`/dispatch/returns`)}
-                              className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-between group cursor-pointer"
-                            >
-                              <div className="flex flex-col gap-0.5">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-mono font-bold text-xs text-blue-700">{dcNum}</span>
-                                  <span className="text-xs font-semibold text-slate-800">{vendorName}</span>
-                                </div>
-                                <div className="text-[11px] text-slate-500 flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
-                                  {process && <span className="bg-amber-50 text-amber-800 border border-amber-200/60 px-1.5 py-0.2 rounded font-medium">{process}</span>}
-                                  {part && part !== '—' && <span className="font-mono bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded font-medium">Part: {part}</span>}
-                                  {product && <span className="text-slate-600">Product: {product}</span>}
-                                </div>
-                              </div>
-                              <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-600 transition-colors shrink-0 ml-2" />
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Processes */}
-                  {searchResults.processes.length > 0 && (
-                    <div className="p-2">
-                      <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <Settings className="w-3.5 h-3.5 text-indigo-600" />
-                        Manufacturing Processes ({searchResults.processes.length})
-                      </div>
-                      <div className="space-y-1 mt-1">
-                        {searchResults.processes.map((proc: any) => (
-                          <button
-                            key={proc.id}
-                            type="button"
-                            onClick={() => handleSelectResult(`/governance/process-master`)}
-                            className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-between group cursor-pointer"
-                          >
-                            <div>
-                              <div className="text-xs font-bold text-slate-900">{proc.nomenclature || proc.name}</div>
-                              <div className="text-[11px] text-slate-500 font-mono">{proc.internalCode || proc.code} • UOM: {proc.baseUom || 'NOS'}</div>
-                            </div>
-                            <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-600 transition-colors shrink-0 ml-2" />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Vendors */}
-                  {searchResults.vendors.length > 0 && (
-                    <div className="p-2">
-                      <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <Building2 className="w-3.5 h-3.5 text-emerald-600" />
-                        Vendors ({searchResults.vendors.length})
-                      </div>
-                      <div className="space-y-1 mt-1">
-                        {searchResults.vendors.map((v: any) => (
-                          <button
-                            key={v.id}
-                            type="button"
-                            onClick={() => handleSelectResult(`/masters/vendors`)}
-                            className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-between group cursor-pointer"
-                          >
-                            <div>
-                              <div className="text-xs font-bold text-slate-900">{v.name}</div>
-                              <div className="text-[11px] text-slate-500">{v.code ? `[${v.code}] ` : ''}{v.category || 'External Vendor'}</div>
-                            </div>
-                            <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-emerald-600 transition-colors shrink-0 ml-2" />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Products */}
-                  {searchResults.products.length > 0 && (
-                    <div className="p-2">
-                      <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <Package className="w-3.5 h-3.5 text-purple-600" />
-                        Products Master ({searchResults.products.length})
-                      </div>
-                      <div className="space-y-1 mt-1">
-                        {searchResults.products.map((prod: any) => (
-                          <button
-                            key={prod.id}
-                            type="button"
-                            onClick={() => handleSelectResult(`/masters/products`)}
-                            className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-between group cursor-pointer"
-                          >
-                            <div>
-                              <div className="text-xs font-bold text-slate-900">{prod.name}</div>
-                              <div className="text-[11px] text-slate-500 font-mono">{prod.code || ''} {prod.uom ? `• ${prod.uom}` : ''}</div>
-                            </div>
-                            <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-purple-600 transition-colors shrink-0 ml-2" />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-
+            <div className="absolute left-0 right-0 top-full mt-1.5 bg-white dark:bg-[#0d0f1b] border border-slate-200 dark:border-[#1a1e33] rounded-xl shadow-xl max-h-[480px] overflow-y-auto z-50 divide-y divide-slate-100 dark:divide-[#1a1e33] animate-in fade-in-50 zoom-in-95 duration-150">
+              {renderSearchResults()}
             </div>
           )}
         </div>
       </div>
+
+      {/* Mobile Live Search Results Dropdown */}
+      {isMobileSearchOpen && isOpen && searchQuery.trim().length > 0 && searchResults && (
+        <div className="md:hidden absolute left-2 right-2 top-full mt-1.5 bg-white dark:bg-[#0d0f1b] border border-slate-200 dark:border-[#1a1e33] rounded-xl shadow-2xl max-h-[70vh] overflow-y-auto z-50 divide-y divide-slate-100 dark:divide-[#1a1e33] animate-in fade-in-50 zoom-in-95 duration-150">
+          {renderSearchResults()}
+        </div>
+      )}
       
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
+        {/* Mobile Search Trigger Button */}
+        <button
+          type="button"
+          onClick={() => {
+            setIsMobileSearchOpen(true);
+            setTimeout(() => inputRef.current?.focus(), 50);
+          }}
+          className="md:hidden p-2 rounded-lg text-slate-500 dark:text-[#8896ab] hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-[#161a2e] transition-colors cursor-pointer"
+          title="Search"
+          aria-label="Search"
+        >
+          <Search className="w-4 h-4" />
+        </button>
+
         {/* Quick Barcode Scanner Trigger Button */}
         <button
           type="button"
@@ -519,7 +609,7 @@ export function TopBar({ onOpenScanner }: TopBarProps = {}) {
             if (onOpenScanner) onOpenScanner();
             else triggerBarcodeScanner();
           }}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-900/60 bg-blue-50/70 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-all font-medium text-xs shadow-2xs cursor-pointer group"
+          className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-900/60 bg-blue-50/70 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-all font-medium text-xs shadow-2xs cursor-pointer group"
           title="Hardware Barcode Scanner (Press F2 or Ctrl+B)"
         >
           <Barcode className="w-4 h-4 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
@@ -545,7 +635,8 @@ export function TopBar({ onOpenScanner }: TopBarProps = {}) {
 
         {currentUser && <NotificationBell onNavigateTarget={handleNavigateTarget} />}
         
-        <div className="flex items-center gap-3 border-l border-slate-200 dark:border-[#1a1e33] pl-4">
+        {/* Desktop User Meta & Controls */}
+        <div className="hidden md:flex items-center gap-3 border-l border-slate-200 dark:border-[#1a1e33] pl-4">
           {currentUser && (
             <>
               <span className="text-xs font-bold px-2 py-0.5 bg-primary/10 dark:bg-indigo-500/15 text-primary dark:text-indigo-400 border border-transparent dark:border-indigo-500/20 rounded">

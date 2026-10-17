@@ -21,6 +21,8 @@ import {
 import type { ColumnDef } from '../components/ui';
 import { Plus, Edit2, CheckCircle2, XCircle, Trash2, Building2, Phone, Mail, User, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { ExportDropdown } from '../components/common/ExportDropdown';
+import type { ExportColumn } from '../utils/exportUtils';
 
 export function VendorMasterWorkspace() {
   const { currentUser } = useAuth();
@@ -359,6 +361,17 @@ export function VendorMasterWorkspace() {
     },
   ];
 
+  const exportVendorColumns: ExportColumn<VendorMasterDto>[] = [
+    { header: 'Vendor Code', accessor: (v) => v.code || '' },
+    { header: 'Vendor Name', accessor: (v) => v.name || '' },
+    { header: 'Address', accessor: (v) => v.address || 'N/A' },
+    { header: 'Category', accessor: (v) => v.category || 'Uncategorized' },
+    { header: 'Contact Person', accessor: (v) => v.contactPerson || 'N/A' },
+    { header: 'Email', accessor: (v) => v.email || 'N/A' },
+    { header: 'Phone', accessor: (v) => v.phone || 'N/A' },
+    { header: 'Status', accessor: (v) => (v.isActive ? 'Active' : 'Inactive') },
+  ];
+
   return (
     <div className="space-y-6">
       {isModalOpen ? (
@@ -514,15 +527,29 @@ export function VendorMasterWorkspace() {
         title="Vendors Master"
         subtitle="Manage approved external vendors, process capabilities, contact profiles, and active statuses."
         actionSlot={
-          canWrite && (
-            <Button
-              onClick={handleOpenCreate}
-              className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Vendor</span>
-            </Button>
-          )
+          <div className="flex items-center space-x-2">
+            <ExportDropdown
+              data={filteredVendors}
+              columns={exportVendorColumns}
+              fileName="Vendors_Master"
+              reportTitle="Vendors Master Directory"
+              reportSubtitle={`Showing ${filteredVendors.length} registered vendors`}
+              metadata={{
+                'Total Vendors': filteredVendors.length,
+                'Category Filter': selectedCategory,
+                'Status Filter': selectedStatus,
+              }}
+            />
+            {canWrite && (
+              <Button
+                onClick={handleOpenCreate}
+                className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>New Vendor</span>
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -534,7 +561,7 @@ export function VendorMasterWorkspace() {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="text-xs border border-gray-300 rounded px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="text-xs border border-gray-300 rounded px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
             >
               <option value="ALL">All Categories ({vendors.length})</option>
               {categories.map((c) => (
@@ -550,7 +577,7 @@ export function VendorMasterWorkspace() {
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="text-xs border border-gray-300 rounded px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="text-xs border border-gray-300 rounded px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
             >
               <option value="ALL">All Statuses</option>
               <option value="ACTIVE">Active Only</option>
@@ -559,11 +586,25 @@ export function VendorMasterWorkspace() {
           </div>
         </div>
 
-        <div className="text-xs text-gray-500 flex items-center space-x-1">
-          <Building2 className="w-3.5 h-3.5 text-gray-400" />
-          <span>
-            Showing {filteredVendors.length} of {vendors.length} vendors
-          </span>
+        <div className="flex items-center space-x-3">
+          <ExportDropdown
+            data={filteredVendors}
+            columns={exportVendorColumns}
+            fileName="Vendors_Master"
+            reportTitle="Vendors Master Directory"
+            reportSubtitle={`Showing ${filteredVendors.length} registered vendors`}
+            metadata={{
+              'Total Vendors': filteredVendors.length,
+              'Category Filter': selectedCategory,
+              'Status Filter': selectedStatus,
+            }}
+          />
+          <div className="text-xs text-gray-500 flex items-center space-x-1">
+            <Building2 className="w-3.5 h-3.5 text-gray-400" />
+            <span>
+              Showing {filteredVendors.length} of {vendors.length} vendors
+            </span>
+          </div>
         </div>
       </div>
 

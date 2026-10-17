@@ -222,7 +222,9 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
                               className="w-20 h-8 pl-2 pr-2 rounded border border-slate-200 text-xs text-right tabular-nums"
                             />
                             {splitMismatch && (
-                              <AlertCircle className="w-4 h-4 text-red-500" title="Split sum must equal Received Qty" />
+                              <span title="Split sum must equal Received Qty">
+                                <AlertCircle className="w-4 h-4 text-red-500" />
+                              </span>
                             )}
                           </div>
                         )}

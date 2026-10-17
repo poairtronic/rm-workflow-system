@@ -48,6 +48,8 @@ import { toast } from 'react-hot-toast';
 import { BarcodeBadge } from '../components/inventory/BarcodeBadge';
 import { BarcodeLabelModal } from '../components/inventory/BarcodeLabelModal';
 import { BarcodeSvg } from '../components/common/BarcodeSvg';
+import { ExportDropdown } from '../components/common/ExportDropdown';
+import type { ExportColumn } from '../utils/exportUtils';
 
 const UOM_OPTIONS = ['MM', 'KG', 'NOS', 'MTR', 'PC', 'SQM', 'LTR'] as const;
 
@@ -910,6 +912,32 @@ export function ProductsMasterWorkspace() {
     return cols;
   }, [productStorageMap, selectedProductIds, filteredProducts, isSelectionMode]);
 
+  const exportProductColumns: ExportColumn<Product>[] = [
+    { header: 'Product Code', accessor: (p) => p.code || 'N/A' },
+    { header: 'Barcode', accessor: (p) => p.barcode || p.code || 'N/A' },
+    { header: 'Product Name', accessor: (p) => p.name || 'N/A' },
+    { header: 'Category', accessor: (p) => p.family?.category?.name || 'N/A' },
+    { header: 'Family', accessor: (p) => p.family?.name || 'N/A' },
+    {
+      header: 'Warehouse Location',
+      accessor: (p) => {
+        const storage = productStorageMap.get(p.id);
+        if (!storage || storage.binLabels.length === 0) return 'Unassigned';
+        return storage.binLabels.join(', ');
+      },
+    },
+    { header: 'UOM', accessor: (p) => p.uom || 'N/A' },
+    {
+      header: 'MSL (Min Stock)',
+      isNumeric: true,
+      accessor: (p) =>
+        p.minimumInventory && Number(p.minimumInventory) > 0
+          ? `${p.minimumInventory} ${p.uom || ''}`
+          : 'Not Monitored',
+    },
+    { header: 'Status', accessor: (p) => (p.isActive ? 'Active' : 'Inactive') },
+  ];
+
   return (
     <div className="p-6 space-y-6">
       {isModalOpen ? (
@@ -1353,6 +1381,18 @@ export function ProductsMasterWorkspace() {
           </div>
 
           <div className="flex items-center space-x-2 shrink-0">
+            <ExportDropdown
+              data={filteredProducts}
+              columns={exportProductColumns}
+              fileName="Products_Master"
+              reportTitle="Products Master & MSL Catalog"
+              reportSubtitle={`Showing ${filteredProducts.length} product definitions`}
+              metadata={{
+                'Total Products': filteredProducts.length,
+                'Active Filters': activeFilterCount > 0 ? `${activeFilterCount} active` : 'None',
+                Search: searchQuery || 'All',
+              }}
+            />
             <Button
               variant={isSelectionMode ? 'primary' : 'secondary'}
               onClick={() => {

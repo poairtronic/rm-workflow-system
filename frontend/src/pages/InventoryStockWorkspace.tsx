@@ -25,6 +25,8 @@ import type { Product, Category, Family, Warehouse, Location, Rack, Bin } from '
 import { Filter, Search, RefreshCw } from 'lucide-react';
 import { DcMovementsWorkspaceView } from '../components/dispatch/DcMovementsWorkspaceView';
 import { triggerBarcodeScanner } from '../hooks/useBarcodeScanner';
+import { ExportDropdown } from '../components/common/ExportDropdown';
+import type { ExportColumn } from '../utils/exportUtils';
 const UOM_OPTIONS = ['NOS', 'KGS', 'MTRS', 'LTRS', 'BOX', 'PACK', 'SET', 'ROLL'];
 
 export function InventoryStockWorkspace() {
@@ -438,6 +440,93 @@ export function InventoryStockWorkspace() {
     { key: 'createdBy', header: 'Created By', render: (r) => r.createdBy?.name || 'System' }
   ];
 
+  const exportOverviewColumns: ExportColumn<StockBalance>[] = [
+    { header: 'Code', accessor: (r) => r.productCode || 'N/A' },
+    { header: 'Product Name', accessor: (r) => r.productName || 'N/A' },
+    {
+      header: 'Warehouse Location',
+      accessor: (r) => {
+        const bin = binMap.get(r.binId);
+        let primaryLabel = r.binCode || 'N/A';
+        let locLabel = (r as any).locationName || '';
+        if (bin && bin.rackId) {
+          const rack = rackMap.get(bin.rackId);
+          if (rack && rack.locationId) {
+            const loc = locMap.get(rack.locationId);
+            if (loc) {
+              locLabel = loc.name;
+              primaryLabel = loc.name.toLowerCase().includes('bin') ? bin.code : rack.code;
+            }
+          }
+        }
+        return locLabel ? `${primaryLabel} (${locLabel})` : primaryLabel;
+      },
+    },
+    { header: 'Warehouse', accessor: (r) => r.warehouseName || 'N/A' },
+    { header: 'Lot/Batch', accessor: (r) => r.latestLotBatchNumber || 'N/A' },
+    {
+      header: 'Qty',
+      isNumeric: true,
+      accessor: (r) => `${r.currentQuantity} ${r.uom || ''}`,
+    },
+    { header: 'MSL', isNumeric: true, accessor: (r) => r.msl ?? 'N/A' },
+    {
+      header: 'Status',
+      accessor: (r) => {
+        const val = Number(r.currentQuantity);
+        if (val < 0) return 'DEFICIT';
+        if (r.msl === undefined || r.msl === null) return 'OK';
+        const diff = val - Number(r.msl);
+        if (diff < 0) return 'CRITICAL';
+        if (diff <= 5) return 'LOW';
+        return 'OK';
+      },
+    },
+  ];
+
+  const exportTxColumns: ExportColumn<StockTransaction>[] = [
+    {
+      header: 'Date',
+      accessor: (r) => new Date(r.createdAt).toLocaleString('en-IN'),
+    },
+    { header: 'Product', accessor: (r) => r.product?.name || 'N/A' },
+    { header: 'Product Code', accessor: (r) => r.product?.code || 'N/A' },
+    {
+      header: 'Bin',
+      accessor: (r) => {
+        if (r.sourceBin && r.destinationBin) return `${r.sourceBin.code} → ${r.destinationBin.code}`;
+        if (r.sourceBin) return r.sourceBin.code;
+        if (r.destinationBin) return r.destinationBin.code;
+        return 'N/A';
+      },
+    },
+    { header: 'Type', accessor: (r) => r.transactionType },
+    {
+      header: 'Qty',
+      isNumeric: true,
+      accessor: (r) => {
+        const isAddition =
+          r.transactionType === 'STOCK_IN' ||
+          r.transactionType === 'RETURN' ||
+          r.transactionType === 'GRN_RECEIPT' ||
+          r.transactionType === 'DC_RETURN' ||
+          (r.transactionType === 'ADJUSTMENT' && r.adjustmentDirection === 'INCREASE');
+        const isSubtraction =
+          r.transactionType === 'STOCK_OUT' ||
+          r.transactionType === 'STORES_ISSUE' ||
+          r.transactionType === 'DC_DISPATCH' ||
+          r.transactionType === 'PRODUCTION_CONSUMPTION' ||
+          (r.transactionType === 'ADJUSTMENT' && r.adjustmentDirection === 'DECREASE');
+        const sign = isAddition ? '+' : isSubtraction ? '-' : '';
+        return `${sign}${r.quantity} ${r.product?.uom || ''}`;
+      },
+    },
+    { header: 'Lot/Batch', accessor: (r) => r.lotBatchNumber || 'N/A' },
+    { header: 'Cost', isNumeric: true, accessor: (r) => (r.cost != null ? `$${Number(r.cost).toFixed(2)}` : 'N/A') },
+    { header: 'Reason', accessor: (r) => r.reason || 'N/A' },
+    { header: 'Created By', accessor: (r) => r.createdBy?.name || 'System' },
+  ];
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <PageHeader
@@ -547,6 +636,20 @@ export function InventoryStockWorkspace() {
                 />
               </div>
               <div className="flex items-center gap-2">
+                <ExportDropdown
+                  data={filteredBalances}
+                  columns={exportOverviewColumns}
+                  fileName="Stock_Overview"
+                  reportTitle="Inventory Stock Overview"
+                  reportSubtitle={`Showing ${filteredBalances.length} stock balance records`}
+                  metadata={{
+                    'Total Items': filteredBalances.length,
+                    Search: balancesSearch || 'All',
+                    'UOM Filter': uomFilter || 'All',
+                    'MSL Filter': mslFilter || 'All',
+                    'Status Filter': statusFilter || 'All',
+                  }}
+                />
                 <button
                   type="button"
                   onClick={() => triggerBarcodeScanner()}
@@ -708,11 +811,24 @@ export function InventoryStockWorkspace() {
                 <option value="DC_RETURN">DC Inward (Return - Type 2)</option>
               </select>
 
+              <ExportDropdown
+                data={filteredTransactions}
+                columns={exportTxColumns}
+                fileName="Normal_Stock_Movements"
+                reportTitle="Normal Stock Movements Ledger"
+                reportSubtitle={`Showing ${filteredTransactions.length} movement transactions`}
+                metadata={{
+                  'Total Transactions': filteredTransactions.length,
+                  'Movement Type': txTypeFilter || 'All Types',
+                  Search: txSearch || 'All',
+                }}
+              />
+
               <button
                 type="button"
                 onClick={fetchTransactions}
                 disabled={isTransactionsLoading}
-                className="h-10 px-3 flex items-center justify-center border border-slate-300 bg-white hover:bg-slate-50 rounded-lg text-slate-600 transition-colors shadow-sm"
+                className="h-10 px-3 flex items-center justify-center border border-slate-300 bg-white hover:bg-slate-50 rounded-lg text-slate-600 transition-colors shadow-sm cursor-pointer"
                 title="Refresh transactions"
               >
                 <RefreshCw className={`w-4 h-4 ${isTransactionsLoading ? 'animate-spin' : ''}`} />
