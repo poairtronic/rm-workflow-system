@@ -77,6 +77,21 @@ export class ProductsController {
     return { nextCode };
   }
 
+  @Get('next-barcode')
+  @NoCache()
+  @Roles(
+    UserRole.ADMIN,
+    UserRole.DESIGNER,
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+  )
+  async getNextBarcode(@Query('code') code?: string) {
+    const nextBarcode = await this.masterDataService.generateUniqueBarcode(code);
+    return { nextBarcode };
+  }
+
   @Get(':id')
   @Roles(
     UserRole.ADMIN,

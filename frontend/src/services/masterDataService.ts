@@ -215,6 +215,17 @@ export const masterDataService = {
       return '';
     }
   },
+  getNextBarcode: async (code?: string): Promise<string> => {
+    try {
+      const res = await api.get<{ nextBarcode: string }>(
+        `/api/products/next-barcode${code ? `?code=${encodeURIComponent(code)}` : ''}`,
+      );
+      return res?.nextBarcode || '';
+    } catch (err) {
+      console.warn('Failed to fetch next barcode from server', err);
+      return '';
+    }
+  },
   updateProduct: async (
     id: string,
     data: {

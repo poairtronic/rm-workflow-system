@@ -400,23 +400,37 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
       try {
         product = await masterDataService.getProductByBarcode(sanitized);
       } catch (barcodeErr) {
-        // Fallback: search products by query (name, code, barcode)
-        const searchRes = await masterDataService.getProducts({
-          search: codeToSearch.trim(),
-          pageSize: 5,
-          isActive: true,
-        });
-        if (searchRes.data && searchRes.data.length > 0) {
-          const match = searchRes.data[0];
-          const queryTarget = match.barcode || match.code || match.id;
-          if (queryTarget) {
-            try {
-              product = await masterDataService.getProductByBarcode(queryTarget);
-            } catch {
-              // Ignore fallback error
+        // Fallback: search products by stripped query (removing PRD- prefix if present)
+        const stripped = sanitized.replace(/^PRD[-_:\s]+/i, '').trim();
+        const queriesToTry = [codeToSearch.trim()];
+        if (stripped && stripped !== codeToSearch.trim()) {
+          queriesToTry.unshift(stripped);
+        }
+
+        for (const q of queriesToTry) {
+          try {
+            const searchRes = await masterDataService.getProducts({
+              search: q,
+              pageSize: 5,
+              isActive: true,
+            });
+            if (searchRes.data && searchRes.data.length > 0) {
+              const match = searchRes.data[0];
+              const queryTarget = match.barcode || match.code || match.id;
+              if (queryTarget) {
+                product = await masterDataService.getProductByBarcode(queryTarget);
+                // Proactively link barcode to product in background if unlinked
+                if (!match.barcode) {
+                  masterDataService.updateProduct(match.id, { barcode: sanitized }).catch(() => {});
+                }
+                break;
+              }
             }
+          } catch {
+            // continue next attempt
           }
         }
+
         if (!product) {
           throw barcodeErr;
         }

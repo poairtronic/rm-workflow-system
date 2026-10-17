@@ -135,7 +135,8 @@ export function ProductsMasterWorkspace() {
            masterDataService.getBins({ pageSize: 1000 }).catch(() => ({ data: [] })),
            inventoryService.getAllBalances({ page: 1, pageSize: 2000 }).catch(() => ({ data: [] })),
          ]);
-       setProducts(prodRes.data || []);
+       const loadedProducts = prodRes.data || [];
+       setProducts(loadedProducts);
        setCategories(catRes.data || []);
        setFamilies(famRes.data || []);
        setWarehouses(whRes.data || []);
@@ -143,6 +144,18 @@ export function ProductsMasterWorkspace() {
        setRacks(rackRes.data || []);
        setBins(binRes.data || []);
        setBalances(balRes.data || []);
+
+       // Proactively ensure 100% of products have valid barcodes linked
+       const missingBarcodes = loadedProducts.filter((p: Product) => !p.barcode);
+       if (missingBarcodes.length > 0) {
+         masterDataService.backfillBarcodes().then((res) => {
+           if (res.count > 0) {
+             masterDataService.getProducts({ pageSize: 500 }).then((refreshed) => {
+               if (refreshed.data) setProducts(refreshed.data);
+             }).catch(() => {});
+           }
+         }).catch(() => {});
+       }
     } catch (err: any) {
       console.error('Failed to load products master data', err);
       setError(err.message || 'Failed to load products master data');
@@ -150,6 +163,21 @@ export function ProductsMasterWorkspace() {
       setIsLoading(false);
     }
   }, []);
+
+  const [isBackfilling, setIsBackfilling] = useState(false);
+
+  const handleBackfillAllBarcodes = async () => {
+    try {
+      setIsBackfilling(true);
+      const res = await masterDataService.backfillBarcodes();
+      toast.success(res.message || 'Successfully linked barcodes for all products!');
+      await loadData();
+    } catch (err: any) {
+      toast.error('Failed to auto-assign barcodes: ' + (err.message || 'Unknown error'));
+    } finally {
+      setIsBackfilling(false);
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -172,10 +200,26 @@ export function ProductsMasterWorkspace() {
     return `RM-${String(nextVal).padStart(4, '0')}`;
   }, [products]);
 
+  // Auto-generate or re-sync barcode with product code
+  const handleRegenerateBarcode = async (targetCode?: string) => {
+    const activeCode = (targetCode || code || '').trim().toUpperCase();
+    try {
+      const serverBarcode = await masterDataService.getNextBarcode(activeCode);
+      if (serverBarcode) {
+        setBarcode(serverBarcode);
+        return;
+      }
+    } catch {}
+    if (activeCode) {
+      setBarcode(activeCode.startsWith('PRD-') ? activeCode : `PRD-${activeCode}`);
+    } else {
+      setBarcode('PRD-000001');
+    }
+  };
+
   // Open Create Modal
   const openCreateModal = async () => {
     setEditingProduct(null);
-    setBarcode('');
     setName('');
     setCategoryId(categories.length > 0 ? categories[0].id : '');
     setIsCustomCategory(false);
@@ -189,15 +233,23 @@ export function ProductsMasterWorkspace() {
     setFormErrors({});
     setIsModalOpen(true);
 
-    // Initial instant fallback so user immediately sees next sequential code
+    // Initial instant fallback so user immediately sees next sequential code & barcode
     const initialCode = computeNextProductCode();
     setCode(initialCode);
+    const initialBarcode = initialCode ? (initialCode.startsWith('PRD-') ? initialCode : `PRD-${initialCode}`) : 'PRD-000001';
+    setBarcode(initialBarcode);
 
-    // Query server for authoritative next unique code
+    // Query server for authoritative next unique code & barcode
     try {
       const serverCode = await masterDataService.getNextProductCode();
       if (serverCode) {
         setCode(serverCode);
+        try {
+          const serverBarcode = await masterDataService.getNextBarcode(serverCode);
+          setBarcode(serverBarcode || (serverCode.startsWith('PRD-') ? serverCode : `PRD-${serverCode}`));
+        } catch {
+          setBarcode(serverCode.startsWith('PRD-') ? serverCode : `PRD-${serverCode}`);
+        }
       }
     } catch (err) {
       console.warn('Could not fetch next product code from server, using local sequence', err);
@@ -205,14 +257,18 @@ export function ProductsMasterWorkspace() {
   };
 
   const handleRegenerateCode = async () => {
+    let nextCode = '';
     try {
       const serverCode = await masterDataService.getNextProductCode();
       if (serverCode) {
-        setCode(serverCode);
-        return;
+        nextCode = serverCode;
       }
     } catch {}
-    setCode(computeNextProductCode());
+    if (!nextCode) {
+      nextCode = computeNextProductCode();
+    }
+    setCode(nextCode);
+    await handleRegenerateBarcode(nextCode);
   };
 
   // Open Edit Modal
@@ -1001,7 +1057,13 @@ export function ProductsMasterWorkspace() {
                       <TextInput
                         id="product-code"
                         value={code}
-                        onChange={(e) => setCode(e.target.value.toUpperCase())}
+                        onChange={(e) => {
+                          const upper = e.target.value.toUpperCase();
+                          setCode(upper);
+                          if (!editingProduct && (!barcode || barcode.startsWith('PRD-'))) {
+                            setBarcode(upper ? (upper.startsWith('PRD-') ? upper : `PRD-${upper}`) : '');
+                          }
+                        }}
                         placeholder={editingProduct ? 'e.g. RM-0001' : 'Auto-generated (e.g. RM-0451)'}
                         error={!!formErrors.code}
                         className="font-mono uppercase font-semibold pr-9"
@@ -1045,7 +1107,7 @@ export function ProductsMasterWorkspace() {
                     hint={
                       editingProduct
                         ? 'Unique barcode. Clear to auto-regenerate.'
-                        : 'Optional. Auto-generated (PRD-XXXXXX) if empty.'
+                        : 'Auto-generated unique Code 128 barcode. Scannable via laser/camera.'
                     }
                   >
                     <div className="relative">
@@ -1053,21 +1115,31 @@ export function ProductsMasterWorkspace() {
                         id="product-barcode"
                         value={barcode}
                         onChange={(e) => setBarcode(e.target.value.trim().toUpperCase())}
-                        placeholder={editingProduct ? 'PRD-XXXXXX' : 'Auto-generated if blank'}
-                        className="font-mono uppercase pr-8"
+                        placeholder={editingProduct ? 'PRD-XXXXXX' : 'Auto-generated barcode'}
+                        className="font-mono uppercase pr-16"
                       />
-                      <BarcodeIcon className="w-4 h-4 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
+                      <div className="absolute right-2 top-2 flex items-center space-x-1">
+                        <button
+                          type="button"
+                          onClick={() => handleRegenerateBarcode()}
+                          title="Auto-generate / re-sync barcode from code"
+                          className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        </button>
+                        <BarcodeIcon className="w-4 h-4 text-slate-400 pointer-events-none" />
+                      </div>
                     </div>
                   </FormField>
                 </div>
 
                 {/* Live Barcode Preview Box */}
-                {(barcode || (editingProduct && editingProduct.barcode)) && (
+                {(barcode || (editingProduct && editingProduct.barcode) || code) && (
                   <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="bg-white p-1 rounded border border-slate-200">
                         <BarcodeSvg
-                          value={barcode || editingProduct?.barcode || ''}
+                          value={barcode || editingProduct?.barcode || (code ? (code.startsWith('PRD-') ? code : `PRD-${code}`) : 'PRD-ITEM')}
                           width={1.2}
                           height={28}
                           fontSize={9}
@@ -1079,7 +1151,7 @@ export function ProductsMasterWorkspace() {
                           Code 128 Scannable Preview
                         </span>
                         <span className="text-[11px] font-mono text-slate-500">
-                          {barcode || editingProduct?.barcode}
+                          {barcode || editingProduct?.barcode || (code ? (code.startsWith('PRD-') ? code : `PRD-${code}`) : 'PRD-ITEM')}
                         </span>
                       </div>
                     </div>
@@ -1102,7 +1174,7 @@ export function ProductsMasterWorkspace() {
                           }),
                           name: name || 'New Product',
                           code: code || 'CODE',
-                          barcode: barcode || editingProduct?.barcode,
+                          barcode: barcode || editingProduct?.barcode || (code ? (code.startsWith('PRD-') ? code : `PRD-${code}`) : 'PRD-ITEM'),
                           uom: uom,
                         };
                         setPrintModalProducts([targetProd]);
@@ -1412,6 +1484,16 @@ export function ProductsMasterWorkspace() {
             >
               <CheckSquare className="w-4 h-4 mr-1.5" />
               <span>{isSelectionMode ? 'Cancel Selection' : 'Select'}</span>
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleBackfillAllBarcodes}
+              disabled={isBackfilling || isLoading}
+              className="cursor-pointer"
+              title="Auto-generate and link unique Code 128 barcodes for all products"
+            >
+              <BarcodeIcon className={`w-4 h-4 mr-1.5 text-blue-600 ${isBackfilling ? 'animate-pulse' : ''}`} />
+              <span>{isBackfilling ? 'Linking...' : 'Sync Barcodes'}</span>
             </Button>
             <Button
               variant="secondary"

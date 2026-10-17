@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import pg from 'pg';
 import crypto from 'crypto';
+import { PRODUCT_MSL_MAP } from './update-product-msl.js';
 
 // 51 Product Families from PDF 3
 const PRODUCT_FAMILIES = [
@@ -624,23 +625,36 @@ async function run() {
       const famId = familyMap.get(famName) || familyMap.get('OTHERS');
 
       let productId = productCodeMap.get(item.code);
+      const targetMsl = PRODUCT_MSL_MAP[item.name.trim().toUpperCase()] || 0;
+      const barcodeValue = item.code.toUpperCase().startsWith('PRD-')
+        ? item.code.toUpperCase()
+        : `PRD-${item.code.toUpperCase()}`;
 
       if (!productId) {
         productId = crypto.randomUUID();
         await client.query(
           `INSERT INTO products (
-            id, family_id, code, name, uom, minimum_inventory, is_active, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, 0, true, NOW(), NOW())`,
+            id, family_id, code, barcode, name, uom, minimum_inventory, is_active, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, true, NOW(), NOW())`,
           [
             productId,
             famId,
             item.code,
+            barcodeValue,
             item.name,
             item.uom || 'NOS',
+            targetMsl,
           ]
         );
         productCodeMap.set(item.code, productId);
         distinctProductsCount++;
+      } else {
+        await client.query(
+          `UPDATE products
+           SET minimum_inventory = $1, barcode = COALESCE(barcode, $2), updated_at = NOW()
+           WHERE id = $3`,
+          [targetMsl, barcodeValue, productId]
+        );
       }
 
       // Check or create stock balance for (productId, binId)

@@ -51,7 +51,7 @@ export const BarcodeBadge: React.FC<BarcodeBadgeProps> = ({ product, onPrint }) 
         title="Click to view & print barcode"
       >
         <Barcode className="w-3.5 h-3.5 text-slate-500 group-hover:text-blue-600 shrink-0" />
-        <span>{product.barcode || '—'}</span>
+        <span>{product.barcode || barcodeValue}</span>
       </button>
 
       {/* Popover Card */}
