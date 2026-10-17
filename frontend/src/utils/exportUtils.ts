@@ -140,9 +140,6 @@ export function printReport<T>({
     throw new Error('No data available to print.');
   }
 
-  // Open a clean dedicated window for printing
-  const printWindow = window.open('', '_blank');
-
   const dateStr = new Date().toLocaleString('en-IN', {
     day: '2-digit',
     month: 'short',
@@ -187,9 +184,10 @@ export function printReport<T>({
     .join('');
 
   const html = `<!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${title} — V-SMART Report</title>
     <style>
       @page {
@@ -221,7 +219,7 @@ export function printReport<T>({
       }
       .no-print button {
         border: none;
-        padding: 6px 14px;
+        padding: 8px 16px;
         border-radius: 6px;
         font-size: 13px;
         font-weight: 600;
@@ -314,14 +312,15 @@ export function printReport<T>({
         display: table-row-group;
       }
       tr {
-        page-break-inside: avoid;
+        page-break-inside: auto;
+        break-inside: auto;
       }
       tr:nth-child(even) {
         background: #f8fafc;
       }
       th {
         border: 1px solid #cbd5e1;
-        padding: 7px 10px;
+        padding: 6px 8px;
         background: #f1f5f9;
         color: #1e293b;
         font-size: 11px;
@@ -332,8 +331,8 @@ export function printReport<T>({
       }
       td {
         border: 1px solid #e2e8f0;
-        padding: 6px 10px;
-        font-size: 11px;
+        padding: 5px 8px;
+        font-size: 10.5px;
         color: #334155;
         font-variant-numeric: tabular-nums;
       }
@@ -358,9 +357,31 @@ export function printReport<T>({
         }
         body {
           padding: 0;
+          background: #ffffff;
+        }
+        tr {
+          page-break-inside: auto !important;
+          break-inside: auto !important;
         }
       }
     </style>
+    <script>
+      function startPrint() {
+        setTimeout(function() {
+          try {
+            window.focus();
+            window.print();
+          } catch (e) {
+            console.error('Print trigger error:', e);
+          }
+        }, 400);
+      }
+      if (document.readyState === 'complete') {
+        startPrint();
+      } else {
+        window.addEventListener('load', startPrint);
+      }
+    </script>
   </head>
   <body>
     <div class="no-print">
@@ -404,61 +425,55 @@ export function printReport<T>({
   </body>
 </html>`;
 
+  // Use a Blob URL so the new tab is a recognized document resource rather than about:blank
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const blobUrl = URL.createObjectURL(blob);
+
+  let printWindow: Window | null = null;
+  try {
+    printWindow = window.open(blobUrl, '_blank');
+  } catch (e) {
+    console.warn('Popup blocked, using hidden frame fallback', e);
+  }
+
   if (printWindow) {
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
-
-    const triggerPrint = () => {
-      try {
-        printWindow.focus();
-        printWindow.print();
-      } catch (e) {
-        console.error('Print trigger error:', e);
-      }
-    };
-
-    if (printWindow.document.readyState === 'complete') {
-      setTimeout(triggerPrint, 150);
-    } else {
-      printWindow.onload = () => setTimeout(triggerPrint, 150);
-    }
+    // Release the blob URL after 2 minutes so memory doesn't leak
+    setTimeout(() => {
+      URL.revokeObjectURL(blobUrl);
+    }, 120000);
   } else {
-    // Fallback if popups are blocked by browser policy
+    // Fallback if popup blockers prevented window.open
     const existingFrame = document.getElementById('vsmart-print-frame');
     if (existingFrame) existingFrame.remove();
 
     const iframe = document.createElement('iframe');
     iframe.id = 'vsmart-print-frame';
     iframe.style.position = 'fixed';
-    iframe.style.top = '-10000px';
-    iframe.style.left = '-10000px';
-    iframe.style.width = '1024px';
-    iframe.style.height = '768px';
+    iframe.style.top = '0';
+    iframe.style.left = '0';
+    iframe.style.width = '100vw';
+    iframe.style.height = '100vh';
     iframe.style.border = '0';
     iframe.style.opacity = '0';
+    iframe.style.pointerEvents = 'none';
+    iframe.style.zIndex = '-9999';
     document.body.appendChild(iframe);
 
-    const doc = iframe.contentWindow?.document;
-    if (doc) {
-      doc.open();
-      doc.write(html);
-      doc.close();
-
+    iframe.srcdoc = html;
+    iframe.onload = () => {
       setTimeout(() => {
         try {
           iframe.contentWindow?.focus();
           iframe.contentWindow?.print();
+        } catch (e) {
+          console.error('Iframe print error:', e);
         } finally {
-          iframe.contentWindow?.addEventListener(
-            'afterprint',
-            () => {
-              iframe.remove();
-            },
-            { once: true }
-          );
+          setTimeout(() => {
+            iframe.remove();
+            URL.revokeObjectURL(blobUrl);
+          }, 3000);
         }
-      }, 300);
-    }
+      }, 400);
+    };
   }
 }
