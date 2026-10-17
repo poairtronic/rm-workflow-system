@@ -72,6 +72,11 @@ describe('Phase 13.5 Concurrency Hardening (e2e)', () => {
   const setupBaseData = async () => {
     const queryRunner = dataSource.createQueryRunner();
     await queryRunner.connect();
+    const dbUrl = process.env.DATABASE_URL || '';
+    if (dbUrl.includes('neon.tech') || dbUrl.includes('render.com') || process.env.NODE_ENV === 'production') {
+      console.warn('[SECURITY GUARD] Refusing to truncate cloud/remote database during test execution.');
+      return;
+    }
     // Ensure all tables are truncated before each test
     await queryRunner.manager.query(
       'TRUNCATE TABLE stock_transactions, material_issue_items, material_issues, stock_balances, material_return_items, material_returns, material_consumptions, material_receipt_items, material_receipts, additional_material_requests, rm_items, rm_requests, sales_order_components, purchase_orders, products, product_families, product_categories, bins, racks, warehouse_locations, warehouses, customers, users, roles CASCADE',

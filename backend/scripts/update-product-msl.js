@@ -173,7 +173,10 @@ async function run() {
   }
 }
 
-run().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (isMain) {
+  run().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

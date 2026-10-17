@@ -366,21 +366,25 @@ export function printReport<T>({
       }
     </style>
     <script>
-      function startPrint() {
+      function doPrint() {
+        try {
+          window.focus();
+          window.print();
+        } catch (e) {
+          console.error('Print trigger error:', e);
+        }
+      }
+      // Safe delayed trigger after document render
+      window.addEventListener('load', function() {
         setTimeout(function() {
           try {
             window.focus();
             window.print();
           } catch (e) {
-            console.error('Print trigger error:', e);
+            console.warn('Auto print deferred to manual button:', e);
           }
-        }, 400);
-      }
-      if (document.readyState === 'complete') {
-        startPrint();
-      } else {
-        window.addEventListener('load', startPrint);
-      }
+        }, 350);
+      });
     </script>
   </head>
   <body>
@@ -389,7 +393,7 @@ export function printReport<T>({
         <strong>Print Preview / Export</strong> — ${data.length} records ready to print or save as PDF.
       </div>
       <div>
-        <button class="btn-print" onclick="window.print()">🖨️ Print / Save as PDF</button>
+        <button class="btn-print" onclick="doPrint()">🖨️ Print / Save as PDF</button>
         <button class="btn-close" onclick="window.close()">✕ Close</button>
       </div>
     </div>
@@ -425,55 +429,58 @@ export function printReport<T>({
   </body>
 </html>`;
 
-  // Use a Blob URL so the new tab is a recognized document resource rather than about:blank
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const blobUrl = URL.createObjectURL(blob);
-
+  // Standard same-origin window ensures Edge, Chrome, Safari & Firefox render smoothly without freezing
   let printWindow: Window | null = null;
   try {
-    printWindow = window.open(blobUrl, '_blank');
+    printWindow = window.open('', '_blank');
   } catch (e) {
-    console.warn('Popup blocked, using hidden frame fallback', e);
+    console.warn('window.open prevented by browser:', e);
   }
 
-  if (printWindow) {
-    // Release the blob URL after 2 minutes so memory doesn't leak
+  if (printWindow && printWindow.document) {
+    try {
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      return;
+    } catch (e) {
+      console.warn('Direct document write error, falling back to off-screen frame:', e);
+    }
+  }
+
+  // Fallback if popup blockers prevented window.open: Use off-screen iframe (NOT opacity:0 which hangs Edge)
+  const existingFrame = document.getElementById('vsmart-print-frame');
+  if (existingFrame) existingFrame.remove();
+
+  const iframe = document.createElement('iframe');
+  iframe.id = 'vsmart-print-frame';
+  iframe.style.position = 'absolute';
+  iframe.style.top = '-99999px';
+  iframe.style.left = '-99999px';
+  iframe.style.width = '1024px';
+  iframe.style.height = '768px';
+  iframe.style.border = '0';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow?.document || iframe.contentDocument;
+  if (doc) {
+    doc.open();
+    // Remove inline auto-print script from iframe to avoid competing dual print calls
+    const cleanHtml = html.replace(/window\.addEventListener\('load'[\s\S]*?\}\);/g, '');
+    doc.write(cleanHtml);
+    doc.close();
+
     setTimeout(() => {
-      URL.revokeObjectURL(blobUrl);
-    }, 120000);
-  } else {
-    // Fallback if popup blockers prevented window.open
-    const existingFrame = document.getElementById('vsmart-print-frame');
-    if (existingFrame) existingFrame.remove();
-
-    const iframe = document.createElement('iframe');
-    iframe.id = 'vsmart-print-frame';
-    iframe.style.position = 'fixed';
-    iframe.style.top = '0';
-    iframe.style.left = '0';
-    iframe.style.width = '100vw';
-    iframe.style.height = '100vh';
-    iframe.style.border = '0';
-    iframe.style.opacity = '0';
-    iframe.style.pointerEvents = 'none';
-    iframe.style.zIndex = '-9999';
-    document.body.appendChild(iframe);
-
-    iframe.srcdoc = html;
-    iframe.onload = () => {
-      setTimeout(() => {
-        try {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-        } catch (e) {
-          console.error('Iframe print error:', e);
-        } finally {
-          setTimeout(() => {
-            iframe.remove();
-            URL.revokeObjectURL(blobUrl);
-          }, 3000);
-        }
-      }, 400);
-    };
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch (e) {
+        console.error('Iframe print error:', e);
+      } finally {
+        setTimeout(() => {
+          iframe.remove();
+        }, 2000);
+      }
+    }, 450);
   }
 }

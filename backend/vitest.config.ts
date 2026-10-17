@@ -8,7 +8,8 @@ export default defineConfig({
   test: {
     globals: true,
     root: './',
-    include: ['**/*.spec.ts'],
+    include: ['src/**/*.spec.ts'],
+    exclude: ['test/**', '**/node_modules/**', 'dist/**'],
     testTimeout: 120000,
     hookTimeout: 120000,
     setupFiles: ['dotenv/config'],

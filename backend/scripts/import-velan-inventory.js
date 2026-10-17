@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { PRODUCT_MSL_MAP } from './update-product-msl.js';
 
 // 51 Product Families from PDF 3
-const PRODUCT_FAMILIES = [
+export const PRODUCT_FAMILIES = [
   'ACCESSORIES',
   'ALUMINIUM BAR',
   'ALUMINIUM FLAT',
@@ -724,7 +724,11 @@ async function run() {
   }
 }
 
-run().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+import { fileURLToPath } from 'url';
+const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (isMain) {
+  run().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
