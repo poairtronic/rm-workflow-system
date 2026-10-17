@@ -377,11 +377,6 @@ export class CommunicationService {
           actorUserId,
         });
 
-      case 'MSL_LOW_STOCK':
-        return this.orchestrateChannelDelivery({
-          eventType: 'MSL_LOW_STOCK',
-          targetUsers,
-          targetEntity: 'PRODUCT',
       case 'MSL_LOW_STOCK': {
         const uomSuffix = input.metadata?.uom ? ` ${input.metadata.uom}` : '';
         return this.orchestrateChannelDelivery({
