@@ -140,80 +140,8 @@ export function printReport<T>({
     throw new Error('No data available to print.');
   }
 
-  // Create iframe for reliable printing without popup blocking
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = '0';
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentWindow?.document;
-  if (!doc) {
-    throw new Error('Unable to initialize print preview.');
-  }
-
-  const metaHtml = metadata
-    ? `
-    <div style="display: flex; flex-wrap: wrap; gap: 16px 24px; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 16px; font-size: 11px;">
-      ${Object.entries(metadata)
-        .filter(([, v]) => v !== undefined && v !== null && v !== '')
-        .map(
-          ([k, v]) => `
-          <div>
-            <span style="color: #64748b; font-weight: 500;">${k}:</span>
-            <span style="color: #0f172a; font-weight: 700; margin-left: 4px;">${v}</span>
-          </div>`
-        )
-        .join('')}
-    </div>`
-    : '';
-
-  const tableHeaders = columns
-    .map(
-      (c) => `
-      <th style="
-        border: 1px solid #cbd5e1;
-        padding: 7px 10px;
-        background: #f1f5f9;
-        color: #1e293b;
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        text-align: ${c.isNumeric ? 'right' : 'left'};
-        white-space: nowrap;
-      ">
-        ${c.header}
-      </th>`
-    )
-    .join('');
-
-  const tableRows = data
-    .map((item, idx) => {
-      const bg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
-      const cells = columns
-        .map((col) => {
-          const val = getCellValue(item, col);
-          const displayVal = val !== '' && val !== null && val !== undefined ? String(val) : '—';
-          return `
-            <td style="
-              border: 1px solid #e2e8f0;
-              padding: 6px 10px;
-              font-size: 11px;
-              color: #334155;
-              text-align: ${col.isNumeric ? 'right' : 'left'};
-              font-variant-numeric: tabular-nums;
-            ">
-              ${displayVal}
-            </td>`;
-        })
-        .join('');
-      return `<tr style="background: ${bg}; page-break-inside: avoid;">${cells}</tr>`;
-    })
-    .join('');
+  // Open a clean dedicated window for printing
+  const printWindow = window.open('', '_blank');
 
   const dateStr = new Date().toLocaleString('en-IN', {
     day: '2-digit',
@@ -223,133 +151,314 @@ export function printReport<T>({
     minute: '2-digit',
   });
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8" />
-        <title>${title}</title>
-        <style>
-          @page {
-            size: ${orientation};
-            margin: 12mm 10mm;
-          }
-          * {
-            box-sizing: border-box;
-          }
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            color: #0f172a;
-            margin: 0;
-            padding: 12px;
-            background: #ffffff;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-          .report-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            border-bottom: 2px solid #2563eb;
-            padding-bottom: 12px;
-            margin-bottom: 14px;
-          }
-          .brand-title {
-            font-size: 16px;
-            font-weight: 800;
-            color: #1e3a8a;
-            letter-spacing: -0.01em;
-            margin: 0 0 4px 0;
-            text-transform: uppercase;
-          }
-          .report-title {
-            font-size: 14px;
-            font-weight: 700;
-            color: #0f172a;
-            margin: 0 0 2px 0;
-          }
-          .report-subtitle {
-            font-size: 11px;
-            color: #64748b;
-            margin: 0;
-          }
-          .meta-box {
-            text-align: right;
-            font-size: 10.5px;
-            color: #64748b;
-            line-height: 1.4;
-          }
-          .meta-box strong {
-            color: #0f172a;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 6px;
-          }
-          thead {
-            display: table-header-group;
-          }
-          tbody {
-            display: table-row-group;
-          }
-          tr {
-            page-break-inside: avoid;
-          }
-          .footer-note {
-            margin-top: 14px;
-            padding-top: 8px;
-            border-top: 1px solid #e2e8f0;
-            display: flex;
-            justify-content: space-between;
-            font-size: 10px;
-            color: #94a3b8;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="report-header">
-          <div>
-            <div class="brand-title">V-SMART Material Governance</div>
-            <h1 class="report-title">${title}</h1>
-            ${subtitle ? `<p class="report-subtitle">${subtitle}</p>` : ''}
-          </div>
-          <div class="meta-box">
-            <div>Generated: <strong>${dateStr}</strong></div>
-            <div>Total Records: <strong>${data.length}</strong></div>
-            <div>Status: <strong>Official System Ledger</strong></div>
-          </div>
-        </div>
+  const metaHtml = metadata
+    ? `
+    <div class="meta-tags">
+      ${Object.entries(metadata)
+        .filter(([, v]) => v !== undefined && v !== null && v !== '')
+        .map(
+          ([k, v]) => `
+          <div class="meta-tag">
+            <span class="meta-label">${k}:</span>
+            <span class="meta-value">${v}</span>
+          </div>`
+        )
+        .join('')}
+    </div>`
+    : '';
 
-        ${metaHtml}
+  const tableHeaders = columns
+    .map(
+      (c) => `<th class="${c.isNumeric ? 'text-right' : 'text-left'}">${c.header}</th>`
+    )
+    .join('');
 
-        <table>
-          <thead>
-            <tr>${tableHeaders}</tr>
-          </thead>
-          <tbody>
-            ${tableRows}
-          </tbody>
-        </table>
+  const tableRows = data
+    .map((item) => {
+      const cells = columns
+        .map((col) => {
+          const val = getCellValue(item, col);
+          const displayVal = val !== '' && val !== null && val !== undefined ? String(val) : '—';
+          return `<td class="${col.isNumeric ? 'text-right' : 'text-left'}">${displayVal}</td>`;
+        })
+        .join('');
+      return `<tr>${cells}</tr>`;
+    })
+    .join('');
 
-        <div class="footer-note">
-          <span>Generated via V-SMART Material Governance System</span>
-          <span>Confidential — Internal Company Use Only</span>
-        </div>
-      </body>
-    </html>
-  `;
+  const html = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>${title} — V-SMART Report</title>
+    <style>
+      @page {
+        size: ${orientation};
+        margin: 10mm 8mm;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        color: #0f172a;
+        margin: 0;
+        padding: 16px;
+        background: #ffffff;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .no-print {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #1e293b;
+        color: #ffffff;
+        padding: 10px 16px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      }
+      .no-print button {
+        border: none;
+        padding: 6px 14px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: opacity 0.2s;
+      }
+      .btn-print {
+        background: #2563eb;
+        color: white;
+      }
+      .btn-print:hover {
+        background: #1d4ed8;
+      }
+      .btn-close {
+        background: #475569;
+        color: white;
+        margin-left: 8px;
+      }
+      .btn-close:hover {
+        background: #334155;
+      }
+      .report-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 2px solid #2563eb;
+        padding-bottom: 10px;
+        margin-bottom: 12px;
+      }
+      .brand-title {
+        font-size: 16px;
+        font-weight: 800;
+        color: #1e3a8a;
+        letter-spacing: -0.01em;
+        margin: 0 0 4px 0;
+        text-transform: uppercase;
+      }
+      .report-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0 0 2px 0;
+      }
+      .report-subtitle {
+        font-size: 11.5px;
+        color: #64748b;
+        margin: 0;
+      }
+      .meta-box {
+        text-align: right;
+        font-size: 11px;
+        color: #64748b;
+        line-height: 1.45;
+      }
+      .meta-box strong {
+        color: #0f172a;
+      }
+      .meta-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 20px;
+        padding: 8px 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        margin-bottom: 12px;
+        font-size: 11px;
+      }
+      .meta-label {
+        color: #64748b;
+        font-weight: 500;
+      }
+      .meta-value {
+        color: #0f172a;
+        font-weight: 700;
+        margin-left: 4px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 4px;
+      }
+      thead {
+        display: table-header-group;
+      }
+      tbody {
+        display: table-row-group;
+      }
+      tr {
+        page-break-inside: avoid;
+      }
+      tr:nth-child(even) {
+        background: #f8fafc;
+      }
+      th {
+        border: 1px solid #cbd5e1;
+        padding: 7px 10px;
+        background: #f1f5f9;
+        color: #1e293b;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+      }
+      td {
+        border: 1px solid #e2e8f0;
+        padding: 6px 10px;
+        font-size: 11px;
+        color: #334155;
+        font-variant-numeric: tabular-nums;
+      }
+      .text-right {
+        text-align: right;
+      }
+      .text-left {
+        text-align: left;
+      }
+      .footer-note {
+        margin-top: 14px;
+        padding-top: 8px;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        font-size: 10px;
+        color: #94a3b8;
+      }
+      @media print {
+        .no-print {
+          display: none !important;
+        }
+        body {
+          padding: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="no-print">
+      <div>
+        <strong>Print Preview / Export</strong> — ${data.length} records ready to print or save as PDF.
+      </div>
+      <div>
+        <button class="btn-print" onclick="window.print()">🖨️ Print / Save as PDF</button>
+        <button class="btn-close" onclick="window.close()">✕ Close</button>
+      </div>
+    </div>
 
-  doc.open();
-  doc.write(html);
-  doc.close();
+    <div class="report-header">
+      <div>
+        <div class="brand-title">V-SMART Material Governance</div>
+        <h1 class="report-title">${title}</h1>
+        ${subtitle ? `<p class="report-subtitle">${subtitle}</p>` : ''}
+      </div>
+      <div class="meta-box">
+        <div>Generated: <strong>${dateStr}</strong></div>
+        <div>Total Records: <strong>${data.length}</strong></div>
+        <div>Status: <strong>Official System Ledger</strong></div>
+      </div>
+    </div>
 
-  setTimeout(() => {
-    iframe.contentWindow?.focus();
-    iframe.contentWindow?.print();
-    // Cleanup after print dialog closes
-    setTimeout(() => {
-      document.body.removeChild(iframe);
-    }, 2000);
-  }, 300);
+    ${metaHtml}
+
+    <table>
+      <thead>
+        <tr>${tableHeaders}</tr>
+      </thead>
+      <tbody>
+        ${tableRows}
+      </tbody>
+    </table>
+
+    <div class="footer-note">
+      <span>Generated via V-SMART Material Governance System</span>
+      <span>Confidential — Internal Company Use Only</span>
+    </div>
+  </body>
+</html>`;
+
+  if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    const triggerPrint = () => {
+      try {
+        printWindow.focus();
+        printWindow.print();
+      } catch (e) {
+        console.error('Print trigger error:', e);
+      }
+    };
+
+    if (printWindow.document.readyState === 'complete') {
+      setTimeout(triggerPrint, 150);
+    } else {
+      printWindow.onload = () => setTimeout(triggerPrint, 150);
+    }
+  } else {
+    // Fallback if popups are blocked by browser policy
+    const existingFrame = document.getElementById('vsmart-print-frame');
+    if (existingFrame) existingFrame.remove();
+
+    const iframe = document.createElement('iframe');
+    iframe.id = 'vsmart-print-frame';
+    iframe.style.position = 'fixed';
+    iframe.style.top = '-10000px';
+    iframe.style.left = '-10000px';
+    iframe.style.width = '1024px';
+    iframe.style.height = '768px';
+    iframe.style.border = '0';
+    iframe.style.opacity = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(html);
+      doc.close();
+
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } finally {
+          iframe.contentWindow?.addEventListener(
+            'afterprint',
+            () => {
+              iframe.remove();
+            },
+            { once: true }
+          );
+        }
+      }, 300);
+    }
+  }
 }
