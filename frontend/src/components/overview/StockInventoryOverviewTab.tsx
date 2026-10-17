@@ -29,80 +29,80 @@ export function StockInventoryOverviewTab({ data }: StockInventoryOverviewTabPro
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* 4 Quick Stat Metric Tiles */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="p-4 bg-white rounded-xl border border-slate-200">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-semibold uppercase">Total Stock Balance</span>
-            <Box className="w-4 h-4 text-emerald-500" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
+        <div className="p-3.5 sm:p-4 bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-[#1e233d] shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1.5 sm:mb-2">
+            <span className="text-[10px] sm:text-xs font-semibold uppercase truncate">Total Stock Balance</span>
+            <Box className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500 shrink-0 ml-1" />
           </div>
-          <p className="text-2xl font-bold text-slate-900">
+          <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">
             {Number(data.totalStockQuantity).toLocaleString()}
           </p>
-          <p className="text-xs text-slate-500 mt-1">Aggregated physical inventory</p>
+          <p className="text-[10px] sm:text-xs text-slate-500 dark:text-[#8896ab] mt-0.5 sm:mt-1 truncate">Physical inventory</p>
         </div>
 
-        <div className="p-4 bg-white rounded-xl border border-slate-200">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-semibold uppercase">Active Warehouse Locations</span>
-            <ArrowDownLeft className="w-4 h-4 text-blue-500" />
+        <div className="p-3.5 sm:p-4 bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-[#1e233d] shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1.5 sm:mb-2">
+            <span className="text-[10px] sm:text-xs font-semibold uppercase truncate">Warehouse Bins</span>
+            <ArrowDownLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500 shrink-0 ml-1" />
           </div>
-          <p className="text-2xl font-bold text-blue-600">
+          <p className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400 truncate">
             {data.totalStockBalances}
           </p>
-          <p className="text-xs text-slate-500 mt-1">Populated bin allocations</p>
+          <p className="text-[10px] sm:text-xs text-slate-500 dark:text-[#8896ab] mt-0.5 sm:mt-1 truncate">Bin allocations</p>
         </div>
 
-        <div className="p-4 bg-white rounded-xl border border-slate-200">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-semibold uppercase">Stock Transactions</span>
-            <ArrowUpRightIcon className="w-4 h-4 text-indigo-500" />
+        <div className="p-3.5 sm:p-4 bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-[#1e233d] shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1.5 sm:mb-2">
+            <span className="text-[10px] sm:text-xs font-semibold uppercase truncate">Stock Transactions</span>
+            <ArrowUpRightIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-500 shrink-0 ml-1" />
           </div>
-          <p className="text-2xl font-bold text-indigo-600">
+          <p className="text-xl sm:text-2xl font-bold text-indigo-600 dark:text-indigo-400 truncate">
             {totalMovementsCount}
           </p>
-          <p className="text-xs text-slate-500 mt-1">Total movements tracked</p>
+          <p className="text-[10px] sm:text-xs text-slate-500 dark:text-[#8896ab] mt-0.5 sm:mt-1 truncate">Movements tracked</p>
         </div>
 
-        <div className="p-4 bg-white rounded-xl border border-slate-200">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-semibold uppercase">Low Stock Alerts</span>
-            <AlertCircle className={`w-4 h-4 ${data.lowStockCount > 0 ? 'text-rose-500' : 'text-slate-400'}`} />
+        <div className="p-3.5 sm:p-4 bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-[#1e233d] shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1.5 sm:mb-2">
+            <span className="text-[10px] sm:text-xs font-semibold uppercase truncate">Low Stock Alerts</span>
+            <AlertCircle className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ml-1 ${data.lowStockCount > 0 ? 'text-rose-500' : 'text-slate-400'}`} />
           </div>
-          <p className={`text-2xl font-bold ${data.lowStockCount > 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+          <p className={`text-xl sm:text-2xl font-bold truncate ${data.lowStockCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
             {data.lowStockCount}
           </p>
-          <p className="text-xs text-slate-500 mt-1">Items below defined MSL</p>
+          <p className="text-[10px] sm:text-xs text-slate-500 dark:text-[#8896ab] mt-0.5 sm:mt-1 truncate">Below defined MSL</p>
         </div>
       </div>
 
       {/* Visual Charts: Bar Chart & Pie Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Movements by Type Bar Chart */}
-        <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h4 className="text-sm font-semibold text-slate-900">Inventory Activity by Transaction Type</h4>
-              <p className="text-xs text-slate-500">Frequency of stock-in, issues, consumptions, and returns</p>
+        <div className="p-4 sm:p-5 bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-[#1e233d] shadow-xs flex flex-col w-full max-w-full min-w-0 overflow-hidden">
+          <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+            <div className="min-w-0">
+              <h4 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white truncate">Inventory Activity by Transaction Type</h4>
+              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-[#8896ab] truncate">Stock-in, issues, consumptions & returns</p>
             </div>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+            <span className="text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-[#1e233d] text-slate-700 dark:text-slate-300 shrink-0">
               Bar Chart
             </span>
           </div>
 
-          <div className="h-64 w-full">
+          <div className="h-64 sm:h-72 w-full max-w-full min-w-0 overflow-hidden">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData} margin={{ top: 10, right: 10, left: -20, bottom: 25 }}>
+              <BarChart data={barData} margin={{ top: 10, right: 10, left: -25, bottom: 25 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255, 255, 255, 0.08)" />
                 <XAxis
                   dataKey="name"
                   interval={0}
                   angle={-15}
                   textAnchor="end"
-                  tick={{ fontSize: 10, fill: '#94a3b8' }}
+                  tick={{ fontSize: 9, fill: '#94a3b8' }}
                   axisLine={false}
                   tickLine={false}
                 />
-                <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                 <Tooltip
                   cursor={{ fill: 'rgba(255, 255, 255, 0.04)' }}
                   formatter={(val: any) => [`${val} transactions`, 'Count']}
@@ -116,18 +116,18 @@ export function StockInventoryOverviewTab({ data }: StockInventoryOverviewTabPro
         </div>
 
         {/* Top Stock Volumes Donut Chart */}
-        <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h4 className="text-sm font-semibold text-slate-900">Highest Volume Stock Materials</h4>
-              <p className="text-xs text-slate-500">Distribution among the top 5 stocked raw materials</p>
+        <div className="p-4 sm:p-5 bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-[#1e233d] shadow-xs flex flex-col w-full max-w-full min-w-0 overflow-hidden">
+          <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+            <div className="min-w-0">
+              <h4 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white truncate">Highest Volume Stock Materials</h4>
+              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-[#8896ab] truncate">Top 5 stocked raw materials</p>
             </div>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
-              Donut Chart
+            <span className="text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-[#1e233d] text-slate-700 dark:text-slate-300 shrink-0">
+              Donut
             </span>
           </div>
 
-          <div className="h-64 w-full">
+          <div className="h-64 sm:h-72 w-full max-w-full min-w-0 overflow-hidden">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -163,63 +163,63 @@ export function StockInventoryOverviewTab({ data }: StockInventoryOverviewTabPro
       </div>
 
       {/* Top Stock Items Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-          <div>
-            <h4 className="text-sm font-semibold text-slate-900">Highest Stocked Materials & Locations</h4>
-            <p className="text-xs text-slate-500">Live storage allocations in bins and warehouse zones</p>
+      <div className="bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-[#1e233d] shadow-xs overflow-hidden">
+        <div className="p-3.5 sm:p-4 border-b border-slate-200 dark:border-[#1e233d] flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h4 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white truncate">Highest Stocked Materials & Locations</h4>
+            <p className="text-[10px] sm:text-xs text-slate-500 dark:text-[#8896ab] truncate">Storage allocations in bins and zones</p>
           </div>
           <Link
             to="/inventory/stock"
-            className="text-xs font-medium text-primary hover:underline flex items-center gap-1"
+            className="text-xs font-medium text-primary dark:text-indigo-400 hover:underline flex items-center gap-1 shrink-0"
           >
-            Full Stock Overview
+            Stock
             <ArrowUpRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+        <div className="overflow-x-auto touch-pan-x">
+          <table className="w-full text-left text-xs whitespace-nowrap min-w-[620px]">
+            <thead className="bg-slate-50 dark:bg-[#0e111f] text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-[#1e233d]">
               <tr>
-                <th className="py-2.5 px-4">Item Code</th>
-                <th className="py-2.5 px-4">Material / Product Name</th>
-                <th className="py-2.5 px-4">Warehouse Zone</th>
-                <th className="py-2.5 px-4">Bin Code</th>
-                <th className="py-2.5 px-4 text-center">UOM</th>
-                <th className="py-2.5 px-4 text-right">Current Stock</th>
-                <th className="py-2.5 px-4 text-right">Min Stock (MSL)</th>
+                <th className="py-2.5 px-3 sm:px-4">Item Code</th>
+                <th className="py-2.5 px-3 sm:px-4">Material / Product Name</th>
+                <th className="py-2.5 px-3 sm:px-4">Warehouse Zone</th>
+                <th className="py-2.5 px-3 sm:px-4">Bin Code</th>
+                <th className="py-2.5 px-3 sm:px-4 text-center">UOM</th>
+                <th className="py-2.5 px-3 sm:px-4 text-right">Current Stock</th>
+                <th className="py-2.5 px-3 sm:px-4 text-right">Min Stock (MSL)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700">
+            <tbody className="divide-y divide-slate-100 dark:divide-[#1e233d] text-slate-700 dark:text-slate-300">
               {data.topStockItems.map((item) => {
                 const currentQty = Number(item.current_quantity);
                 const minQty = Number(item.minimum_inventory);
                 const isLow = minQty > 0 && currentQty < minQty;
 
                 return (
-                  <tr key={item.product_id + item.bin_code} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-2.5 px-4 font-mono font-medium text-slate-900">
+                  <tr key={item.product_id + item.bin_code} className="hover:bg-slate-50/80 dark:hover:bg-[#161a2e] transition-colors">
+                    <td className="py-2.5 px-3 sm:px-4 font-mono font-medium text-slate-900 dark:text-white">
                       {item.product_code || '—'}
                     </td>
-                    <td className="py-2.5 px-4 font-medium text-slate-800">
+                    <td className="py-2.5 px-3 sm:px-4 font-medium text-slate-800 dark:text-slate-200">
                       {item.product_name}
                     </td>
-                    <td className="py-2.5 px-4 text-slate-600">
+                    <td className="py-2.5 px-3 sm:px-4 text-slate-600 dark:text-slate-400">
                       {item.warehouse_name || 'VELAN STORES'}
                     </td>
-                    <td className="py-2.5 px-4 font-mono text-indigo-600">
+                    <td className="py-2.5 px-3 sm:px-4 font-mono text-indigo-600 dark:text-indigo-400">
                       {item.bin_code}
                     </td>
-                    <td className="py-2.5 px-4 text-center font-bold text-slate-500">
+                    <td className="py-2.5 px-3 sm:px-4 text-center font-bold text-slate-500 dark:text-slate-400">
                       {item.uom || 'KG'}
                     </td>
-                    <td className="py-2.5 px-4 text-right font-bold text-emerald-600">
+                    <td className="py-2.5 px-3 sm:px-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
                       {currentQty.toLocaleString()}
                     </td>
-                    <td className="py-2.5 px-4 text-right">
+                    <td className="py-2.5 px-3 sm:px-4 text-right">
                       {minQty > 0 ? (
-                        <span className={`font-semibold ${isLow ? 'text-rose-600' : 'text-slate-500'}`}>
+                        <span className={`font-semibold ${isLow ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}>
                           {minQty.toLocaleString()} {isLow && '⚠️'}
                         </span>
                       ) : (

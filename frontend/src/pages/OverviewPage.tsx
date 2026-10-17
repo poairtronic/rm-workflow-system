@@ -30,34 +30,34 @@ export function OverviewPage() {
   });
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-10">
+    <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto pb-10 w-full max-w-full overflow-x-hidden">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-3 border-b border-slate-200 dark:border-[#1a1e33]">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
             System Overview & Operations Command
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-[#8896ab] mt-0.5 sm:mt-1">
             Real-time operational intelligence across RM Workflows, Inventory Balances, and Delivery Challans
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <button
             onClick={() => refetch()}
             disabled={isFetching}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2.5 min-h-[44px] text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-[#121526] border border-slate-300 dark:border-[#1e233d] rounded-xl hover:bg-slate-50 dark:hover:bg-[#161a2e] transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
-            {isFetching ? 'Refreshing...' : 'Refresh Live Data'}
+            <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isFetching ? 'animate-spin' : ''}`} />
+            <span>{isFetching ? 'Refreshing...' : 'Refresh'}</span>
           </button>
 
           <Link
             to="/reports/generation"
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2.5 min-h-[44px] text-xs font-semibold text-white bg-primary dark:bg-indigo-600 rounded-xl hover:bg-primary/90 dark:hover:bg-indigo-500 transition-colors shadow-2xs cursor-pointer text-center"
           >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            Enterprise Reports
+            <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Reports</span>
           </Link>
         </div>
       </div>

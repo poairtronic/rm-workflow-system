@@ -74,7 +74,7 @@ export function BottomNav() {
             <NavLink
               key={item.path}
               to={item.path}
-              className={({ isActive }) =>
+              className={({ isActive }: { isActive: boolean }) =>
                 `flex flex-col items-center justify-center h-full py-1 px-1 transition-all relative select-none cursor-pointer ${
                   isActive
                     ? 'text-primary dark:text-indigo-400 font-bold'
@@ -82,7 +82,7 @@ export function BottomNav() {
                 }`
               }
             >
-              {({ isActive }) => (
+              {({ isActive }: { isActive: boolean }) => (
                 <>
                   {isActive && (
                     <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary dark:bg-indigo-500 rounded-full shadow-xs" />
