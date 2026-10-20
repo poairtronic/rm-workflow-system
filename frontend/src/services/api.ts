@@ -496,6 +496,8 @@ export const deliveryChallanApi = {
           ...(i.targetBinId && { targetBinId: i.targetBinId }),
           ...(i.actualInwardQty !== undefined && { actualInwardQty: Number(i.actualInwardQty) }),
           ...(i.actualReceivedQty !== undefined && { actualReceivedQty: Number(i.actualReceivedQty) }),
+          ...(i.expectedReturnQty !== undefined && i.expectedReturnQty !== null && { expectedReturnQty: Number(i.expectedReturnQty) }),
+          ...(i.expectedOutputQuantity !== undefined && i.expectedOutputQuantity !== null && { expectedOutputQuantity: Number(i.expectedOutputQuantity) }),
           ...(i.remarks && { remarks: i.remarks }),
         };
       })

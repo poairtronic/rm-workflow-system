@@ -94,11 +94,13 @@ export function QcInspectionModal({ isOpen, onClose, dc, onSuccess }: QcInspecti
     let isValid = true;
 
     for (const item of dc.items) {
-      const dispatched = Number(item.quantityDispatched || 0);
+      const target = !isType1
+        ? Number(item.expectedReturnQty ?? item.expectedOutputQuantity ?? item.quantityDispatched ?? 0)
+        : Number(item.quantityDispatched || 0);
       const pendingQc = Number(item.qcPendingQty || 0);
       const passedSoFar = Number(item.qcPassedQty || 0);
       const rejectedSoFar = Number(item.qcRejectedQty || 0);
-      const stillAtVendor = Math.max(0, dispatched - (pendingQc + passedSoFar + rejectedSoFar));
+      const stillAtVendor = Math.max(0, target - (pendingQc + passedSoFar + rejectedSoFar));
       totalPending += pendingQc;
       totalStillAtVendor += stillAtVendor;
 
@@ -210,10 +212,12 @@ export function QcInspectionModal({ isOpen, onClose, dc, onSuccess }: QcInspecti
         <form id="qc-form" onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6 flex-1">
           {dc.items.map((item, idx) => {
             const pendingQc = Number(item.qcPendingQty || 0);
-            const dispatched = Number(item.quantityDispatched || 0);
+            const target = !isType1
+              ? Number(item.expectedReturnQty ?? item.expectedOutputQuantity ?? item.quantityDispatched ?? 0)
+              : Number(item.quantityDispatched || 0);
             const passedSoFar = Number(item.qcPassedQty || 0);
             const rejectedSoFar = Number(item.qcRejectedQty || 0);
-            const stillAtVendor = Math.max(0, dispatched - (pendingQc + passedSoFar + rejectedSoFar));
+            const stillAtVendor = Math.max(0, target - (pendingQc + passedSoFar + rejectedSoFar));
 
             const state = qcItems[item.id] || {
               passedQty: 0,
@@ -255,8 +259,8 @@ export function QcInspectionModal({ isOpen, onClose, dc, onSuccess }: QcInspecti
 
                   {/* Quantity Matrix Status Badges */}
                   <div className="flex flex-wrap items-center gap-1.5 text-xs tabular-nums">
-                    <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200" title="Original Dispatched Quantity">
-                      Sent: <strong className="font-mono">{dispatched}</strong>
+                    <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200" title={isType1 ? "Original Dispatched Quantity" : "Expected Output / Return Quantity"}>
+                      {isType1 ? 'Sent' : 'Expected'}: <strong className="font-mono">{target}</strong>
                     </span>
                     <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200" title="Previously QC Passed">
                       Passed: <strong className="font-mono">{passedSoFar}</strong>

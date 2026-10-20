@@ -224,16 +224,22 @@ export function DockReceiptWorkspace() {
     const isType1 = dc.type === 'PRODUCTION_PROCESS_OUTWARD';
     methods.reset({
       items: (dc.items || []).map((item: any) => {
-        const expected = !isType1 && item.expectedOutputQuantity
-          ? Number(item.expectedOutputQuantity)
+        const expected = !isType1
+          ? Number(item.expectedReturnQty ?? item.expectedOutputQuantity ?? item.quantityDispatched)
           : Number(item.quantityDispatched);
-        const remaining = Math.max(0, expected - Number(item.quantityReturned || 0));
+        const alreadyAccounted =
+          Number(item.qcPendingQty || 0) +
+          Number(item.qcPassedQty || 0) +
+          Number(item.qcRejectedQty || 0);
+        const remaining = Math.max(0, expected - alreadyAccounted);
         return {
           itemId: item.id,
+          expectedReturnQty: expected,
+          expectedOutputQuantity: expected,
           returnedProductId: item.outputProductId || item.productId,
           destinationBinId: item.outputBinId || item.binId || '',
           receivedQuantity: remaining,
-          actualReceivedQty: Number(item.actualReceivedQty || item.expectedOutputQuantity || remaining),
+          actualReceivedQty: Number(item.actualReceivedQty || expected || remaining),
           usableQuantity: remaining,
           scrapQuantity: 0,
           _isSplit: false,
@@ -249,6 +255,8 @@ export function DockReceiptWorkspace() {
         .filter((i: any) => Number(i.receivedQuantity) > 0)
         .map((i: any) => ({
           itemId: i.itemId,
+          expectedReturnQty: i.expectedReturnQty !== undefined && i.expectedReturnQty !== null ? Number(i.expectedReturnQty) : undefined,
+          expectedOutputQuantity: i.expectedReturnQty !== undefined && i.expectedReturnQty !== null ? Number(i.expectedReturnQty) : undefined,
           quantityToReturn: Number(i.receivedQuantity),
           receivedQuantity: Number(i.receivedQuantity),
           returnedProductId: i.returnedProductId || undefined,
@@ -320,10 +328,14 @@ export function DockReceiptWorkspace() {
   const isClosed = selectedDc?.status === 'CLOSED' || selectedDc?.status === 'RETURNED';
   const hasRemainingItems = (selectedDc?.items || []).some((item: any) => {
     const isType1 = selectedDc?.type === 'PRODUCTION_PROCESS_OUTWARD';
-    const expected = !isType1 && item.expectedOutputQuantity
-      ? Number(item.expectedOutputQuantity)
+    const expected = !isType1
+      ? Number(item.expectedReturnQty ?? item.expectedOutputQuantity ?? item.quantityDispatched)
       : Number(item.quantityDispatched);
-    return expected > Number(item.quantityReturned || 0);
+    const alreadyAccounted =
+      Number(item.qcPendingQty || 0) +
+      Number(item.qcPassedQty || 0) +
+      Number(item.qcRejectedQty || 0);
+    return expected > alreadyAccounted;
   });
   const canReturn = selectedDc && !isClosed && hasRemainingItems;
   const canClose = selectedDc && !isClosed;

@@ -48,7 +48,7 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
               <th className="px-4 py-3">Dispatched Item</th>
               <th className="px-4 py-3">Inward Returned Product</th>
               {!isType1 && <th className="px-4 py-3">Destination Bin</th>}
-              <th className="px-4 py-3 text-right">{isType1 ? 'Dispatched' : 'Target Expected'}</th>
+              <th className="px-4 py-3 text-right">{isType1 ? 'Dispatched' : 'Target Expected (Editable)'}</th>
               <th className="px-4 py-3 text-right">Already Returned</th>
               <th className="px-4 py-3 text-right">Balance at Vendor</th>
               <th className="px-4 py-3 text-right">Dock Inward Qty (to QC)</th>
@@ -62,14 +62,23 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
               const originalItem = dc.items?.find((item: any) => item.id === (field as any).itemId) || dc.items?.[index];
               const dispProduct = products?.find((p: any) => p.id === originalItem?.productId);
               
-              const targetQty = !isType1 && originalItem?.expectedOutputQuantity
-                ? Number(originalItem.expectedOutputQuantity)
+              const alreadyAccounted =
+                Number(originalItem?.qcPendingQty || 0) +
+                Number(originalItem?.qcPassedQty || 0) +
+                Number(originalItem?.qcRejectedQty || 0);
+
+              const currentExpectedInput = formItems[index]?.expectedReturnQty;
+              const targetQty = !isType1
+                ? (currentExpectedInput !== undefined && currentExpectedInput !== null && !isNaN(Number(currentExpectedInput)) && Number(currentExpectedInput) > 0
+                    ? Number(currentExpectedInput)
+                    : Number(originalItem?.expectedReturnQty ?? originalItem?.expectedOutputQuantity ?? originalItem?.quantityDispatched ?? 0))
                 : Number(originalItem?.quantityDispatched || 0);
 
-              const returnedQty = Number(originalItem?.quantityReturned || 0);
-              const remaining = Math.max(0, targetQty - returnedQty);
+              const returnedQty = alreadyAccounted;
+              const remaining = Math.max(0, targetQty - alreadyAccounted);
               
               const receivedQty = Number(formItems[index]?.receivedQuantity || 0);
+              const balanceAtVendor = Math.max(0, remaining - receivedQty);
               const variance = remaining - receivedQty;
               const isShortfall = variance < 0;
 
@@ -149,13 +158,45 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
                   )}
 
                   <td className="px-4 py-3 text-right tabular-nums text-slate-600 font-medium">
-                    {targetQty}
+                    {isType1 || isClosed ? (
+                      <span>{targetQty}</span>
+                    ) : (
+                      <div className="flex flex-col items-end">
+                        <input
+                          type="number"
+                          step="0.001"
+                          min={alreadyAccounted}
+                          {...register(`items.${index}.expectedReturnQty` as const, {
+                            required: 'Required',
+                            valueAsNumber: true,
+                            min: { value: alreadyAccounted, message: `Min ${alreadyAccounted}` },
+                            onChange: (e) => {
+                              const newTarget = Number(e.target.value);
+                              setValue(`items.${index}.expectedOutputQuantity`, newTarget);
+                              const newRemaining = Math.max(0, newTarget - alreadyAccounted);
+                              const curReceived = Number(formItems[index]?.receivedQuantity || 0);
+                              if (curReceived > newRemaining || curReceived === 0) {
+                                setValue(`items.${index}.receivedQuantity`, newRemaining);
+                                setValue(`items.${index}.actualReceivedQty`, newRemaining);
+                                if (!isSplit) {
+                                  setValue(`items.${index}.usableQuantity`, newRemaining);
+                                  setValue(`items.${index}.scrapQuantity`, 0);
+                                }
+                              }
+                            },
+                          })}
+                          className="w-24 h-10 px-3 rounded-lg border border-blue-200 bg-blue-50/40 text-sm text-right tabular-nums font-semibold text-blue-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                          title="Revise expected return quantity if vendor yield is different"
+                        />
+                        <span className="text-[10px] text-blue-600 mt-0.5">Edit Target</span>
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-slate-600 font-medium">
                     {returnedQty}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-primary font-medium">
-                    {remaining}
+                    {balanceAtVendor}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {isClosed || remaining <= 0 ? (

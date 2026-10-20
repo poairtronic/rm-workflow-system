@@ -251,6 +251,91 @@ describe('Phase 23 — DC Quality Check Gate, Rework Module & Split Accounting (
         )
       ).rejects.toThrow(BadRequestException);
     });
+
+    it('supports Type 2 revised expected return: changes 100 expected to 95 and inwards 40 partial units', async () => {
+      const mockDc: any = {
+        id: 'dc-type2',
+        challanNumber: 'SDC/2627/0002',
+        type: DeliveryChallanType.GENERAL_INVENTORY_OUTWARD,
+        status: DeliveryChallanStatus.DISPATCHED,
+      };
+
+      const mockItem: any = {
+        id: 'item-t2',
+        challanId: 'dc-type2',
+        quantityDispatched: 50,
+        expectedOutputQuantity: 100, // Originally expected 100
+        qcPendingQty: 0,
+        qcPassedQty: 0,
+        qcRejectedQty: 0,
+      };
+
+      managerChallanRepo.findOne.mockResolvedValue(mockDc);
+      mockQueryRunner.manager.find.mockResolvedValue([mockItem]);
+
+      const result = await service.processChallanReturn(
+        'dc-type2',
+        {
+          actualReceiptDate: new Date().toISOString(),
+          verificationRemarks: 'Vendor revised output to 95, received 40 today',
+          items: [
+            {
+              itemId: 'item-t2',
+              expectedReturnQty: 95, // Revised to 95
+              receivedQty: 40,
+            },
+          ],
+        },
+        'stores-user'
+      );
+
+      // Verify that expected quantities were updated to 95
+      expect(mockItem.expectedReturnQty).toBe(95);
+      expect(mockItem.expectedOutputQuantity).toBe(95);
+      // Verify qcPendingQty is incremented by 40
+      expect(mockItem.qcPendingQty).toBe(40);
+      expect(result.status).toBe(DeliveryChallanStatus.PARTIALLY_RETURNED);
+    });
+
+    it('rejects revising expected return below already received/accounted quantity', async () => {
+      const mockDc: any = {
+        id: 'dc-type2',
+        challanNumber: 'SDC/2627/0002',
+        type: DeliveryChallanType.GENERAL_INVENTORY_OUTWARD,
+        status: DeliveryChallanStatus.PARTIALLY_RETURNED,
+      };
+
+      const mockItem: any = {
+        id: 'item-t2',
+        challanId: 'dc-type2',
+        quantityDispatched: 50,
+        expectedOutputQuantity: 95,
+        qcPendingQty: 40, // 40 already received
+        qcPassedQty: 0,
+        qcRejectedQty: 0,
+      };
+
+      managerChallanRepo.findOne.mockResolvedValue(mockDc);
+      mockQueryRunner.manager.find.mockResolvedValue([mockItem]);
+
+      // Attempting to set expected to 30 when 40 is already in QC
+      await expect(
+        service.processChallanReturn(
+          'dc-type2',
+          {
+            actualReceiptDate: new Date().toISOString(),
+            items: [
+              {
+                itemId: 'item-t2',
+                expectedReturnQty: 30,
+                receivedQty: 5,
+              },
+            ],
+          },
+          'stores-user'
+        )
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 
   describe('Step 2: Quality Check (QC) Gate Verification (qcInspectChallan)', () => {

@@ -808,13 +808,33 @@ export class DeliveryChallanService {
           throw new BadRequestException(`Received quantity must be greater than zero for item ${dtoItem.itemId}`);
         }
 
-        // Validate that receivedQty does not exceed remaining unreturned balance at vendor
-        const totalDispatched = Number(challanItem.quantityDispatched);
+        const isType1 = challan.type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD;
         const alreadyAccounted =
           Number(challanItem.qcPendingQty || 0) +
           Number(challanItem.qcPassedQty || 0) +
           Number(challanItem.qcRejectedQty || 0);
-        const vendorPending = Math.max(0, totalDispatched - alreadyAccounted);
+
+        // For Type 2: allow revising the expected return quantity (e.g. from 100 to 95)
+        if (!isType1) {
+          const newExpected = dtoItem.expectedReturnQty ?? dtoItem.expectedOutputQuantity;
+          if (newExpected !== undefined && newExpected !== null && Number(newExpected) > 0) {
+            const parsedExpected = Number(newExpected);
+            if (parsedExpected < alreadyAccounted) {
+              throw new BadRequestException(
+                `Revised expected return quantity (${parsedExpected}) cannot be less than already received/accounted quantity (${alreadyAccounted}) for item ${dtoItem.itemId}`
+              );
+            }
+            challanItem.expectedReturnQty = parsedExpected;
+            challanItem.expectedOutputQuantity = parsedExpected;
+          }
+        }
+
+        // Validate that receivedQty does not exceed remaining unreturned balance at vendor
+        const totalTarget = !isType1
+          ? Number(challanItem.expectedReturnQty ?? challanItem.expectedOutputQuantity ?? challanItem.quantityDispatched)
+          : Number(challanItem.quantityDispatched);
+
+        const vendorPending = Math.max(0, totalTarget - alreadyAccounted);
 
         if (qtyReceived > vendorPending + 0.0001) {
           throw new BadRequestException(
@@ -826,7 +846,7 @@ export class DeliveryChallanService {
         challanItem.qcPendingQty = Number(challanItem.qcPendingQty || 0) + qtyReceived;
 
         // For Type 2: store editable actualReceivedQty and returnTargetBinId
-        if (challan.type === DeliveryChallanType.GENERAL_INVENTORY_OUTWARD) {
+        if (!isType1) {
           if (dtoItem.actualInwardQty !== undefined && dtoItem.actualInwardQty !== null) {
             challanItem.actualReceivedQty = Number(dtoItem.actualInwardQty);
           } else if (dtoItem.actualReceivedQty !== undefined && dtoItem.actualReceivedQty !== null) {
@@ -1059,11 +1079,14 @@ export class DeliveryChallanService {
 
       // 5. Evaluate parent DC status
       const updatedItems = await itemRepo.find({ where: { challanId: challan.id } });
+      const isType1 = challan.type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD;
       const allFullyAccounted = updatedItems.every(i => {
-        const dispatched = Number(i.quantityDispatched);
+        const target = !isType1
+          ? Number(i.expectedReturnQty ?? i.expectedOutputQuantity ?? i.quantityDispatched)
+          : Number(i.quantityDispatched);
         const accounted = Number(i.qcPassedQty || 0) + Number(i.qcRejectedQty || 0);
         const inQc = Number(i.qcPendingQty || 0);
-        return accounted >= dispatched && inQc <= 0.0001;
+        return accounted >= target - 0.0001 && inQc <= 0.0001;
       });
 
       if (allFullyAccounted) {

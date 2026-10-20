@@ -27,6 +27,18 @@ export class ReturnDeliveryChallanItemDto {
   receivedQty?: number;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
+  expectedReturnQty?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
+  expectedOutputQuantity?: number;
+
+  @IsOptional()
   @IsUUID()
   returnedProductId?: string;
 

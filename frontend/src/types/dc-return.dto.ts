@@ -9,6 +9,8 @@ export interface ProcessDcReturnItemDto {
   targetBinId?: string;
   actualInwardQty?: number;
   actualReceivedQty?: number;
+  expectedReturnQty?: number;
+  expectedOutputQuantity?: number;
   conditionNotes?: string;
   _isSplit?: boolean;
 }

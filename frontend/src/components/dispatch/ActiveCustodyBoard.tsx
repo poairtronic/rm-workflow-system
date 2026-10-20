@@ -39,8 +39,8 @@ export function getDcItemStats(dc: DeliveryChallanDto) {
   for (const item of items) {
     const isType1 = dc.type === 'PRODUCTION_PROCESS_OUTWARD';
     const target =
-      !isType1 && item.expectedOutputQuantity
-        ? Number(item.expectedOutputQuantity)
+      !isType1
+        ? Number(item.expectedReturnQty ?? item.expectedOutputQuantity ?? item.quantityDispatched ?? item.quantity ?? 0)
         : Number(item.quantityDispatched ?? item.quantity ?? 0);
     totalDispatched += target;
     totalQcPending += Number(item.qcPendingQty || 0);
