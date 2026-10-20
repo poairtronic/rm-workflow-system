@@ -428,8 +428,8 @@ export const vendorSlaApi = {
     api.get<VendorComparisonResult[]>(`/api/vendors/compare/by-process/${processId}`),
 };
 
-import type { DeliveryChallanDto } from '../types/delivery-challan.dto';
-import type { ProcessDcReturnDto, CloseDcDto } from '../types/dc-return.dto';
+import type { DeliveryChallanDto, DcReworkItemDto } from '../types/delivery-challan.dto';
+import type { ProcessDcReturnDto, CloseDcDto, QcInspectDcDto, ReworkReDispatchDto } from '../types/dc-return.dto';
 
 export const deliveryChallanApi = {
   getAll: async () => {
@@ -490,12 +490,36 @@ export const deliveryChallanApi = {
         return {
           itemId: i.itemId,
           quantityToReturn: Number(rawQty),
+          receivedQty: Number(rawQty),
           ...(i.returnedProductId && { returnedProductId: i.returnedProductId }),
           ...(i.destinationBinId && { destinationBinId: i.destinationBinId }),
+          ...(i.targetBinId && { targetBinId: i.targetBinId }),
+          ...(i.actualInwardQty !== undefined && { actualInwardQty: Number(i.actualInwardQty) }),
+          ...(i.actualReceivedQty !== undefined && { actualReceivedQty: Number(i.actualReceivedQty) }),
+          ...(i.remarks && { remarks: i.remarks }),
         };
       })
     };
     return api.post<DeliveryChallanDto>(`/api/delivery-challans/${id}/return`, backendPayload);
+  },
+  dockReturn: (id: string, data: ProcessDcReturnDto | any) => {
+    return deliveryChallanApi.processReturn(id, data);
+  },
+  qcInspect: (id: string, data: QcInspectDcDto) => {
+    return api.post<DeliveryChallanDto>(`/api/delivery-challans/${id}/qc-inspect`, data);
+  },
+  getReworkItems: async () => {
+    const res = await api.get<DcReworkItemDto[]>('/api/delivery-challans/rework-items');
+    return unwrapList(res);
+  },
+  markReworkItemOkay: (reworkId: string) => {
+    return api.patch<DcReworkItemDto>(`/api/delivery-challans/rework-items/${reworkId}/mark-okay`);
+  },
+  reDispatchReworkItem: (reworkId: string, data: ReworkReDispatchDto) => {
+    return api.post<{ reworkItem: DcReworkItemDto; deliveryChallan: DeliveryChallanDto }>(
+      `/api/delivery-challans/rework-items/${reworkId}/re-dispatch`,
+      data
+    );
   },
   close: (id: string, data: CloseDcDto) => api.patch<DeliveryChallanDto>(`/api/delivery-challans/${id}/close`, data),
   getPrintable: (id: string) => api.get<any>(`/api/delivery-challans/${id}/printable`),

@@ -14,10 +14,17 @@ export class ReturnDeliveryChallanItemDto {
   @IsUUID()
   itemId: string;
 
+  @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0.001)
-  quantityToReturn: number;
+  quantityToReturn?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
+  receivedQty?: number;
 
   @IsOptional()
   @IsUUID()
@@ -26,6 +33,24 @@ export class ReturnDeliveryChallanItemDto {
   @IsOptional()
   @IsUUID()
   destinationBinId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  targetBinId?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 3 })
+  actualInwardQty?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 3 })
+  actualReceivedQty?: number;
+
+  @IsOptional()
+  @IsString()
+  remarks?: string;
 }
 
 export class ReturnDeliveryChallanDto {

@@ -5,6 +5,8 @@ import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { CreateDeliveryChallanDto } from './dto/create-delivery-challan.dto.js';
 import { ReturnDeliveryChallanDto } from './dto/return-delivery-challan.dto.js';
+import { QcInspectDeliveryChallanDto } from './dto/qc-inspect-delivery-challan.dto.js';
+import { ReworkReDispatchDto } from './dto/rework-re-dispatch.dto.js';
 import { DeliveryChallanType, DeliveryChallanStatus } from './entities/delivery-challan.entity.js';
 import { UserRole } from '../auth/enums/role.enum.js';
 
@@ -84,6 +86,29 @@ export class DeliveryChallanController {
     };
   }
 
+  @Get('rework-items')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION, UserRole.GENERAL_MANAGER, UserRole.DESIGNER)
+  async getReworkItems() {
+    return this.deliveryChallanService.getReworkItems();
+  }
+
+  @Patch('rework-items/:reworkId/mark-okay')
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  async markReworkItemOkay(@Param('reworkId', ParseUUIDPipe) reworkId: string) {
+    return this.deliveryChallanService.markReworkItemOkay(reworkId);
+  }
+
+  @Post('rework-items/:reworkId/re-dispatch')
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  async reDispatchReworkItem(
+    @Param('reworkId', ParseUUIDPipe) reworkId: string,
+    @Body() dto: ReworkReDispatchDto,
+    @Request() req: any,
+  ) {
+    const userId = req.user.userId;
+    return this.deliveryChallanService.reDispatchReworkItem(reworkId, dto, userId);
+  }
+
   @Get(':id/printable')
   @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION, UserRole.GENERAL_MANAGER, UserRole.DESIGNER)
   async getPrintable(@Param('id', ParseUUIDPipe) id: string) {
@@ -105,6 +130,30 @@ export class DeliveryChallanController {
   ) {
     const userId = req.user.userId;
     return this.deliveryChallanService.processChallanReturn(id, dto, userId);
+  }
+
+  @Patch(':id/dock-return')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  async dockReturn(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReturnDeliveryChallanDto,
+    @Request() req: any,
+  ) {
+    const userId = req.user.userId;
+    return this.deliveryChallanService.processChallanReturn(id, dto, userId);
+  }
+
+  @Post(':id/qc-inspect')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  async qcInspect(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: QcInspectDeliveryChallanDto,
+    @Request() req: any,
+  ) {
+    const userId = req.user.userId;
+    return this.deliveryChallanService.qcInspectChallan(id, dto, userId);
   }
 
   @Patch(':id/close')

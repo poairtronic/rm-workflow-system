@@ -14,6 +14,7 @@ import { DeliveryChallan } from './delivery-challan.entity.js';
 import { Product } from '../../inventory/entities/product.entity.js';
 import { Bin } from '../../inventory/entities/bin.entity.js';
 import { DcMovement } from './dc-movement.entity.js';
+import { DcQcInspection } from './dc-qc-inspection.entity.js';
 
 @Entity('delivery_challan_items')
 @Index('IDX_dci_challan_id', ['challanId'])
@@ -23,6 +24,7 @@ import { DcMovement } from './dc-movement.entity.js';
 @Index('IDX_dci_output_bin_id', ['outputBinId'])
 @Index('IDX_dci_sc_id', ['scId'])
 @Index('IDX_dci_process_id', ['processId'])
+@Index('IDX_dci_return_target_bin_id', ['returnTargetBinId'])
 export class DeliveryChallanItem {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -101,8 +103,34 @@ export class DeliveryChallanItem {
   @Column({ name: 'quantity_returned', type: 'numeric', precision: 12, scale: 3, default: 0 })
   quantityReturned: number;
 
+  // Phase 23 Split-Accounting & QC Gate Fields
+  @Column({ name: 'qc_pending_qty', type: 'numeric', precision: 12, scale: 3, default: 0 })
+  qcPendingQty: number;
+
+  @Column({ name: 'qc_passed_qty', type: 'numeric', precision: 12, scale: 3, default: 0 })
+  qcPassedQty: number;
+
+  @Column({ name: 'qc_rejected_qty', type: 'numeric', precision: 12, scale: 3, default: 0 })
+  qcRejectedQty: number;
+
+  @Column({ name: 'expected_return_qty', type: 'numeric', precision: 12, scale: 3, nullable: true })
+  expectedReturnQty?: number | null;
+
+  @Column({ name: 'actual_received_qty', type: 'numeric', precision: 12, scale: 3, default: 0 })
+  actualReceivedQty: number;
+
+  @Column({ name: 'return_target_bin_id', type: 'uuid', nullable: true })
+  returnTargetBinId?: string | null;
+
+  @ManyToOne(() => Bin, { nullable: true })
+  @JoinColumn({ name: 'return_target_bin_id' })
+  returnTargetBin?: Relation<Bin> | null;
+
   @OneToMany(() => DcMovement, (movement) => movement.challanItem)
   movements?: Relation<DcMovement[]>;
+
+  @OneToMany(() => DcQcInspection, (qc) => qc.challanItem)
+  qcInspections?: Relation<DcQcInspection[]>;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

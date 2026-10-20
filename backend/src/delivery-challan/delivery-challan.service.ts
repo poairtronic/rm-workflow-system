@@ -5,8 +5,12 @@ import { Repository, DataSource, QueryRunner, LessThan, In, EntityManager } from
 import { DeliveryChallan, DeliveryChallanType, DeliveryChallanStatus } from './entities/delivery-challan.entity.js';
 import { DeliveryChallanItem } from './entities/delivery-challan-item.entity.js';
 import { DcMovement, DcMovementStatus } from './entities/dc-movement.entity.js';
+import { DcQcInspection } from './entities/dc-qc-inspection.entity.js';
+import { DcReworkItem, ReworkItemStatus } from './entities/dc-rework-item.entity.js';
 import { CreateDeliveryChallanDto } from './dto/create-delivery-challan.dto.js';
 import { ReturnDeliveryChallanDto } from './dto/return-delivery-challan.dto.js';
+import { QcInspectDeliveryChallanDto } from './dto/qc-inspect-delivery-challan.dto.js';
+import { ReworkReDispatchDto } from './dto/rework-re-dispatch.dto.js';
 import { VendorProcessCapability } from '../vendor/entities/vendor-process-capability.entity.js';
 import { VendorSla } from '../vendor/entities/vendor-sla.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
@@ -16,7 +20,6 @@ import { CommunicationService } from '../notifications/communication.service.js'
 import { RmItem } from '../rm/entities/rm-item.entity.js';
 import { SalesOrderComponent } from '../sc/entities/sc.entity.js';
 import { PrintableDeliveryChallanDto, PrintableCompanyInfo } from './dto/printable-delivery-challan.dto.js';
-
 
 @Injectable()
 export class DeliveryChallanService {
@@ -29,6 +32,10 @@ export class DeliveryChallanService {
     private readonly challanItemRepo: Repository<DeliveryChallanItem>,
     @InjectRepository(DcMovement)
     private readonly dcMovementRepo: Repository<DcMovement>,
+    @InjectRepository(DcQcInspection)
+    private readonly dcQcRepo: Repository<DcQcInspection>,
+    @InjectRepository(DcReworkItem)
+    private readonly reworkRepo: Repository<DcReworkItem>,
     private readonly dataSource: DataSource,
     @Optional() private readonly communicationService?: CommunicationService,
   ) {}
@@ -758,6 +765,12 @@ export class DeliveryChallanService {
     };
   }
 
+  /**
+   * Phase 23.2 — Step 1: Dock Receipt Inwarding
+   * Accepts returned items at the dock.
+   * Increments item.qcPendingQty += receivedQty.
+   * Does NOT close the DC and does NOT credit warehouse inventory yet.
+   */
   async processChallanReturn(challanId: string, dto: ReturnDeliveryChallanDto, userId: string): Promise<DeliveryChallan> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -778,12 +791,10 @@ export class DeliveryChallanService {
       });
       challan.items = items;
 
-      if (challan.status === DeliveryChallanStatus.RETURNED || challan.status === DeliveryChallanStatus.CLOSED) {
-        throw new BadRequestException('Challan is already fully returned or closed');
+      if (challan.status === DeliveryChallanStatus.CLOSED) {
+        throw new BadRequestException('Challan is already closed');
       }
 
-      const stockRepo = queryRunner.manager.getRepository(StockBalance);
-      const txRepo = queryRunner.manager.getRepository(StockTransaction);
       const itemRepo = queryRunner.manager.getRepository(DeliveryChallanItem);
 
       for (const dtoItem of dto.items) {
@@ -792,114 +803,420 @@ export class DeliveryChallanService {
           throw new BadRequestException(`Item ${dtoItem.itemId} not found in challan`);
         }
 
-        const targetExpected =
-          challan.type === DeliveryChallanType.GENERAL_INVENTORY_OUTWARD && challanItem.expectedOutputQuantity != null
-            ? Number(challanItem.expectedOutputQuantity)
-            : Number(challanItem.quantityDispatched);
-        const outstanding = Math.max(0, targetExpected - Number(challanItem.quantityReturned));
-        if (dtoItem.quantityToReturn > outstanding) {
-          throw new BadRequestException(`Cannot return more than outstanding quantity for item ${dtoItem.itemId}. Outstanding: ${outstanding}`);
+        const qtyReceived = Number(dtoItem.receivedQty ?? dtoItem.quantityToReturn ?? 0);
+        if (qtyReceived <= 0) {
+          throw new BadRequestException(`Received quantity must be greater than zero for item ${dtoItem.itemId}`);
         }
 
-        if (challan.type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD) {
-          // ─── DC TYPE 1: PROCESS RETURN ──────────────────────────────────
-          // CRITICAL ARCHITECTURE RULE: DC Type 1 return must NEVER touch stock_balances
-          // or stock_transactions. Instead, record positive inward return into dc_movements
-          // and support asymmetric product returns (e.g. cut vegetables in).
-          const movementRepo = queryRunner.manager.getRepository(DcMovement);
-          const movement = await movementRepo.findOne({
-            where: { challanId: challan.id, challanItemId: challanItem.id },
-          });
+        // Validate that receivedQty does not exceed remaining unreturned balance at vendor
+        const totalDispatched = Number(challanItem.quantityDispatched);
+        const alreadyAccounted =
+          Number(challanItem.qcPendingQty || 0) +
+          Number(challanItem.qcPassedQty || 0) +
+          Number(challanItem.qcRejectedQty || 0);
+        const vendorPending = Math.max(0, totalDispatched - alreadyAccounted);
 
-          if (movement) {
-            const returnedProductId =
-              dtoItem.returnedProductId || challanItem.productId || movement.dispatchedProductId;
-            movement.returnedProductId = returnedProductId;
-            movement.returnedQty = Number(movement.returnedQty || 0) + dtoItem.quantityToReturn;
-            const totalReturned = Number(movement.returnedQty);
-            const totalDispatched = Number(movement.dispatchedQty);
-            movement.status =
-              totalReturned >= totalDispatched
-                ? DcMovementStatus.RETURNED
-                : DcMovementStatus.PARTIALLY_RETURNED;
-            movement.updatedAt = new Date();
-            await movementRepo.save(movement);
-          }
-
-          // Update returned quantity on the challan item
-          challanItem.quantityReturned = Number(challanItem.quantityReturned) + dtoItem.quantityToReturn;
-          await itemRepo.save(challanItem);
-        } else {
-          // ─── DC TYPE 2: GENERAL INVENTORY STOCK CONVERSION RETURN ───────
-          // Real warehouse stock inward: adds the transformed output product to target bin!
-          const targetProductId =
-            dtoItem.returnedProductId ||
-            challanItem.outputProductId ||
-            challanItem.productId;
-
-          const targetBinId =
-            dtoItem.destinationBinId ||
-            challanItem.outputBinId ||
-            challanItem.binId;
-
-          if (targetProductId && targetBinId) {
-            let balance = await stockRepo.findOne({
-              where: { productId: targetProductId, binId: targetBinId },
-              lock: { mode: 'pessimistic_write' },
-            });
-
-            if (!balance) {
-              balance = stockRepo.create({
-                productId: targetProductId,
-                binId: targetBinId,
-                currentQuantity: 0,
-              });
-            }
-
-            balance.currentQuantity = Number(balance.currentQuantity) + dtoItem.quantityToReturn;
-            await stockRepo.save(balance);
-
-            const transaction = txRepo.create({
-              productId: targetProductId,
-              destinationBinId: targetBinId,
-              transactionType: TransactionType.DC_RETURN,
-              quantity: dtoItem.quantityToReturn,
-              referenceId: challanId,
-              referenceType: 'DELIVERY_CHALLAN_TYPE_2_RETURN',
-              createdById: userId,
-              remarks: `Inward stock conversion via Delivery Challan Type 2 ${challan.challanNumber}`,
-            });
-            await txRepo.save(transaction);
-          }
-
-          // Update returned quantity on the challan item
-          challanItem.quantityReturned = Number(challanItem.quantityReturned) + dtoItem.quantityToReturn;
-          await itemRepo.save(challanItem);
+        if (qtyReceived > vendorPending + 0.0001) {
+          throw new BadRequestException(
+            `Cannot receive more than remaining vendor balance for item ${dtoItem.itemId}. Outstanding at vendor: ${vendorPending}, Received now: ${qtyReceived}`
+          );
         }
+
+        // Increment QC pending queue
+        challanItem.qcPendingQty = Number(challanItem.qcPendingQty || 0) + qtyReceived;
+
+        // For Type 2: store editable actualReceivedQty and returnTargetBinId
+        if (challan.type === DeliveryChallanType.GENERAL_INVENTORY_OUTWARD) {
+          if (dtoItem.actualInwardQty !== undefined && dtoItem.actualInwardQty !== null) {
+            challanItem.actualReceivedQty = Number(dtoItem.actualInwardQty);
+          } else if (dtoItem.actualReceivedQty !== undefined && dtoItem.actualReceivedQty !== null) {
+            challanItem.actualReceivedQty = Number(dtoItem.actualReceivedQty);
+          }
+          const targetBin = dtoItem.targetBinId || dtoItem.destinationBinId;
+          if (targetBin) {
+            challanItem.returnTargetBinId = targetBin;
+          }
+        }
+
+        await itemRepo.save(challanItem);
       }
 
-      // Refresh items to check status
-      const updatedItems = await itemRepo.find({ where: { challanId } });
-      const allFullyReturned = updatedItems.every(i => {
-        const targetExpected = Number(i.expectedOutputQuantity || i.quantityDispatched);
-        return Number(i.quantityReturned) >= targetExpected;
-      });
-
-      challan.status = allFullyReturned ? DeliveryChallanStatus.RETURNED : DeliveryChallanStatus.PARTIALLY_RETURNED;
-      challan.actualReturnDate = new Date(dto.actualReceiptDate);
+      challan.actualReturnDate = new Date(dto.actualReceiptDate || Date.now());
       challan.verifiedById = userId;
-      challan.verificationRemarks = dto.verificationRemarks;
+      if (dto.verificationRemarks) {
+        challan.verificationRemarks = dto.verificationRemarks;
+      }
+      challan.status = DeliveryChallanStatus.PARTIALLY_RETURNED;
 
       await queryRunner.manager.save(challan);
       await queryRunner.commitTransaction();
 
-      // Determine which event type to fire (PARTIALLY_RETURNED vs RETURNED)
-      const returnEventType = challan.status === DeliveryChallanStatus.RETURNED
-        ? 'DC_RETURNED'
-        : 'DC_PARTIALLY_RETURNED';
-      this.fireNotification(returnEventType, challan, userId);
+      this.fireNotification('DC_PARTIALLY_RETURNED', challan, userId);
+      return challan;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  /**
+   * Phase 23.2 — Step 2: Quality Check (QC) Gate Verification
+   * Inspects items currently in qc_pending_qty.
+   * Splits into qc_passed_qty and qc_rejected_qty.
+   * - Type 1 Pass: Updates SC process progress (DcMovement), NO warehouse stock movement.
+   * - Type 2 Pass: Atomically credits actualStoreInwardQty to stock_balances and logs StockTransaction.
+   * - Rejections: Automatically creates active records in dc_rework_items linked to the original SC/PO.
+   * - Parent DC Status: If pending_vendor === 0 AND qc_pending === 0 across all items -> CLOSED. Else PARTIAL.
+   */
+  async qcInspectChallan(challanId: string, dto: QcInspectDeliveryChallanDto, userId: string): Promise<DeliveryChallan> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const challan = await queryRunner.manager.findOne(DeliveryChallan, {
+        where: { id: challanId },
+        relations: {
+          vendor: true,
+          sc: { purchaseOrder: true },
+        },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!challan) {
+        throw new NotFoundException(`Delivery Challan ${challanId} not found`);
+      }
+
+      const items = await queryRunner.manager.find(DeliveryChallanItem, {
+        where: { challanId: challan.id },
+        relations: { product: true, bin: true, sc: { purchaseOrder: true } },
+      });
+      challan.items = items;
+
+      const stockRepo = queryRunner.manager.getRepository(StockBalance);
+      const txRepo = queryRunner.manager.getRepository(StockTransaction);
+      const itemRepo = queryRunner.manager.getRepository(DeliveryChallanItem);
+      const movementRepo = queryRunner.manager.getRepository(DcMovement);
+      const qcLogRepo = queryRunner.manager.getRepository(DcQcInspection);
+      const reworkRepo = queryRunner.manager.getRepository(DcReworkItem);
+
+      for (const inspectDto of dto.items) {
+        const challanItem = challan.items.find(i => i.id === inspectDto.itemId);
+        if (!challanItem) {
+          throw new BadRequestException(`Item ${inspectDto.itemId} not found on Challan`);
+        }
+
+        const passedQty = Number(inspectDto.passedQty || 0);
+        const rejectedQty = Number(inspectDto.rejectedQty || 0);
+
+        if (passedQty < 0 || rejectedQty < 0) {
+          throw new BadRequestException('Passed and rejected quantities cannot be negative');
+        }
+
+        if (passedQty + rejectedQty <= 0) {
+          throw new BadRequestException(`Either passedQty or rejectedQty must be greater than zero for item ${inspectDto.itemId}`);
+        }
+
+        const pendingQc = Number(challanItem.qcPendingQty || 0);
+        if (passedQty + rejectedQty > pendingQc + 0.0001) {
+          throw new BadRequestException(
+            `Sum of passed (${passedQty}) and rejected (${rejectedQty}) cannot exceed pending QC quantity (${pendingQc}) for item ${inspectDto.itemId}`
+          );
+        }
+
+        // 1. Decrement pending QC and increment passed/rejected counters
+        challanItem.qcPendingQty = Number(challanItem.qcPendingQty) - (passedQty + rejectedQty);
+        challanItem.qcPassedQty = Number(challanItem.qcPassedQty || 0) + passedQty;
+        challanItem.qcRejectedQty = Number(challanItem.qcRejectedQty || 0) + rejectedQty;
+        // Keep legacy quantityReturned aligned with total accounted returned goods
+        challanItem.quantityReturned = Number(challanItem.qcPassedQty) + Number(challanItem.qcRejectedQty);
+
+        // 2. Type 1 vs Type 2 Logic on Pass
+        if (challan.type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD) {
+          // ─── TYPE 1: PROCESS RETURN ───────────────────────────────────────
+          // Zero warehouse stock movement. Update DcMovement running ledger.
+          if (passedQty > 0) {
+            const movement = await movementRepo.findOne({
+              where: { challanId: challan.id, challanItemId: challanItem.id },
+            });
+            if (movement) {
+              movement.returnedQty = Number(movement.returnedQty || 0) + passedQty;
+              const totalDispatched = Number(movement.dispatchedQty);
+              movement.status =
+                Number(movement.returnedQty) >= totalDispatched
+                  ? DcMovementStatus.RETURNED
+                  : DcMovementStatus.PARTIALLY_RETURNED;
+              movement.updatedAt = new Date();
+              await movementRepo.save(movement);
+            }
+          }
+        } else {
+          // ─── TYPE 2: GENERAL INVENTORY STOCK CONVERSION RETURN ───────────
+          // Atomic stock credit to warehouse bin
+          if (passedQty > 0) {
+            const actualInwardQty =
+              inspectDto.actualStoreInwardQty !== undefined && inspectDto.actualStoreInwardQty !== null
+                ? Number(inspectDto.actualStoreInwardQty)
+                : Number(challanItem.actualReceivedQty || 0) > 0
+                  ? Number(challanItem.actualReceivedQty)
+                  : passedQty;
+
+            const targetProductId =
+              challanItem.outputProductId ||
+              challanItem.productId;
+
+            const targetBinId =
+              inspectDto.targetBinId ||
+              challanItem.returnTargetBinId ||
+              challanItem.outputBinId ||
+              challanItem.binId;
+
+            if (targetProductId && targetBinId && actualInwardQty > 0) {
+              let balance = await stockRepo.findOne({
+                where: { productId: targetProductId, binId: targetBinId },
+                lock: { mode: 'pessimistic_write' },
+              });
+
+              if (!balance) {
+                balance = stockRepo.create({
+                  productId: targetProductId,
+                  binId: targetBinId,
+                  currentQuantity: 0,
+                });
+              }
+
+              balance.currentQuantity = Number(balance.currentQuantity) + actualInwardQty;
+              await stockRepo.save(balance);
+
+              const transaction = txRepo.create({
+                productId: targetProductId,
+                destinationBinId: targetBinId,
+                transactionType: TransactionType.DC_RETURN,
+                quantity: actualInwardQty,
+                referenceId: challan.id,
+                referenceType: 'DELIVERY_CHALLAN_TYPE_2_QC_PASS',
+                createdById: userId,
+                remarks: `Inward stock conversion QC Pass via Delivery Challan Type 2 ${challan.challanNumber} (Passed Qty: ${passedQty}, Store Inward: ${actualInwardQty})`,
+              });
+              await txRepo.save(transaction);
+            }
+          }
+        }
+
+        // 3. Rework item creation if items failed QC
+        if (rejectedQty > 0) {
+          const sc = challanItem.sc || challan.sc;
+          const po = (sc as any)?.purchaseOrder;
+
+          const reworkItem = reworkRepo.create({
+            sourceDcId: challan.id,
+            sourceDcNumber: challan.challanNumber,
+            dcType: challan.type,
+            scId: challanItem.scId || challan.scId || null,
+            scNumber: sc?.scNumber || null,
+            poId: po?.id || null,
+            poNumber: po?.poNumber || null,
+            productId: challanItem.productId || challanItem.product?.id,
+            productName: challanItem.product?.name || challanItem.partName || 'Defective Material',
+            partNumber: challanItem.partNumber || challanItem.product?.code || null,
+            uom: challanItem.product?.uom || 'PCS',
+            originalVendorId: challan.vendorId,
+            originalVendorName: challan.vendor?.name || 'Original Vendor',
+            rejectedQty,
+            qcRemarks: inspectDto.qcRemarks || null,
+            reworkStatus: ReworkItemStatus.PENDING_ACK,
+          });
+          await queryRunner.manager.save(reworkItem);
+        }
+
+        // 4. Log immutable QC inspection audit entry
+        const inspectionLog = qcLogRepo.create({
+          challanId: challan.id,
+          challanItemId: challanItem.id,
+          batchReceivedQty: passedQty + rejectedQty,
+          passedQty,
+          rejectedQty,
+          actualInwardQty: inspectDto.actualStoreInwardQty ?? null,
+          remarks: inspectDto.qcRemarks || null,
+          inspectedById: userId,
+          inspectedAt: new Date(dto.inspectionDate || Date.now()),
+        });
+        await queryRunner.manager.save(inspectionLog);
+
+        await itemRepo.save(challanItem);
+      }
+
+      // 5. Evaluate parent DC status
+      const updatedItems = await itemRepo.find({ where: { challanId: challan.id } });
+      const allFullyAccounted = updatedItems.every(i => {
+        const dispatched = Number(i.quantityDispatched);
+        const accounted = Number(i.qcPassedQty || 0) + Number(i.qcRejectedQty || 0);
+        const inQc = Number(i.qcPendingQty || 0);
+        return accounted >= dispatched && inQc <= 0.0001;
+      });
+
+      if (allFullyAccounted) {
+        challan.status = DeliveryChallanStatus.CLOSED;
+      } else {
+        challan.status = DeliveryChallanStatus.PARTIALLY_RETURNED;
+      }
+
+      await queryRunner.manager.save(challan);
+      await queryRunner.commitTransaction();
+
+      if (challan.status === DeliveryChallanStatus.CLOSED) {
+        this.fireNotification('DC_CLOSED', challan, userId);
+      } else {
+        this.fireNotification('DC_PARTIALLY_RETURNED', challan, userId);
+      }
 
       return challan;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  /**
+   * Phase 23.2 — Rework Queue: Fetches all rejected items requiring rework or re-dispatch.
+   */
+  async getReworkItems(): Promise<DcReworkItem[]> {
+    return this.reworkRepo.find({
+      relations: {
+        sourceDc: { vendor: true },
+        sc: { purchaseOrder: true },
+        po: true,
+        product: true,
+        originalVendor: true,
+        reworkDc: true,
+      },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  /**
+   * Phase 23.2 — Rework Queue: Acknowledges and marks an item verified/okay for re-dispatch.
+   */
+  async markReworkItemOkay(reworkId: string): Promise<DcReworkItem> {
+    const item = await this.reworkRepo.findOne({ where: { id: reworkId } });
+    if (!item) {
+      throw new NotFoundException(`Rework item ${reworkId} not found`);
+    }
+    if (item.reworkStatus !== ReworkItemStatus.PENDING_ACK) {
+      throw new BadRequestException(`Rework item cannot be marked okay from status ${item.reworkStatus}`);
+    }
+    item.reworkStatus = ReworkItemStatus.MARKED_OKAY;
+    return this.reworkRepo.save(item);
+  }
+
+  /**
+   * Phase 23.2 — Rework Queue: Spawns a new Delivery Challan for the rejected units
+   * strictly attached to the exact original SC # / PO #.
+   */
+  async reDispatchReworkItem(
+    reworkId: string,
+    dto: ReworkReDispatchDto,
+    userId: string
+  ): Promise<{ reworkItem: DcReworkItem; deliveryChallan: DeliveryChallan }> {
+    const item = await this.reworkRepo.findOne({
+      where: { id: reworkId },
+      relations: {
+        sourceDc: true,
+        sc: { purchaseOrder: true },
+        product: true,
+      },
+    });
+
+    if (!item) {
+      throw new NotFoundException(`Rework item ${reworkId} not found`);
+    }
+
+    if (item.reworkStatus === ReworkItemStatus.RE_DISPATCHED) {
+      throw new BadRequestException(`Rework item ${reworkId} is already re-dispatched under DC ${item.reworkDcNumber}`);
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const targetVendorId = dto.vendorId || item.originalVendorId;
+      const vendorRepo = queryRunner.manager.getRepository(Vendor);
+      const vendor = await vendorRepo.findOne({ where: { id: targetVendorId, isActive: true } });
+      if (!vendor) {
+        throw new BadRequestException('Target vendor not found or inactive');
+      }
+
+      const dispatchDate = new Date();
+      const challanNumber = await this.generateNextChallanNumber(queryRunner, dispatchDate);
+
+      const isType1 = item.dcType === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD;
+      const dcType = isType1 ? DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD : DeliveryChallanType.GENERAL_INVENTORY_OUTWARD;
+
+      // 1. Create the new Delivery Challan
+      const newDc = queryRunner.manager.create(DeliveryChallan, {
+        challanNumber,
+        type: dcType,
+        vendorId: targetVendorId,
+        scId: item.scId || null,
+        processName: 'REWORK PROCESSING',
+        dispatchDate,
+        expectedReturnDate: dto.targetReturnDate ? new Date(dto.targetReturnDate) : null,
+        notes: dto.notes || `Rework DC spawned from rejected item in DC ${item.sourceDcNumber}. QC Remarks: ${item.qcRemarks || 'None'}`,
+        createdById: userId,
+        status: DeliveryChallanStatus.DISPATCHED,
+      });
+      const savedDc = await queryRunner.manager.save(newDc);
+
+      // 2. Create the line item for the rework rejected quantity
+      const newDcItem = queryRunner.manager.create(DeliveryChallanItem, {
+        challanId: savedDc.id,
+        productId: item.productId,
+        scId: item.scId || null,
+        partNumber: item.partNumber || item.product?.code || null,
+        partName: item.productName,
+        description: `Rework re-dispatch for ${item.rejectedQty} ${item.uom}`,
+        quantityDispatched: Number(item.rejectedQty),
+        quantityReturned: 0,
+        qcPendingQty: 0,
+        qcPassedQty: 0,
+        qcRejectedQty: 0,
+      } as any);
+      const savedDcItem = await queryRunner.manager.save(newDcItem);
+
+      // 3. If Type 1, add ledger movement
+      if (isType1 && item.scId && item.productId) {
+        const movement = queryRunner.manager.create(DcMovement, {
+          challanId: savedDc.id,
+          challanItemId: savedDcItem.id,
+          scId: item.scId,
+          dispatchedProductId: item.productId,
+          dispatchedQty: Number(item.rejectedQty),
+          returnedProductId: null,
+          returnedQty: 0,
+          status: DcMovementStatus.DISPATCHED,
+        } as any);
+        await queryRunner.manager.save(movement);
+      }
+
+      // 4. Update the rework item
+      item.reworkStatus = ReworkItemStatus.RE_DISPATCHED;
+      item.reworkDcId = savedDc.id;
+      item.reworkDcNumber = savedDc.challanNumber;
+      const updatedReworkItem = await queryRunner.manager.save(item);
+
+      await queryRunner.commitTransaction();
+
+      this.fireNotification('DC_DISPATCHED', savedDc, userId);
+
+      return {
+        reworkItem: updatedReworkItem,
+        deliveryChallan: savedDc,
+      };
     } catch (error) {
       await queryRunner.rollbackTransaction();
       throw error;

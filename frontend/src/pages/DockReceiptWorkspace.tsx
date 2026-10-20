@@ -9,6 +9,7 @@ import type { DeliveryChallanDto } from '../types/delivery-challan.dto';
 import type { ProcessDcReturnDto } from '../types/dc-return.dto';
 import { ActiveCustodyBoard } from '../components/dispatch/ActiveCustodyBoard';
 import { ReconciliationGrid } from '../components/dispatch/ReconciliationGrid';
+import { QcInspectionModal } from '../components/dispatch/QcInspectionModal';
 import { MultiSelectFilter } from '../components/ui';
 import { ExportDropdown } from '../components/common/ExportDropdown';
 import type { ExportColumn } from '../utils/exportUtils';
@@ -32,11 +33,18 @@ function StatusBadge({ status }: { status: string }) {
 export function DockReceiptWorkspace() {
   const queryClient = useQueryClient();
   const [selectedDc, setSelectedDc] = useState<DeliveryChallanDto | null>(null);
+  const [selectedQcDc, setSelectedQcDc] = useState<DeliveryChallanDto | null>(null);
+  const [isQcModalOpen, setIsQcModalOpen] = useState(false);
   const [activeDcView, setActiveDcView] = useState<'RECONCILE' | 'CLOSURE'>('RECONCILE');
   const [closureNotes, setClosureNotes] = useState('');
   const [isClosureConfirmed, setIsClosureConfirmed] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
+
+  const handleInspectQc = (dc: DeliveryChallanDto) => {
+    setSelectedQcDc(dc);
+    setIsQcModalOpen(true);
+  };
 
   const { data: challans = [] } = useQuery({
     queryKey: ['delivery-challans'],
@@ -202,7 +210,7 @@ export function DockReceiptWorkspace() {
 
       return false;
     });
-  }, [challans, selectedVendors, searchTerm]);
+  }, [challans, selectedVendors, searchTerm, allVendors]);
 
   const methods = useForm<ProcessDcReturnDto>({
     defaultValues: { items: [] }
@@ -225,6 +233,7 @@ export function DockReceiptWorkspace() {
           returnedProductId: item.outputProductId || item.productId,
           destinationBinId: item.outputBinId || item.binId || '',
           receivedQuantity: remaining,
+          actualReceivedQty: Number(item.actualReceivedQty || item.expectedOutputQuantity || remaining),
           usableQuantity: remaining,
           scrapQuantity: 0,
           _isSplit: false,
@@ -244,6 +253,9 @@ export function DockReceiptWorkspace() {
           receivedQuantity: Number(i.receivedQuantity),
           returnedProductId: i.returnedProductId || undefined,
           destinationBinId: i.destinationBinId || undefined,
+          targetBinId: i.destinationBinId || undefined,
+          actualReceivedQty: i.actualReceivedQty !== undefined ? Number(i.actualReceivedQty) : Number(i.receivedQuantity),
+          actualInwardQty: i.actualReceivedQty !== undefined ? Number(i.actualReceivedQty) : Number(i.receivedQuantity),
         }));
 
       if (itemsToReturn.length === 0) {
@@ -260,7 +272,8 @@ export function DockReceiptWorkspace() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['delivery-challans'] });
-      toast.success('Return reconciliation processed successfully');
+      queryClient.invalidateQueries({ queryKey: ['rework-items'] });
+      toast.success('Dock receipt logged! Material sent to Quality Check (QC Pending).');
       setSelectedDc(null);
     },
     onError: (error: any) => {
@@ -472,7 +485,11 @@ export function DockReceiptWorkspace() {
       )}
 
       {!selectedDc ? (
-        <ActiveCustodyBoard challans={filteredChallans} onSelect={handleSelectDc} />
+        <ActiveCustodyBoard
+          challans={filteredChallans}
+          onSelect={handleSelectDc}
+          onInspectQc={handleInspectQc}
+        />
       ) : activeDcView === 'CLOSURE' ? (
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="flex items-center justify-between">
@@ -640,12 +657,26 @@ export function DockReceiptWorkspace() {
                 className="inline-flex items-center gap-2 px-6 h-10 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {processReturnMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                Save Reconciliation
+                Log Return & Send to Quality Check
               </button>
             </div>
           )}
         </div>
       )}
+
+      {/* QC Gate Inspection Modal */}
+      <QcInspectionModal
+        isOpen={isQcModalOpen}
+        onClose={() => {
+          setIsQcModalOpen(false);
+          setSelectedQcDc(null);
+        }}
+        dc={selectedQcDc}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['delivery-challans'] });
+          queryClient.invalidateQueries({ queryKey: ['rework-items'] });
+        }}
+      />
     </div>
   );
 }

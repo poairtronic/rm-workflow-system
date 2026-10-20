@@ -31,14 +31,12 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
         <div>
           <h2 className="text-[15px] font-semibold text-slate-900 flex items-center gap-2">
             <FileDigit className="w-5 h-5 text-primary" />
-            Reconciliation & Inward Grid
+            Dock Receipt Inwarding & Reconciliation Grid
           </h2>
           <p className="text-xs text-slate-500 mt-1">
             {isClosed
               ? 'Finalized Delivery Challan: All lines are locked for administrative review.'
-              : isType1 
-                ? 'WIP Movement Return: Inward material back into production custody (does not affect warehouse stock).'
-                : 'General Stock Conversion Return: Inward converted material directly into warehouse stock in target bin.'}
+              : 'Step 1 of 2: Dock Inwarding. Received quantities enter the Quality Check (QC Pending) queue. Stock balances and WIP progress are credited after inspector QC verification.'}
           </p>
         </div>
       </div>
@@ -52,8 +50,9 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
               {!isType1 && <th className="px-4 py-3">Destination Bin</th>}
               <th className="px-4 py-3 text-right">{isType1 ? 'Dispatched' : 'Target Expected'}</th>
               <th className="px-4 py-3 text-right">Already Returned</th>
-              <th className="px-4 py-3 text-right">Remaining</th>
-              <th className="px-4 py-3 text-right">Received Qty</th>
+              <th className="px-4 py-3 text-right">Balance at Vendor</th>
+              <th className="px-4 py-3 text-right">Dock Inward Qty (to QC)</th>
+              {!isType1 && <th className="px-4 py-3 text-right">Actual Inward Yield</th>}
               <th className="px-4 py-3 text-right">Variance</th>
               <th className="px-4 py-3">Split (Usable / Scrap)</th>
             </tr>
@@ -176,6 +175,12 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
                                 setValue(`items.${index}.usableQuantity`, val);
                                 setValue(`items.${index}.scrapQuantity`, 0);
                               }
+                              if (!isType1) {
+                                const currentActual = formItems[index]?.actualReceivedQty;
+                                if (currentActual === undefined || currentActual === null || currentActual === receivedQty || currentActual === 0) {
+                                  setValue(`items.${index}.actualReceivedQty`, val);
+                                }
+                              }
                             }
                           })}
                           className={`w-24 h-10 px-3 rounded-lg border text-sm text-right tabular-nums focus:outline-none focus:ring-2 ${receivedQty > remaining || receivedQty < 0.001 ? 'border-red-300 focus:ring-red-500' : 'border-slate-200 focus:ring-primary'}`}
@@ -184,6 +189,30 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
                       </div>
                     )}
                   </td>
+                  {!isType1 && (
+                    <td className="px-4 py-3 text-right">
+                      {isClosed || remaining <= 0 ? (
+                        <span className="text-xs font-medium text-slate-700 tabular-nums">
+                          {originalItem?.actualReceivedQty != null ? Number(originalItem.actualReceivedQty).toFixed(3) : '—'}
+                        </span>
+                      ) : (
+                        <div className="flex flex-col items-end">
+                          <input
+                            type="number"
+                            step="0.001"
+                            min="0"
+                            {...register(`items.${index}.actualReceivedQty` as const, {
+                              valueAsNumber: true,
+                            })}
+                            className="w-24 h-10 px-3 rounded-lg border border-slate-200 text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-primary bg-amber-50/20"
+                            placeholder="Scale wt"
+                            title="Actual physical scale weight or converted yield (e.g. 8.500 KG vs 10.000 KG expected)"
+                          />
+                          <span className="text-[10px] text-slate-400 mt-1">Scale yield</span>
+                        </div>
+                      )}
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-right tabular-nums">
                     {isClosed ? (
                       <span className="text-xs font-semibold text-emerald-600">Reconciled</span>

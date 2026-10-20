@@ -37,6 +37,55 @@ export interface CreateDeliveryChallanDto {
   items: CreateDeliveryChallanItemDto[];
 }
 
+export interface DcReworkItemDto {
+  id: string;
+  sourceDcId: string;
+  sourceDcNumber: string;
+  dcType: string;
+  scId?: string | null;
+  scNumber?: string | null;
+  poId?: string | null;
+  poNumber?: string | null;
+  productId: string;
+  productName: string;
+  partNumber?: string | null;
+  uom: string;
+  originalVendorId: string;
+  originalVendorName: string;
+  rejectedQty: number;
+  qcRemarks?: string | null;
+  reworkStatus: 'PENDING_ACK' | 'MARKED_OKAY' | 'RE_DISPATCHED';
+  reworkDcId?: string | null;
+  reworkDcNumber?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  sourceDc?: any;
+  sc?: any;
+  po?: any;
+  product?: any;
+  originalVendor?: any;
+  reworkDc?: any;
+}
+
+export interface DeliveryChallanLineItemDto extends CreateDeliveryChallanItemDto {
+  id: string;
+  quantityDispatched?: number;
+  quantityReturned?: number;
+  qcPendingQty?: number;
+  qcPassedQty?: number;
+  qcRejectedQty?: number;
+  expectedReturnQty?: number;
+  actualReceivedQty?: number;
+  returnTargetBinId?: string;
+  returnTargetBin?: any;
+  product?: any;
+  bin?: any;
+  sc?: any;
+  process?: any;
+  partNumber?: string | null;
+  partName?: string | null;
+}
+
 export interface DeliveryChallanDto {
   id: string;
   dcNumber: string;
@@ -57,7 +106,9 @@ export interface DeliveryChallanDto {
   dispatchDate?: string;
   expectedReturnDate?: string;
   actualReturnDate?: string;
-  items: Array<CreateDeliveryChallanItemDto & { id: string; quantityDispatched?: number; quantityReturned?: number; product?: any; bin?: any }>;
+  items: DeliveryChallanLineItemDto[];
+  reworkItems?: DcReworkItemDto[];
+  qcInspections?: any[];
   totalGrossWeight?: number;
   cryptographicHash?: string;
 }

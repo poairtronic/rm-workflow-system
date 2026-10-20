@@ -15,6 +15,8 @@ import { ProductionProcess } from '../../production-process/entities/production-
 import { User } from '../../users/entities/user.entity.js';
 import type { Relation } from 'typeorm';
 import { DeliveryChallanItem } from './delivery-challan-item.entity.js';
+import { DcQcInspection } from './dc-qc-inspection.entity.js';
+import { DcReworkItem } from './dc-rework-item.entity.js';
 
 export enum DeliveryChallanType {
   PRODUCTION_PROCESS_OUTWARD = 'PRODUCTION_PROCESS_OUTWARD',
@@ -108,4 +110,10 @@ export class DeliveryChallan {
 
   @OneToMany(() => DeliveryChallanItem, (item) => item.challan, { cascade: true })
   items: Relation<DeliveryChallanItem>[];
+
+  @OneToMany(() => DcQcInspection, (qc) => qc.challan)
+  qcInspections?: Relation<DcQcInspection[]>;
+
+  @OneToMany(() => DcReworkItem, (rework) => rework.sourceDc)
+  reworkItems?: Relation<DcReworkItem[]>;
 }

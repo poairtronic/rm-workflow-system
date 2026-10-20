@@ -69,6 +69,8 @@ import { VendorSlaOverride } from '../vendor/entities/vendor-sla-override.entity
 import { DeliveryChallan } from '../delivery-challan/entities/delivery-challan.entity.js';
 import { DeliveryChallanItem } from '../delivery-challan/entities/delivery-challan-item.entity.js';
 import { DcMovement } from '../delivery-challan/entities/dc-movement.entity.js';
+import { DcQcInspection } from '../delivery-challan/entities/dc-qc-inspection.entity.js';
+import { DcReworkItem } from '../delivery-challan/entities/dc-rework-item.entity.js';
 import { SystemModule } from '../permissions/entities/system-module.entity.js';
 import { RoleModulePermission } from '../permissions/entities/role-module-permission.entity.js';
 import { UserModulePermission } from '../permissions/entities/user-module-permission.entity.js';
@@ -126,6 +128,8 @@ export const ALL_ENTITIES = [
   DeliveryChallan,
   DeliveryChallanItem,
   DcMovement,
+  DcQcInspection,
+  DcReworkItem,
 ];
 
 const dbUrl =
