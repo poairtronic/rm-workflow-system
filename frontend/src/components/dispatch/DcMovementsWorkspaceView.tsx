@@ -239,7 +239,7 @@ export function DcMovementsWorkspaceView() {
 
   const exportColumns: ExportColumn<any>[] = [
     {
-      header: 'Date',
+      header: 'Date of Creation',
       accessor: (row) =>
         row.date
           ? new Date(row.date).toLocaleString('en-IN', {

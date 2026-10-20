@@ -342,7 +342,31 @@ export function DockReceiptWorkspace() {
 
   const exportDcColumns: ExportColumn<any>[] = [
     { header: 'DC Number', accessor: (dc) => dc.challanNumber || dc.dcNumber || 'N/A' },
+    {
+      header: 'Date of Creation',
+      accessor: (dc) => {
+        const raw = dc.createdAt || dc.created_at;
+        if (!raw) return 'N/A';
+        const d = new Date(raw);
+        return !isNaN(d.getTime())
+          ? d.toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+            })
+          : 'N/A';
+      },
+    },
     { header: 'Status', accessor: (dc) => (dc.status || '').replace('_', ' ') },
+    {
+      header: 'DC Type',
+      accessor: (dc) =>
+        dc.type === 'PRODUCTION_PROCESS_OUTWARD'
+          ? 'Type 1 (Process)'
+          : dc.type === 'GENERAL_INVENTORY_OUTWARD'
+          ? 'Type 2 (General)'
+          : (dc.type || '').replace(/_/g, ' '),
+    },
     { header: 'Vendor / Destination', accessor: (dc) => dc.vendor?.name || dc.vendorName || dc.destinationEntity || 'N/A' },
     {
       header: 'Items & Materials',
@@ -351,7 +375,7 @@ export function DockReceiptWorkspace() {
           return dc.items
             .map(
               (i: any) =>
-                `${i.productName || i.partName || i.product?.name || 'Item'} (${Math.abs(
+                `${i.partNumber ? `[${i.partNumber}] ` : ''}${i.partName || i.productName || i.product?.name || 'Item'} (${Math.abs(
                   Number(i.quantityDispatched ?? i.quantity ?? 0)
                 )} ${i.uom || ''})`
             )
@@ -362,12 +386,33 @@ export function DockReceiptWorkspace() {
     },
     {
       header: 'Issue Date',
-      accessor: (dc) => (dc.issueDate ? new Date(dc.issueDate).toLocaleDateString('en-IN') : 'N/A'),
+      accessor: (dc) => {
+        const raw = dc.dispatchDate || dc.issueDate;
+        if (!raw) return 'N/A';
+        const d = new Date(raw);
+        return !isNaN(d.getTime())
+          ? d.toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+            })
+          : 'N/A';
+      },
     },
     {
       header: 'Target Return',
-      accessor: (dc) =>
-        dc.expectedReturnDate ? new Date(dc.expectedReturnDate).toLocaleDateString('en-IN') : 'N/A',
+      accessor: (dc) => {
+        const raw = dc.expectedReturnDate;
+        if (!raw) return 'N/A';
+        const d = new Date(raw);
+        return !isNaN(d.getTime())
+          ? d.toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+            })
+          : 'N/A';
+      },
     },
     {
       header: 'SLA Status',
