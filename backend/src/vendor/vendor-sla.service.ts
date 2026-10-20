@@ -11,6 +11,7 @@ import { Vendor } from './entities/vendor.entity.js';
 import { ProductionProcess } from '../production-process/entities/production-process.entity.js';
 import { VendorSlaOverride } from './entities/vendor-sla-override.entity.js';
 import { DeliveryChallan } from '../delivery-challan/entities/delivery-challan.entity.js';
+import { DcReworkItem } from '../delivery-challan/entities/dc-rework-item.entity.js';
 import { VendorProcessCapability } from './entities/vendor-process-capability.entity.js';
 import { CreateVendorSlaDto } from './dto/create-vendor-sla.dto.js';
 import { UpdateVendorSlaDto } from './dto/update-vendor-sla.dto.js';
@@ -74,6 +75,8 @@ export class VendorSlaService {
     private readonly dcRepo: Repository<DeliveryChallan>,
     @InjectRepository(VendorProcessCapability)
     private readonly capabilityRepo: Repository<VendorProcessCapability>,
+    @InjectRepository(DcReworkItem)
+    private readonly reworkRepo: Repository<DcReworkItem>,
   ) {}
 
   /**
@@ -343,8 +346,14 @@ export class VendorSlaService {
     // Fetch delivery challans for this vendor
     const challans = await this.dcRepo.find({
       where: { vendorId },
+      relations: { items: true },
       order: { dispatchDate: 'ASC' },
     });
+
+    const reworkItems = await this.reworkRepo.find({
+      where: { originalVendorId: vendorId },
+    });
+    const reworkDcIdSet = new Set(reworkItems.map((r) => r.sourceDcId));
 
     const monthNames = ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
     const monthlyBuckets: Record<string, { totalTat: number; count: number; onTime: number }> = {};
@@ -364,13 +373,19 @@ export class VendorSlaService {
 
         const tatDays = Math.max(1, Math.round((actualReturn.getTime() - dispatch.getTime()) / 86400000));
         const isOnTime = actualReturn.getTime() <= (expectedReturn.getTime() + 86400000); // 1-day grace/buffer
-        if (isOnTime) totalOnTime++;
+        const hasRework =
+          reworkDcIdSet.has(dc.id) ||
+          (dc.items || []).some((item) => Number(item.qcRejectedQty) > 0);
+
+        // Quality failure on rework also penalizes SLA adherence
+        const isCompliant = isOnTime && !hasRework;
+        if (isCompliant) totalOnTime++;
 
         const mIndex = Math.min(5, Math.max(0, actualReturn.getMonth() - 4));
         const mKey = monthNames[mIndex] || 'Oct';
         monthlyBuckets[mKey].totalTat += tatDays;
         monthlyBuckets[mKey].count += 1;
-        if (isOnTime) monthlyBuckets[mKey].onTime += 1;
+        if (isCompliant) monthlyBuckets[mKey].onTime += 1;
       }
     });
 
@@ -446,7 +461,13 @@ export class VendorSlaService {
       // Closed DCs to measure actual turnaround
       const closedDcs = await this.dcRepo.find({
         where: { vendorId, processId, status: 'CLOSED' },
+        relations: { items: true },
       });
+
+      const vendorReworks = await this.reworkRepo.find({
+        where: { originalVendorId: vendorId },
+      });
+      const vendorReworkDcSet = new Set(vendorReworks.map((r) => r.sourceDcId));
 
       let actualAvgTat = agreedSlaDays;
       let onTimeCount = 0;
@@ -459,7 +480,12 @@ export class VendorSlaService {
           sumTat += tat;
 
           const exp = dc.expectedReturnDate ? new Date(dc.expectedReturnDate) : new Date(dispatch.getTime() + agreedSlaDays * 86400000);
-          if (ret.getTime() <= exp.getTime() + 86400000) onTimeCount++;
+          const isOnTime = ret.getTime() <= exp.getTime() + 86400000;
+          const hasRework =
+            vendorReworkDcSet.has(dc.id) ||
+            (dc.items || []).some((item) => Number(item.qcRejectedQty) > 0);
+
+          if (isOnTime && !hasRework) onTimeCount++;
         });
         actualAvgTat = Math.round((sumTat / closedDcs.length) * 10) / 10;
       } else {

@@ -21,7 +21,7 @@ interface VendorDirectoryTableProps {
   onSelectVendor: (vendorId: string) => void;
 }
 
-type FilterTab = 'ALL' | 'WITH_CUSTODY' | 'WITH_OVERDUE' | 'HIGH_SLA' | 'NEEDS_ATTENTION';
+type FilterTab = 'ALL' | 'WITH_CUSTODY' | 'WITH_OVERDUE' | 'HIGH_SLA' | 'NEEDS_ATTENTION' | 'WITH_REWORK';
 
 export function VendorDirectoryTable({
   rankings = [],
@@ -71,6 +71,8 @@ export function VendorDirectoryTable({
         slaComplianceRate: perf?.slaComplianceRate ?? 100,
         avgTurnaroundDays: perf?.avgTurnaroundDays ?? 0,
         activeItemsInCustody: perf?.activeItemsInCustody ?? 0,
+        reworkDcsCount: perf?.reworkDcsCount ?? 0,
+        reworkUnitsCount: perf?.reworkUnitsCount ?? 0,
         slaCount,
       };
     });
@@ -92,8 +94,9 @@ export function VendorDirectoryTable({
       // Tab filter
       if (activeTab === 'WITH_CUSTODY' && v.activeItemsInCustody <= 0) return false;
       if (activeTab === 'WITH_OVERDUE' && v.overdueDcs <= 0) return false;
+      if (activeTab === 'WITH_REWORK' && v.reworkDcsCount <= 0) return false;
       if (activeTab === 'HIGH_SLA' && v.slaComplianceRate < 90) return false;
-      if (activeTab === 'NEEDS_ATTENTION' && (v.overdueDcs > 0 || v.slaComplianceRate < 90) === false) return false;
+      if (activeTab === 'NEEDS_ATTENTION' && (v.overdueDcs > 0 || v.reworkDcsCount > 0 || v.slaComplianceRate < 90) === false) return false;
 
       // Category filter
       if (selectedCategory !== 'ALL' && v.category !== selectedCategory) return false;
@@ -117,8 +120,9 @@ export function VendorDirectoryTable({
       all: combinedVendors.length,
       withCustody: combinedVendors.filter((v) => v.activeItemsInCustody > 0).length,
       withOverdue: combinedVendors.filter((v) => v.overdueDcs > 0).length,
+      withRework: combinedVendors.filter((v) => v.reworkDcsCount > 0).length,
       highSla: combinedVendors.filter((v) => v.slaComplianceRate >= 90).length,
-      needsAttention: combinedVendors.filter((v) => v.overdueDcs > 0 || v.slaComplianceRate < 90).length,
+      needsAttention: combinedVendors.filter((v) => v.overdueDcs > 0 || v.reworkDcsCount > 0 || v.slaComplianceRate < 90).length,
     };
   }, [combinedVendors]);
 
@@ -196,6 +200,19 @@ export function VendorDirectoryTable({
               <CheckCircle2 className="w-3.5 h-3.5" />
               High SLA ≥90% ({tabCounts.highSla})
             </button>
+            {tabCounts.withRework > 0 && (
+              <button
+                onClick={() => setActiveTab('WITH_REWORK')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
+                  activeTab === 'WITH_REWORK'
+                    ? 'bg-amber-600 text-white shadow-sm'
+                    : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                }`}
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+                Quality Rework ({tabCounts.withRework})
+              </button>
+            )}
           </div>
 
           {/* Category Dropdown */}
@@ -240,6 +257,7 @@ export function VendorDirectoryTable({
               const isHighSla = v.slaComplianceRate >= 90;
               const hasCustody = v.activeItemsInCustody > 0;
               const hasOverdue = v.overdueDcs > 0;
+              const hasRework = v.reworkDcsCount > 0;
 
               return (
                 <tr
@@ -335,6 +353,17 @@ export function VendorDirectoryTable({
                           </span>
                         </>
                       )}
+                      {hasRework && (
+                        <>
+                          <span className="text-slate-300">/</span>
+                          <span
+                            title={`${v.reworkDcsCount} DCs with rework defects (${v.reworkUnitsCount} units)`}
+                            className="font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200"
+                          >
+                            {v.reworkDcsCount} Rework
+                          </span>
+                        </>
+                      )}
                     </div>
                   </td>
 
@@ -350,7 +379,12 @@ export function VendorDirectoryTable({
                       >
                         {v.slaComplianceRate.toFixed(1)}%
                       </span>
-                      {v.avgTurnaroundDays > 0 && (
+                      {hasRework && (
+                        <span className="text-[10px] text-amber-600 mt-0.5 font-medium" title="SLA reduced due to quality rework rejections">
+                          Quality Failure Penalty
+                        </span>
+                      )}
+                      {v.avgTurnaroundDays > 0 && !hasRework && (
                         <span className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-0.5">
                           <Clock className="w-2.5 h-2.5" /> {v.avgTurnaroundDays}d avg
                         </span>

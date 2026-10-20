@@ -28,6 +28,8 @@ export function GlobalVendorDashboard({
     overallSlaComplianceRate: 100,
     avgTurnaroundDays: 0,
     totalCustodyQty: 0,
+    totalReworkDcs: 0,
+    totalReworkUnits: 0,
   };
 
   const isGoodAdherence = summary.overallSlaComplianceRate >= 90;
@@ -79,6 +81,17 @@ export function GlobalVendorDashboard({
                 <span className="text-xs font-normal text-slate-400">
                   across all DCs
                 </span>
+              </div>
+              <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                {(summary.totalReworkDcs ?? 0) > 0 ? (
+                  <span className="text-[10px] font-semibold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                    {summary.totalReworkDcs} rework DC{summary.totalReworkDcs === 1 ? '' : 's'} ({summary.totalReworkUnits} units rejected)
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-slate-400">
+                    On-Time & Zero Quality Rework
+                  </span>
+                )}
               </div>
             </div>
           </div>

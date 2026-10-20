@@ -20,6 +20,7 @@ import { DcMovement } from '../delivery-challan/entities/dc-movement.entity.js';
 import { GeneralIssue } from '../general-issue/entities/general-issue.entity.js';
 import { Product } from '../inventory/entities/product.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
+import { DcReworkItem } from '../delivery-challan/entities/dc-rework-item.entity.js';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
       DeliveryChallan,
       DeliveryChallanItem,
       DcMovement,
+      DcReworkItem,
       ProductionProcess,
       Vendor,
       VendorSla,

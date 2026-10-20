@@ -10,6 +10,73 @@ export interface VendorDcAgeingDistributionDto {
   moreThan30Days: AgeingBucketDto;
 }
 
+export class VendorTraceabilitySummaryDto {
+  totalDcCount!: number;
+  openDcCount!: number;
+  closedDcCount!: number;
+  overdueDcCount!: number;
+  totalDispatchedQty!: number;
+  totalReturnedQty!: number;
+  netBalanceInCustody!: number;
+  averageTurnaroundDays!: number;
+  slaComplianceRate!: number;
+  reworkDcsCount?: number;
+  reworkUnitsCount?: number;
+}
+
+export class VendorDcItemDto {
+  id!: string;
+  productId!: string;
+  productName!: string;
+  quantityDispatched!: number;
+  quantityReturned!: number;
+  balanceInCustody!: number;
+}
+
+export class VendorChallanBreakdownDto {
+  dcId!: string;
+  challanNumber!: string;
+  type!: string;
+  status!: string;
+  givenDate!: string;
+  expectedReturnDate?: string | null;
+  actualReceiptDate?: string | null;
+  actualTimeTakenDays?: number | null;
+  isOverdue!: boolean;
+  slaDays?: number | null;
+  isSlaBreached!: boolean;
+  hasRework?: boolean;
+  reworkQty?: number;
+  slaBreachReason?: string | null;
+  scNumber?: string | null;
+  scId?: string | null;
+  poNumber?: string | null;
+  poId?: string | null;
+  processName?: string | null;
+  processCode?: string | null;
+  processId?: string | null;
+  items!: VendorDcItemDto[];
+}
+
+export class VendorItemInCustodyDto {
+  productId!: string;
+  productName!: string;
+  totalDispatched!: number;
+  totalReturned!: number;
+  balanceInCustody!: number;
+}
+
+export class VendorAssociatedProcessDto {
+  processId!: string;
+  processCode!: string;
+  processName!: string;
+  totalDcCount!: number;
+  openDcCount!: number;
+  totalDispatchedQty!: number;
+  totalReturnedQty!: number;
+  balanceInCustody!: number;
+}
+
 export interface VendorPerformanceAnalyticsSummaryDto {
   totalVendors: number;
   activeVendors: number;
@@ -20,6 +87,8 @@ export interface VendorPerformanceAnalyticsSummaryDto {
   overallSlaComplianceRate: number;
   avgTurnaroundDays: number;
   totalCustodyQty: number;
+  totalReworkDcs?: number;
+  totalReworkUnits?: number;
 }
 
 export interface VendorPerformanceRankingItemDto {
@@ -33,13 +102,8 @@ export interface VendorPerformanceRankingItemDto {
   slaComplianceRate: number;
   avgTurnaroundDays: number;
   activeItemsInCustody: number;
-}
-
-export interface VendorPerformanceAnalyticsResponseDto {
-  summary: VendorPerformanceAnalyticsSummaryDto;
-  ageingDistribution: VendorDcAgeingDistributionDto;
-  vendorRankings: VendorPerformanceRankingItemDto[];
-  generatedAt: string;
+  reworkDcsCount?: number;
+  reworkUnitsCount?: number;
 }
 
 export interface VendorTraceabilityMetaDto {
@@ -54,66 +118,11 @@ export interface VendorTraceabilityMetaDto {
   isActive: boolean;
 }
 
-export interface VendorTraceabilitySummaryDto {
-  totalDcCount: number;
-  openDcCount: number;
-  closedDcCount: number;
-  overdueDcCount: number;
-  totalDispatchedQty: number;
-  totalReturnedQty: number;
-  netBalanceInCustody: number;
-  averageTurnaroundDays: number;
-  slaComplianceRate: number;
-}
-
-export interface VendorDcItemDto {
-  id: string;
-  productId: string;
-  productName: string;
-  quantityDispatched: number;
-  quantityReturned: number;
-  balanceInCustody: number;
-}
-
-export interface VendorChallanBreakdownDto {
-  dcId: string;
-  challanNumber: string;
-  type: string;
-  status: string;
-  givenDate: string;
-  expectedReturnDate?: string | null;
-  actualReceiptDate?: string | null;
-  actualTimeTakenDays?: number | null;
-  isOverdue: boolean;
-  slaDays?: number | null;
-  isSlaBreached: boolean;
-  scNumber?: string | null;
-  scId?: string | null;
-  poNumber?: string | null;
-  poId?: string | null;
-  processName?: string | null;
-  processCode?: string | null;
-  processId?: string | null;
-  items: VendorDcItemDto[];
-}
-
-export interface VendorItemInCustodyDto {
-  productId: string;
-  productName: string;
-  totalDispatched: number;
-  totalReturned: number;
-  balanceInCustody: number;
-}
-
-export interface VendorAssociatedProcessDto {
-  processId: string;
-  processCode: string;
-  processName: string;
-  totalDcCount: number;
-  openDcCount: number;
-  totalDispatchedQty: number;
-  totalReturnedQty: number;
-  balanceInCustody: number;
+export interface VendorPerformanceAnalyticsResponseDto {
+  summary: VendorPerformanceAnalyticsSummaryDto;
+  ageingDistribution: VendorDcAgeingDistributionDto;
+  vendorRankings: VendorPerformanceRankingItemDto[];
+  generatedAt: string;
 }
 
 export interface VendorTraceabilityResponseDto {

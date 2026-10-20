@@ -14,6 +14,7 @@ import { Product } from '../inventory/entities/product.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import { DeliveryChallan, DeliveryChallanStatus } from '../delivery-challan/entities/delivery-challan.entity.js';
 import { DcMovement } from '../delivery-challan/entities/dc-movement.entity.js';
+import { DcReworkItem } from '../delivery-challan/entities/dc-rework-item.entity.js';
 import { ProductionProcess } from '../production-process/entities/production-process.entity.js';
 import { Vendor } from '../vendor/entities/vendor.entity.js';
 import { VendorSla } from '../vendor/entities/vendor-sla.entity.js';
@@ -120,6 +121,8 @@ export class TraceabilityService {
     private readonly stockBalanceRepo: Repository<StockBalance>,
     @InjectRepository(DcMovement)
     private readonly dcMovementRepo: Repository<DcMovement>,
+    @InjectRepository(DcReworkItem)
+    private readonly reworkRepo: Repository<DcReworkItem>,
   ) {}
 
   /**
@@ -1797,6 +1800,18 @@ export class TraceabilityService {
       order: { dispatchDate: 'DESC' },
     });
 
+    const reworkItems = await this.reworkRepo.find({
+      where: { originalVendorId: vendorId },
+    });
+    const reworkByDcId = new Map<string, number>();
+    let totalReworkUnitsCount = 0;
+    for (const rw of reworkItems) {
+      const qty = Number(rw.rejectedQty) || 0;
+      totalReworkUnitsCount += qty;
+      const current = reworkByDcId.get(rw.sourceDcId) || 0;
+      reworkByDcId.set(rw.sourceDcId, current + qty);
+    }
+
     const slas = await this.vendorSlaRepo.find({
       where: { vendorId, isActive: true },
     });
@@ -1808,6 +1823,7 @@ export class TraceabilityService {
     let openDcCount = 0;
     let closedDcCount = 0;
     let overdueDcCount = 0;
+    let totalReworkDcsCount = 0;
     let totalDispatchedQty = 0;
     let totalReturnedQty = 0;
 
@@ -1878,23 +1894,54 @@ export class TraceabilityService {
 
       const slaDays = effectiveProcessId ? (slaByProcessId.get(effectiveProcessId) ?? null) : null;
 
-      let isSlaBreached = false;
+      // Quality rejection / rework detection
+      const itemsQcRejected = (dc.items || []).reduce(
+        (sum, item) => sum + (Number(item.qcRejectedQty) || 0),
+        0,
+      );
+      const reworkQtyFromMap = reworkByDcId.get(dc.id) || 0;
+      const effectiveReworkQty = QuantityCalculator.roundDecimal(
+        Math.max(reworkQtyFromMap, itemsQcRejected),
+      );
+      const hasRework = effectiveReworkQty > 0;
+      if (hasRework) {
+        totalReworkDcsCount++;
+        if (!reworkByDcId.has(dc.id)) {
+          totalReworkUnitsCount += itemsQcRejected;
+        }
+      }
+
+      let isTurnaroundBreached = false;
       if (isClosed) {
         if (dc.expectedReturnDate && dc.actualReturnDate) {
-          isSlaBreached =
+          isTurnaroundBreached =
             new Date(dc.actualReturnDate).getTime() >
             new Date(dc.expectedReturnDate).getTime();
         } else if (slaDays !== null && actualTimeTakenDays !== null) {
-          isSlaBreached = actualTimeTakenDays > slaDays;
+          isTurnaroundBreached = actualTimeTakenDays > slaDays;
         }
-        evaluatedCount++;
-        if (isSlaBreached) breachedCount++;
       } else {
         if (isOverdue) {
-          isSlaBreached = true;
-          evaluatedCount++;
-          breachedCount++;
+          isTurnaroundBreached = true;
         }
+      }
+
+      // Quality failure breaches SLA adherence
+      const isQualityBreached = hasRework;
+      const isSlaBreached = isTurnaroundBreached || isQualityBreached;
+
+      let slaBreachReason: string = 'ON_TRACK';
+      if (isTurnaroundBreached && isQualityBreached) {
+        slaBreachReason = 'OVERDUE_AND_REWORK';
+      } else if (isTurnaroundBreached) {
+        slaBreachReason = 'TURNAROUND_OVERDUE';
+      } else if (isQualityBreached) {
+        slaBreachReason = 'QUALITY_REWORK';
+      }
+
+      if (isClosed || isOverdue || hasRework) {
+        evaluatedCount++;
+        if (isSlaBreached) breachedCount++;
       }
 
       const dcItems: VendorDcItemDto[] = (dc.items || []).map((item) => {
@@ -1974,6 +2021,9 @@ export class TraceabilityService {
         isOverdue,
         slaDays,
         isSlaBreached,
+        hasRework,
+        reworkQty: effectiveReworkQty,
+        slaBreachReason,
         scNumber: dc.sc?.scNumber ?? (dc.items?.[0]?.sc?.scNumber ?? null),
         scId: effectiveScId,
         poNumber: dc.sc?.purchaseOrder?.poNumber ?? (dc.items?.[0]?.sc?.purchaseOrder?.poNumber ?? null),
@@ -2052,6 +2102,8 @@ export class TraceabilityService {
         netBalanceInCustody,
         averageTurnaroundDays,
         slaComplianceRate,
+        reworkDcsCount: totalReworkDcsCount,
+        reworkUnitsCount: QuantityCalculator.roundDecimal(totalReworkUnitsCount),
       },
       challanBreakdown,
       itemsInCustody,
@@ -2073,6 +2125,60 @@ export class TraceabilityService {
     const allDcs = await this.deliveryChallanRepo.find({
       relations: { vendor: true, process: true, items: true },
     });
+
+    // Fetch all rework items to penalize quality failures in SLA adherence
+    const allReworkItems = await this.reworkRepo.find();
+    const reworkByDcId = new Map<string, number>();
+    const reworkUnitsByVendorId = new Map<string, number>();
+    const reworkDcsByVendorId = new Map<string, Set<string>>();
+
+    for (const rw of allReworkItems) {
+      const qty = Number(rw.rejectedQty) || 0;
+      const current = reworkByDcId.get(rw.sourceDcId) || 0;
+      reworkByDcId.set(rw.sourceDcId, current + qty);
+
+      if (rw.originalVendorId) {
+        reworkUnitsByVendorId.set(
+          rw.originalVendorId,
+          (reworkUnitsByVendorId.get(rw.originalVendorId) || 0) + qty,
+        );
+        let vSet = reworkDcsByVendorId.get(rw.originalVendorId);
+        if (!vSet) {
+          vSet = new Set<string>();
+          reworkDcsByVendorId.set(rw.originalVendorId, vSet);
+        }
+        vSet.add(rw.sourceDcId);
+      }
+    }
+
+    // Also account for any DC item where qcRejectedQty > 0
+    for (const dc of allDcs) {
+      const itemsRejected = (dc.items || []).reduce(
+        (sum, item) => sum + (Number(item.qcRejectedQty) || 0),
+        0,
+      );
+      if (itemsRejected > 0 && !reworkByDcId.has(dc.id)) {
+        reworkByDcId.set(dc.id, itemsRejected);
+        if (dc.vendorId) {
+          reworkUnitsByVendorId.set(
+            dc.vendorId,
+            (reworkUnitsByVendorId.get(dc.vendorId) || 0) + itemsRejected,
+          );
+          let vSet = reworkDcsByVendorId.get(dc.vendorId);
+          if (!vSet) {
+            vSet = new Set<string>();
+            reworkDcsByVendorId.set(dc.vendorId, vSet);
+          }
+          vSet.add(dc.id);
+        }
+      }
+    }
+
+    const totalReworkDcs = reworkByDcId.size;
+    let totalReworkUnits = 0;
+    for (const units of reworkByDcId.values()) {
+      totalReworkUnits += units;
+    }
 
     const allSlas = await this.vendorSlaRepo.find({
       where: { isActive: true },
@@ -2125,12 +2231,15 @@ export class TraceabilityService {
         !!dc.expectedReturnDate &&
         new Date(dc.expectedReturnDate).getTime() < Date.now();
 
+      const dcReworkQty = reworkByDcId.get(dc.id) || 0;
+      const hasRework = dcReworkQty > 0;
+
       if (!isClosed) {
         openDcs++;
         totalCustodyQty += dcBalance;
 
-        if (isOverdue) {
-          overdueDcs++;
+        if (isOverdue || hasRework) {
+          if (isOverdue) overdueDcs++;
           evaluatedDcs++;
           breachedDcs++;
         }
@@ -2171,14 +2280,14 @@ export class TraceabilityService {
           closedWithDurationCount++;
         }
 
-        let isSlaBreached = false;
+        let isTurnaroundBreached = false;
         const slaDays =
           dc.vendorId && dc.processId
             ? slaMap.get(`${dc.vendorId}_${dc.processId}`)
             : null;
 
         if (dc.expectedReturnDate && dc.actualReturnDate) {
-          isSlaBreached =
+          isTurnaroundBreached =
             new Date(dc.actualReturnDate).getTime() >
             new Date(dc.expectedReturnDate).getTime();
         } else if (
@@ -2186,8 +2295,10 @@ export class TraceabilityService {
           slaDays !== null &&
           actualTimeTaken !== null
         ) {
-          isSlaBreached = actualTimeTaken > slaDays;
+          isTurnaroundBreached = actualTimeTaken > slaDays;
         }
+
+        const isSlaBreached = isTurnaroundBreached || hasRework;
 
         evaluatedDcs++;
         if (isSlaBreached) breachedDcs++;
@@ -2198,6 +2309,9 @@ export class TraceabilityService {
     const vendorRankings: VendorPerformanceRankingItemDto[] = [];
     for (const vendor of vendors) {
       const vDcs = dcsByVendorId.get(vendor.id) || [];
+      const vVendorReworkDcs = reworkDcsByVendorId.get(vendor.id)?.size || 0;
+      const vVendorReworkUnits = reworkUnitsByVendorId.get(vendor.id) || 0;
+
       let vOpen = 0;
       let vClosed = 0;
       let vOverdue = 0;
@@ -2223,6 +2337,9 @@ export class TraceabilityService {
           !!dc.expectedReturnDate &&
           new Date(dc.expectedReturnDate).getTime() < Date.now();
 
+        const dcReworkQty = reworkByDcId.get(dc.id) || 0;
+        const hasRework = dcReworkQty > 0;
+
         if (isClosed) {
           vClosed++;
           let timeTaken: number | null = null;
@@ -2237,13 +2354,13 @@ export class TraceabilityService {
             vTurnaroundCount++;
           }
 
-          let isSlaBreached = false;
+          let isTurnaroundBreached = false;
           const slaDays = dc.processId
             ? slaMap.get(`${vendor.id}_${dc.processId}`)
             : null;
 
           if (dc.expectedReturnDate && dc.actualReturnDate) {
-            isSlaBreached =
+            isTurnaroundBreached =
               new Date(dc.actualReturnDate).getTime() >
               new Date(dc.expectedReturnDate).getTime();
           } else if (
@@ -2251,16 +2368,18 @@ export class TraceabilityService {
             slaDays !== null &&
             timeTaken !== null
           ) {
-            isSlaBreached = timeTaken > slaDays;
+            isTurnaroundBreached = timeTaken > slaDays;
           }
+
+          const isSlaBreached = isTurnaroundBreached || hasRework;
 
           vEvaluated++;
           if (isSlaBreached) vBreached++;
         } else {
           vOpen++;
           vCustody += dcBal;
-          if (isOverdue) {
-            vOverdue++;
+          if (isOverdue || hasRework) {
+            if (isOverdue) vOverdue++;
             vEvaluated++;
             vBreached++;
           }
@@ -2290,16 +2409,21 @@ export class TraceabilityService {
         slaComplianceRate: vComplianceRate,
         avgTurnaroundDays: vAvgTurnaround,
         activeItemsInCustody: QuantityCalculator.roundDecimal(vCustody),
+        reworkDcsCount: vVendorReworkDcs,
+        reworkUnitsCount: QuantityCalculator.roundDecimal(vVendorReworkUnits),
       });
     }
 
-    // Sort rankings: highest SLA compliance first, then lowest overdue, then highest total DCs
+    // Sort rankings: highest SLA compliance first, then lowest overdue, then lowest rework, then highest total DCs
     vendorRankings.sort((a, b) => {
       if (b.slaComplianceRate !== a.slaComplianceRate) {
         return b.slaComplianceRate - a.slaComplianceRate;
       }
       if (a.overdueDcs !== b.overdueDcs) {
         return a.overdueDcs - b.overdueDcs;
+      }
+      if ((a.reworkDcsCount || 0) !== (b.reworkDcsCount || 0)) {
+        return (a.reworkDcsCount || 0) - (b.reworkDcsCount || 0);
       }
       return b.totalDcs - a.totalDcs;
     });
@@ -2329,6 +2453,8 @@ export class TraceabilityService {
         overallSlaComplianceRate,
         avgTurnaroundDays,
         totalCustodyQty: QuantityCalculator.roundDecimal(totalCustodyQty),
+        totalReworkDcs,
+        totalReworkUnits: QuantityCalculator.roundDecimal(totalReworkUnits),
       },
       ageingDistribution: {
         lessThan7Days: {

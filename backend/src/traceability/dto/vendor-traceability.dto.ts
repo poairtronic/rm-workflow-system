@@ -20,6 +20,8 @@ export class VendorTraceabilitySummaryDto {
   netBalanceInCustody!: number;
   averageTurnaroundDays!: number;
   slaComplianceRate!: number;
+  reworkDcsCount?: number;
+  reworkUnitsCount?: number;
 }
 
 export class VendorDcItemDto {
@@ -43,6 +45,9 @@ export class VendorChallanBreakdownDto {
   isOverdue!: boolean;
   slaDays?: number | null;
   isSlaBreached!: boolean;
+  hasRework?: boolean;
+  reworkQty?: number;
+  slaBreachReason?: string | null;
   scNumber?: string | null;
   scId?: string | null;
   poNumber?: string | null;
@@ -103,6 +108,8 @@ export class VendorPerformanceAnalyticsSummaryDto {
   overallSlaComplianceRate!: number;
   avgTurnaroundDays!: number;
   totalCustodyQty!: number;
+  totalReworkDcs?: number;
+  totalReworkUnits?: number;
 }
 
 export class VendorPerformanceRankingItemDto {
@@ -116,6 +123,8 @@ export class VendorPerformanceRankingItemDto {
   slaComplianceRate!: number;
   avgTurnaroundDays!: number;
   activeItemsInCustody!: number;
+  reworkDcsCount?: number;
+  reworkUnitsCount?: number;
 }
 
 export class VendorPerformanceAnalyticsResponseDto {

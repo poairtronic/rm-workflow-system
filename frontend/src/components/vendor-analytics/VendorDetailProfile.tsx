@@ -113,8 +113,8 @@ export function VendorDetailProfile({ profile, vendorSlas = [], onBack }: Vendor
           </div>
         </div>
 
-        {/* 4 Mini Summary Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-100">
+        {/* 5 Mini Summary Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5 mt-6 pt-6 border-t border-slate-100">
           <div className="bg-slate-50 rounded-lg p-3">
             <span className="text-xs text-slate-500 font-medium">Total Challans Dispatched</span>
             <p className="text-lg font-bold text-slate-900 mt-1 tabular-nums">{summary?.totalDcCount ?? 0}</p>
@@ -129,6 +129,17 @@ export function VendorDetailProfile({ profile, vendorSlas = [], onBack }: Vendor
             <span className="text-xs text-slate-500 font-medium">Overdue Challans</span>
             <p className={`text-lg font-bold mt-1 tabular-nums ${summary?.overdueDcCount > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
               {summary?.overdueDcCount ?? 0}
+            </p>
+          </div>
+          <div className="bg-slate-50 rounded-lg p-3">
+            <span className="text-xs text-slate-500 font-medium">Quality Reworks</span>
+            <p className={`text-lg font-bold mt-1 tabular-nums ${(summary?.reworkDcsCount ?? 0) > 0 ? 'text-amber-700' : 'text-slate-900'}`}>
+              {summary?.reworkDcsCount ?? 0} <span className="text-xs text-slate-400 font-normal">DCs</span>
+              {(summary?.reworkUnitsCount ?? 0) > 0 && (
+                <span className="text-xs text-amber-600 font-medium ml-1">
+                  ({summary?.reworkUnitsCount} units)
+                </span>
+              )}
             </p>
           </div>
           <div className="bg-slate-50 rounded-lg p-3">
@@ -364,8 +375,19 @@ export function VendorDetailProfile({ profile, vendorSlas = [], onBack }: Vendor
                       </span>
                     </td>
                     <td className="px-6 py-3.5 text-center">
-                      {dc.isOverdue ? (
-                        <span className="text-xs font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-full border border-red-200 flex items-center justify-center gap-1">
+                      {dc.isOverdue && dc.hasRework ? (
+                        <span className="text-xs font-bold text-red-700 bg-red-50 px-2.5 py-1 rounded-full border border-red-200 inline-flex items-center justify-center gap-1">
+                          <AlertTriangle className="w-3 h-3 text-red-600" /> Overdue & Rework
+                        </span>
+                      ) : dc.hasRework ? (
+                        <span
+                          className="text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200 inline-flex items-center justify-center gap-1"
+                          title={`Quality Rejection: ${dc.reworkQty} units marked for rework`}
+                        >
+                          <AlertTriangle className="w-3 h-3 text-amber-600" /> Rework ({dc.reworkQty} units)
+                        </span>
+                      ) : dc.isOverdue ? (
+                        <span className="text-xs font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-full border border-red-200 inline-flex items-center justify-center gap-1">
                           <AlertTriangle className="w-3 h-3 text-red-600" /> Overdue
                         </span>
                       ) : dc.isSlaBreached ? (
@@ -373,7 +395,7 @@ export function VendorDetailProfile({ profile, vendorSlas = [], onBack }: Vendor
                           SLA Breached
                         </span>
                       ) : (
-                        <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center justify-center gap-1">
+                        <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 inline-flex items-center justify-center gap-1">
                           <CheckCircle2 className="w-3 h-3 text-emerald-600" /> On Track
                         </span>
                       )}
