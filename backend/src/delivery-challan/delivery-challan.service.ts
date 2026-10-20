@@ -878,15 +878,24 @@ export class DeliveryChallanService {
     try {
       const challan = await queryRunner.manager.findOne(DeliveryChallan, {
         where: { id: challanId },
-        relations: {
-          vendor: true,
-          sc: { purchaseOrder: true },
-        },
         lock: { mode: 'pessimistic_write' },
       });
 
       if (!challan) {
         throw new NotFoundException(`Delivery Challan ${challanId} not found`);
+      }
+
+      const challanWithRelations = await queryRunner.manager.findOne(DeliveryChallan, {
+        where: { id: challanId },
+        relations: {
+          vendor: true,
+          sc: { purchaseOrder: true },
+        },
+      });
+
+      if (challanWithRelations) {
+        challan.vendor = challanWithRelations.vendor;
+        challan.sc = challanWithRelations.sc;
       }
 
       const items = await queryRunner.manager.find(DeliveryChallanItem, {
