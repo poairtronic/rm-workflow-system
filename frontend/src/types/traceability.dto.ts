@@ -31,6 +31,7 @@ export interface ReconciliationMetrics {
   totalScrapKg: number;
   varianceKg: number;
   isBalanced: boolean;
+  uom?: string;
 }
 
 export interface ConsolidatedTraceabilityDto {

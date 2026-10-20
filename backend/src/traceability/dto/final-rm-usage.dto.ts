@@ -27,6 +27,7 @@ export interface FinalRmUsageSummary {
   finalRmUsed: number;
   variance: number;
   isZeroLossVerified: boolean;
+  uom?: string;
 }
 
 export interface FinalRmUsageResponseDto {

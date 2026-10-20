@@ -258,6 +258,15 @@ export class TraceabilityService {
       relations: { items: true },
     });
 
+    const issueIds = (sc.materialIssues || []).map((i) => i.id);
+    let receipts: MaterialReceipt[] = [];
+    if (issueIds.length > 0) {
+      receipts = await this.materialReceiptRepo.find({
+        where: { materialIssueId: In(issueIds) },
+        relations: { items: true },
+      });
+    }
+
     let scGeneralIssueExtra = 0;
     generalIssues.forEach((gi) => {
       (gi.items || []).forEach((item) => {
@@ -295,13 +304,38 @@ export class TraceabilityService {
 
       const totalIssued = QuantityCalculator.roundDecimal(initialIssued + additionalIssued);
 
-      let totalConsumed = 0;
+      let totalReceived = 0;
+      receipts.forEach((rec) => {
+        (rec.items || []).forEach((item) => {
+          if (item.rmItemId === rmItem.id) {
+            totalReceived += Number(item.quantityReceived) || 0;
+          }
+        });
+      });
+      totalReceived = QuantityCalculator.roundDecimal(totalReceived);
+
+      let totalShiftConsumed = 0;
       (sc.materialConsumptions || []).forEach((c) => {
         if (c.rmItemId === rmItem.id) {
-          totalConsumed += Number(c.consumedQuantity) || 0;
+          totalShiftConsumed += Number(c.consumedQuantity) || 0;
         }
       });
-      totalConsumed = QuantityCalculator.roundDecimal(totalConsumed);
+      totalShiftConsumed = QuantityCalculator.roundDecimal(totalShiftConsumed);
+
+      // "consumed is when production received means consumed"
+      let totalConsumed = totalShiftConsumed;
+      if (totalReceived > 0) {
+        totalConsumed = QuantityCalculator.roundDecimal(Math.max(totalShiftConsumed, totalReceived));
+      } else if (
+        totalConsumed === 0 &&
+        ((sc.status as string) === 'IN_PRODUCTION' ||
+          (sc.status as string) === 'PRODUCTION_RECEIVED' ||
+          sc.status === ScStatus.COMPLETED ||
+          sc.status === ScStatus.CLOSED ||
+          sc.status === ScStatus.ISSUED)
+      ) {
+        totalConsumed = QuantityCalculator.roundDecimal(totalIssued);
+      }
 
       let totalReturned = 0;
       (sc.materialReturns || []).forEach((ret) => {
@@ -393,6 +427,7 @@ export class TraceabilityService {
       finalRmUsed,
       variance,
       isZeroLossVerified,
+      uom: itemsBreakdown[0]?.uom || (sc.rmItems && sc.rmItems[0]?.weightUnit) || 'KG',
     };
 
     return {
@@ -1217,6 +1252,7 @@ export class TraceabilityService {
       totalScrapKg: 0,
       varianceKg: Number(finalRmUsageResponse.summary.variance) || 0,
       isBalanced: Boolean(finalRmUsageResponse.summary.isZeroLossVerified),
+      uom: finalRmUsageResponse.summary.uom || (sc.rmItems && sc.rmItems[0]?.weightUnit) || 'KG',
     };
 
     return {

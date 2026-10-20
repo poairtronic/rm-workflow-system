@@ -549,13 +549,50 @@ export const traceabilityApi = {
     };
 
     const finalSummary = raw?.finalRmUsage?.summary;
+    const rawItems = raw?.rmRequests?.[0]?.items || raw?.finalRmUsage?.items || raw?.rmItems || [];
+    const detectedUom =
+      raw?.reconciliation?.uom ||
+      finalSummary?.uom ||
+      rawItems[0]?.weightUnit ||
+      rawItems[0]?.uom ||
+      'KG';
+
+    const totalIssued = Number(finalSummary?.totalIssued ?? raw?.reconciliation?.totalIssuedKg ?? 0);
+    const totalReturned = Number(finalSummary?.totalReturned ?? raw?.reconciliation?.totalReturnedUsableKg ?? 0);
+    const totalScrap = Number(finalSummary?.totalScrapKg ?? raw?.reconciliation?.totalScrapKg ?? 0);
+
+    // Production receipts sum:
+    const totalReceivedFromReceipts = (raw?.receipts || []).reduce((sum: number, rec: any) => {
+      const recSum = (rec.items || []).reduce((s: number, it: any) => s + (Number(it.quantityReceived) || 0), 0);
+      return sum + recSum;
+    }, 0);
+
+    let totalConsumed = Number(finalSummary?.totalConsumed ?? raw?.reconciliation?.totalConsumedKg ?? 0);
+    if (totalConsumed <= 0 && totalReceivedFromReceipts > 0) {
+      totalConsumed = totalReceivedFromReceipts;
+    } else if (totalReceivedFromReceipts > totalConsumed) {
+      totalConsumed = totalReceivedFromReceipts;
+    } else if (
+      totalConsumed <= 0 &&
+      (canonicalStage === 'Production Received' ||
+        raw?.sc?.status === 'IN_PRODUCTION' ||
+        raw?.sc?.status === 'COMPLETED' ||
+        raw?.sc?.status === 'PRODUCTION_RECEIVED')
+    ) {
+      totalConsumed = Math.max(0, totalIssued - totalReturned);
+    }
+
+    const variance = Number((totalIssued - totalConsumed - (totalReturned + totalScrap)).toFixed(2));
+    const isBalanced = Math.abs(variance) < 0.001;
+
     const reconciliation = {
-      totalIssuedKg: Number(finalSummary?.totalIssued ?? finalSummary?.totalIssuedKg ?? 0),
-      totalConsumedKg: Number(finalSummary?.totalConsumed ?? finalSummary?.totalConsumedKg ?? 0),
-      totalReturnedUsableKg: Number(finalSummary?.totalReturned ?? finalSummary?.totalReturnedUsableKg ?? 0),
-      totalScrapKg: Number(finalSummary?.totalScrapKg ?? 0),
-      varianceKg: Number(finalSummary?.variance ?? finalSummary?.varianceKg ?? 0),
-      isBalanced: Boolean(finalSummary?.isZeroLossVerified ?? finalSummary?.isZeroLossBalanced ?? true),
+      totalIssuedKg: totalIssued,
+      totalConsumedKg: totalConsumed,
+      totalReturnedUsableKg: totalReturned,
+      totalScrapKg: totalScrap,
+      varianceKg: variance,
+      isBalanced,
+      uom: detectedUom,
     };
 
     const events = raw?.events && Array.isArray(raw.events) && raw.events.length > 0
