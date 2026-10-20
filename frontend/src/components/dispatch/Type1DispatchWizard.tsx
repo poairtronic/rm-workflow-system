@@ -106,21 +106,43 @@ export function Type1DispatchWizard() {
       expectedReturnDate: data.expectedReturnDate,
       notes: data.notes?.trim() || undefined,
       processName: mainProcessName,
-      items: data.scBlocks.flatMap((block: any) => 
-        block.items.map((item: any) => ({
-          ...item,
-          productId: item.productId || undefined,
-          binId: item.binId || undefined,
-          scId: block.scId,
-          processId: block.processId || undefined,
-          processName: block.processName?.trim() || mainProcessName || undefined,
-          partNumber: item.partNumber || undefined,
-          partName: item.partName || undefined,
-          description: item.description?.trim() || undefined,
-          batchNumber: item.batchNumber?.trim() || undefined,
-          quantityDispatched: Number(item.quantity)
-        }))
-      )
+      items: data.scBlocks.flatMap((block: any) => {
+        const targetSc = (scList as any[])?.find((s: any) => s.id === block.scId);
+        const scRmItems = (targetSc?.rmRequest?.items as any[]) || [];
+
+        return block.items.map((item: any) => {
+          let resolvedPartNumber = item.partNumber?.trim() || undefined;
+          let resolvedPartName = item.partName?.trim() || undefined;
+          let resolvedProductId = item.productId || undefined;
+
+          if (item.scItemId === 'sc_assembly') {
+            resolvedPartNumber = targetSc?.scNumber || resolvedPartNumber;
+            resolvedPartName = targetSc?.productName || resolvedPartName;
+            resolvedProductId = undefined;
+          } else if (item.scItemId) {
+            const matchedRmItem = scRmItems.find((it: any) => it.id === item.scItemId);
+            if (matchedRmItem) {
+              resolvedPartNumber = matchedRmItem.partNumber || matchedRmItem.part_number || resolvedPartNumber;
+              resolvedPartName = matchedRmItem.partName || matchedRmItem.part_name || matchedRmItem.material || resolvedPartName;
+              resolvedProductId = matchedRmItem.mappedProductId || matchedRmItem.mapped_product_id || resolvedProductId;
+            }
+          }
+
+          return {
+            ...item,
+            productId: resolvedProductId || undefined,
+            binId: item.binId || undefined,
+            scId: block.scId,
+            processId: block.processId || undefined,
+            processName: block.processName?.trim() || mainProcessName || undefined,
+            partNumber: resolvedPartNumber,
+            partName: resolvedPartName,
+            description: item.description?.trim() || undefined,
+            batchNumber: item.batchNumber?.trim() || undefined,
+            quantityDispatched: Number(item.quantity)
+          };
+        });
+      })
     };
     createDcMutation.mutate(payload);
   };

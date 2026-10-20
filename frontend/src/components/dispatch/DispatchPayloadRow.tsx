@@ -236,6 +236,22 @@ export function DispatchPayloadRow({
         } else {
           handleType1ItemSelect('sc_assembly');
         }
+      } else if (scItemId === 'sc_assembly') {
+        const expectedPartNo = selectedSc.scNumber || '';
+        const expectedPartName = selectedSc.productName || '';
+        setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, expectedPartNo, { shouldValidate: true });
+        setValue(`scBlocks.${blockIndex}.items.${index}.partName`, expectedPartName, { shouldValidate: true });
+        setValue(`scBlocks.${blockIndex}.items.${index}.productId`, '', { shouldValidate: true });
+      } else {
+        const found = scRmItems.find((it: any) => it.id === scItemId);
+        if (found) {
+          const pNum = found.partNumber || found.part_number || selectedSc?.scNumber || '';
+          const pName = found.partName || found.part_name || found.material || '';
+          const pId = found.mappedProductId || found.mapped_product_id || '';
+          setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, pNum, { shouldValidate: true });
+          setValue(`scBlocks.${blockIndex}.items.${index}.partName`, pName, { shouldValidate: true });
+          setValue(`scBlocks.${blockIndex}.items.${index}.productId`, pId, { shouldValidate: true });
+        }
       }
       return;
     }
@@ -321,6 +337,7 @@ export function DispatchPayloadRow({
   const defaultPartNo = `DC2-${String(currentSeq).padStart(3, '0')}`;
 
   const watchedPartNumber = watch(`scBlocks.${blockIndex}.items.${index}.partNumber`);
+  const watchedPartName = watch(`scBlocks.${blockIndex}.items.${index}.partName`);
   const activeScItem = isType1 && scItemId && scItemId !== 'sc_assembly'
     ? scRmItems.find((it: any) => it.id === scItemId)
     : null;
@@ -500,9 +517,10 @@ export function DispatchPayloadRow({
             );
           })()}
 
-          <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.scItemId` as const)} />
-          <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.partNumber` as const)} />
-          <input type="hidden" {...register(`scBlocks.${blockIndex}.items.${index}.partName` as const)} />
+          <input type="hidden" value={scItemId || ''} {...register(`scBlocks.${blockIndex}.items.${index}.scItemId` as const)} />
+          <input type="hidden" value={watchedPartNumber || ''} {...register(`scBlocks.${blockIndex}.items.${index}.partNumber` as const)} />
+          <input type="hidden" value={watchedPartName || ''} {...register(`scBlocks.${blockIndex}.items.${index}.partName` as const)} />
+          <input type="hidden" value={productId || ''} {...register(`scBlocks.${blockIndex}.items.${index}.productId` as const)} />
 
           {/* Line 2: Batch & Description (Entered in next line) */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-3.5 items-start pt-2 border-t border-slate-100">

@@ -19,6 +19,7 @@ import { Vendor } from '../vendor/entities/vendor.entity.js';
 import { CommunicationService } from '../notifications/communication.service.js';
 import { RmItem } from '../rm/entities/rm-item.entity.js';
 import { SalesOrderComponent } from '../sc/entities/sc.entity.js';
+import { Product } from '../inventory/entities/product.entity.js';
 import { PrintableDeliveryChallanDto, PrintableCompanyInfo } from './dto/printable-delivery-challan.dto.js';
 
 @Injectable()
@@ -201,9 +202,47 @@ export class DeliveryChallanService {
         const quantityToDispatch = Number(itemDto.quantityDispatched ?? 0);
         const targetScId = itemDto.scId || headerScId;
 
-        // Resolve partNumber and partName from DTO or SC
-        let partNumber = itemDto.partNumber;
-        let partName = itemDto.partName;
+        // Resolve partNumber and partName with precision:
+        // 1. If explicit partNumber and partName are supplied, use them unless they mistakenly match parent SC assembly when a specific RM item is dispatched.
+        // 2. If targetScId and productId are present, check if this is an RmItem under this SC.
+        // 3. If missing, look up Product by productId.
+        // 4. Finally, fallback to parent SalesOrderComponent assembly if still unresolved.
+        let partNumber = itemDto.partNumber?.trim() || null;
+        let partName = itemDto.partName?.trim() || null;
+
+        if (targetScId && itemDto.productId) {
+          const rmItem = await queryRunner.manager.findOne(RmItem, {
+            where: [
+              { scId: targetScId, mappedProductId: itemDto.productId },
+              { scId: targetScId, id: itemDto.productId },
+            ],
+          });
+          if (rmItem) {
+            const sc = await queryRunner.manager.findOne(SalesOrderComponent, {
+              where: { id: targetScId },
+            });
+            const isScNumber = sc && partNumber === sc.scNumber;
+            const isScProduct = sc && partName === sc.productName;
+
+            if (!partNumber || isScNumber) {
+              partNumber = rmItem.partNumber || null;
+            }
+            if (!partName || isScProduct) {
+              partName = rmItem.partName || rmItem.material || null;
+            }
+          }
+        }
+
+        if ((!partNumber || !partName) && itemDto.productId) {
+          const prod = await queryRunner.manager.findOne(Product, {
+            where: { id: itemDto.productId },
+          });
+          if (prod) {
+            if (!partNumber) partNumber = prod.code || null;
+            if (!partName) partName = prod.name || null;
+          }
+        }
+
         if ((!partNumber || !partName) && targetScId) {
           const sc = await queryRunner.manager.findOne(SalesOrderComponent, {
             where: { id: targetScId },
