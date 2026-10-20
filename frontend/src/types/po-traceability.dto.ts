@@ -1,9 +1,11 @@
+import type { CanonicalStage } from '../utils/canonicalStages';
+
 export interface PoScSummary {
   scId: string;
   nomenclature: string;
   quantityOrdered: number;
   quantityCompleted: number;
-  status: 'DRAFT' | 'IN_PRODUCTION' | 'CLOSED';
+  status: 'DRAFT' | 'IN_PRODUCTION' | 'CLOSED' | CanonicalStage | string;
 }
 
 export interface PoKpiData {
@@ -31,7 +33,7 @@ export interface PoDcLog {
   vendorName: string;
   dispatchDate: string;
   expectedReturnDate: string;
-  status: 'DRAFT' | 'ISSUED' | 'PARTIAL_RETURN' | 'CLOSED';
+  status: 'DRAFT' | 'ISSUED' | 'PARTIAL_RETURN' | 'CLOSED' | string;
 }
 
 export interface PoConsolidatedTraceabilityDto {

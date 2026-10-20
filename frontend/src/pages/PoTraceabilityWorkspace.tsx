@@ -8,6 +8,8 @@ import { PoKpiMetrics } from '../components/traceability/PoKpiMetrics';
 import { ScAggregateGrid } from '../components/traceability/ScAggregateGrid';
 import { PoMaterialCharts } from '../components/traceability/PoMaterialCharts';
 import { PoDeliveryChallanLog } from '../components/traceability/PoDeliveryChallanLog';
+import { StatusBadge } from '../components/ui/StatusBadge';
+import { getCanonicalStage, getGeneralizedPoStage, STAGE_CONFIG, type CanonicalStage } from '../utils/canonicalStages';
 
 export function PoTraceabilityWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -158,11 +160,19 @@ export function PoTraceabilityWorkspace() {
             const safeCustomerName = (data as any).customerName || (data as any).po?.customer?.name || 'Customer';
             const safePoDate = (data as any).poDate || (data as any).po?.referenceDate || (data as any).po?.createdAt || '';
             const safeTargetDeliveryDate = (data as any).targetDeliveryDate || (data as any).po?.referenceDate || '';
+            const rawChildComponents: any[] = (data as any).childComponents || [];
+            const generalizedPoStage = getGeneralizedPoStage(rawChildComponents);
+
+            const rawDcItems: any[] = (data as any).dcLogs || 
+              (Array.isArray((data as any).deliveryChallans)
+                ? (data as any).deliveryChallans
+                : (data as any).deliveryChallans?.items || []);
+
             const safeKpis = (data as any).kpis || {
-              totalScs: (data as any).summary?.totalScCount ?? ((data as any).childComponents?.length ?? 0),
+              totalScs: (data as any).summary?.totalScCount ?? rawChildComponents.length,
               overallFulfillmentPercentage: (data as any).summary?.overallFulfillmentPercentage ?? 0,
               cumulativeMaterialWeightKg: (data as any).rmSummary?.totalOriginalRm ?? 0,
-              activeVendorDispatches: ((data as any).deliveryChallans || []).filter((d: any) => d.status === 'DISPATCHED').length,
+              activeVendorDispatches: (data as any).deliveryChallans?.dispatchedChallans ?? rawDcItems.filter((d: any) => d.status === 'DISPATCHED' || d.status === 'ISSUED' || d.status === 'PARTIALLY_RETURNED').length,
             };
             const safeMaterialChartData = (data as any).materialChartData || [
               {
@@ -171,26 +181,49 @@ export function PoTraceabilityWorkspace() {
                 consumedKg: (data as any).rmSummary?.totalConsumed ?? 0,
               },
             ];
-            const safeStatusDistribution = (data as any).statusDistribution || Object.entries((data as any).productionStatus?.statusBreakdown || {}).map(([name, value], idx) => ({
-              name,
-              value: Number(value),
-              color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][idx % 5],
-            }));
-            const safeScs = (data as any).scs || ((data as any).childComponents || []).map((c: any) => ({
+
+            const stageDistributionMap: Record<CanonicalStage, number> = {
+              'Draft': 0,
+              'Design Issued': 0,
+              'Stores Pending': 0,
+              'Partially Issued': 0,
+              'Stores Issued': 0,
+              'Production Pending': 0,
+              'Production Received': 0,
+            };
+
+            rawChildComponents.forEach((c: any) => {
+              const stage = getCanonicalStage(c);
+              stageDistributionMap[stage] = (stageDistributionMap[stage] || 0) + 1;
+            });
+
+            const safeStatusDistribution = Object.entries(stageDistributionMap)
+              .filter(([_, count]) => count > 0)
+              .map(([stage, count]) => ({
+                name: stage,
+                value: count,
+                color: STAGE_CONFIG[stage as CanonicalStage]?.hexColor || '#3b82f6',
+              }));
+
+            const safeScs = rawChildComponents.map((c: any) => ({
               scId: c.scId,
               nomenclature: c.productName || c.scNumber,
               quantityOrdered: c.targetQuantity || 0,
               quantityCompleted: c.rmSummary?.totalConsumed || 0,
-              status: c.status === 'COMPLETED' ? 'CLOSED' : (c.status === 'DRAFT' ? 'DRAFT' : 'IN_PRODUCTION'),
+              status: getCanonicalStage(c),
             }));
-            const safeDcLogs = (data as any).dcLogs || ((data as any).deliveryChallans || []).map((dc: any) => ({
-              dcNumber: dc.challanNumber || dc.dcNumber,
-              scReference: dc.scId || 'Multiple / General',
-              vendorName: dc.vendor?.name || 'N/A',
-              dispatchDate: dc.dispatchDate || '',
-              expectedReturnDate: dc.expectedReturnDate || '',
-              status: dc.status === 'DISPATCHED' ? 'ISSUED' : (dc.status === 'PARTIALLY_RETURNED' ? 'PARTIAL_RETURN' : (dc.status === 'CLOSED' || dc.status === 'RETURNED' ? 'CLOSED' : 'DRAFT')),
-            }));
+
+            const safeDcLogs = rawDcItems.map((dc: any) => {
+              const scMatch = rawChildComponents.find((c: any) => c.scId === dc.scId || c.scNumber === dc.scReference);
+              return {
+                dcNumber: dc.challanNumber || dc.dcNumber || 'DC',
+                scReference: scMatch?.scNumber || dc.scReference || (dc.scId ? `SC: ${String(dc.scId).slice(0, 8)}...` : 'General / Multi-SC'),
+                vendorName: dc.vendor?.name || dc.vendorName || 'N/A',
+                dispatchDate: dc.dispatchDate || '',
+                expectedReturnDate: dc.expectedReturnDate || '',
+                status: dc.status === 'DISPATCHED' ? 'ISSUED' : (dc.status === 'PARTIALLY_RETURNED' ? 'PARTIAL_RETURN' : (dc.status === 'CLOSED' || dc.status === 'RETURNED' ? 'CLOSED' : 'DRAFT')),
+              };
+            });
 
             return (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
@@ -201,7 +234,10 @@ export function PoTraceabilityWorkspace() {
                       <FileBadge className="w-6 h-6" />
                     </div>
                     <div>
-                      <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Purchase Order</h2>
+                      <div className="flex items-center gap-2.5">
+                        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Purchase Order</h2>
+                        <StatusBadge status={generalizedPoStage} className="text-[10px] px-2 py-0.5" />
+                      </div>
                       <p className="text-xl font-extrabold text-slate-900 font-mono">{safePoNumber}</p>
                     </div>
                   </div>

@@ -289,4 +289,7 @@ export class ConsolidatedScTraceabilityDto {
   vendors!: ConsolidatedVendorDto[];
   finalRmUsage!: ConsolidatedFinalRmUsageDto;
   generatedAt!: string;
+  events?: any[];
+  masterData?: any;
+  reconciliation?: any;
 }

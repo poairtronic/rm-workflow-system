@@ -1,20 +1,14 @@
 import { FileBadge } from 'lucide-react';
 import type { ScMasterData } from '../../types/traceability.dto';
+import { StatusBadge } from '../ui/StatusBadge';
+import { getCanonicalStage } from '../../utils/canonicalStages';
 
 interface ScContextBannerProps {
   masterData: ScMasterData;
 }
 
 export function ScContextBanner({ masterData }: ScContextBannerProps) {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'COMPLETED': return 'bg-emerald-100 text-emerald-800';
-      case 'IN_PROGRESS': return 'bg-blue-100 text-blue-800';
-      case 'PARTIAL': return 'bg-amber-100 text-amber-800';
-      case 'CANCELLED': return 'bg-red-100 text-red-800';
-      default: return 'bg-slate-100 text-slate-800';
-    }
-  };
+  const canonicalStage = getCanonicalStage(masterData.fulfillmentStatus);
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-6">
@@ -27,9 +21,7 @@ export function ScContextBanner({ masterData }: ScContextBannerProps) {
           <p className="text-lg font-bold text-slate-900 tracking-tight">{masterData.scCode}</p>
         </div>
         <div className="ml-auto">
-          <span className={`px-3 py-1 text-xs font-semibold uppercase tracking-wider rounded-full ${getStatusColor(masterData.fulfillmentStatus)}`}>
-            {masterData.fulfillmentStatus.replace('_', ' ')}
-          </span>
+          <StatusBadge status={canonicalStage} className="text-xs px-3 py-1 font-bold" />
         </div>
       </div>
       

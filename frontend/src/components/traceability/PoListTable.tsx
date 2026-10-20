@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Search, X, Network, ArrowRight, FileBadge, Calendar, Building, Layers } from 'lucide-react';
 import { StatusBadge } from '../ui/StatusBadge';
+import { getGeneralizedPoStage } from '../../utils/canonicalStages';
 
 interface PoListTableProps {
   pos: any[];
@@ -31,7 +32,8 @@ export function PoListTable({ pos, isLoading, onSelectPo, selectedPoId }: PoList
     return pos.filter((po) => {
       const matchPo = po.poNumber?.toLowerCase().includes(term);
       const matchCustomer = po.customer?.name?.toLowerCase().includes(term) || po.customer?.code?.toLowerCase().includes(term);
-      const matchStatus = po.status?.toLowerCase().includes(term);
+      const generalizedStage = getGeneralizedPoStage(po.salesOrderComponents || []);
+      const matchStatus = po.status?.toLowerCase().includes(term) || generalizedStage.toLowerCase().includes(term);
       const matchScs = po.salesOrderComponents?.some((sc: any) =>
         sc.scNumber?.toLowerCase().includes(term) || sc.productName?.toLowerCase().includes(term)
       );
@@ -236,7 +238,7 @@ export function PoListTable({ pos, isLoading, onSelectPo, selectedPoId }: PoList
 
                       {/* Status */}
                       <td className="py-3 px-4">
-                        <StatusBadge status={po.status || 'ACTIVE'} />
+                        <StatusBadge status={getGeneralizedPoStage(scList)} />
                       </td>
 
                       {/* Action */}

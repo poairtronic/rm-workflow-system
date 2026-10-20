@@ -531,30 +531,42 @@ export const deliveryChallanApi = {
 
 import type { ConsolidatedTraceabilityDto } from '../types/traceability.dto';
 import type { PoConsolidatedTraceabilityDto } from '../types/po-traceability.dto';
+import { buildTraceabilityEvents } from '../utils/traceabilityEvents';
+import { getCanonicalStage } from '../utils/canonicalStages';
 
 export const traceabilityApi = {
   getConsolidated: async (scId: string) => {
     const raw = await api.get<any>(`/api/traceability/sc/${scId}/consolidated`);
+    const canonicalStage = getCanonicalStage(raw?.sc);
+
     const masterData = {
       scCode: raw?.sc?.scNumber || 'SC',
       poNumber: raw?.po?.poNumber || 'UNKNOWN',
       customerName: raw?.po?.customer?.name || 'Customer',
       nomenclature: raw?.sc?.productName || 'Component',
       drawingNumber: raw?.sc?.drawingNumber || 'N/A',
-      fulfillmentStatus: raw?.sc?.status || 'PENDING',
+      fulfillmentStatus: canonicalStage,
     };
+
+    const finalSummary = raw?.finalRmUsage?.summary;
+    const reconciliation = {
+      totalIssuedKg: Number(finalSummary?.totalIssued ?? finalSummary?.totalIssuedKg ?? 0),
+      totalConsumedKg: Number(finalSummary?.totalConsumed ?? finalSummary?.totalConsumedKg ?? 0),
+      totalReturnedUsableKg: Number(finalSummary?.totalReturned ?? finalSummary?.totalReturnedUsableKg ?? 0),
+      totalScrapKg: Number(finalSummary?.totalScrapKg ?? 0),
+      varianceKg: Number(finalSummary?.variance ?? finalSummary?.varianceKg ?? 0),
+      isBalanced: Boolean(finalSummary?.isZeroLossVerified ?? finalSummary?.isZeroLossBalanced ?? true),
+    };
+
+    const events = raw?.events && Array.isArray(raw.events) && raw.events.length > 0
+      ? raw.events
+      : buildTraceabilityEvents(raw);
+
     return {
       ...raw,
       masterData: raw?.masterData || masterData,
-      events: raw?.events || [],
-      reconciliation: raw?.reconciliation || {
-        totalIssuedKg: 0,
-        totalConsumedKg: 0,
-        totalReturnedUsableKg: 0,
-        totalScrapKg: 0,
-        varianceKg: 0,
-        isBalanced: true,
-      },
+      events,
+      reconciliation: raw?.reconciliation || reconciliation,
     } as ConsolidatedTraceabilityDto & any;
   },
   getPoConsolidated: (poId: string) => api.get<PoConsolidatedTraceabilityDto>(`/api/traceability/po/${poId}/consolidated`),

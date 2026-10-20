@@ -1063,6 +1063,162 @@ export class TraceabilityService {
       createdAt: new Date(m.createdAt).toISOString(),
     }));
 
+    const events: any[] = [];
+    events.push({
+      id: `evt-order-${sc.id}`,
+      type: 'ORDER_CREATED',
+      timestamp: scMeta.createdAt,
+      actor: scMeta.completedBy?.name || 'Production Planning & Control',
+      title: `Sales Component Initialized (${scMeta.scNumber})`,
+      details: {
+        scNumber: scMeta.scNumber,
+        assemblyComponent: scMeta.productName,
+        drawingNumber: scMeta.drawingNumber || 'N/A',
+        parentPoNumber: poMeta.poNumber,
+        customer: poMeta.customer?.name || 'Customer',
+        targetBatchQuantity: `${scMeta.targetQuantity} NOS`,
+      },
+    });
+
+    rmRequestsDto.forEach((req, idx) => {
+      const totalBomQty = (req.items || []).reduce((s, it) => s + (Number(it.quantity) || 0), 0);
+      events.push({
+        id: `evt-req-${req.id || idx}`,
+        type: 'RM_REQUESTED',
+        timestamp: req.submittedAt || req.reviewedAt || scMeta.createdAt,
+        actor: req.createdBy?.name || 'Design Engineering',
+        title: `Design BOM Issued (${req.formType} - Rev ${req.revisionNumber})`,
+        details: {
+          formType: req.formType,
+          revision: `Rev ${req.revisionNumber}`,
+          totalRequiredQuantity: `${totalBomQty.toFixed(2)} KG / Units`,
+          reviewedBy: req.reviewedBy?.name || 'Approved',
+        },
+      });
+    });
+
+    issuesDto.forEach((iss, idx) => {
+      const totalIss = (iss.items || []).reduce((s, it) => s + (Number(it.quantityIssued) || 0), 0);
+      events.push({
+        id: `evt-iss-${iss.id || idx}`,
+        type: 'MATERIAL_ISSUED',
+        timestamp: iss.issueDate,
+        actor: iss.issuedBy?.name || 'Stores Warehouse Officer',
+        title: `Stores Material Issued (${iss.issueNumber || `Issue #${idx + 1}`})`,
+        details: {
+          issueNumber: iss.issueNumber,
+          issueType: iss.issueType,
+          issueDateTime: new Date(iss.issueDate).toLocaleString(),
+          totalQuantityIssued: `${totalIss.toFixed(2)} KG / Units`,
+          issuedBy: iss.issuedBy?.name || 'Stores Warehouse',
+          remarks: iss.remarks || 'Raw material issued to production',
+        },
+      });
+    });
+
+    receiptsDto.forEach((rec, idx) => {
+      const totalRec = (rec.items || []).reduce((s, it) => s + (Number(it.quantityReceived) || 0), 0);
+      events.push({
+        id: `evt-rec-${rec.id || idx}`,
+        type: 'FINAL_INSPECTION',
+        timestamp: rec.receivedAt,
+        actor: rec.receivedBy?.name || 'Shop Floor Supervisor',
+        title: `Production Floor Received & Verified`,
+        details: {
+          status: 'Production Received',
+          receivedDateTime: new Date(rec.receivedAt).toLocaleString(),
+          totalQuantityReceived: `${totalRec.toFixed(2)} KG / Units`,
+          receivedBy: rec.receivedBy?.name || 'Shop Floor Inward Officer',
+        },
+      });
+    });
+
+    deliveryChallansDto.forEach((dc, idx) => {
+      const totalDisp = (dc.items || []).reduce((s, it) => s + (Number(it.quantityDispatched) || 0), 0);
+      const totalRet = (dc.items || []).reduce((s, it) => s + (Number(it.quantityReturned) || 0), 0);
+      const vName = dc.vendor?.name || 'External Vendor';
+      const pName = dc.process?.name || dc.type;
+
+      events.push({
+        id: `evt-dc-disp-${dc.id || idx}`,
+        type: 'DISPATCH_TYPE_1',
+        timestamp: dc.dispatchDate,
+        actor: `Subcontract Stores -> ${vName}`,
+        title: `Sent to Vendor (Dispatch #${idx + 1}): ${dc.challanNumber}`,
+        details: {
+          challanNumber: dc.challanNumber,
+          sentToVendor: vName,
+          subcontractProcess: pName,
+          dispatchedDateTime: new Date(dc.dispatchDate).toLocaleString(),
+          dispatchedQuantity: `${totalDisp.toFixed(2)} Units`,
+          expectedReturnDate: dc.expectedReturnDate ? new Date(dc.expectedReturnDate).toLocaleDateString() : 'N/A',
+          challanStatus: dc.status,
+        },
+      });
+
+      if (totalRet > 0 || dc.actualReturnDate || dc.status === 'RETURNED' || dc.status === 'CLOSED' || dc.status === 'PARTIALLY_RETURNED') {
+        events.push({
+          id: `evt-dc-ret-${dc.id || idx}`,
+          type: 'DC_RETURNED',
+          timestamp: dc.actualReturnDate || dc.dispatchDate,
+          actor: `${vName} -> Stores Inward (QC)`,
+          title: `Received from Vendor: ${dc.challanNumber} (${vName})`,
+          details: {
+            challanNumber: dc.challanNumber,
+            receivedFromVendor: vName,
+            subcontractProcess: pName,
+            receivedDateTime: dc.actualReturnDate ? new Date(dc.actualReturnDate).toLocaleString() : new Date(dc.dispatchDate).toLocaleString(),
+            returnedQuantity: `${totalRet.toFixed(2)} Units`,
+            balancePendingAtVendor: `${Math.max(0, totalDisp - totalRet).toFixed(2)} Units`,
+            returnStatus: dc.status === 'CLOSED' || dc.status === 'RETURNED' ? 'Fully Returned & Passed' : 'Partially Returned',
+          },
+        });
+      }
+    });
+
+    consumptionDto.forEach((c, idx) => {
+      events.push({
+        id: `evt-cons-${c.id || idx}`,
+        type: 'FINAL_INSPECTION',
+        timestamp: c.recordedAt,
+        actor: c.recordedBy?.name || 'Production Shift Operator',
+        title: `Shift Consumption Logged: ${c.consumedQuantity} ${c.unit || 'Units'}`,
+        details: {
+          consumedQuantity: `${c.consumedQuantity} ${c.unit || 'Units'}`,
+          loggedDateTime: new Date(c.recordedAt).toLocaleString(),
+          recordedBy: c.recordedBy?.name || 'Production Shift Team',
+        },
+      });
+    });
+
+    returnsDto.forEach((r, idx) => {
+      const totalR = (r.items || []).reduce((s, it) => s + (Number(it.quantityReturned) || 0), 0);
+      events.push({
+        id: `evt-ret-${r.id || idx}`,
+        type: 'DC_RETURNED',
+        timestamp: r.returnedAt,
+        actor: r.returnedBy?.name || 'Shop Floor Team',
+        title: `Floor Material Return (${r.status})`,
+        details: {
+          returnStatus: r.status,
+          returnedDateTime: new Date(r.returnedAt).toLocaleString(),
+          quantityReturned: `${totalR.toFixed(2)} KG`,
+          returnedBy: r.returnedBy?.name || 'Production Floor',
+        },
+      });
+    });
+
+    events.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+    const reconciliation = {
+      totalIssuedKg: Number(finalRmUsageResponse.summary.totalIssued) || 0,
+      totalConsumedKg: Number(finalRmUsageResponse.summary.totalConsumed) || 0,
+      totalReturnedUsableKg: Number(finalRmUsageResponse.summary.totalReturned) || 0,
+      totalScrapKg: 0,
+      varianceKg: Number(finalRmUsageResponse.summary.variance) || 0,
+      isBalanced: Boolean(finalRmUsageResponse.summary.isZeroLossVerified),
+    };
+
     return {
       sc: scMeta,
       po: poMeta,
@@ -1080,6 +1236,16 @@ export class TraceabilityService {
       finalRmUsage: {
         summary: finalRmUsageResponse.summary,
         items: finalRmUsageResponse.items,
+      },
+      events,
+      reconciliation,
+      masterData: {
+        scCode: scMeta.scNumber,
+        poNumber: poMeta.poNumber,
+        customerName: poMeta.customer?.name || 'Customer',
+        nomenclature: scMeta.productName,
+        drawingNumber: scMeta.drawingNumber || 'N/A',
+        fulfillmentStatus: this.mapToCanonicalStage(scMeta.status),
       },
       generatedAt: new Date().toISOString(),
     };
@@ -1491,7 +1657,7 @@ export class TraceabilityService {
         nomenclature: c.productName || c.scNumber,
         quantityOrdered: c.targetQuantity,
         quantityCompleted: c.rmSummary.totalConsumed || 0,
-        status: c.status === 'COMPLETED' ? 'CLOSED' : (c.status === 'DRAFT' ? 'DRAFT' : 'IN_PRODUCTION'),
+        status: this.mapToCanonicalStage(c.status, c.rmSummary),
       })),
       materialChartData: [
         {
@@ -1500,20 +1666,74 @@ export class TraceabilityService {
           consumedKg: QuantityCalculator.roundDecimal(totalConsumed),
         },
       ],
-      statusDistribution: Object.entries(statusBreakdown).map(([name, value], idx) => ({
-        name,
-        value: Number(value),
-        color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][idx % 5],
-      })),
-      dcLogs: deliveryChallans.map((dc) => ({
-        dcNumber: dc.challanNumber,
-        scReference: dc.scId || 'Multiple / General',
-        vendorName: dc.vendor?.name || 'N/A',
-        dispatchDate: dc.dispatchDate ? new Date(dc.dispatchDate).toISOString() : '',
-        expectedReturnDate: dc.expectedReturnDate ? new Date(dc.expectedReturnDate).toISOString() : '',
-        status: dc.status === DeliveryChallanStatus.DISPATCHED ? 'ISSUED' : (dc.status === DeliveryChallanStatus.PARTIALLY_RETURNED ? 'PARTIAL_RETURN' : (dc.status === DeliveryChallanStatus.CLOSED || dc.status === DeliveryChallanStatus.RETURNED ? 'CLOSED' : 'DRAFT')),
-      })),
+      statusDistribution: this.buildCanonicalStatusDistribution(childComponents),
+      dcLogs: deliveryChallans.map((dc) => {
+        const matchingSc = scs.find((s) => s.id === dc.scId || dc.items?.some((i) => i.scId === s.id));
+        return {
+          dcNumber: dc.challanNumber,
+          scReference: matchingSc ? matchingSc.scNumber : (dc.scId ? `SC: ${String(dc.scId).slice(0, 8)}...` : 'General / Multi-SC'),
+          vendorName: dc.vendor?.name || 'N/A',
+          dispatchDate: dc.dispatchDate ? new Date(dc.dispatchDate).toISOString() : '',
+          expectedReturnDate: dc.expectedReturnDate ? new Date(dc.expectedReturnDate).toISOString() : '',
+          status: dc.status === DeliveryChallanStatus.DISPATCHED ? 'ISSUED' : (dc.status === DeliveryChallanStatus.PARTIALLY_RETURNED ? 'PARTIAL_RETURN' : (dc.status === DeliveryChallanStatus.CLOSED || dc.status === DeliveryChallanStatus.RETURNED ? 'CLOSED' : 'DRAFT')),
+        };
+      }),
     };
+  }
+
+  private mapToCanonicalStage(status: string, rmSummary?: any): string {
+    const s = (status || '').toUpperCase().trim();
+    if (rmSummary && rmSummary.totalIssued > 0 && rmSummary.originalRm > 0 && rmSummary.totalIssued < rmSummary.originalRm) {
+      return 'Partially Issued';
+    }
+    if (s === 'DRAFT' || s === 'PENDING') return 'Draft';
+    if (s === 'SUBMITTED' || s === 'DESIGN_ISSUED') return 'Design Issued';
+    if (s === 'STORES_PENDING') return 'Stores Pending';
+    if (s === 'PARTIALLY_ISSUED') return 'Partially Issued';
+    if (s === 'PRODUCTION_PENDING') return 'Production Pending';
+    if (s === 'PRODUCTION_RECEIVED') return 'Production Received';
+    if (s === 'ISSUED' || s === 'STORES_ISSUED') {
+      if (rmSummary && rmSummary.totalConsumed > 0) return 'Production Received';
+      return 'Stores Issued';
+    }
+    if (s === 'IN_PRODUCTION' || s === 'COMPLETED' || s === 'CLOSED' || s === 'ADDITIONAL_REQUEST') {
+      return 'Production Received';
+    }
+    return 'Draft';
+  }
+
+  private buildCanonicalStatusDistribution(childComponents: PoChildComponentNodeDto[]) {
+    const counts: Record<string, number> = {
+      'Draft': 0,
+      'Design Issued': 0,
+      'Stores Pending': 0,
+      'Partially Issued': 0,
+      'Stores Issued': 0,
+      'Production Pending': 0,
+      'Production Received': 0,
+    };
+    const colors: Record<string, string> = {
+      'Draft': '#94a3b8',
+      'Design Issued': '#0ea5e9',
+      'Stores Pending': '#f59e0b',
+      'Partially Issued': '#8b5cf6',
+      'Stores Issued': '#3b82f6',
+      'Production Pending': '#6366f1',
+      'Production Received': '#10b981',
+    };
+
+    childComponents.forEach((c) => {
+      const stage = this.mapToCanonicalStage(c.status, c.rmSummary);
+      counts[stage] = (counts[stage] || 0) + 1;
+    });
+
+    return Object.entries(counts)
+      .filter(([_, value]) => value > 0)
+      .map(([name, value]) => ({
+        name,
+        value,
+        color: colors[name] || '#3b82f6',
+      }));
   }
 
   /**

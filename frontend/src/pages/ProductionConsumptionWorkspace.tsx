@@ -17,6 +17,8 @@ import {
 import { workflowService, type SC, type MaterialAccounting } from '../services/workflowService';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
+import { StatusBadge } from '../components/ui/StatusBadge';
+import { getCanonicalStage } from '../utils/canonicalStages';
 
 type StatusFilter = 'ALL' | 'IN_PROGRESS' | 'COMPLETED' | 'PENDING';
 type DetailTab = 'MATRIX' | 'CONSUMPTIONS' | 'ISSUES' | 'RETURNS';
@@ -129,17 +131,18 @@ export function ProductionConsumptionWorkspace() {
     const scNum = sc.scNumber.toLowerCase();
     const prodName = sc.productName.toLowerCase();
     
-    const matchesSearch = !q || scNum.includes(q) || poNum.includes(q) || prodName.includes(q);
+    const matchesSearch = !q || scNum.includes(q) || poNum.includes(q) || prodName.includes(q) || getCanonicalStage(sc).toLowerCase().includes(q);
     if (!matchesSearch) return false;
 
+    const canonical = getCanonicalStage(sc);
     if (statusFilter === 'IN_PROGRESS') {
-      return ['PARTIALLY_ISSUED', 'ISSUED', 'IN_PRODUCTION', 'ADDITIONAL_REQUEST'].includes(sc.status);
+      return ['Partially Issued', 'Stores Issued', 'Production Pending', 'Production Received'].includes(canonical);
     }
     if (statusFilter === 'COMPLETED') {
-      return ['COMPLETED', 'CLOSED'].includes(sc.status);
+      return ['COMPLETED', 'CLOSED'].includes(sc.status) || canonical === 'Production Received';
     }
     if (statusFilter === 'PENDING') {
-      return ['SUBMITTED', 'STORES_PENDING'].includes(sc.status);
+      return ['Draft', 'Design Issued', 'Stores Pending'].includes(canonical);
     }
     return true;
   });
@@ -337,15 +340,7 @@ export function ProductionConsumptionWorkspace() {
                           </span>
                         )}
                       </div>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                        sc.status === 'COMPLETED' || sc.status === 'CLOSED' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' :
-                        sc.status === 'IN_PRODUCTION' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300' :
-                        sc.status === 'ADDITIONAL_REQUEST' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' :
-                        sc.status === 'SUBMITTED' || sc.status === 'STORES_PENDING' ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' :
-                        'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300'
-                      }`}>
-                        {sc.status.replace(/_/g, ' ')}
-                      </span>
+                      <StatusBadge status={getCanonicalStage(sc)} className="text-[10px] px-2 py-0.5" />
                     </div>
 
                     <div className="text-slate-600 dark:text-slate-400 font-medium truncate">{sc.productName}</div>
@@ -377,15 +372,21 @@ export function ProductionConsumptionWorkspace() {
                         Linked PO: {selectedSc.purchaseOrder.poNumber}
                       </span>
                     )}
-                    <span className={`px-2.5 py-0.5 rounded text-xs font-semibold border ${
-                      accounting?.isPartiallyIssued || (totalIssued < totalRequired && totalIssued > 0)
-                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border-purple-300'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                    }`}>
-                      {accounting?.isPartiallyIssued || (totalIssued < totalRequired && totalIssued > 0)
-                        ? `PARTIALLY ISSUED (${totalIssued}/${totalRequired} Dispatched)`
-                        : selectedSc.status.replace(/_/g, ' ')}
-                    </span>
+                    <StatusBadge
+                      status={getCanonicalStage({
+                        ...selectedSc,
+                        totalIssued,
+                        totalRequired,
+                        totalReceived,
+                        isPartiallyIssued: accounting?.isPartiallyIssued,
+                      })}
+                      className="text-xs px-2.5 py-0.5"
+                    />
+                    {(accounting?.isPartiallyIssued || (totalIssued < totalRequired && totalIssued > 0)) && (
+                      <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400">
+                        ({totalIssued}/{totalRequired} Dispatched)
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
                     Finished Product: <strong className="text-slate-900 dark:text-white">{selectedSc.productName}</strong>

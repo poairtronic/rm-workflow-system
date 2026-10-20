@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Search, X, ShieldCheck, ArrowRight, Layers, CheckCircle2, Clock, FileText } from 'lucide-react';
 import { StatusBadge } from '../ui/StatusBadge';
 import type { SC } from '../../services/workflowService';
+import { getCanonicalStage } from '../../utils/canonicalStages';
 
 interface ScListTableProps {
   scs: SC[];
@@ -17,7 +18,7 @@ export function ScListTable({ scs, isLoading, onSelectSc, selectedScId }: ScList
   // KPI Metrics Calculation
   const totalScCount = scs.length;
   const inProductionCount = useMemo(
-    () => scs.filter((s) => ['IN_PRODUCTION', 'ISSUED', 'PARTIALLY_ISSUED', 'STORES_PENDING'].includes(s.status)).length,
+    () => scs.filter((s) => ['Production Received', 'Production Pending', 'Stores Issued', 'Partially Issued'].includes(getCanonicalStage(s))).length,
     [scs]
   );
   const completedCount = useMemo(
@@ -25,22 +26,24 @@ export function ScListTable({ scs, isLoading, onSelectSc, selectedScId }: ScList
     [scs]
   );
   const draftCount = useMemo(
-    () => scs.filter((s) => ['DRAFT', 'SUBMITTED'].includes(s.status)).length,
+    () => scs.filter((s) => ['Draft', 'Design Issued', 'Stores Pending'].includes(getCanonicalStage(s))).length,
     [scs]
   );
 
   // Filtered SC List
   const filteredScs = useMemo(() => {
     return scs.filter((sc) => {
+      const canonical = getCanonicalStage(sc);
+
       // Status filter
       if (statusFilter !== 'ALL') {
-        if (statusFilter === 'IN_PRODUCTION' && !['IN_PRODUCTION', 'ISSUED', 'PARTIALLY_ISSUED', 'STORES_PENDING'].includes(sc.status)) {
+        if (statusFilter === 'IN_PRODUCTION' && !['Production Received', 'Production Pending', 'Stores Issued', 'Partially Issued', 'Stores Pending'].includes(canonical)) {
           return false;
         }
         if (statusFilter === 'COMPLETED' && !['COMPLETED', 'CLOSED'].includes(sc.status)) {
           return false;
         }
-        if (statusFilter === 'DRAFT' && !['DRAFT', 'SUBMITTED'].includes(sc.status)) {
+        if (statusFilter === 'DRAFT' && !['Draft', 'Design Issued'].includes(canonical)) {
           return false;
         }
       }
@@ -53,7 +56,7 @@ export function ScListTable({ scs, isLoading, onSelectSc, selectedScId }: ScList
       const matchPo = (sc.purchaseOrder as any)?.poNumber?.toLowerCase().includes(term);
       const matchCustomer = (sc.purchaseOrder as any)?.customer?.name?.toLowerCase().includes(term);
       const matchDrawing = sc.drawingNumber?.toLowerCase().includes(term);
-      const matchStatus = sc.status?.toLowerCase().includes(term);
+      const matchStatus = sc.status?.toLowerCase().includes(term) || canonical.toLowerCase().includes(term);
 
       return matchScNumber || matchProduct || matchPo || matchCustomer || matchDrawing || matchStatus;
     });
@@ -309,7 +312,7 @@ export function ScListTable({ scs, isLoading, onSelectSc, selectedScId }: ScList
 
                       {/* Status */}
                       <td className="py-3 px-4">
-                        <StatusBadge status={sc.status} />
+                        <StatusBadge status={getCanonicalStage(sc)} />
                       </td>
 
                       {/* Created Date */}

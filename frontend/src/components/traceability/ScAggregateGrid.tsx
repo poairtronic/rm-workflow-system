@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import type { PoScSummary } from '../../types/po-traceability.dto';
+import { StatusBadge } from '../ui/StatusBadge';
+import { getCanonicalStage } from '../../utils/canonicalStages';
 
 interface ScAggregateGridProps {
   scs?: PoScSummary[];
@@ -8,15 +10,6 @@ interface ScAggregateGridProps {
 
 export function ScAggregateGrid({ scs = [] }: ScAggregateGridProps) {
   const navigate = useNavigate();
-
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'CLOSED': return 'bg-slate-100 text-slate-700';
-      case 'IN_PRODUCTION': return 'bg-blue-100 text-blue-700';
-      case 'DRAFT': return 'bg-amber-100 text-amber-700';
-      default: return 'bg-slate-100 text-slate-700';
-    }
-  };
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-6">
@@ -55,9 +48,7 @@ export function ScAggregateGrid({ scs = [] }: ScAggregateGridProps) {
                   {sc.quantityCompleted}
                 </td>
                 <td className="px-6 py-2 text-center">
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${getStatusStyle(sc.status)}`}>
-                    {sc.status.replace('_', ' ')}
-                  </span>
+                  <StatusBadge status={getCanonicalStage(sc.status)} />
                 </td>
                 <td className="px-6 py-2 text-right">
                   <div className="inline-flex items-center justify-end text-primary opacity-0 group-hover:opacity-100 transition-opacity">

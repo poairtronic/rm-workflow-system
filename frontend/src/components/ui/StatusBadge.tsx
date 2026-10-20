@@ -1,4 +1,5 @@
 import { cn } from '../../utils/cn';
+import { STAGE_CONFIG } from '../../utils/canonicalStages';
 
 export type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'neutral';
 
@@ -8,6 +9,25 @@ const variantClasses: Record<BadgeVariant, string> = {
   error: 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/30',
   info: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-indigo-500/15 dark:text-indigo-400 dark:border-indigo-500/30',
   neutral: 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700/50',
+};
+
+// 7 Canonical Stage badge classes
+const canonicalBadgeMap: Record<string, { label: string; className: string }> = {
+  'DRAFT': { label: 'Draft', className: STAGE_CONFIG['Draft'].badgeClass },
+  'DESIGN_ISSUED': { label: 'Design Issued', className: STAGE_CONFIG['Design Issued'].badgeClass },
+  'DESIGN ISSUED': { label: 'Design Issued', className: STAGE_CONFIG['Design Issued'].badgeClass },
+  'STORES_PENDING': { label: 'Stores Pending', className: STAGE_CONFIG['Stores Pending'].badgeClass },
+  'STORES PENDING': { label: 'Stores Pending', className: STAGE_CONFIG['Stores Pending'].badgeClass },
+  'PARTIALLY_ISSUED': { label: 'Partially Issued', className: STAGE_CONFIG['Partially Issued'].badgeClass },
+  'PARTIALLY ISSUED': { label: 'Partially Issued', className: STAGE_CONFIG['Partially Issued'].badgeClass },
+  'PARTIAL_ISSUE': { label: 'Partially Issued', className: STAGE_CONFIG['Partially Issued'].badgeClass },
+  'STORES_ISSUED': { label: 'Stores Issued', className: STAGE_CONFIG['Stores Issued'].badgeClass },
+  'STORES ISSUED': { label: 'Stores Issued', className: STAGE_CONFIG['Stores Issued'].badgeClass },
+  'ISSUED': { label: 'Stores Issued', className: STAGE_CONFIG['Stores Issued'].badgeClass },
+  'PRODUCTION_PENDING': { label: 'Production Pending', className: STAGE_CONFIG['Production Pending'].badgeClass },
+  'PRODUCTION PENDING': { label: 'Production Pending', className: STAGE_CONFIG['Production Pending'].badgeClass },
+  'PRODUCTION_RECEIVED': { label: 'Production Received', className: STAGE_CONFIG['Production Received'].badgeClass },
+  'PRODUCTION RECEIVED': { label: 'Production Received', className: STAGE_CONFIG['Production Received'].badgeClass },
 };
 
 // SC Statuses
@@ -106,7 +126,23 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, variant: explicitVariant, className }: StatusBadgeProps) {
-  const normalizedStatus = (status || '').toUpperCase();
+  const normalizedStatus = (status || '').toUpperCase().trim();
+  const canonical = canonicalBadgeMap[normalizedStatus];
+
+  if (canonical) {
+    return (
+      <span
+        className={cn(
+          "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border shadow-2xs",
+          canonical.className,
+          className
+        )}
+      >
+        {canonical.label}
+      </span>
+    );
+  }
+
   const customClass = transactionTypeCustomClasses[normalizedStatus];
   const variant = explicitVariant || allStatusMaps[normalizedStatus] || 'neutral';
   
