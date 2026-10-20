@@ -11,4 +11,12 @@ export class ReworkReDispatchDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  remarks?: string;
 }

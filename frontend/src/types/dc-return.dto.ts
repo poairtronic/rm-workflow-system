@@ -43,5 +43,7 @@ export interface ReworkReDispatchDto {
   vendorId: string;
   targetReturnDate?: string;
   notes?: string;
+  description?: string;
+  remarks?: string;
 }
 

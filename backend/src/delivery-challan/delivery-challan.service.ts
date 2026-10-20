@@ -1222,59 +1222,123 @@ export class DeliveryChallanService {
         throw new BadRequestException('Target vendor not found or inactive');
       }
 
+      const isSameVendor = targetVendorId === item.originalVendorId;
       const dispatchDate = new Date();
-      const challanNumber = await this.generateNextChallanNumber(queryRunner, dispatchDate);
 
       const isType1 = item.dcType === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD;
       const dcType = isType1 ? DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD : DeliveryChallanType.GENERAL_INVENTORY_OUTWARD;
 
-      // 1. Create the new Delivery Challan
-      const newDc = queryRunner.manager.create(DeliveryChallan, {
-        challanNumber,
-        type: dcType,
-        vendorId: targetVendorId,
-        scId: item.scId || null,
-        processName: 'REWORK PROCESSING',
-        dispatchDate,
-        expectedReturnDate: dto.targetReturnDate ? new Date(dto.targetReturnDate) : null,
-        notes: dto.notes || `Rework DC spawned from rejected item in DC ${item.sourceDcNumber}. QC Remarks: ${item.qcRemarks || 'None'}`,
-        createdById: userId,
-        status: DeliveryChallanStatus.DISPATCHED,
-      });
-      const savedDc = await queryRunner.manager.save(newDc);
+      let savedDc: DeliveryChallan;
 
-      // 2. Create the line item for the rework rejected quantity
-      const newDcItem = queryRunner.manager.create(DeliveryChallanItem, {
-        challanId: savedDc.id,
-        productId: item.productId,
-        scId: item.scId || null,
-        partNumber: item.partNumber || item.product?.code || null,
-        partName: item.productName,
-        description: `Rework re-dispatch for ${item.rejectedQty} ${item.uom}`,
-        quantityDispatched: Number(item.rejectedQty),
-        quantityReturned: 0,
-        qcPendingQty: 0,
-        qcPassedQty: 0,
-        qcRejectedQty: 0,
-      } as any);
-      const savedDcItem = await queryRunner.manager.save(newDcItem);
+      if (isSameVendor && item.sourceDcId) {
+        // Same vendor rework: Keep same DC number and all original details, update dispatch date to current date
+        const existingDc = await queryRunner.manager.findOne(DeliveryChallan, {
+          where: { id: item.sourceDcId },
+          relations: { items: true },
+        });
 
-      // 3. If Type 1, add ledger movement
-      if (isType1 && item.scId && item.productId) {
-        const movement = queryRunner.manager.create(DcMovement, {
+        if (existingDc) {
+          existingDc.dispatchDate = dispatchDate;
+          existingDc.status = DeliveryChallanStatus.DISPATCHED;
+          if (dto.targetReturnDate) {
+            existingDc.expectedReturnDate = new Date(dto.targetReturnDate);
+          }
+          if (dto.remarks || dto.notes) {
+            existingDc.notes = dto.remarks || dto.notes;
+          }
+          if (existingDc.items && existingDc.items.length > 0) {
+            for (const it of existingDc.items) {
+              if (it.productId === item.productId || it.partNumber === item.partNumber) {
+                it.qcRejectedQty = 0;
+                it.qcPendingQty = 0;
+                if (dto.description) {
+                  it.description = dto.description;
+                }
+                await queryRunner.manager.save(it);
+              }
+            }
+          }
+          savedDc = await queryRunner.manager.save(existingDc);
+
+          if (isType1 && item.scId && item.productId) {
+            const movement = queryRunner.manager.create(DcMovement, {
+              challanId: savedDc.id,
+              challanItemId: savedDc.items?.[0]?.id || null,
+              scId: item.scId,
+              dispatchedProductId: item.productId,
+              dispatchedQty: Number(item.rejectedQty),
+              returnedProductId: null,
+              returnedQty: 0,
+              status: DcMovementStatus.DISPATCHED,
+            } as any);
+            await queryRunner.manager.save(movement);
+          }
+        } else {
+          // Fallback if source DC record missing
+          const challanNumber = item.sourceDcNumber;
+          const newDc = queryRunner.manager.create(DeliveryChallan, {
+            challanNumber,
+            type: dcType,
+            vendorId: targetVendorId,
+            scId: item.scId || null,
+            processName: 'REWORK PROCESSING',
+            dispatchDate,
+            expectedReturnDate: dto.targetReturnDate ? new Date(dto.targetReturnDate) : null,
+            notes: dto.remarks || dto.notes || `Rework DC for ${item.sourceDcNumber}. QC Remarks: ${item.qcRemarks || 'None'}`,
+            createdById: userId,
+            status: DeliveryChallanStatus.DISPATCHED,
+          });
+          savedDc = await queryRunner.manager.save(newDc);
+        }
+      } else {
+        // Different vendor rework: Consider as new DC with new DC number, current date, description, and remarks
+        const challanNumber = await this.generateNextChallanNumber(queryRunner, dispatchDate);
+
+        const newDc = queryRunner.manager.create(DeliveryChallan, {
+          challanNumber,
+          type: dcType,
+          vendorId: targetVendorId,
+          scId: item.scId || null,
+          processName: 'REWORK PROCESSING',
+          dispatchDate,
+          expectedReturnDate: dto.targetReturnDate ? new Date(dto.targetReturnDate) : null,
+          notes: dto.remarks || dto.notes || `Rework DC for defective units from ${item.sourceDcNumber}. QC Remarks: ${item.qcRemarks || 'None'}`,
+          createdById: userId,
+          status: DeliveryChallanStatus.DISPATCHED,
+        });
+        savedDc = await queryRunner.manager.save(newDc);
+
+        const newDcItem = queryRunner.manager.create(DeliveryChallanItem, {
           challanId: savedDc.id,
-          challanItemId: savedDcItem.id,
-          scId: item.scId,
-          dispatchedProductId: item.productId,
-          dispatchedQty: Number(item.rejectedQty),
-          returnedProductId: null,
-          returnedQty: 0,
-          status: DcMovementStatus.DISPATCHED,
+          productId: item.productId,
+          scId: item.scId || null,
+          partNumber: item.partNumber || item.product?.code || null,
+          partName: item.productName,
+          description: dto.description || `Rework re-dispatch for ${item.rejectedQty} ${item.uom}`,
+          quantityDispatched: Number(item.rejectedQty),
+          quantityReturned: 0,
+          qcPendingQty: 0,
+          qcPassedQty: 0,
+          qcRejectedQty: 0,
         } as any);
-        await queryRunner.manager.save(movement);
+        const savedDcItem = await queryRunner.manager.save(newDcItem);
+
+        if (isType1 && item.scId && item.productId) {
+          const movement = queryRunner.manager.create(DcMovement, {
+            challanId: savedDc.id,
+            challanItemId: savedDcItem.id,
+            scId: item.scId,
+            dispatchedProductId: item.productId,
+            dispatchedQty: Number(item.rejectedQty),
+            returnedProductId: null,
+            returnedQty: 0,
+            status: DcMovementStatus.DISPATCHED,
+          } as any);
+          await queryRunner.manager.save(movement);
+        }
       }
 
-      // 4. Update the rework item
+      // Update the rework item
       item.reworkStatus = ReworkItemStatus.RE_DISPATCHED;
       item.reworkDcId = savedDc.id;
       item.reworkDcNumber = savedDc.challanNumber;
