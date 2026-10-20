@@ -582,17 +582,25 @@ export const traceabilityApi = {
       totalConsumed = Math.max(0, totalIssued - totalReturned);
     }
 
-    const variance = Number((totalIssued - totalConsumed - (totalReturned + totalScrap)).toFixed(2));
-    const isBalanced = Math.abs(variance) < 0.001;
+    const rawRecon = raw?.reconciliation;
+    const finalTotalIssued = Number(rawRecon?.totalIssuedKg ?? totalIssued);
+    const finalTotalReturned = Number(rawRecon?.totalReturnedUsableKg ?? totalReturned);
+    const finalTotalScrap = Number(rawRecon?.totalScrapKg ?? totalScrap);
+    const finalTotalConsumed = (rawRecon?.totalConsumedKg && Number(rawRecon.totalConsumedKg) > 0)
+      ? Number(rawRecon.totalConsumedKg)
+      : totalConsumed;
+    const finalVariance = Number((finalTotalIssued - finalTotalConsumed - (finalTotalReturned + finalTotalScrap)).toFixed(2));
+    const finalIsBalanced = Math.abs(finalVariance) < 0.001;
 
     const reconciliation = {
-      totalIssuedKg: totalIssued,
-      totalConsumedKg: totalConsumed,
-      totalReturnedUsableKg: totalReturned,
-      totalScrapKg: totalScrap,
-      varianceKg: variance,
-      isBalanced,
-      uom: detectedUom,
+      ...(rawRecon || {}),
+      totalIssuedKg: finalTotalIssued,
+      totalConsumedKg: finalTotalConsumed,
+      totalReturnedUsableKg: finalTotalReturned,
+      totalScrapKg: finalTotalScrap,
+      varianceKg: finalVariance,
+      isBalanced: finalIsBalanced,
+      uom: rawRecon?.uom || detectedUom,
     };
 
     const events = raw?.events && Array.isArray(raw.events) && raw.events.length > 0
@@ -603,7 +611,7 @@ export const traceabilityApi = {
       ...raw,
       masterData: raw?.masterData || masterData,
       events,
-      reconciliation: raw?.reconciliation || reconciliation,
+      reconciliation,
     } as ConsolidatedTraceabilityDto & any;
   },
   getPoConsolidated: (poId: string) => api.get<PoConsolidatedTraceabilityDto>(`/api/traceability/po/${poId}/consolidated`),

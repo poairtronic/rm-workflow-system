@@ -314,29 +314,6 @@ export class TraceabilityService {
       });
       totalReceived = QuantityCalculator.roundDecimal(totalReceived);
 
-      let totalShiftConsumed = 0;
-      (sc.materialConsumptions || []).forEach((c) => {
-        if (c.rmItemId === rmItem.id) {
-          totalShiftConsumed += Number(c.consumedQuantity) || 0;
-        }
-      });
-      totalShiftConsumed = QuantityCalculator.roundDecimal(totalShiftConsumed);
-
-      // "consumed is when production received means consumed"
-      let totalConsumed = totalShiftConsumed;
-      if (totalReceived > 0) {
-        totalConsumed = QuantityCalculator.roundDecimal(Math.max(totalShiftConsumed, totalReceived));
-      } else if (
-        totalConsumed === 0 &&
-        ((sc.status as string) === 'IN_PRODUCTION' ||
-          (sc.status as string) === 'PRODUCTION_RECEIVED' ||
-          sc.status === ScStatus.COMPLETED ||
-          sc.status === ScStatus.CLOSED ||
-          sc.status === ScStatus.ISSUED)
-      ) {
-        totalConsumed = QuantityCalculator.roundDecimal(totalIssued);
-      }
-
       let totalReturned = 0;
       (sc.materialReturns || []).forEach((ret) => {
         if (ret.status === ReturnStatus.ACKNOWLEDGED) {
@@ -360,6 +337,33 @@ export class TraceabilityService {
         }
       });
       pendingReturned = QuantityCalculator.roundDecimal(pendingReturned);
+
+      let totalShiftConsumed = 0;
+      (sc.materialConsumptions || []).forEach((c) => {
+        if (c.rmItemId === rmItem.id) {
+          totalShiftConsumed += Number(c.consumedQuantity) || 0;
+        }
+      });
+      totalShiftConsumed = QuantityCalculator.roundDecimal(totalShiftConsumed);
+
+      // "consumed is when production received means consumed"
+      let totalConsumed = totalShiftConsumed;
+      if (totalReceived > 0) {
+        if (totalShiftConsumed > 0) {
+          totalConsumed = totalShiftConsumed;
+        } else {
+          totalConsumed = QuantityCalculator.roundDecimal(Math.max(0, totalReceived - totalReturned));
+        }
+      } else if (
+        totalConsumed === 0 &&
+        ((sc.status as string) === 'IN_PRODUCTION' ||
+          (sc.status as string) === 'PRODUCTION_RECEIVED' ||
+          sc.status === ScStatus.COMPLETED ||
+          sc.status === ScStatus.CLOSED ||
+          sc.status === ScStatus.ISSUED)
+      ) {
+        totalConsumed = QuantityCalculator.roundDecimal(Math.max(0, totalIssued - totalReturned));
+      }
 
       const finalRmUsed = QuantityCalculator.roundDecimal(
         Math.max(0, originalRequested + additionalIssued - totalReturned),
