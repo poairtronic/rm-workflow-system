@@ -128,7 +128,6 @@ export function PoListTable({ pos, isLoading, onSelectPo, selectedPoId }: PoList
                 <th className="py-3.5 px-4 font-bold">Customer</th>
                 <th className="py-3.5 px-4 font-bold">Associated SC Components</th>
                 <th className="py-3.5 px-4 font-bold">PO Date</th>
-                <th className="py-3.5 px-4 font-bold">Target Delivery</th>
                 <th className="py-3.5 px-4 font-bold">Status</th>
                 <th className="py-3.5 px-4 font-bold text-right">Macro-Traceability Action</th>
               </tr>
@@ -136,7 +135,7 @@ export function PoListTable({ pos, isLoading, onSelectPo, selectedPoId }: PoList
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                  <td colSpan={6} className="py-12 text-center text-slate-400">
                     <div className="flex items-center justify-center gap-2">
                       <span className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
                       <span>Loading Purchase Order registry records...</span>
@@ -145,7 +144,7 @@ export function PoListTable({ pos, isLoading, onSelectPo, selectedPoId }: PoList
                 </tr>
               ) : filteredPos.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                  <td colSpan={6} className="py-12 text-center text-slate-400">
                     <p className="font-semibold text-slate-600 text-sm">No Purchase Orders found</p>
                     <p className="text-xs text-slate-400 mt-1">
                       {searchTerm ? `No records match "${searchTerm}".` : 'No Purchase Orders registered in the system.'}
@@ -156,15 +155,13 @@ export function PoListTable({ pos, isLoading, onSelectPo, selectedPoId }: PoList
                 filteredPos.map((po) => {
                   const isSelected = selectedPoId === po.id || selectedPoId === po.poNumber;
                   const scList: any[] = po.salesOrderComponents || [];
-                  const formattedPoDate = po.poDate
-                    ? new Date(po.poDate).toLocaleDateString([], {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      })
-                    : '—';
-                  const formattedDeliveryDate = po.targetDeliveryDate
-                    ? new Date(po.targetDeliveryDate).toLocaleDateString([], {
+                  const rmCreatedDate =
+                    po.createdAt ||
+                    po.referenceDate ||
+                    (scList.length > 0 && scList[0]?.createdAt) ||
+                    po.poDate;
+                  const formattedPoDate = rmCreatedDate
+                    ? new Date(rmCreatedDate).toLocaleDateString([], {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric',
@@ -223,17 +220,12 @@ export function PoListTable({ pos, isLoading, onSelectPo, selectedPoId }: PoList
                         </div>
                       </td>
 
-                      {/* PO Date */}
+                      {/* PO Date (when RM was created) */}
                       <td className="py-3 px-4 text-slate-600 tabular-nums">
                         <div className="flex items-center gap-1">
                           <Calendar className="w-3 h-3 text-slate-400" />
-                          <span>{formattedPoDate}</span>
+                          <span className="font-medium">{formattedPoDate}</span>
                         </div>
-                      </td>
-
-                      {/* Target Delivery */}
-                      <td className="py-3 px-4 text-slate-600 tabular-nums">
-                        {formattedDeliveryDate}
                       </td>
 
                       {/* Status */}

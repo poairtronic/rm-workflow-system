@@ -158,9 +158,13 @@ export function PoTraceabilityWorkspace() {
           {data && !isLoading && !isError && (() => {
             const safePoNumber = (data as any).poNumber || (data as any).po?.poNumber || 'PO';
             const safeCustomerName = (data as any).customerName || (data as any).po?.customer?.name || 'Customer';
-            const safePoDate = (data as any).poDate || (data as any).po?.referenceDate || (data as any).po?.createdAt || '';
-            const safeTargetDeliveryDate = (data as any).targetDeliveryDate || (data as any).po?.referenceDate || '';
             const rawChildComponents: any[] = (data as any).childComponents || [];
+            const safePoDate =
+              (data as any).po?.createdAt ||
+              (data as any).poDate ||
+              (data as any).po?.referenceDate ||
+              (rawChildComponents.length > 0 && rawChildComponents[0]?.createdAt) ||
+              '';
             const generalizedPoStage = getGeneralizedPoStage(rawChildComponents);
 
             const rawDcItems: any[] = (data as any).dcLogs || 
@@ -251,12 +255,6 @@ export function PoTraceabilityWorkspace() {
                       <p className="text-xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">PO Date</p>
                       <p className="text-sm font-medium text-slate-800 tabular-nums">
                         {safePoDate ? new Date(safePoDate).toLocaleDateString() : '—'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Target Delivery</p>
-                      <p className="text-sm font-medium text-slate-800 tabular-nums">
-                        {safeTargetDeliveryDate ? new Date(safeTargetDeliveryDate).toLocaleDateString() : '—'}
                       </p>
                     </div>
                   </div>
