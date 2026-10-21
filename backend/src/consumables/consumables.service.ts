@@ -142,7 +142,7 @@ export class ConsumablesService {
   }
 
   /**
-   * Helper: Generates next sequential PR number (starts at 151).
+   * Helper: Generates next sequential PR number (starts at 1).
    */
   async generateNextPrNumber(): Promise<string> {
     const items = await this.itemRepo
@@ -151,7 +151,7 @@ export class ConsumablesService {
       .where('item.prNumber IS NOT NULL')
       .getRawMany();
 
-    let maxPr = 150;
+    let maxPr = 0;
     for (const row of items) {
       const num = parseInt(row.prNumber, 10);
       if (!isNaN(num) && num > maxPr) {
@@ -793,7 +793,7 @@ export class ConsumablesService {
     if (query.search) {
       const term = `%${query.search.trim().toLowerCase()}%`;
       qb.andWhere(
-        '(LOWER(item.description) LIKE :term OR LOWER(item.productCode) LIKE :term OR LOWER(item.vendorName) LIKE :term OR LOWER(request.requestCode) LIKE :term OR LOWER(item.requestedBy) LIKE :term)',
+        '(LOWER(item.description) LIKE :term OR LOWER(item.productCode) LIKE :term OR LOWER(item.vendorName) LIKE :term OR LOWER(request.requestCode) LIKE :term OR LOWER(item.requestedBy) LIKE :term OR LOWER(item.prNumber) LIKE :term)',
         { term },
       );
     }

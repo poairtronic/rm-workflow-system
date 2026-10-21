@@ -344,20 +344,20 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
       expect(code).toBe(`CR-${currentYear}-0001`);
     });
 
-    it('CNS-SVC-005: should start PR sequence at 151 when no prior PRs exist', async () => {
+    it('CNS-SVC-005: should start PR sequence at 1 when no prior PRs exist', async () => {
       const pr = await service.generateNextPrNumber();
-      expect(pr).toBe('151');
+      expect(pr).toBe('1');
     });
 
-    it('CNS-SVC-006: should increment highest PR number (e.g., 151 -> 152)', async () => {
+    it('CNS-SVC-006: should increment highest PR number (e.g., 27 -> 28)', async () => {
       vi.spyOn(itemRepo, 'createQueryBuilder').mockReturnValue({
         select: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
-        getRawMany: vi.fn().mockResolvedValue([{ prNumber: '151' }]),
+        getRawMany: vi.fn().mockResolvedValue([{ prNumber: '27' }]),
       } as any);
 
       const pr = await service.generateNextPrNumber();
-      expect(pr).toBe('152');
+      expect(pr).toBe('28');
     });
   });
 

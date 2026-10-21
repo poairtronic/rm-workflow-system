@@ -18,6 +18,35 @@ import { consumablesApi, type BinOption } from '../services/consumables.service'
 import type { ConsumableLineItemRecord } from '../types/consumables.types';
 import toast from 'react-hot-toast';
 
+export function matchesPrNumber(itemPrNumber?: string | number | null, query?: string): boolean {
+  if (!itemPrNumber || !query) return false;
+  const cleanItemPr = String(itemPrNumber).trim().toLowerCase();
+  const cleanQuery = query.trim().toLowerCase();
+
+  // 1. Direct substring match (e.g. "27" in "27")
+  if (cleanItemPr.includes(cleanQuery)) return true;
+
+  // 2. Alphanumeric match (stripping spaces, symbols, e.g. "PR-27" -> "pr27" matches "27" or "pr 27")
+  const strippedItemPr = cleanItemPr.replace(/[^0-9a-z]/g, '');
+  const strippedQuery = cleanQuery.replace(/[^0-9a-z]/g, '');
+  if (
+    strippedItemPr &&
+    strippedQuery &&
+    (strippedItemPr.includes(strippedQuery) || strippedQuery.includes(strippedItemPr))
+  ) {
+    return true;
+  }
+
+  // 3. Digit-only match (e.g. "PR # 27" vs "27")
+  const itemDigits = cleanItemPr.replace(/\D/g, '');
+  const queryDigits = cleanQuery.replace(/\D/g, '');
+  if (itemDigits && queryDigits && itemDigits === queryDigits) {
+    return true;
+  }
+
+  return false;
+}
+
 export function ConsumablePurchaseStoreWorkspace() {
   const [activeTab, setActiveTab] = useState<'STOCK_QUEUE' | 'PURCHASE_QUEUE'>('STOCK_QUEUE');
 
@@ -141,7 +170,7 @@ export function ConsumablePurchaseStoreWorkspace() {
       const res = await consumablesApi.printPurchaseRequisition([item.id]);
       const printedItem = res.items && res.items.length > 0 ? res.items[0] : item;
       setPrintModalData({
-        prNumber: res.prNumber || item.prNumber || '151',
+        prNumber: res.prNumber || item.prNumber || '1',
         items: [printedItem], // Strictly ONLY this single item
         date: new Date().toISOString(),
         paymentMode: 'CASH',
@@ -170,7 +199,7 @@ export function ConsumablePurchaseStoreWorkspace() {
         const res = await consumablesApi.printPurchaseRequisition(ids);
 
         setPrintModalData({
-          prNumber: res.prNumber || '151',
+          prNumber: res.prNumber || '1',
           items: res.items && res.items.length > 0 ? res.items : targetItems,
           date: new Date().toISOString(),
           paymentMode: 'CASH',
@@ -184,7 +213,7 @@ export function ConsumablePurchaseStoreWorkspace() {
     } else {
       // All selected items already have PR numbers assigned
       // Group them all together onto the printed PR sheet
-      const prNumber = targetItems[0].prNumber || '151';
+      const prNumber = targetItems[0].prNumber || '1';
       setPrintModalData({
         prNumber,
         items: targetItems, // ALL selected items appear here
@@ -371,11 +400,17 @@ export function ConsumablePurchaseStoreWorkspace() {
         item.itemCategoryTrack === 'STOCK_ITEM' || item.status === 'PURCHASE_RECEIVED' || item.status === 'READY_FOR_ISSUE';
       if (!isStockTrack) return false;
 
+      const q = searchQuery.trim().toLowerCase();
+      if (!q) return true;
+
       const matchesSearch =
-        !searchQuery.trim() ||
-        item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.requestCode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.endUserInVelan?.toLowerCase().includes(searchQuery.toLowerCase());
+        item.description.toLowerCase().includes(q) ||
+        item.requestCode?.toLowerCase().includes(q) ||
+        (item.prNumber && matchesPrNumber(item.prNumber, q)) ||
+        (item.endUserInVelan && item.endUserInVelan.toLowerCase().includes(q)) ||
+        (item.requestedBy && item.requestedBy.toLowerCase().includes(q)) ||
+        (item.vendorName && item.vendorName.toLowerCase().includes(q)) ||
+        (item.productCode && item.productCode.toLowerCase().includes(q));
 
       return matchesSearch;
     });
@@ -383,21 +418,30 @@ export function ConsumablePurchaseStoreWorkspace() {
 
   // Sub-Module 2B: Non-Stock / Purchase Queue
   const purchaseQueueItems = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+
     return allItems.filter((item) => {
       const isPurchaseTrack = item.itemCategoryTrack === 'NON_STOCK_OR_NEW';
       if (!isPurchaseTrack) return false;
 
-      // Status filter
-      if (purchaseStatusFilter !== 'ALL' && item.status !== purchaseStatusFilter) {
+      const isPrMatch = Boolean(item.prNumber && matchesPrNumber(item.prNumber, q));
+
+      // Status filter:
+      // If the user searches specifically for a PR number, show matches across all statuses!
+      if (purchaseStatusFilter !== 'ALL' && item.status !== purchaseStatusFilter && !isPrMatch) {
         return false;
       }
 
+      if (!q) return true;
+
       const matchesSearch =
-        !searchQuery.trim() ||
-        item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.requestCode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.prNumber && item.prNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        item.endUserInVelan?.toLowerCase().includes(searchQuery.toLowerCase());
+        item.description.toLowerCase().includes(q) ||
+        item.requestCode?.toLowerCase().includes(q) ||
+        isPrMatch ||
+        (item.endUserInVelan && item.endUserInVelan.toLowerCase().includes(q)) ||
+        (item.requestedBy && item.requestedBy.toLowerCase().includes(q)) ||
+        (item.vendorName && item.vendorName.toLowerCase().includes(q)) ||
+        (item.productCode && item.productCode.toLowerCase().includes(q));
 
       return matchesSearch;
     });
@@ -530,31 +574,31 @@ export function ConsumablePurchaseStoreWorkspace() {
           </div>
 
           {/* Table */}
-          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700">
+          <div className="overflow-x-auto rounded-lg border border-slate-200/90 dark:border-slate-800 shadow-2xs">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-slate-50/90 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700 text-[11px] uppercase tracking-wider">
                 <tr>
-                  <th className="py-3 px-3">Request #</th>
-                  <th className="py-3 px-3">Item Description</th>
-                  <th className="py-3 px-3">End User / Bay</th>
-                  <th className="py-3 px-3">Requested By</th>
-                  <th className="py-3 px-3 font-mono text-right">Avail. Stock</th>
-                  <th className="py-3 px-3 font-mono text-right">Req. Qty</th>
-                  <th className="py-3 px-3">Status</th>
-                  <th className="py-3 px-3 text-center">Action</th>
+                  <th className="py-3 px-3.5 w-36 align-middle">Request #</th>
+                  <th className="py-3 px-3.5 min-w-[220px] align-middle">Item Description</th>
+                  <th className="py-3 px-3.5 w-40 align-middle">End User / Bay</th>
+                  <th className="py-3 px-3.5 w-36 align-middle">Requested By</th>
+                  <th className="py-3 px-3.5 w-32 font-mono text-right align-middle">Avail. Stock</th>
+                  <th className="py-3 px-3.5 w-28 font-mono text-right align-middle">Req. Qty</th>
+                  <th className="py-3 px-3.5 w-40 text-center align-middle">Status</th>
+                  <th className="py-3 px-3.5 w-48 text-center align-middle">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400">
+                    <td colSpan={8} className="py-10 text-center text-slate-400">
                       <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-indigo-500" />
                       Loading in-stock queue...
                     </td>
                   </tr>
                 ) : inStockItems.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400">
+                    <td colSpan={8} className="py-10 text-center text-slate-400">
                       No in-stock items currently pending issuance.
                     </td>
                   </tr>
@@ -563,61 +607,64 @@ export function ConsumablePurchaseStoreWorkspace() {
                     const isIssued = item.status === 'ISSUED_TO_PRODUCTION' || item.status === 'RECEIVED_BY_PRODUCTION';
 
                     return (
-                      <tr key={item.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                        <td className="py-3 px-3 font-mono font-semibold text-slate-900 dark:text-white">
+                      <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-3.5 px-3.5 font-mono font-semibold text-slate-900 dark:text-white align-middle">
                           {item.requestCode}
                         </td>
-                        <td className="py-3 px-3">
-                          <span className="font-semibold text-slate-900 dark:text-white block">
+                        <td className="py-3.5 px-3.5 align-middle">
+                          <span className="font-semibold text-slate-900 dark:text-white block leading-snug">
                             {item.description}
                           </span>
                           <span className="text-[10px] text-slate-400 font-mono">
                             {item.productCode || 'CONS'} • {item.uom}
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-slate-700 dark:text-slate-300">
+                        <td className="py-3.5 px-3.5 text-slate-700 dark:text-slate-300 align-middle">
                           {item.endUserInVelan || 'Plant General'}
                         </td>
-                        <td className="py-3 px-3 text-slate-600 dark:text-slate-400">
+                        <td className="py-3.5 px-3.5 text-slate-600 dark:text-slate-400 align-middle">
                           {item.requestedBy}
                         </td>
-                        <td className="py-3 px-3 font-mono text-right font-bold text-purple-600 dark:text-purple-400">
+                        <td className="py-3.5 px-3.5 font-mono text-right font-bold text-purple-700 dark:text-purple-400 align-middle">
                           {Number(item.stockAvailableAtRequest || 0)} {item.uom}
                         </td>
-                        <td className="py-3 px-3 font-mono text-right font-bold text-slate-900 dark:text-white">
+                        <td className="py-3.5 px-3.5 font-mono text-right font-bold text-slate-900 dark:text-white align-middle">
                           {Number(item.requestedQty || 0)} {item.uom}
                         </td>
-                        <td className="py-3 px-3">
-                          {item.status === 'READY_FOR_ISSUE' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800 dark:bg-purple-950/50 dark:text-purple-300 border border-purple-500/20">
-                              Ready for Issue
-                            </span>
-                          )}
-                          {item.status === 'PURCHASE_RECEIVED' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-cyan-100 text-cyan-800 dark:bg-cyan-950/50 dark:text-cyan-300 border border-cyan-500/20">
-                              Inwarded in Bin
-                            </span>
-                          )}
-                          {isIssued && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-500/20">
-                              Issued ({item.issuedQty} {item.uom})
-                            </span>
-                          )}
+                        <td className="py-3.5 px-3.5 align-middle text-center">
+                          <div className="inline-flex justify-center">
+                            {item.status === 'READY_FOR_ISSUE' && (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border border-purple-200 dark:border-purple-800 whitespace-nowrap">
+                                Ready for Issue
+                              </span>
+                            )}
+                            {item.status === 'PURCHASE_RECEIVED' && (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-cyan-50 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800 whitespace-nowrap">
+                                Inwarded in Bin
+                              </span>
+                            )}
+                            {isIssued && (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 whitespace-nowrap">
+                                Issued ({item.issuedQty} {item.uom})
+                              </span>
+                            )}
+                          </div>
                         </td>
-                        <td className="py-3 px-3 text-center">
+                        <td className="py-3.5 px-3.5 text-center align-middle">
                           {!isIssued ? (
                             <Button
                               variant="primary"
                               size="sm"
                               onClick={() => handleOpenIssueModal(item)}
                               disabled={actionLoadingId === item.id}
-                              className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs mx-auto cursor-pointer"
+                              className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs mx-auto cursor-pointer px-3 py-1.5"
                             >
                               <Send className="w-3.5 h-3.5" />
                               Issue to Production
                             </Button>
                           ) : (
-                            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-md">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-500" />
                               Dispatched
                             </span>
                           )}
@@ -737,11 +784,11 @@ export function ConsumablePurchaseStoreWorkspace() {
           </div>
 
           {/* Table */}
-          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700">
+          <div className="overflow-x-auto rounded-lg border border-slate-200/90 dark:border-slate-800 shadow-2xs">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-slate-50/90 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700 text-[11px] uppercase tracking-wider">
                 <tr>
-                  <th className="py-3 px-3 w-10 text-center">
+                  <th className="py-3 px-3 w-10 text-center align-middle">
                     <input
                       type="checkbox"
                       checked={
@@ -749,30 +796,30 @@ export function ConsumablePurchaseStoreWorkspace() {
                         purchaseQueueItems.every((i) => selectedIds.includes(i.id))
                       }
                       onChange={(e) => handleSelectAllVisible(e.target.checked)}
-                      className="rounded-sm border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                       title="Select all items in purchase queue"
                     />
                   </th>
-                  <th className="py-3 px-3">PR # / Req #</th>
-                  <th className="py-3 px-3">Item Description</th>
-                  <th className="py-3 px-3">Supplier / Vendor</th>
-                  <th className="py-3 px-3 font-mono text-right">Req. Qty</th>
-                  <th className="py-3 px-3 font-mono text-right">Real Inward Qty</th>
-                  <th className="py-3 px-3">Current Stage</th>
-                  <th className="py-3 px-3 text-center">Procurement Actions</th>
+                  <th className="py-3 px-3.5 w-36 align-middle">PR # / Req #</th>
+                  <th className="py-3 px-3.5 min-w-[200px] align-middle">Item Description</th>
+                  <th className="py-3 px-3.5 min-w-[170px] align-middle">Supplier / Vendor</th>
+                  <th className="py-3 px-3.5 w-28 font-mono text-right align-middle">Req. Qty</th>
+                  <th className="py-3 px-3.5 w-44 font-mono text-right align-middle">Real Inward Qty</th>
+                  <th className="py-3 px-3.5 w-40 text-center align-middle">Current Stage</th>
+                  <th className="py-3 px-3.5 w-52 text-center align-middle">Procurement Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400">
+                    <td colSpan={8} className="py-10 text-center text-slate-400">
                       <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-indigo-500" />
                       Loading purchase queue...
                     </td>
                   </tr>
                 ) : purchaseQueueItems.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400">
+                    <td colSpan={8} className="py-10 text-center text-slate-400">
                       No purchase queue items match your filter.
                     </td>
                   </tr>
@@ -788,157 +835,171 @@ export function ConsumablePurchaseStoreWorkspace() {
                         key={item.id}
                         className={`transition-colors ${
                           selectedIds.includes(item.id)
-                            ? 'bg-indigo-50/50 dark:bg-indigo-950/20'
-                            : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/40'
+                            ? 'bg-indigo-50/60 dark:bg-indigo-950/30'
+                            : 'hover:bg-slate-50/70 dark:hover:bg-slate-800/40'
                         }`}
                       >
                         {/* Checkbox */}
-                        <td className="py-3 px-3 text-center">
+                        <td className="py-3.5 px-3 text-center align-middle">
                           <input
                             type="checkbox"
                             checked={selectedIds.includes(item.id)}
                             onChange={() => handleToggleSelect(item.id)}
-                            className="rounded-sm border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                             title="Select line item for PR print"
                           />
                         </td>
 
                         {/* PR # / Req # */}
-                        <td className="py-3 px-3 font-mono font-semibold text-slate-900 dark:text-white">
-                          {item.prNumber ? (
-                            <button
-                              type="button"
-                              onClick={() => handlePrintSingleItem(item)}
-                              className="px-2 py-0.5 rounded-sm bg-indigo-100 hover:bg-indigo-200 text-indigo-700 dark:bg-indigo-950 dark:hover:bg-indigo-900 dark:text-indigo-300 font-bold block w-fit mb-0.5 cursor-pointer flex items-center gap-1 transition-colors"
-                              title="Click to view & print official Velan Purchase Requisition slip for this item"
-                            >
-                              <Printer className="w-3 h-3" />
-                              PR. No. {item.prNumber}
-                            </button>
-                          ) : (
-                            <span className="text-slate-400 italic">No PR assigned</span>
-                          )}
-                          <span className="text-[10px] text-slate-500 block">{item.requestCode}</span>
+                        <td className="py-3.5 px-3.5 align-middle">
+                          <div className="flex flex-col gap-1 items-start">
+                            {item.prNumber ? (
+                              <button
+                                type="button"
+                                onClick={() => handlePrintSingleItem(item)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800 font-mono font-bold text-[11px] cursor-pointer transition-colors shadow-2xs"
+                                title="Click to view & print official Velan Purchase Requisition slip"
+                              >
+                                <Printer className="w-3 h-3 text-indigo-500" />
+                                PR. No. {item.prNumber}
+                              </button>
+                            ) : (
+                              <span className="text-slate-400 italic text-[11px]">No PR assigned</span>
+                            )}
+                            <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 pl-0.5">
+                              {item.requestCode}
+                            </span>
+                          </div>
                         </td>
 
                         {/* Description */}
-                        <td className="py-3 px-3">
-                          <span className="font-semibold text-slate-900 dark:text-white block">
-                            {item.description}
-                          </span>
-                          <span className="text-[10px] text-slate-400">
-                            {item.uom} {item.isNewProduct ? '• (+ Auto Created Product)' : ''}
-                          </span>
+                        <td className="py-3.5 px-3.5 align-middle">
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-semibold text-slate-900 dark:text-white leading-snug">
+                                {item.description}
+                              </span>
+                              {item.isNewProduct && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800">
+                                  Auto-Created
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {item.productCode || 'CONS'} • {item.uom}
+                            </span>
+                          </div>
                         </td>
 
                         {/* Vendor Context */}
-                        <td className="py-3 px-3 text-slate-700 dark:text-slate-300">
-                          {item.isNewVendor ? (
-                            <div>
-                              <span className="font-bold text-amber-700 dark:text-amber-400 block">
-                                {item.newVendorName || 'New Vendor'}
-                              </span>
-                              <span className="text-[10px] text-slate-400 block font-mono">
-                                {item.newVendorMobile || item.newVendorAddress || ''}
-                              </span>
-                            </div>
-                          ) : item.vendorName ? (
-                            <span className="font-medium text-slate-900 dark:text-white">
-                              {item.vendorName}
+                        <td className="py-3.5 px-3.5 align-middle">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-semibold text-slate-900 dark:text-white leading-snug">
+                              {item.vendorName || item.newVendorName || 'Open Sourcing'}
                             </span>
-                          ) : (
-                            <span className="text-slate-400 italic">Open Sourcing</span>
-                          )}
+                            {item.isNewVendor && (
+                              <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 w-fit">
+                                New Supplier
+                              </span>
+                            )}
+                            {(item.newVendorMobile || item.newVendorAddress) && (
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                                {item.newVendorMobile || item.newVendorAddress}
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         {/* Req Qty */}
-                        <td className="py-3 px-3 font-mono text-right font-semibold text-slate-700 dark:text-slate-300">
+                        <td className="py-3.5 px-3.5 font-mono text-right align-middle font-semibold text-slate-800 dark:text-slate-200">
                           {Number(item.requestedQty || 0)} {item.uom}
                         </td>
 
                         {/* Real Received Qty & Retained Stores Stock */}
-                        <td className="py-3 px-3 font-mono text-right font-bold text-slate-900 dark:text-white">
+                        <td className="py-3.5 px-3.5 font-mono text-right align-middle">
                           {Number(item.realReceivedQty || 0) > 0 ? (
-                            <div>
-                              <span className="text-emerald-600 dark:text-emerald-400 block font-bold">
+                            <div className="flex flex-col items-end gap-1">
+                              <span className="text-emerald-700 dark:text-emerald-400 font-bold text-xs">
                                 {item.realReceivedQty} {item.uom}
                               </span>
                               {Number(item.issuedQty) > 0 && Number(item.realReceivedQty) > Number(item.issuedQty) && (
-                                <span className="text-[10px] text-purple-600 dark:text-purple-400 block font-normal">
-                                  ({item.issuedQty} issued / {Number(item.realReceivedQty) - Number(item.issuedQty)} in stock)
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/70 dark:border-purple-800/50 whitespace-nowrap">
+                                  <span>{item.issuedQty} issued</span>
+                                  <span className="text-purple-300 dark:text-purple-600">•</span>
+                                  <span>{Number(item.realReceivedQty) - Number(item.issuedQty)} stores</span>
                                 </span>
                               )}
                             </div>
                           ) : (
-                            '—'
+                            <span className="text-slate-400">—</span>
                           )}
                         </td>
 
                         {/* Status */}
-                        <td className="py-3 px-3">
-                          {isOpen && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-500/20">
-                              Open (Unprinted)
-                            </span>
-                          )}
-                          {isRequested && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-100 text-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300 border border-indigo-500/20">
-                              PR Printed ({item.prNumber})
-                            </span>
-                          )}
-                          {isReceived && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-cyan-100 text-cyan-800 dark:bg-cyan-950/50 dark:text-cyan-300 border border-cyan-500/20">
-                              Received in Store
-                            </span>
-                          )}
-                          {isIssued && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-500/20">
-                              Issued to Production
-                            </span>
-                          )}
+                        <td className="py-3.5 px-3.5 align-middle text-center">
+                          <div className="inline-flex justify-center">
+                            {isOpen && (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800 whitespace-nowrap">
+                                Open (Unprinted)
+                              </span>
+                            )}
+                            {isRequested && (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 whitespace-nowrap">
+                                PR Printed ({item.prNumber})
+                              </span>
+                            )}
+                            {isReceived && (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-cyan-50 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800 whitespace-nowrap">
+                                Inwarded in Store
+                              </span>
+                            )}
+                            {isIssued && (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 whitespace-nowrap">
+                                Issued to Production
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         {/* Actions */}
-                        <td className="py-3 px-3 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
+                        <td className="py-3.5 px-3.5 align-middle text-center">
+                          <div className="flex items-center justify-center gap-1.5 flex-wrap">
                             {/* Step 1: Print PR (if OPEN) */}
                             {isOpen && (
                               <Button
                                 variant="primary"
                                 size="sm"
                                 onClick={() => handlePrintSingleItem(item)}
-                                className="bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+                                className="bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs cursor-pointer px-3 py-1"
                               >
-                                <Printer className="w-3 h-3" />
+                                <Printer className="w-3.5 h-3.5" />
                                 Print PR Slip
                               </Button>
                             )}
 
-                            {/* View / Re-print PR Slip (if already assigned PR) */}
-                            {item.prNumber && !isOpen && (
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => handlePrintSingleItem(item)}
-                                className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 text-[11px] font-bold flex items-center gap-1 shadow-xs cursor-pointer border border-indigo-200 dark:border-indigo-800"
-                                title="View or re-print official Velan PR slip for this item"
-                              >
-                                <Printer className="w-3 h-3" />
-                                Print PR Slip
-                              </Button>
-                            )}
-
-                            {/* Step 2: Receive Purchase */}
+                            {/* Step 2: Inward Purchase (if PR Printed) */}
                             {isRequested && (
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() => handleOpenReceiveModal(item)}
-                                className="bg-cyan-600 hover:bg-cyan-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs cursor-pointer"
-                              >
-                                <PackagePlus className="w-3.5 h-3.5" />
-                                Mark Received
-                              </Button>
+                              <>
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => handlePrintSingleItem(item)}
+                                  className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 text-[11px] font-bold flex items-center gap-1 shadow-xs cursor-pointer border border-indigo-200 dark:border-indigo-800 px-2.5 py-1"
+                                  title="View or re-print official Velan PR slip"
+                                >
+                                  <Printer className="w-3 h-3" />
+                                  Print Slip
+                                </Button>
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={() => handleOpenReceiveModal(item)}
+                                  className="bg-cyan-600 hover:bg-cyan-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs cursor-pointer px-3 py-1"
+                                >
+                                  <PackagePlus className="w-3.5 h-3.5" />
+                                  Mark Received
+                                </Button>
+                              </>
                             )}
 
                             {/* Step 3: Issue to Production if not auto-issued */}
@@ -947,17 +1008,31 @@ export function ConsumablePurchaseStoreWorkspace() {
                                 variant="primary"
                                 size="sm"
                                 onClick={() => handleOpenIssueModal(item)}
-                                className="bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+                                className="bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs cursor-pointer px-3 py-1"
                               >
                                 <Send className="w-3 h-3" />
                                 Issue to Floor
                               </Button>
                             )}
 
+                            {/* Completed: Dispatched indicator with optional re-print icon */}
                             {isIssued && (
-                              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                                Dispatched
-                              </span>
+                              <div className="inline-flex items-center gap-1.5">
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-md">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                                  Dispatched
+                                </span>
+                                {item.prNumber && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePrintSingleItem(item)}
+                                    className="p-1 rounded text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                    title="Re-print PR Slip"
+                                  >
+                                    <Printer className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
                         </td>
