@@ -513,33 +513,60 @@ export function ConsumablePurchaseStoreWorkspace() {
         title="Consumable Purchase & Store Fulfillment"
         subtitle="Module 2: In-stock store issuance, Velan Metrology PR slip printing, real quantity stock-in, and shop-floor dispatch"
         actionSlot={
-          <div className="flex items-center gap-2">
-            <Button
-              variant={activeTab === 'STOCK_QUEUE' ? 'primary' : 'secondary'}
+          <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200/90 dark:border-slate-700/80 shadow-2xs">
+            <button
+              type="button"
               onClick={() => setActiveTab('STOCK_QUEUE')}
-              className="flex items-center gap-1.5"
+              className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                activeTab === 'STOCK_QUEUE'
+                  ? 'bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
             >
-              <Boxes className="w-4 h-4" />
-              Tab 1: In-Stock Items ({readyForIssueCount})
-            </Button>
-            <Button
-              variant={activeTab === 'PURCHASE_QUEUE' ? 'primary' : 'secondary'}
+              <Boxes className={`w-3.5 h-3.5 ${activeTab === 'STOCK_QUEUE' ? 'text-indigo-600 dark:text-white' : 'text-slate-400'}`} />
+              <span>In-Stock Store Queue</span>
+              <span
+                className={`ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
+                  activeTab === 'STOCK_QUEUE'
+                    ? 'bg-indigo-50 text-indigo-700 dark:bg-white/20 dark:text-white'
+                    : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                }`}
+              >
+                {readyForIssueCount}
+              </span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveTab('PURCHASE_QUEUE')}
-              className="flex items-center gap-1.5"
+              className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                activeTab === 'PURCHASE_QUEUE'
+                  ? 'bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
             >
-              <Building2 className="w-4 h-4" />
-              Tab 2: Purchase Queue ({openPurchaseCount})
-            </Button>
+              <Building2 className={`w-3.5 h-3.5 ${activeTab === 'PURCHASE_QUEUE' ? 'text-amber-500 dark:text-white' : 'text-slate-400'}`} />
+              <span>Purchase Queue</span>
+              <span
+                className={`ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
+                  activeTab === 'PURCHASE_QUEUE'
+                    ? 'bg-amber-50 text-amber-700 dark:bg-white/20 dark:text-white'
+                    : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                }`}
+              >
+                {openPurchaseCount}
+              </span>
+            </button>
           </div>
         }
       />
 
       {/* KPI Stats Strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="p-4 border-l-4 border-l-purple-500">
+        <Card className="p-4 border-l-4 border-l-indigo-500">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Ready for Issue</span>
-            <Boxes className="w-4 h-4 text-purple-500" />
+            <Boxes className="w-4 h-4 text-indigo-500" />
           </div>
           <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{readyForIssueCount}</p>
           <span className="text-[11px] text-slate-400">In-stock & available items</span>
@@ -550,7 +577,7 @@ export function ConsumablePurchaseStoreWorkspace() {
             <span className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Open Purchase Items</span>
             <Clock className="w-4 h-4 text-blue-500" />
           </div>
-          <p className="text-2xl font-bold mt-1 text-blue-600 dark:text-blue-400">{openPurchaseCount}</p>
+          <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{openPurchaseCount}</p>
           <span className="text-[11px] text-slate-400">Active procurement requests</span>
         </Card>
 
@@ -559,7 +586,7 @@ export function ConsumablePurchaseStoreWorkspace() {
             <span className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Partially Issued</span>
             <Send className="w-4 h-4 text-amber-500" />
           </div>
-          <p className="text-2xl font-bold mt-1 text-amber-600 dark:text-amber-400">{partiallyIssuedCount}</p>
+          <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{partiallyIssuedCount}</p>
           <span className="text-[11px] text-slate-400">Partial delivery, awaiting balance</span>
         </Card>
 
@@ -579,14 +606,18 @@ export function ConsumablePurchaseStoreWorkspace() {
       {activeTab === 'STOCK_QUEUE' && (
         <Card className="p-6 space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Boxes className="w-5 h-5 text-purple-500" />
-                In-Stock Consumables Queue (Ready for Issue)
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Line items with stock available in warehouse bins. Issue directly to Production to execute atomic STOCK_OUT.
-              </p>
+            <div className="flex items-center gap-3">
+              <span className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold shadow-2xs shrink-0">
+                <Boxes className="w-4 h-4" />
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                  In-Stock Consumables Queue (Ready for Issue)
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Line items with stock available in warehouse bins. Issue directly to Production to execute atomic STOCK_OUT.
+                </p>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -754,14 +785,18 @@ export function ConsumablePurchaseStoreWorkspace() {
       {activeTab === 'PURCHASE_QUEUE' && (
         <Card className="p-6 space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-amber-500" />
-                Purchase Queue: Out-of-Stock & New Products
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Select OPEN items to print official Velan Metrology Purchase Requisitions (starting at #1). Inward stock upon delivery.
-              </p>
+            <div className="flex items-center gap-3">
+              <span className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold shadow-2xs shrink-0">
+                <Building2 className="w-4 h-4" />
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                  Purchase Queue: Out-of-Stock & New Products
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Select OPEN items to print official Velan Metrology Purchase Requisitions (starting at #1). Inward stock upon delivery.
+                </p>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -804,14 +839,14 @@ export function ConsumablePurchaseStoreWorkspace() {
               />
             </div>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto">
+            <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto p-1 bg-slate-100/80 dark:bg-slate-800/80 rounded-xl border border-slate-200/80 dark:border-slate-700/80">
               <button
                 type="button"
                 onClick={() => setPurchaseStatusFilter('ALL')}
-                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${
                   purchaseStatusFilter === 'ALL'
-                    ? 'bg-amber-600 text-white'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    ? 'bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 All Purchase Items
@@ -819,10 +854,10 @@ export function ConsumablePurchaseStoreWorkspace() {
               <button
                 type="button"
                 onClick={() => setPurchaseStatusFilter('OPEN')}
-                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${
                   purchaseStatusFilter === 'OPEN'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    ? 'bg-white dark:bg-blue-600 text-blue-700 dark:text-white shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 Open ({openPurchaseCount})
@@ -830,10 +865,10 @@ export function ConsumablePurchaseStoreWorkspace() {
               <button
                 type="button"
                 onClick={() => setPurchaseStatusFilter('PARTIALLY_ISSUED')}
-                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${
                   purchaseStatusFilter === 'PARTIALLY_ISSUED'
-                    ? 'bg-amber-600 text-white'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    ? 'bg-white dark:bg-amber-600 text-amber-700 dark:text-white shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 Partially Issued ({partiallyIssuedCount})
@@ -841,10 +876,10 @@ export function ConsumablePurchaseStoreWorkspace() {
               <button
                 type="button"
                 onClick={() => setPurchaseStatusFilter('DISPATCHED')}
-                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${
                   purchaseStatusFilter === 'DISPATCHED'
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    ? 'bg-white dark:bg-emerald-600 text-emerald-700 dark:text-white shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 Dispatched ({dispatchedCount})
