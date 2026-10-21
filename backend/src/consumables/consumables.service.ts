@@ -368,27 +368,52 @@ export class ConsumablesService {
       throw new NotFoundException('None of the specified line items were found.');
     }
 
-    // Verify all selected items are OPEN
-    const nonOpen = items.filter((i) => i.status !== ConsumableItemStatus.OPEN);
-    if (nonOpen.length > 0) {
+    // Verify items eligibility: must be OPEN or already have an assigned PR number
+    const invalidItems = items.filter(
+      (i) => i.status !== ConsumableItemStatus.OPEN && !i.prNumber,
+    );
+    if (invalidItems.length > 0) {
       throw new BadRequestException(
-        `Cannot print PR: Line item "${nonOpen[0].description}" is already in status "${nonOpen[0].status}". Only OPEN items can be included.`,
+        `Cannot print PR: Line item "${invalidItems[0].description}" is in status "${invalidItems[0].status}". Only OPEN items or items with an assigned PR number can be printed.`,
       );
     }
 
-    const prNumber = await this.generateNextPrNumber();
+    // Check if items already have a PR number assigned
+    const alreadyPrAssigned = items.filter((i) => i.prNumber != null);
+    const openItems = items.filter((i) => i.status === ConsumableItemStatus.OPEN);
+
+    // If all requested items already have a PR number, return them gracefully for re-printing
+    if (openItems.length === 0 && alreadyPrAssigned.length > 0) {
+      const existingPr = alreadyPrAssigned[0].prNumber!;
+      this.logger.log(
+        `[PR RE-PRINT] Returning PR #${existingPr} for ${items.length} existing line item(s)`,
+      );
+      return {
+        prNumber: existingPr,
+        printedAt: alreadyPrAssigned[0].printedAt || new Date(),
+        items,
+      };
+    }
+
+    // Determine PR number: reuse from selected group if any, otherwise generate next sequential PR number
+    const prNumber = alreadyPrAssigned.length > 0
+      ? alreadyPrAssigned[0].prNumber!
+      : await this.generateNextPrNumber();
+
     const printedAt = new Date();
 
-    for (const item of items) {
+    for (const item of openItems) {
       item.prNumber = prNumber;
       item.status = ConsumableItemStatus.PURCHASE_REQUESTED;
       item.printedAt = printedAt;
     }
 
-    await this.itemRepo.save(items);
-    this.logger.log(
-      `[PR PRINTED] Assigned PR #${prNumber} to ${items.length} line item(s)`,
-    );
+    if (openItems.length > 0) {
+      await this.itemRepo.save(openItems);
+      this.logger.log(
+        `[PR PRINTED] Assigned PR #${prNumber} to ${openItems.length} line item(s)`,
+      );
+    }
 
     return {
       prNumber,
@@ -485,40 +510,67 @@ export class ConsumablesService {
         quantity: realQty,
         referenceType: 'CONSUMABLE_PURCHASE',
         referenceId: item.id,
-        reason: resolvedRemarks?.trim() || `Consumable Purchase Receipt (PR #${item.prNumber || 'N/A'})`,
+        reason:
+          resolvedRemarks?.trim() ||
+          `Consumable Purchase Inward (PR #${item.prNumber || 'N/A'}) - ${realQty} ${item.uom} received from Vendor`,
         createdById: effectiveUserId,
       });
       await queryRunner.manager.save(stockInTx);
 
-      // 4. Handle Immediate Auto-Issue to Production
+      // 4. Handle Immediate Auto-Issue to Production (delivers requested quantity, retains remaining stock in bin)
       if (resolvedAutoIssue) {
-        // Atomic Stock-Out
-        balance.currentQuantity = Number(balance.currentQuantity) - realQty;
-        await queryRunner.manager.save(balance);
+        // Calculate the exact quantity to issue to production:
+        // Defaults to item.requestedQty, capped at realQty received from vendor
+        const defaultIssueQty = Math.min(Number(item.requestedQty || 1), realQty);
+        const resolvedIssueQty =
+          dto.issueQty != null && Number(dto.issueQty) > 0
+            ? Number(dto.issueQty)
+            : firstNested?.issueQty != null && Number(firstNested.issueQty) > 0
+            ? Number(firstNested.issueQty)
+            : defaultIssueQty;
 
-        const stockOutTx = queryRunner.manager.create(StockTransaction, {
-          productId: item.productId,
-          sourceBinId: bin.id,
-          transactionType: TransactionType.STOCK_OUT,
-          quantity: realQty,
-          referenceType: 'CONSUMABLE_ISSUE',
-          referenceId: item.id,
-          reason: resolvedRemarks?.trim() || `Immediate Auto-Issue to Production: ${item.endUserInVelan || 'Shop Floor'}`,
-          createdById: effectiveUserId,
-        });
-        await queryRunner.manager.save(stockOutTx);
+        if (resolvedIssueQty > realQty) {
+          throw new BadRequestException(
+            `Cannot issue ${resolvedIssueQty} ${item.uom} to production: only ${realQty} ${item.uom} was received from vendor.`,
+          );
+        }
 
-        item.issuedQty = realQty;
-        item.issuedAt = now;
-        item.status = ConsumableItemStatus.ISSUED_TO_PRODUCTION;
+        if (resolvedIssueQty > 0) {
+          // Atomic Stock-Out for the requested/issued portion ONLY
+          balance.currentQuantity = Number(balance.currentQuantity) - resolvedIssueQty;
+          await queryRunner.manager.save(balance);
 
-        this.logger.log(
-          `[PURCHASE RECEIVED & AUTO-ISSUED] Item: "${item.description}", Qty: ${realQty}, Bin: ${bin.code}`,
-        );
+          const stockOutTx = queryRunner.manager.create(StockTransaction, {
+            productId: item.productId,
+            sourceBinId: bin.id,
+            transactionType: TransactionType.STOCK_OUT,
+            quantity: resolvedIssueQty,
+            referenceType: 'CONSUMABLE_ISSUE',
+            referenceId: item.id,
+            reason:
+              resolvedRemarks?.trim() ||
+              `Issued to Production (Req #${item.request?.requestCode || 'N/A'}) - ${resolvedIssueQty} ${item.uom} dispatched to ${item.endUserInVelan || 'Shop Floor'}`,
+            createdById: effectiveUserId,
+          });
+          await queryRunner.manager.save(stockOutTx);
+
+          item.issuedQty = resolvedIssueQty;
+          item.issuedAt = now;
+          item.status = ConsumableItemStatus.ISSUED_TO_PRODUCTION;
+
+          const retainedInStore = realQty - resolvedIssueQty;
+          this.logger.log(
+            `[PURCHASE RECEIVED & DISPATCHED] Item: "${item.description}", Inwarded: ${realQty}, Issued to Floor: ${resolvedIssueQty}, Retained in Stores: ${retainedInStore}, Bin: ${bin.code}`,
+          );
+        } else {
+          item.status = ConsumableItemStatus.PURCHASE_RECEIVED;
+          item.issuedQty = 0;
+        }
       } else {
         item.status = ConsumableItemStatus.PURCHASE_RECEIVED;
+        item.issuedQty = 0;
         this.logger.log(
-          `[PURCHASE RECEIVED] Item: "${item.description}", Qty: ${realQty}, Stored in Bin: ${bin.code}`,
+          `[PURCHASE RECEIVED IN STORE] Item: "${item.description}", Inwarded: ${realQty}, Retained 100% in Bin: ${bin.code}`,
         );
       }
 

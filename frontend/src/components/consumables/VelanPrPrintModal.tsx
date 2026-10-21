@@ -80,30 +80,36 @@ export function VelanPrPrintModal({
   const formattedDate = safeFormatDate(date);
 
   const handlePrint = () => {
-    const originalTitle = document.title;
-    document.title = `Velan-PR-${prNumber}`;
-    window.print();
-    setTimeout(() => {
-      document.title = originalTitle;
-      if (onPrintConfirmed) {
-        onPrintConfirmed();
-      }
-    }, 500);
+    try {
+      const originalTitle = document.title;
+      document.title = `Velan-PR-${prNumber}`;
+      window.print();
+      setTimeout(() => {
+        document.title = originalTitle;
+        if (onPrintConfirmed) {
+          onPrintConfirmed();
+        }
+      }, 500);
+    } catch (err: any) {
+      console.error('Print trigger failed:', err);
+    }
   };
+
+  const safeItems = Array.isArray(items) ? items.filter(Boolean) : [];
 
   // Ensure at least 6 ruled rows for authentic physical requisition slip look
   const minimumRows = 6;
-  const emptyRowsCount = Math.max(0, minimumRows - items.length);
+  const emptyRowsCount = Math.max(0, minimumRows - safeItems.length);
 
   // Total estimated requisition value (if prices are specified)
-  const totalEstimatedAmount = items.reduce((sum, item) => {
+  const totalEstimatedAmount = safeItems.reduce((sum, item) => {
     const price = item.isNewVendor && item.newVendorPrice != null
       ? Number(item.newVendorPrice)
       : item.unitPrice != null
       ? Number(item.unitPrice)
       : 0;
     const qty = Number(item.requestedQty || 0);
-    return sum + price * (qty > 0 ? qty : 1);
+    return sum + (isNaN(price) ? 0 : price) * (qty > 0 ? qty : 1);
   }, 0);
 
   return (
@@ -286,7 +292,7 @@ export function VelanPrPrintModal({
               </tr>
             </thead>
             <tbody className="divide-y divide-black font-medium">
-              {items.map((item, index) => {
+              {safeItems.map((item, index) => {
                 const isNewVendor = item.isNewVendor;
                 const hasVendor = item.vendorName || item.newVendorName;
 

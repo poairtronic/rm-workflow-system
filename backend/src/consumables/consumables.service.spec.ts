@@ -407,6 +407,7 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
         productId: mockProduct.id,
         status: ConsumableItemStatus.PURCHASE_REQUESTED,
         description: 'V-Belt B-42',
+        requestedQty: 4,
       } as ConsumableRequestItem;
 
       vi.spyOn(itemRepo, 'findOne').mockResolvedValue(mockItem);
@@ -434,6 +435,60 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
         expect.objectContaining({
           transactionType: TransactionType.STOCK_OUT,
           quantity: 4,
+          sourceBinId: mockBin.id,
+          referenceType: 'CONSUMABLE_ISSUE',
+        }),
+      );
+      expect(result.status).toBe(ConsumableItemStatus.ISSUED_TO_PRODUCTION);
+    });
+
+    it('CNS-SVC-010b: receivePurchase with bulk receipt (500) should issue only requested qty (5) and retain 495 in stores', async () => {
+      const mockItem = {
+        id: 'item-uuid-bulk',
+        productId: mockProduct.id,
+        status: ConsumableItemStatus.PURCHASE_REQUESTED,
+        description: 'Auto Diamond Grinding Wheel DIAG-3742',
+        requestedQty: 5,
+      } as ConsumableRequestItem;
+
+      vi.spyOn(itemRepo, 'findOne').mockResolvedValue(mockItem);
+      vi.spyOn(service, 'findOneItem').mockResolvedValue({
+        ...mockItem,
+        status: ConsumableItemStatus.ISSUED_TO_PRODUCTION,
+        realReceivedQty: 500,
+        issuedQty: 5,
+        binId: mockBin.id,
+      } as ConsumableRequestItem);
+
+      const runner = dataSource.createQueryRunner();
+      const mockBalance = { currentQuantity: 0, productId: mockProduct.id, binId: mockBin.id };
+      vi.spyOn(runner.manager, 'findOne').mockResolvedValue(mockBalance);
+
+      const result = await service.receivePurchase({
+        itemId: mockItem.id,
+        binId: mockBin.id,
+        realReceivedQty: 500,
+        autoIssue: true,
+      });
+
+      // Balance should retain 495 in stores bin (0 + 500 - 5 = 495)
+      expect(mockBalance.currentQuantity).toBe(495);
+
+      // Verify STOCK_IN logged for full 500
+      expect(runner.manager.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionType: TransactionType.STOCK_IN,
+          quantity: 500,
+          destinationBinId: mockBin.id,
+          referenceType: 'CONSUMABLE_PURCHASE',
+        }),
+      );
+
+      // Verify STOCK_OUT logged ONLY for requested 5
+      expect(runner.manager.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionType: TransactionType.STOCK_OUT,
+          quantity: 5,
           sourceBinId: mockBin.id,
           referenceType: 'CONSUMABLE_ISSUE',
         }),

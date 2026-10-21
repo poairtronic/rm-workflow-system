@@ -22,6 +22,7 @@ export interface ReceiveItemPayload {
   binId: string;
   unitPrice?: number;
   autoIssue?: boolean;
+  issueQty?: number;
   remarks?: string;
 }
 
@@ -204,6 +205,7 @@ export const consumablesApi = {
       realReceivedQty: Number(target?.realReceivedQty || 0),
       binId: target?.binId,
       autoIssue: Boolean(target?.autoIssue),
+      issueQty: target?.issueQty != null ? Number(target.issueQty) : undefined,
       items: list,
     };
     return api.post<any>('/api/consumables/purchase/receive', payload);

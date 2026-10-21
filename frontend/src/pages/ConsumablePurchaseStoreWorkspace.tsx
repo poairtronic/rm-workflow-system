@@ -60,6 +60,7 @@ export function ConsumablePurchaseStoreWorkspace() {
   >([]);
   const [loadingReceiveBins, setLoadingReceiveBins] = useState(false);
   const [autoIssueOnReceive, setAutoIssueOnReceive] = useState<boolean>(true);
+  const [deliveryToProductionQty, setDeliveryToProductionQty] = useState<number>(0);
   const [receivingSubmit, setReceivingSubmit] = useState(false);
 
   // Issue to Production Modal State
@@ -123,11 +124,33 @@ export function ConsumablePurchaseStoreWorkspace() {
     );
   };
 
+  // --- VIEW / RE-PRINT EXISTING PR ---
+  const handleViewOrPrintPr = (prNumber: string) => {
+    const prItems = allItems.filter((i) => i.prNumber === prNumber);
+    const targetItems = prItems.length > 0 ? prItems : allItems.filter((i) => i.id === prNumber);
+    if (targetItems.length === 0) return;
+    setPrintModalData({
+      prNumber: targetItems[0]?.prNumber || prNumber,
+      items: targetItems,
+      date: targetItems[0]?.printedAt ? new Date(targetItems[0].printedAt).toISOString() : new Date().toISOString(),
+      paymentMode: 'CASH',
+    });
+    setPrintModalOpen(true);
+  };
+
   // --- TRIGGER PR PRINT ---
   const handlePrintSelectedPr = async (specificItems?: ConsumableLineItemRecord[]) => {
     const targetItems = specificItems || allItems.filter((i) => selectedIds.includes(i.id));
     if (targetItems.length === 0) {
-      toast.error('Please select at least one OPEN line item to print.');
+      toast.error('Please select at least one line item to print.');
+      return;
+    }
+
+    // If all target items already have a PR number, open print slip directly without re-generating!
+    const allAlreadyHavePr = targetItems.every((i) => !!i.prNumber);
+    if (allAlreadyHavePr) {
+      const prNumber = targetItems[0].prNumber!;
+      handleViewOrPrintPr(prNumber);
       return;
     }
 
@@ -154,7 +177,10 @@ export function ConsumablePurchaseStoreWorkspace() {
     setReceiveModalItem(item);
     const req = Number(item.requestedQty) || 0;
     const rec = Number(item.realReceivedQty) || 0;
+    // Quantity physically received from vendor (e.g. 500, 80, 70)
     setRealReceivedQty(rec > 0 ? rec : (req > 0 ? req : 1));
+    // Quantity to immediately deliver to production (defaults to requested quantity, e.g. 5)
+    setDeliveryToProductionQty(req > 0 ? req : 1);
     setAutoIssueOnReceive(true);
 
     // Initial default: item's bin or first available bin in warehouse
@@ -196,22 +222,35 @@ export function ConsumablePurchaseStoreWorkspace() {
       toast.error('Real Received Qty must be greater than 0.');
       return;
     }
+    if (autoIssueOnReceive && deliveryToProductionQty <= 0) {
+      toast.error('Quantity to deliver to production must be greater than 0.');
+      return;
+    }
+    if (autoIssueOnReceive && deliveryToProductionQty > realReceivedQty) {
+      toast.error(
+        `Cannot deliver ${deliveryToProductionQty} ${receiveModalItem.uom} to production: exceeds the ${realReceivedQty} ${receiveModalItem.uom} inwarded.`
+      );
+      return;
+    }
 
     setReceivingSubmit(true);
     try {
+      const issueQty = autoIssueOnReceive ? Number(deliveryToProductionQty) : 0;
       await consumablesApi.receivePurchase([
         {
           lineItemId: receiveModalItem.id,
           realReceivedQty: Number(realReceivedQty),
           binId: selectedTargetBinId,
           autoIssue: autoIssueOnReceive,
+          issueQty,
         },
       ]);
 
+      const retainedInStore = Math.max(0, realReceivedQty - issueQty);
       toast.success(
         autoIssueOnReceive
-          ? `Received ${realReceivedQty} ${receiveModalItem.uom} and immediately issued to Production!`
-          : `Received ${realReceivedQty} ${receiveModalItem.uom} into stock bin!`
+          ? `Inwarded ${realReceivedQty} ${receiveModalItem.uom} to bin: ${issueQty} ${receiveModalItem.uom} issued to Production, ${retainedInStore} ${receiveModalItem.uom} retained in stores inventory!`
+          : `Inwarded ${realReceivedQty} ${receiveModalItem.uom} into stock bin!`
       );
 
       setReceiveModalItem(null);
@@ -742,9 +781,15 @@ export function ConsumablePurchaseStoreWorkspace() {
                         {/* PR # / Req # */}
                         <td className="py-3 px-3 font-mono font-semibold text-slate-900 dark:text-white">
                           {item.prNumber ? (
-                            <span className="px-2 py-0.5 rounded-sm bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-bold block w-fit mb-0.5">
+                            <button
+                              type="button"
+                              onClick={() => handleViewOrPrintPr(item.prNumber!)}
+                              className="px-2 py-0.5 rounded-sm bg-indigo-100 hover:bg-indigo-200 text-indigo-700 dark:bg-indigo-950 dark:hover:bg-indigo-900 dark:text-indigo-300 font-bold block w-fit mb-0.5 cursor-pointer flex items-center gap-1 transition-colors"
+                              title="Click to view & print official Velan Purchase Requisition slip"
+                            >
+                              <Printer className="w-3 h-3" />
                               PR. No. {item.prNumber}
-                            </span>
+                            </button>
                           ) : (
                             <span className="text-slate-400 italic">No PR assigned</span>
                           )}
@@ -786,12 +831,19 @@ export function ConsumablePurchaseStoreWorkspace() {
                           {Number(item.requestedQty || 0)} {item.uom}
                         </td>
 
-                        {/* Real Received Qty */}
+                        {/* Real Received Qty & Retained Stores Stock */}
                         <td className="py-3 px-3 font-mono text-right font-bold text-slate-900 dark:text-white">
                           {Number(item.realReceivedQty || 0) > 0 ? (
-                            <span className="text-emerald-600 dark:text-emerald-400">
-                              {item.realReceivedQty} {item.uom}
-                            </span>
+                            <div>
+                              <span className="text-emerald-600 dark:text-emerald-400 block font-bold">
+                                {item.realReceivedQty} {item.uom}
+                              </span>
+                              {Number(item.issuedQty) > 0 && Number(item.realReceivedQty) > Number(item.issuedQty) && (
+                                <span className="text-[10px] text-purple-600 dark:text-purple-400 block font-normal">
+                                  ({item.issuedQty} issued / {Number(item.realReceivedQty) - Number(item.issuedQty)} in stock)
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             '—'
                           )}
@@ -824,13 +876,27 @@ export function ConsumablePurchaseStoreWorkspace() {
                         {/* Actions */}
                         <td className="py-3 px-3 text-center">
                           <div className="flex items-center justify-center gap-1.5">
-                            {/* Step 1: Print PR */}
+                            {/* Step 1: Print PR (if OPEN) */}
                             {isOpen && (
                               <Button
                                 variant="primary"
                                 size="sm"
                                 onClick={() => handlePrintSelectedPr([item])}
                                 className="bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+                              >
+                                <Printer className="w-3 h-3" />
+                                Print PR Slip
+                              </Button>
+                            )}
+
+                            {/* View / Re-print PR Slip (if already assigned PR) */}
+                            {item.prNumber && !isOpen && (
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => handleViewOrPrintPr(item.prNumber!)}
+                                className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 text-[11px] font-bold flex items-center gap-1 shadow-xs cursor-pointer border border-indigo-200 dark:border-indigo-800"
+                                title="View or re-print official Velan PR slip"
                               >
                                 <Printer className="w-3 h-3" />
                                 Print PR Slip
@@ -980,7 +1046,7 @@ export function ConsumablePurchaseStoreWorkspace() {
                     Fast-Track: Immediately Issue to Production
                   </span>
                   <span className="text-[11px] text-emerald-700 dark:text-emerald-400">
-                    Executes STOCK_IN + atomic STOCK_OUT and routes item directly to Production Receipt.
+                    Inwards full purchased quantity to bin, then automatically dispatches the requested quantity to Production.
                   </span>
                 </div>
                 <input
@@ -990,6 +1056,38 @@ export function ConsumablePurchaseStoreWorkspace() {
                   className="w-4 h-4 text-emerald-600 rounded-sm focus:ring-emerald-500 cursor-pointer"
                 />
               </div>
+
+              {/* Delivery to Production breakdown when auto-issuing */}
+              {autoIssueOnReceive && (
+                <div className="p-3.5 rounded-lg border border-purple-200 dark:border-purple-900/50 bg-purple-50/60 dark:bg-purple-950/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-purple-900 dark:text-purple-300">
+                      Quantity to Deliver to Production *
+                    </label>
+                    <span className="text-[11px] text-purple-700 dark:text-purple-400">
+                      Requested: <b>{receiveModalItem.requestedQty} {receiveModalItem.uom}</b>
+                    </span>
+                  </div>
+                  <input
+                    type="number"
+                    required
+                    min="0.001"
+                    max={realReceivedQty}
+                    step="any"
+                    value={deliveryToProductionQty}
+                    onChange={(e) => setDeliveryToProductionQty(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 text-base font-mono font-bold rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500"
+                  />
+                  <div className="flex items-center justify-between text-xs pt-1.5 border-t border-purple-200 dark:border-purple-900/60 font-medium">
+                    <span className="text-emerald-700 dark:text-emerald-400">
+                      Retained in Stores Bin: <b>{Math.max(0, realReceivedQty - deliveryToProductionQty)} {receiveModalItem.uom}</b>
+                    </span>
+                    <span className="text-purple-700 dark:text-purple-400">
+                      Dispatched to Production: <b>{deliveryToProductionQty} {receiveModalItem.uom}</b>
+                    </span>
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
                 <Button

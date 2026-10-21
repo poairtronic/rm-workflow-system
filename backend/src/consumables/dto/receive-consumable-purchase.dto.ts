@@ -31,6 +31,11 @@ export class ReceiveConsumablePurchaseDto {
   autoIssue?: boolean;
 
   @IsOptional()
+  @IsNumber()
+  @Min(0.001, { message: 'Issue quantity must be greater than zero.' })
+  issueQty?: number;
+
+  @IsOptional()
   @IsString()
   remarks?: string;
 
