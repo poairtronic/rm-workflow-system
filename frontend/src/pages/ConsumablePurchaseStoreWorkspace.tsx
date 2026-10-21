@@ -49,6 +49,16 @@ export function ConsumablePurchaseStoreWorkspace() {
   const [receiveModalItem, setReceiveModalItem] = useState<ConsumableLineItemRecord | null>(null);
   const [realReceivedQty, setRealReceivedQty] = useState<number>(0);
   const [selectedTargetBinId, setSelectedTargetBinId] = useState<string>('');
+  const [receiveStockBins, setReceiveStockBins] = useState<
+    Array<{
+      binId: string;
+      binCode: string;
+      binName?: string;
+      rackName?: string;
+      currentQuantity: number;
+    }>
+  >([]);
+  const [loadingReceiveBins, setLoadingReceiveBins] = useState(false);
   const [autoIssueOnReceive, setAutoIssueOnReceive] = useState<boolean>(true);
   const [receivingSubmit, setReceivingSubmit] = useState(false);
 
@@ -56,6 +66,16 @@ export function ConsumablePurchaseStoreWorkspace() {
   const [issueModalItem, setIssueModalItem] = useState<ConsumableLineItemRecord | null>(null);
   const [issueQty, setIssueQty] = useState<number>(0);
   const [selectedSourceBinId, setSelectedSourceBinId] = useState<string>('');
+  const [itemStockBins, setItemStockBins] = useState<
+    Array<{
+      binId: string;
+      binCode: string;
+      binName?: string;
+      rackName?: string;
+      currentQuantity: number;
+    }>
+  >([]);
+  const [loadingStockBins, setLoadingStockBins] = useState(false);
   const [issuingSubmit, setIssuingSubmit] = useState(false);
 
   // Fetch items & bins
@@ -72,9 +92,9 @@ export function ConsumablePurchaseStoreWorkspace() {
       ]);
       setAllItems(items || []);
       setBins(binList || []);
-      if (binList && binList.length > 0 && !selectedTargetBinId) {
-        setSelectedTargetBinId(binList[0].id);
-        setSelectedSourceBinId(binList[0].id);
+      if (binList && binList.length > 0) {
+        setSelectedTargetBinId((prev) => prev || binList[0].id);
+        setSelectedSourceBinId((prev) => prev || binList[0].id);
       }
     } catch (err) {
       console.error('Failed to load store consumables data', err);
@@ -118,7 +138,7 @@ export function ConsumablePurchaseStoreWorkspace() {
       setPrintModalData({
         prNumber: res.prNumber || '151',
         items: res.items || targetItems,
-        date: new Date().toLocaleDateString('en-IN'),
+        date: new Date().toISOString(),
         paymentMode: 'CASH',
       });
       setPrintModalOpen(true);
@@ -130,13 +150,38 @@ export function ConsumablePurchaseStoreWorkspace() {
   };
 
   // --- RECEIVE PURCHASE SUBMISSION ---
-  const handleOpenReceiveModal = (item: ConsumableLineItemRecord) => {
+  const handleOpenReceiveModal = async (item: ConsumableLineItemRecord) => {
     setReceiveModalItem(item);
-    setRealReceivedQty(Number(item.requestedQty || 1));
-    if (bins.length > 0) {
-      setSelectedTargetBinId(bins[0].id);
-    }
+    const req = Number(item.requestedQty) || 0;
+    const rec = Number(item.realReceivedQty) || 0;
+    setRealReceivedQty(rec > 0 ? rec : (req > 0 ? req : 1));
     setAutoIssueOnReceive(true);
+
+    // Initial default: item's bin or first available bin in warehouse
+    const initialBin = item.binId || (bins.length > 0 ? bins[0].id : '');
+    setSelectedTargetBinId(initialBin);
+
+    // Check if product already exists in a warehouse bin to auto-store there
+    if (item.productId) {
+      setLoadingReceiveBins(true);
+      try {
+        const stockBins = await consumablesApi.getProductStockBins(item.productId);
+        setReceiveStockBins(stockBins || []);
+        if (stockBins && stockBins.length > 0) {
+          // If the item already has a designated bin that matches stock, preserve it; otherwise pick top stock bin
+          const matching = item.binId && stockBins.some((sb) => sb.binId === item.binId);
+          setSelectedTargetBinId(matching ? item.binId! : stockBins[0].binId);
+        } else if (!initialBin && bins.length > 0) {
+          setSelectedTargetBinId(bins[0].id);
+        }
+      } catch (err) {
+        console.warn('Failed to query product stock bins for receive modal', err);
+      } finally {
+        setLoadingReceiveBins(false);
+      }
+    } else {
+      setReceiveStockBins([]);
+    }
   };
 
   const handleSubmitReceive = async (e: React.FormEvent) => {
@@ -179,14 +224,37 @@ export function ConsumablePurchaseStoreWorkspace() {
   };
 
   // --- STORE ISSUE TO PRODUCTION SUBMISSION ---
-  const handleOpenIssueModal = (item: ConsumableLineItemRecord) => {
+  const handleOpenIssueModal = async (item: ConsumableLineItemRecord) => {
     setIssueModalItem(item);
-    const defaultQty = Number(item.realReceivedQty || item.requestedQty || 1);
+    const req = Number(item.requestedQty) || 0;
+    const rec = Number(item.realReceivedQty) || 0;
+    const defaultQty = rec > 0 ? rec : (req > 0 ? req : 1);
     setIssueQty(defaultQty);
-    if (item.binId) {
-      setSelectedSourceBinId(item.binId);
-    } else if (bins.length > 0) {
-      setSelectedSourceBinId(bins[0].id);
+
+    // Initial default bin (item.binId or first available bin)
+    const initialBin = item.binId || (bins.length > 0 ? bins[0].id : '');
+    setSelectedSourceBinId(initialBin);
+
+    // Dynamically query bins holding actual stock for this product
+    if (item.productId) {
+      setLoadingStockBins(true);
+      try {
+        const stockBins = await consumablesApi.getProductStockBins(item.productId);
+        setItemStockBins(stockBins || []);
+        if (stockBins && stockBins.length > 0) {
+          // If item already has an assigned bin with stock, preserve it; otherwise pick the bin with the highest stock
+          const matching = item.binId && stockBins.some((sb) => sb.binId === item.binId);
+          setSelectedSourceBinId(matching ? item.binId! : stockBins[0].binId);
+        } else if (!initialBin && bins.length > 0) {
+          setSelectedSourceBinId(bins[0].id);
+        }
+      } catch (err) {
+        console.warn('Failed to load stock bins for product', err);
+      } finally {
+        setLoadingStockBins(false);
+      }
+    } else {
+      setItemStockBins([]);
     }
   };
 
@@ -856,22 +924,45 @@ export function ConsumablePurchaseStoreWorkspace() {
 
               {/* Target Warehouse Bin */}
               <div>
-                <label className="block text-xs font-semibold uppercase text-slate-600 dark:text-slate-400 mb-1">
-                  Target Warehouse Bin (STOCK_IN Location) *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold uppercase text-slate-600 dark:text-slate-400">
+                    Target Warehouse Bin (STOCK_IN Location) *
+                  </label>
+                  {loadingReceiveBins && (
+                    <span className="text-[11px] text-cyan-600 dark:text-cyan-400 flex items-center gap-1 font-medium">
+                      <RefreshCw className="w-3 h-3 animate-spin" /> Auto-detecting stock location...
+                    </span>
+                  )}
+                </div>
                 <select
                   required
                   value={selectedTargetBinId}
                   onChange={(e) => setSelectedTargetBinId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-cyan-500"
                 >
                   <option value="">-- Choose destination bin --</option>
-                  {bins.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.code} {b.name ? `(${b.name})` : ''} {b.rack?.name ? `• Rack: ${b.rack.name}` : ''}
-                    </option>
-                  ))}
+                  {receiveStockBins.length > 0 && (
+                    <optgroup label="Existing Product Storage Location (Auto-Selected)">
+                      {receiveStockBins.map((sb) => (
+                        <option key={sb.binId} value={sb.binId}>
+                          {sb.binCode} {sb.binName ? `(${sb.binName})` : ''} {sb.rackName ? `• Rack: ${sb.rackName}` : ''} — [{sb.currentQuantity} {receiveModalItem.uom} currently in bin]
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  <optgroup label={receiveStockBins.length > 0 ? "All Other Warehouse Locations (Change Location)" : "All Warehouse Locations (108 Bins)"}>
+                    {bins
+                      .filter((b) => !receiveStockBins.some((sb) => sb.binId === b.id))
+                      .map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.code} {b.name && b.name !== b.code ? `(${b.name})` : ''} {b.rack?.name ? `• Rack: ${b.rack.name}` : ''}
+                        </option>
+                      ))}
+                  </optgroup>
                 </select>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Storage location auto-selected. You can choose any other warehouse location from the list to store elsewhere.
+                </p>
               </div>
 
               {/* Auto-Issue Toggle */}
@@ -948,22 +1039,45 @@ export function ConsumablePurchaseStoreWorkspace() {
 
               {/* Source Bin */}
               <div>
-                <label className="block text-xs font-semibold uppercase text-slate-600 dark:text-slate-400 mb-1">
-                  Source Warehouse Bin (STOCK_OUT Deduction) *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold uppercase text-slate-600 dark:text-slate-400">
+                    Source Warehouse Bin (STOCK_OUT Deduction) *
+                  </label>
+                  {loadingStockBins && (
+                    <span className="text-[11px] text-purple-600 dark:text-purple-400 flex items-center gap-1 font-medium">
+                      <RefreshCw className="w-3 h-3 animate-spin" /> Auto-detecting stock bin...
+                    </span>
+                  )}
+                </div>
                 <select
                   required
                   value={selectedSourceBinId}
                   onChange={(e) => setSelectedSourceBinId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="">-- Choose source bin --</option>
-                  {bins.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.code} {b.name ? `(${b.name})` : ''} {b.rack?.name ? `• Rack: ${b.rack.name}` : ''}
-                    </option>
-                  ))}
+                  {itemStockBins.length > 0 && (
+                    <optgroup label="Bins With Available Stock (Auto-Selected)">
+                      {itemStockBins.map((sb) => (
+                        <option key={sb.binId} value={sb.binId}>
+                          {sb.binCode} {sb.binName ? `(${sb.binName})` : ''} {sb.rackName ? `• Rack: ${sb.rackName}` : ''} — [{sb.currentQuantity} {issueModalItem.uom} available]
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  <optgroup label={itemStockBins.length > 0 ? "Other Warehouse Bins (Change Location)" : "All Warehouse Bins"}>
+                    {bins
+                      .filter((b) => !itemStockBins.some((sb) => sb.binId === b.id))
+                      .map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.code} {b.name ? `(${b.name})` : ''} {b.rack?.name ? `• Rack: ${b.rack.name}` : ''}
+                        </option>
+                      ))}
+                  </optgroup>
                 </select>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Optimal warehouse bin auto-selected. You can select any other bin from the dropdown if needed.
+                </p>
               </div>
 
               {/* Issue Quantity */}

@@ -17,6 +17,40 @@ export interface VelanPrPrintModalProps {
   onPrintConfirmed?: () => void;
 }
 
+function safeFormatDate(input?: string | Date | null): string {
+  if (!input) {
+    const now = new Date();
+    return `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+  }
+
+  if (typeof input === 'string') {
+    const trimmed = input.trim();
+    // If it's already in DD/MM/YYYY or DD-MM-YYYY format, use it directly
+    if (/^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(trimmed)) {
+      return trimmed;
+    }
+    // If it's an ISO date string or other valid parseable date
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) {
+      const d = String(parsed.getDate()).padStart(2, '0');
+      const m = String(parsed.getMonth() + 1).padStart(2, '0');
+      const y = parsed.getFullYear();
+      return `${d}/${m}/${y}`;
+    }
+    return trimmed;
+  }
+
+  if (input instanceof Date && !isNaN(input.getTime())) {
+    const d = String(input.getDate()).padStart(2, '0');
+    const m = String(input.getMonth() + 1).padStart(2, '0');
+    const y = input.getFullYear();
+    return `${d}/${m}/${y}`;
+  }
+
+  const now = new Date();
+  return `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+}
+
 export function VelanPrPrintModal({
   isOpen,
   onClose,
@@ -43,12 +77,7 @@ export function VelanPrPrintModal({
 
   if (!isOpen) return null;
 
-  const targetDate = date ? (typeof date === 'string' ? new Date(date) : date) : new Date();
-  const formattedDate = new Intl.DateTimeFormat('en-IN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(targetDate);
+  const formattedDate = safeFormatDate(date);
 
   const handlePrint = () => {
     const originalTitle = document.title;
@@ -445,7 +474,7 @@ export function VelanPrPrintModal({
         {/* Footer Note */}
         <div className="mt-4 pt-2 border-t border-slate-300 flex items-center justify-between text-[10px] text-slate-500 font-mono">
           <span>VELAN METROLOGY • FORM REF: VM-PR-REV-04</span>
-          <span>Printed on: {new Date().toLocaleString('en-IN')}</span>
+          <span>Printed on: {safeFormatDate(new Date())}</span>
           <span>Single-Copy Shop Floor Authorized Voucher</span>
         </div>
       </div>

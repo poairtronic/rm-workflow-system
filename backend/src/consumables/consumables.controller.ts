@@ -136,6 +136,40 @@ export class ConsumablesController {
   }
 
   /**
+   * Get all active warehouse bins with complete location hierarchy.
+   */
+  @Get('warehouse-bins')
+  @Roles(
+    UserRole.PRODUCTION,
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+    UserRole.DESIGNER,
+  )
+  @ApiOperation({ summary: 'Get all active warehouse bins for storekeeper stock routing' })
+  async getAllWarehouseBins() {
+    return this.consumablesService.getAllWarehouseBins();
+  }
+
+  /**
+   * Get active warehouse bins holding stock for a product, sorted by quantity descending.
+   */
+  @Get('products/:productId/stock-bins')
+  @Roles(
+    UserRole.PRODUCTION,
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+    UserRole.DESIGNER,
+  )
+  @ApiOperation({ summary: 'Get active warehouse bins containing stock for a product' })
+  async getProductStockBins(@Param('productId', ParseUUIDPipe) productId: string) {
+    return this.consumablesService.getProductStockBins(productId);
+  }
+
+  /**
    * Phase 24.2.2: Select OPEN line items and print PR slip (assigns sequential PR number starting at 151).
    * Allowed roles: STORES, ADMIN, GENERAL_MANAGER
    */

@@ -35,7 +35,7 @@ export const consumablesApi = {
       return res || [];
     } catch {
       try {
-        const fallback = await api.get<{ data?: any[]; items?: any[] }>('/api/master-data/products?pageSize=100');
+        const fallback = await api.get<{ data?: any[]; items?: any[] }>('/api/products?pageSize=100');
         const list = fallback.data || fallback.items || (Array.isArray(fallback) ? fallback : []);
         return list.map((p: any) => ({
           id: p.id,
@@ -75,14 +75,64 @@ export const consumablesApi = {
    */
   async getWarehouseBins(): Promise<BinOption[]> {
     try {
-      const res = await api.get<any>('/api/master-data/bins?pageSize=100');
+      const res = await api.get<any>('/api/consumables/warehouse-bins');
+      const list = Array.isArray(res) ? res : res?.data || res?.items || [];
+      if (list.length > 0) {
+        return list.map((b: any) => ({
+          id: b.id,
+          code: b.code || b.name,
+          name: b.name || b.code,
+          rack: b.rack,
+        }));
+      }
+    } catch {
+      // Continue to fallback
+    }
+
+    try {
+      const res = await api.get<any>('/api/bins?pageSize=500');
       const list = res?.data || res?.items || (Array.isArray(res) ? res : []);
+      if (list.length > 0) {
+        return list.map((b: any) => ({
+          id: b.id,
+          code: b.code || b.name,
+          name: b.name || b.code,
+          rack: b.rack,
+        }));
+      }
+    } catch {
+      // Continue to fallback
+    }
+
+    try {
+      const fallback = await api.get<any>('/api/master-data/bins?pageSize=500');
+      const list = fallback?.data || fallback?.items || (Array.isArray(fallback) ? fallback : []);
       return list.map((b: any) => ({
         id: b.id,
         code: b.code || b.name,
         name: b.name || b.code,
         rack: b.rack,
       }));
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * Retrieves active bins that contain positive stock for a given product
+   */
+  async getProductStockBins(productId: string): Promise<
+    Array<{
+      binId: string;
+      binCode: string;
+      binName?: string;
+      rackName?: string;
+      currentQuantity: number;
+    }>
+  > {
+    try {
+      const res = await api.get<any>(`/api/consumables/products/${productId}/stock-bins`);
+      return Array.isArray(res) ? res : [];
     } catch {
       return [];
     }
@@ -116,8 +166,13 @@ export const consumablesApi = {
 
     return rawList.map((i: any) => ({
       ...i,
+      requestedQty: Number(i.requestedQty || 0),
+      realReceivedQty: Number(i.realReceivedQty || 0),
+      issuedQty: Number(i.issuedQty || 0),
+      stockAvailableAtRequest: Number(i.stockAvailableAtRequest || 0),
       requestCode: i.requestCode || i.request?.requestCode || 'CR-N/A',
       productCode: i.productCode || i.product?.code || null,
+      binId: i.binId || i.bin?.id || null,
       binCode: i.binCode || i.bin?.code || null,
       vendorName: i.vendorName || i.vendor?.name || null,
     }));

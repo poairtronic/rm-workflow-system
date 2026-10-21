@@ -23,7 +23,7 @@ import {
   NoCache,
 } from '../../common/cache/cache.decorators.js';
 
-@Controller(['api/products', 'products'])
+@Controller(['api/products', 'api/master-data/products', 'products'])
 @UseGuards(JwtAuthGuard, RolesGuard)
 @CacheNamespace('products')
 export class ProductsController {

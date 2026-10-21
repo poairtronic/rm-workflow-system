@@ -728,7 +728,82 @@ export class ConsumablesService {
     qb.skip((page - 1) * limit).take(limit);
 
     const [items, total] = await qb.getManyAndCount();
+
+    // Auto-resolve binId for items that don't have an explicit bin assigned yet
+    const missingBinProductIds = items
+      .filter((i) => !i.binId && i.productId)
+      .map((i) => i.productId);
+
+    if (missingBinProductIds.length > 0) {
+      try {
+        const balances = await this.balanceRepo.find({
+          where: { productId: In(missingBinProductIds) },
+          relations: { bin: { rack: true } },
+          order: { currentQuantity: 'DESC' },
+        });
+
+        const primaryBinMap = new Map<string, StockBalance>();
+        for (const b of balances) {
+          if (Number(b.currentQuantity) > 0 && b.bin && b.productId && !primaryBinMap.has(b.productId)) {
+            primaryBinMap.set(b.productId, b);
+          }
+        }
+
+        for (const item of items) {
+          if (!item.binId && item.productId && primaryBinMap.has(item.productId)) {
+            const bal = primaryBinMap.get(item.productId)!;
+            item.binId = bal.binId;
+            item.bin = bal.bin;
+          }
+        }
+      } catch (err) {
+        this.logger.warn(`Failed to auto-resolve stock bins: ${err}`);
+      }
+    }
+
     return { items, total };
+  }
+
+  /**
+   * Retrieves all warehouse bins that currently hold positive stock for a given product,
+   * sorted by current quantity descending.
+   */
+  async getProductStockBins(productId: string): Promise<
+    Array<{
+      binId: string;
+      binCode: string;
+      binName?: string;
+      rackName?: string;
+      currentQuantity: number;
+    }>
+  > {
+    const balances = await this.balanceRepo.find({
+      where: { productId },
+      relations: { bin: { rack: true } },
+      order: { currentQuantity: 'DESC' },
+    });
+
+    const results: Array<{
+      binId: string;
+      binCode: string;
+      binName?: string;
+      rackName?: string;
+      currentQuantity: number;
+    }> = [];
+
+    for (const b of balances) {
+      if (Number(b.currentQuantity) > 0 && b.bin && b.binId) {
+        results.push({
+          binId: b.binId,
+          binCode: b.bin.code,
+          binName: b.bin.name || undefined,
+          rackName: b.bin.rack?.name || undefined,
+          currentQuantity: Number(b.currentQuantity),
+        });
+      }
+    }
+
+    return results;
   }
 
   /**
@@ -781,6 +856,65 @@ export class ConsumablesService {
       throw new NotFoundException(`Consumable line item "${id}" was not found.`);
     }
     return item;
+  }
+
+  /**
+   * Retrieves all active warehouse bins with rack and location context,
+   * sorted cleanly by bin code ascending.
+   */
+  async getAllWarehouseBins(): Promise<
+    Array<{
+      id: string;
+      code: string;
+      name: string;
+      rack?: {
+        id: string;
+        code: string;
+        name: string;
+        location?: {
+          id: string;
+          name: string;
+          warehouse?: { id: string; name: string };
+        };
+      };
+    }>
+  > {
+    const bins = await this.binRepo.find({
+      where: { isActive: true },
+      relations: {
+        rack: {
+          location: {
+            warehouse: true,
+          },
+        },
+      },
+      order: { code: 'ASC' },
+    });
+
+    return bins.map((b) => ({
+      id: b.id,
+      code: b.code,
+      name: b.name || b.code,
+      rack: b.rack
+        ? {
+            id: b.rack.id,
+            code: b.rack.code,
+            name: b.rack.name,
+            location: b.rack.location
+              ? {
+                  id: b.rack.location.id,
+                  name: b.rack.location.name,
+                  warehouse: b.rack.location.warehouse
+                    ? {
+                        id: b.rack.location.warehouse.id,
+                        name: b.rack.location.warehouse.name,
+                      }
+                    : undefined,
+                }
+              : undefined,
+          }
+        : undefined,
+    }));
   }
 }
 

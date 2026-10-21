@@ -22,7 +22,7 @@ import {
   InvalidateCache,
 } from '../../common/cache/cache.decorators.js';
 
-@Controller('api/bins')
+@Controller(['api/bins', 'api/master-data/bins'])
 @UseGuards(JwtAuthGuard, RolesGuard)
 @CacheNamespace('bins')
 export class BinsController {
