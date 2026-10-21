@@ -37,6 +37,7 @@ import { TraceabilityModule } from './traceability/traceability.module.js';
 import { DashboardsModule } from './dashboards/dashboards.module.js';
 import { ReportsModule } from './reports/reports.module.js';
 import { MasterDataCacheModule } from './common/cache/master-data-cache.module.js';
+import { ConsumablesModule } from './consumables/consumables.module.js';
 
 @Module({
   imports: [
@@ -105,6 +106,7 @@ import { MasterDataCacheModule } from './common/cache/master-data-cache.module.j
     DashboardsModule,
     ReportsModule,
     MasterDataCacheModule,
+    ConsumablesModule,
   ],
 
   controllers: [AppController],

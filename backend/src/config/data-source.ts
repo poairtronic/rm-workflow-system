@@ -76,6 +76,8 @@ import { RoleModulePermission } from '../permissions/entities/role-module-permis
 import { UserModulePermission } from '../permissions/entities/user-module-permission.entity.js';
 import { RefreshToken } from '../auth/entities/refresh-token.entity.js';
 import { PasswordResetToken } from '../auth/entities/password-reset-token.entity.js';
+import { ConsumableRequest } from '../consumables/entities/consumable-request.entity.js';
+import { ConsumableRequestItem } from '../consumables/entities/consumable-request-item.entity.js';
 export const ALL_ENTITIES = [
   Role,
   User,
@@ -130,6 +132,8 @@ export const ALL_ENTITIES = [
   DcMovement,
   DcQcInspection,
   DcReworkItem,
+  ConsumableRequest,
+  ConsumableRequestItem,
 ];
 
 const dbUrl =

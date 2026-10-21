@@ -19,6 +19,8 @@ import {
   Mail,
   User,
   PlaySquare,
+  ShoppingCart,
+  ClipboardList,
 } from 'lucide-react';
 import type { UserRole } from './contexts/AuthContext';
 
@@ -119,6 +121,12 @@ export const StoresRequestReturnVerifyWorkspace = lazy(() =>
 export const ProductionRmVerifyWorkspace = lazy(() =>
   import('./pages/ProductionRmVerifyWorkspace').then((m) => ({ default: m.ProductionRmVerifyWorkspace })),
 );
+export const ConsumableRequestsWorkspace = lazy(() =>
+  import('./pages/ConsumableRequestsWorkspace').then((m) => ({ default: m.ConsumableRequestsWorkspace })),
+);
+export const ConsumablePurchaseStoreWorkspace = lazy(() =>
+  import('./pages/ConsumablePurchaseStoreWorkspace').then((m) => ({ default: m.ConsumablePurchaseStoreWorkspace })),
+);
 
 export interface RouteConfig {
   name: string;
@@ -160,6 +168,10 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   { name: 'Supplier Inward (GRN)', path: '/inventory/grn', icon: PackagePlus, roles: ['STORES', 'ADMIN'], component: SupplierInwardWorkspace, isSidebar: true, group: 'INVENTORY', moduleKey: 'supplier_inward' },
   { name: 'MSL Alerts', path: '/inventory/msl-alerts', icon: BellRing, roles: ['STORES', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: MslAlertsWorkspace, isSidebar: true, group: 'INVENTORY', moduleKey: 'msl_alerts' },
   
+  // CONSUMABLES
+  { name: 'Consumable Requests', path: '/consumables/requests', icon: ShoppingCart, roles: ['PRODUCTION', 'STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'DESIGNER'], component: ConsumableRequestsWorkspace, isSidebar: true, group: 'CONSUMABLES', moduleKey: 'consumables_requests' },
+  { name: 'Purchase & Store Consumables', path: '/consumables/purchase-store', icon: ClipboardList, roles: ['STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER'], component: ConsumablePurchaseStoreWorkspace, isSidebar: true, group: 'CONSUMABLES', moduleKey: 'consumables_purchase_store' },
+
   // DELIVERY CHALLAN
   { name: 'DC Type 1 (Process)', path: '/dispatch/delivery-challan/type-1', icon: Box, roles: ['STORES', 'ADMIN'], component: Type1DispatchWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN', moduleKey: 'dc_type1' },
   { name: 'DC Type 2 (General)', path: '/dispatch/delivery-challan/type-2', icon: Box, roles: ['STORES', 'ADMIN'], component: Type2DispatchWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN', moduleKey: 'dc_type2' },
