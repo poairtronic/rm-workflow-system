@@ -71,7 +71,7 @@ class ApiClient {
     }
   }
 
-  private async handleError(response: Response, endpoint: string, method: string): Promise<never> {
+  private async handleError(response: Response, endpoint: string, method: string, silent = false): Promise<never> {
     if (response.status === 401 && !this.isAuthRoute(endpoint)) {
       window.dispatchEvent(new Event('auth:unauthorized'));
     }
@@ -87,11 +87,13 @@ class ApiClient {
       }
     } catch {}
     
-    // Global toast for errors, skip 401 as it's handled by AuthContext
-    if (response.status === 429) {
-      toast.error('Too many requests. Please wait a moment.', { id: 'rate-limit-error' });
-    } else if (response.status !== 401) {
-      toast.error(errorMsg);
+    // Global toast for errors, skip 401 as it's handled by AuthContext, and skip if silent
+    if (!silent) {
+      if (response.status === 429) {
+        toast.error('Too many requests. Please wait a moment.', { id: 'rate-limit-error' });
+      } else if (response.status !== 401) {
+        toast.error(errorMsg);
+      }
     }
     
     throw new Error(errorMsg);
@@ -111,7 +113,7 @@ class ApiClient {
 
   private async requestWithRetry<T>(
     endpoint: string,
-    options: RequestInit,
+    options: RequestInit & { silent?: boolean },
     responseType: 'json' | 'blob' = 'json',
     isRetry = false,
   ): Promise<T> {
@@ -132,7 +134,7 @@ class ApiClient {
                   headers: retryHeaders,
                 });
                 if (!retryRes.ok) {
-                  await this.handleError(retryRes, endpoint, options.method || 'GET');
+                  await this.handleError(retryRes, endpoint, options.method || 'GET', options.silent);
                 }
                 if (responseType === 'blob') {
                   resolve((await retryRes.blob()) as any);
@@ -165,7 +167,7 @@ class ApiClient {
           headers: retryHeaders,
         });
         if (!retryRes.ok) {
-          await this.handleError(retryRes, endpoint, options.method || 'GET');
+          await this.handleError(retryRes, endpoint, options.method || 'GET', options.silent);
         }
         if (responseType === 'blob') {
           return (await retryRes.blob()) as any;
@@ -175,12 +177,12 @@ class ApiClient {
         localStorage.removeItem('rm_access_token');
         localStorage.removeItem('rm_refresh_token');
         window.dispatchEvent(new Event('auth:unauthorized'));
-        await this.handleError(response, endpoint, options.method || 'GET');
+        await this.handleError(response, endpoint, options.method || 'GET', options.silent);
       }
     }
 
     if (!response.ok) {
-      await this.handleError(response, endpoint, options.method || 'GET');
+      await this.handleError(response, endpoint, options.method || 'GET', options.silent);
     }
 
     if (responseType === 'blob') {
@@ -189,8 +191,8 @@ class ApiClient {
     return this.parseResponseBody<T>(response);
   }
 
-  async get<T>(endpoint: string, responseType: 'json' | 'blob' = 'json'): Promise<T> {
-    return this.requestWithRetry<T>(endpoint, { method: 'GET', headers: this.getHeaders() }, responseType);
+  async get<T>(endpoint: string, responseType: 'json' | 'blob' = 'json', silent = false): Promise<T> {
+    return this.requestWithRetry<T>(endpoint, { method: 'GET', headers: this.getHeaders(), silent }, responseType);
   }
 
   async post<T>(endpoint: string, body?: any): Promise<T> {

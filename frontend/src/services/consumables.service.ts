@@ -75,7 +75,7 @@ export const consumablesApi = {
    */
   async getWarehouseBins(): Promise<BinOption[]> {
     try {
-      const res = await api.get<any>('/api/consumables/warehouse-bins');
+      const res = await api.get<any>('/api/consumables/warehouse-bins', 'json', true);
       const list = Array.isArray(res) ? res : res?.data || res?.items || [];
       if (list.length > 0) {
         return list.map((b: any) => ({
@@ -90,7 +90,7 @@ export const consumablesApi = {
     }
 
     try {
-      const res = await api.get<any>('/api/bins?pageSize=500');
+      const res = await api.get<any>('/api/bins?pageSize=500', 'json', true);
       const list = res?.data || res?.items || (Array.isArray(res) ? res : []);
       if (list.length > 0) {
         return list.map((b: any) => ({
@@ -105,7 +105,7 @@ export const consumablesApi = {
     }
 
     try {
-      const fallback = await api.get<any>('/api/master-data/bins?pageSize=500');
+      const fallback = await api.get<any>('/api/master-data/bins?pageSize=500', 'json', true);
       const list = fallback?.data || fallback?.items || (Array.isArray(fallback) ? fallback : []);
       return list.map((b: any) => ({
         id: b.id,
@@ -131,7 +131,7 @@ export const consumablesApi = {
     }>
   > {
     try {
-      const res = await api.get<any>(`/api/consumables/products/${productId}/stock-bins`);
+      const res = await api.get<any>(`/api/consumables/products/${productId}/stock-bins`, 'json', true);
       return Array.isArray(res) ? res : [];
     } catch {
       return [];
