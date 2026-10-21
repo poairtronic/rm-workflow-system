@@ -170,12 +170,12 @@ export class ConsumablesController {
   }
 
   /**
-   * Phase 24.2.2: Select OPEN line items and print PR slip (assigns sequential PR number starting at 151).
+   * Phase 24.2.2: Select OPEN line items and print PR slip (assigns sequential PR number starting at 1).
    * Allowed roles: STORES, ADMIN, GENERAL_MANAGER
    */
   @Post('purchase/print-pr')
   @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.GENERAL_MANAGER)
-  @ApiOperation({ summary: 'Assign sequential PR Number (starts at 151) and mark items PURCHASE_REQUESTED' })
+  @ApiOperation({ summary: 'Assign sequential PR Number (starts at 1) and mark items PURCHASE_REQUESTED' })
   async printPurchaseRequisition(
     @Body() dto: PrintPrDto,
     @Req() req: any,

@@ -19,6 +19,7 @@ import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { consumablesApi } from '../services/consumables.service';
 import { VelanPrPrintModal } from '../components/consumables';
+import { matchesPrNumber } from './ConsumablePurchaseStoreWorkspace';
 import type {
   ConsumableItemDraft,
   ConsumableLineItemRecord,
@@ -267,12 +268,15 @@ export function ConsumableRequestsWorkspace() {
   const filteredLineItems = useMemo(() => {
     return lineItems.filter((item) => {
       // Search filter
+      const q = searchQuery.trim().toLowerCase();
       const matchesSearch =
-        !searchQuery.trim() ||
-        item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.requestCode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.prNumber && item.prNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (item.endUserInVelan && item.endUserInVelan.toLowerCase().includes(searchQuery.toLowerCase()));
+        !q ||
+        item.description.toLowerCase().includes(q) ||
+        item.requestCode?.toLowerCase().includes(q) ||
+        (item.prNumber && matchesPrNumber(item.prNumber, q)) ||
+        (item.endUserInVelan && item.endUserInVelan.toLowerCase().includes(q)) ||
+        (item.requestedBy && item.requestedBy.toLowerCase().includes(q)) ||
+        (item.vendorName && item.vendorName.toLowerCase().includes(q));
 
       if (!matchesSearch) return false;
 
@@ -1093,7 +1097,7 @@ export function ConsumableRequestsWorkspace() {
         <VelanPrPrintModal
           isOpen={!!viewingPrItems}
           onClose={() => setViewingPrItems(null)}
-          prNumber={viewingPrItems[0].prNumber || '151'}
+          prNumber={viewingPrItems[0].prNumber || '1'}
           date={viewingPrItems[0].printedAt ? String(viewingPrItems[0].printedAt) : new Date().toISOString()}
           paymentMode="CASH"
           items={viewingPrItems}

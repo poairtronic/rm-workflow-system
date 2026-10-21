@@ -609,7 +609,18 @@ export function ConsumablePurchaseStoreWorkspace() {
                     return (
                       <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="py-3.5 px-3.5 font-mono font-semibold text-slate-900 dark:text-white align-middle">
-                          {item.requestCode}
+                          <span>{item.requestCode}</span>
+                          {item.prNumber && (
+                            <button
+                              type="button"
+                              onClick={() => handlePrintSingleItem(item)}
+                              className="mt-1 px-1.5 py-0.5 rounded-sm bg-indigo-100 hover:bg-indigo-200 text-indigo-700 dark:bg-indigo-950 dark:hover:bg-indigo-900 dark:text-indigo-300 font-bold block w-fit text-[10px] cursor-pointer flex items-center gap-1 transition-colors"
+                              title="Click to view & print official Velan Purchase Requisition slip for this item"
+                            >
+                              <Printer className="w-2.5 h-2.5" />
+                              PR #{item.prNumber}
+                            </button>
+                          )}
                         </td>
                         <td className="py-3.5 px-3.5 align-middle">
                           <span className="font-semibold text-slate-900 dark:text-white block leading-snug">
@@ -691,7 +702,7 @@ export function ConsumablePurchaseStoreWorkspace() {
                 Purchase Queue: Out-of-Stock & New Products
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Select OPEN items to print official Velan Metrology Purchase Requisitions (starting at #151). Inward stock upon delivery.
+                Select OPEN items to print official Velan Metrology Purchase Requisitions (starting at #1). Inward stock upon delivery.
               </p>
             </div>
 

@@ -180,7 +180,7 @@ export const consumablesApi = {
   },
 
   /**
-   * Selects OPEN items and prints purchase requisition, assigning sequential PR number (e.g. 151)
+   * Selects OPEN items and prints purchase requisition, assigning sequential PR number (e.g. 1, 2, ...)
    */
   async printPurchaseRequisition(lineItemIds: string[]): Promise<{
     prNumber: string;
