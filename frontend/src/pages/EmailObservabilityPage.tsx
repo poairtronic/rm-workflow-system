@@ -60,7 +60,7 @@ export const EmailObservabilityPage: React.FC = () => {
 
   if (!isAdmin) {
     return (
-      <div className="page-container" style={{ maxWidth: '900px', margin: '0 auto', padding: '24px' }}>
+      <div className="w-full space-y-6">
         <Card title="Access Restricted" className="border-error">
           <div style={{ padding: '16px 0', textAlign: 'center' }}>
             <p style={{ color: '#f87171', fontSize: '15px', fontWeight: 600, margin: '0 0 8px' }}>
@@ -76,7 +76,7 @@ export const EmailObservabilityPage: React.FC = () => {
   }
 
   return (
-    <div className="page-container" style={{ maxWidth: '1000px', margin: '0 auto', padding: '24px' }}>
+    <div className="w-full space-y-6 pb-12">
       {/* Header */}
       <div
         className="observability-header"

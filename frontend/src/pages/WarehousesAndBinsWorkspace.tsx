@@ -74,7 +74,7 @@ export function WarehousesAndBinsWorkspace() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 w-full">
       <PageHeader
         title="Warehouses & Storage Units Master"
         subtitle="Manage the storage hierarchy: Warehouses, Locations, Racks, and Storage Units."

@@ -339,7 +339,7 @@ export function ProductionRmVerifyWorkspace() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6 w-full">
       <PageHeader
         title="Material Receipt (PO / SC)"
         subtitle="Stores & Production fulfillment: Inspect materials issued against Purchase Orders & Subcontracting Components, verify physical items, and confirm shop-floor receipt."

@@ -180,7 +180,7 @@ export function StoresRmIssueWorkspace() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto h-[calc(100vh-4rem)] flex flex-col">
+    <div className="w-full h-[calc(100vh-8rem)] flex flex-col space-y-6">
       <PageHeader
         title="RM Issue Queue"
         subtitle="Review RM mappings and issue material to production."

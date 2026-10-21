@@ -63,7 +63,7 @@ export function ProcessCreationWizard({ isOpen, onClose, onSubmit, isPending, av
   };
 
   return (
-    <div className="max-w-4xl mx-auto w-full pb-12">
+    <div className="w-full pb-12 space-y-6">
       <div className="mb-6 flex items-center justify-between">
         <button
           type="button"

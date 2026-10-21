@@ -74,7 +74,7 @@ export function ReportGeneratorWorkspace() {
   };
 
   return (
-    <div className="max-w-[800px] mx-auto w-full pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="w-full pb-24 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
           <FileText className="w-6 h-6 text-primary" />

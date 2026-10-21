@@ -63,7 +63,7 @@ export function VendorDashboardWorkspace() {
   const isGlobalLoading = isLoadingGlobal || isLoadingVendorsMaster || isLoadingSlas;
 
   return (
-    <div className="max-w-[1400px] mx-auto w-full pb-24">
+    <div className="w-full pb-24 space-y-6">
       {/* Workspace Header */}
       <div className="mb-8 flex items-center justify-between border-b border-slate-200 pb-6">
         <div>

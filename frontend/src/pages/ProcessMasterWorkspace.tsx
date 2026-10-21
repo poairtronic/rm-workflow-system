@@ -109,7 +109,7 @@ export function ProcessMasterWorkspace() {
   }, [processes, searchTerm, vendorMap]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 w-full">
       {isWizardOpen ? (
         <ProcessCreationWizard
           isOpen={isWizardOpen}

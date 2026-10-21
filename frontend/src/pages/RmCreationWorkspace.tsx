@@ -512,7 +512,7 @@ export function RmCreationWorkspace() {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6 w-full">
       <PageHeader
         title="RM Creation"
         subtitle="Request raw material according to Purchase Order (PO), Size Card (SC), or as a standalone request."

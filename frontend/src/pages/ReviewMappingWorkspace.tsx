@@ -214,7 +214,7 @@ export function ReviewMappingWorkspace({
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6 w-full">
       {/* Top Breadcrumb Navigation */}
       <div className="flex items-center justify-between">
         <button

@@ -313,7 +313,7 @@ export function ConsumableRequestsWorkspace() {
   );
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+    <div className="space-y-6 w-full pb-12">
       {/* Page Header */}
       <PageHeader
         title="Consumable Request & Production Receipt"

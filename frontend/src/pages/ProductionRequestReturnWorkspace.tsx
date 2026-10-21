@@ -274,7 +274,7 @@ export function ProductionRequestReturnWorkspace() {
   const selectedItemData = receivedItems.find((it) => it.rmItemId === selectedRmItemId);
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6 w-full">
       <PageHeader
         title="RM Request & Return"
         subtitle="Universal shop-floor portal to request additional materials/hardware or return unused stock back to Stores."

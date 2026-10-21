@@ -124,7 +124,7 @@ export function AuditLogsWorkspace() {
   const totalPages = Math.ceil(total / limit) || 1;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
+    <div className="space-y-6 w-full pb-16">
       <PageHeader
         title="Audit Logs"
         subtitle="Comprehensive system event tracking for compliance, security, and traceability."

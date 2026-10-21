@@ -555,7 +555,7 @@ export function InventoryStockWorkspace() {
   ];
 
   return (
-    <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-4 sm:space-y-6 w-full">
       <PageHeader
         title="Stock Overview & Ledger"
         subtitle="View current inventory balances, manage physical movements, and audit transactions"

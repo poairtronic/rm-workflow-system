@@ -95,7 +95,7 @@ export const NotificationSettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="page-container" style={{ maxWidth: '900px', margin: '0 auto', padding: '24px' }}>
+    <div className="w-full space-y-6 pb-12">
       {/* Header */}
       <div className="settings-header" style={{ marginBottom: '28px' }}>
         <h1 className="title" style={{ fontSize: '26px', fontWeight: 700, margin: '0 0 6px' }}>

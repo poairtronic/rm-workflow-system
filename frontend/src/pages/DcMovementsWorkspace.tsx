@@ -3,7 +3,7 @@ import { DcMovementsWorkspaceView } from '../components/dispatch/DcMovementsWork
 
 export function DcMovementsWorkspace() {
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 w-full">
       <PageHeader
         title="Delivery Challan Movements Ledger"
         subtitle="Comprehensive inward & outward movement ledger tracking material across Type 1 (Process) and Type 2 (Stock Conversion)"

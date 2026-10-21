@@ -3,7 +3,7 @@ import { Type2DispatchView } from '../components/dispatch/Type2DispatchView';
 
 export function Type2DispatchWorkspace() {
   return (
-    <div className="max-w-[1600px] mx-auto w-full relative">
+    <div className="w-full relative space-y-6">
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>

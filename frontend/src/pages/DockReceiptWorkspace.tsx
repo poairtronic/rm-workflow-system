@@ -430,7 +430,7 @@ export function DockReceiptWorkspace() {
   ];
 
   return (
-    <div className="max-w-[1600px] mx-auto w-full pb-24">
+    <div className="w-full pb-24 space-y-6">
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">

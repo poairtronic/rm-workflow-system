@@ -3,7 +3,7 @@ import { Type1DispatchWizard } from '../components/dispatch/Type1DispatchWizard'
 
 export function Type1DispatchWorkspace() {
   return (
-    <div className="max-w-[1600px] mx-auto w-full">
+    <div className="w-full space-y-6">
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>

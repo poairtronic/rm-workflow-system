@@ -120,7 +120,7 @@ export function Type2DispatchView() {
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto pb-16">
+    <div className="w-full pb-16 space-y-6">
       {/* Post-Generation Success Card with Print Action */}
       {generatedDc && (
         <div className="mb-8 p-6 bg-emerald-50 border border-emerald-200 rounded-xl shadow-xs">

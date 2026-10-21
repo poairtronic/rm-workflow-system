@@ -119,7 +119,7 @@ export function SystemConfigurationWorkspace() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
+    <div className="space-y-6 w-full pb-16">
       <PageHeader
         title="System Configuration"
         subtitle="Manage enterprise global settings, notifications, and application preferences."

@@ -120,7 +120,7 @@ export function ProfileWorkspace() {
   const userInitial = (currentUser?.name || currentUser?.email || 'U').charAt(0).toUpperCase();
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+    <div className="space-y-6 w-full pb-12">
       <PageHeader
         title="My Profile & Security"
         subtitle="Manage your personal credentials, enterprise role, and password security in one place."

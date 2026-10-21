@@ -373,9 +373,9 @@ export function VendorMasterWorkspace() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       {isModalOpen ? (
-        <div className="max-w-3xl mx-auto w-full pb-12">
+        <div className="w-full pb-12 space-y-6">
           <div className="mb-6 flex items-center justify-between">
             <button
               type="button"

@@ -175,7 +175,7 @@ export function EmailCommunicationWorkspace() {
     : (isHealthy ? 100 : 0);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
+    <div className="space-y-6 w-full pb-16">
       <PageHeader
         title="Communication & Email Monitoring"
         subtitle="Email delivery logs, queue status, and Gmail API health monitoring."

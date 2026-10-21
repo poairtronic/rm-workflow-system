@@ -56,7 +56,7 @@ export function TraceabilityWorkspace() {
   const isNotFound = isError && (error as any)?.message?.includes('404');
 
   return (
-    <div className="max-w-[1300px] mx-auto w-full pb-24">
+    <div className="w-full pb-24 space-y-6">
       {/* Header */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

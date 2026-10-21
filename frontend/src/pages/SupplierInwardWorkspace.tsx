@@ -68,7 +68,7 @@ export function SupplierInwardWorkspace() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto w-full pb-12">
+    <div className="w-full pb-12 space-y-6">
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
           <Download className="w-6 h-6 text-primary" />

@@ -134,7 +134,7 @@ export function RmRequisitionWorkspace() {
   });
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6 w-full">
       <PageHeader
         title="My Requisitions"
         subtitle="Track submitted RM requests, review Stores feedback, and revise drafts."

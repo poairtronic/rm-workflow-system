@@ -113,7 +113,7 @@ export function VendorSlaWorkspace() {
   };
 
   return (
-    <div className="max-w-[1600px] mx-auto w-full pb-20">
+    <div className="w-full pb-20 space-y-6">
       {/* Workspace Header */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>

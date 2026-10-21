@@ -64,7 +64,7 @@ export const ReportsWorkspace: React.FC = () => {
 
   return (
     <AppLayout activeNav="reports">
-      <div className="page-container">
+      <div className="space-y-6 w-full">
         <div className="mb-6">
           <h1 className="text-2xl font-bold">Traceability & Analytics Reports</h1>
           <p className="text-gray-600 mt-2">Export comprehensive JSON-to-CSV data across processes, items, and material consumption.</p>

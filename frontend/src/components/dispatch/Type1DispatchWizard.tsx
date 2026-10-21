@@ -148,7 +148,7 @@ export function Type1DispatchWizard() {
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto pb-12">
+    <div className="w-full pb-12 space-y-6">
       {/* Post-Generation Success Card with Print Action */}
       {generatedDc && (
         <div className="mb-8 p-6 bg-blue-50 border border-blue-200 rounded-xl shadow-xs">
