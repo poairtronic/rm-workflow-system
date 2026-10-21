@@ -224,26 +224,38 @@ export class ConsumablesService {
       let product: Product | null = null;
       let isNewProduct = Boolean(itemDto.isNewProduct);
 
-      // 1. Resolve or Auto-Create Product Master
+      // 1. Resolve or Auto-Create Product Master (Idempotent by name)
       if (isNewProduct || !itemDto.productId) {
-        const timestamp = Date.now().toString().slice(-6);
-        const code =
-          itemDto.productCode ||
-          `CNS-${timestamp}-${Math.floor(Math.random() * 900 + 100)}`;
-
-        product = this.productRepo.create({
-          code,
-          name: itemDto.description.trim(),
-          familyId: family.id,
-          uom: itemDto.uom || 'NOS',
-          minimumInventory: 0,
-          isActive: true,
+        const trimmedName = itemDto.description.trim();
+        let existingProduct = await this.productRepo.findOne({
+          where: { name: Raw((alias) => `LOWER(${alias}) = LOWER(:name)`, { name: trimmedName }) },
         });
-        product = await this.productRepo.save(product);
+
+        if (existingProduct) {
+          product = existingProduct;
+          this.logger.log(
+            `[AUTO-MASTER] Found existing Product for "${trimmedName}" (${product.code}), re-using ID: ${product.id}`,
+          );
+        } else {
+          const timestamp = Date.now().toString().slice(-6);
+          const code =
+            itemDto.productCode ||
+            `CNS-${timestamp}-${Math.floor(Math.random() * 900 + 100)}`;
+
+          product = this.productRepo.create({
+            code,
+            name: trimmedName,
+            familyId: family.id,
+            uom: itemDto.uom || 'NOS',
+            minimumInventory: 0,
+            isActive: true,
+          });
+          product = await this.productRepo.save(product);
+          this.logger.log(
+            `[AUTO-MASTER] Created Consumable Product: "${product.name}" (${product.code})`,
+          );
+        }
         isNewProduct = true;
-        this.logger.log(
-          `[AUTO-MASTER] Created Consumable Product: "${product.name}" (${product.code})`,
-        );
       } else {
         product = await this.productRepo.findOne({
           where: { id: itemDto.productId },
@@ -255,27 +267,40 @@ export class ConsumablesService {
         }
       }
 
-      // 2. Resolve or Auto-Create Vendor Master
+      // 2. Resolve or Auto-Create Vendor Master (Idempotent by name)
       let vendorId: string | null = itemDto.vendorId || null;
       let vendorName: string | null = itemDto.vendorName || null;
       let isNewVendor = Boolean(itemDto.isNewVendor);
 
       if (isNewVendor && itemDto.newVendorName) {
-        const vCode = `VND-CNS-${Date.now().toString().slice(-4)}`;
-        let newVendor = this.vendorRepo.create({
-          code: vCode,
-          name: itemDto.newVendorName.trim(),
-          address: itemDto.newVendorAddress || null,
-          phone: itemDto.newVendorMobile || null,
-          category: 'CONSUMABLES',
-          isActive: true,
+        const trimmedVendorName = itemDto.newVendorName.trim();
+        let existingVendor = await this.vendorRepo.findOne({
+          where: { name: Raw((alias) => `LOWER(${alias}) = LOWER(:vname)`, { vname: trimmedVendorName }) },
         });
-        newVendor = await this.vendorRepo.save(newVendor);
-        vendorId = newVendor.id;
-        vendorName = newVendor.name;
-        this.logger.log(
-          `[AUTO-MASTER] Created Consumable Vendor: "${newVendor.name}" (${newVendor.code})`,
-        );
+
+        if (existingVendor) {
+          vendorId = existingVendor.id;
+          vendorName = existingVendor.name;
+          this.logger.log(
+            `[AUTO-MASTER] Found existing Vendor for "${trimmedVendorName}" (${existingVendor.code}), re-using ID: ${existingVendor.id}`,
+          );
+        } else {
+          const vCode = `VND-CNS-${Date.now().toString().slice(-4)}`;
+          let newVendor = this.vendorRepo.create({
+            code: vCode,
+            name: trimmedVendorName,
+            address: itemDto.newVendorAddress || null,
+            phone: itemDto.newVendorMobile || null,
+            category: 'CONSUMABLES',
+            isActive: true,
+          });
+          newVendor = await this.vendorRepo.save(newVendor);
+          vendorId = newVendor.id;
+          vendorName = newVendor.name;
+          this.logger.log(
+            `[AUTO-MASTER] Created Consumable Vendor: "${newVendor.name}" (${newVendor.code})`,
+          );
+        }
       } else if (vendorId && !vendorName) {
         const existingVendor = await this.vendorRepo.findOne({
           where: { id: vendorId },

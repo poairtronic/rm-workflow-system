@@ -56,7 +56,7 @@ export function VelanPrPrintModal({
   onClose,
   prNumber,
   date = new Date(),
-  paymentMode = 'CASH',
+  paymentMode: _paymentMode = 'CASH',
   items = [],
   preparedBy,
   verifiedBy,
@@ -197,77 +197,38 @@ export function VelanPrPrintModal({
         {/* ========================================================= */}
         {/* HEADER BLOCK (Physical Velan Metrology Requisition Pad)   */}
         {/* ========================================================= */}
-        <div className="border-b-2 border-black pb-4 mb-4">
-          <div className="flex items-start justify-between">
-            {/* Left: Logo & Identification */}
-            <div className="flex items-center gap-3">
-              <div className="w-16 h-14 flex items-center justify-center">
-                <VelanLogo width={64} height={50} color="#1A202C" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-black tracking-tight text-slate-950 uppercase leading-none font-serif">
-                  VELAN METROLOGY
-                </h1>
-                <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-widest mt-1">
-                  Precision Engineering & Quality Assurance
-                </p>
-                <p className="text-[10px] text-slate-600">
-                  Shop-Floor Consumable & Tooling Purchase Requisition
-                </p>
-              </div>
+        <div className="border border-black p-3 mb-4">
+          <div className="flex items-center justify-between">
+            {/* Left: Logo */}
+            <div className="w-24 flex items-center justify-start">
+              <VelanLogo width={68} height={52} color="#1E3A8A" />
             </div>
 
-            {/* Right: Date & PR Number Box */}
-            <div className="text-right flex flex-col items-end">
-              <div className="border-2 border-black px-4 py-1.5 rounded-xs bg-slate-50 mb-1.5">
-                <span className="text-[11px] font-bold uppercase tracking-wider block text-slate-600">
-                  PR. NO.
-                </span>
-                <span className="text-2xl font-black tracking-tight font-mono text-black">
-                  {prNumber}
-                </span>
-              </div>
-              <div className="text-xs font-semibold">
-                <span className="text-slate-600">Date:</span>{' '}
-                <span className="font-mono font-bold underline decoration-slate-400">
+            {/* Center: Title Hierarchy matching Physical Pad */}
+            <div className="text-center flex-1 px-2">
+              <h1 className="text-2xl font-black tracking-wider text-black uppercase font-serif">
+                VELAN METROLOGY
+              </h1>
+              <h2 className="text-base font-bold text-black mt-0.5">
+                Purchase Requisition
+              </h2>
+              <p className="text-sm font-semibold text-black mt-0.5">
+                Cash / Credit
+              </p>
+            </div>
+
+            {/* Right: Date & PR Number */}
+            <div className="w-36 text-right flex flex-col justify-center text-xs space-y-1 font-sans">
+              <div className="flex items-center justify-end gap-1.5">
+                <span className="font-semibold text-black">Date :</span>
+                <span className="font-mono font-bold text-black">
                   {formattedDate}
                 </span>
               </div>
-            </div>
-          </div>
-
-          {/* Requisition Document Title & Mode */}
-          <div className="mt-4 pt-2 border-t border-slate-300 flex items-center justify-between">
-            <div className="inline-block px-3 py-1 bg-black text-white font-black text-sm uppercase tracking-wider rounded-xs">
-              PURCHASE REQUISITION
-            </div>
-
-            {/* Cash / Credit Indicators */}
-            <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-wider">
-              <span className="text-slate-600">Requisition Category:</span>
-              <div className="flex items-center gap-1.5">
-                <span
-                  className={`w-4 h-4 border border-black rounded-xs inline-flex items-center justify-center font-mono text-xs font-black ${
-                    paymentMode === 'CASH' ? 'bg-black text-white' : 'bg-white'
-                  }`}
-                >
-                  {paymentMode === 'CASH' ? '✓' : ''}
-                </span>
-                <span className={paymentMode === 'CASH' ? 'font-black underline' : 'text-slate-500'}>
-                  Cash Purchase
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <span
-                  className={`w-4 h-4 border border-black rounded-xs inline-flex items-center justify-center font-mono text-xs font-black ${
-                    paymentMode === 'CREDIT' ? 'bg-black text-white' : 'bg-white'
-                  }`}
-                >
-                  {paymentMode === 'CREDIT' ? '✓' : ''}
-                </span>
-                <span className={paymentMode === 'CREDIT' ? 'font-black underline' : 'text-slate-500'}>
-                  Credit / PO
+              <div className="flex items-center justify-end gap-1.5">
+                <span className="font-semibold text-black">PR. No. :</span>
+                <span className="font-mono font-bold text-lg text-black">
+                  {prNumber}
                 </span>
               </div>
             </div>
@@ -282,9 +243,8 @@ export function VelanPrPrintModal({
             <thead>
               <tr className="bg-slate-100 border-b-2 border-black font-bold uppercase tracking-wider text-[11px]">
                 <th className="py-2.5 px-2 border-r border-black w-10 text-center">S.No.</th>
-                <th className="py-2.5 px-3 border-r border-black w-56">Description of Goods / Item</th>
-                <th className="py-2.5 px-2 border-r border-black w-20 text-right">Req. Qty</th>
-                <th className="py-2.5 px-2 border-r border-black w-24 text-center">Stock Avail.</th>
+                <th className="py-2.5 px-3 border-r border-black w-60">Description of Goods / Item</th>
+                <th className="py-2.5 px-2 border-r border-black w-24 text-right">Req. Stock</th>
                 <th className="py-2.5 px-3 border-r border-black">Supplier / Vendor Details</th>
                 <th className="py-2.5 px-2 border-r border-black w-24 text-right">Approx Price</th>
                 <th className="py-2.5 px-3 border-r border-black w-36">End User (Bay / Machine)</th>
@@ -320,7 +280,7 @@ export function VelanPrPrintModal({
                       )}
                     </td>
 
-                    {/* Qty & UOM */}
+                    {/* Qty & UOM (Required Stock) */}
                     <td className="py-2 px-2 border-r border-black text-right font-mono font-bold">
                       {Number(item.requestedQty || 0) > 0 ? (
                         <>
@@ -328,15 +288,6 @@ export function VelanPrPrintModal({
                         </>
                       ) : (
                         <span className="text-[10px] italic text-slate-500">Inquiry (0)</span>
-                      )}
-                    </td>
-
-                    {/* Stock Availability */}
-                    <td className="py-2 px-2 border-r border-black text-center font-mono text-[11px]">
-                      {Number(item.stockAvailableAtRequest || 0) > 0 ? (
-                        <span className="font-bold">{item.stockAvailableAtRequest} {item.uom}</span>
-                      ) : (
-                        <span className="font-bold text-black">NIL (0)</span>
                       )}
                     </td>
 
@@ -395,9 +346,8 @@ export function VelanPrPrintModal({
               {Array.from({ length: emptyRowsCount }).map((_, fIdx) => (
                 <tr key={`filler-${fIdx}`} className="h-8 border-t border-slate-200">
                   <td className="border-r border-black text-center text-slate-300 font-mono text-[10px]">
-                    {items.length + fIdx + 1}
+                    {safeItems.length + fIdx + 1}
                   </td>
-                  <td className="border-r border-black" />
                   <td className="border-r border-black" />
                   <td className="border-r border-black" />
                   <td className="border-r border-black" />
@@ -410,7 +360,7 @@ export function VelanPrPrintModal({
             {totalEstimatedAmount > 0 && (
               <tfoot>
                 <tr className="border-t-2 border-black bg-slate-100 font-bold">
-                  <td colSpan={5} className="py-2 px-3 border-r border-black text-right uppercase tracking-wider text-[11px]">
+                  <td colSpan={4} className="py-2 px-3 border-r border-black text-right uppercase tracking-wider text-[11px]">
                     Total Approx / Quoted Requisition Value:
                   </td>
                   <td className="py-2 px-2 border-r border-black text-right font-mono font-black text-xs text-black">

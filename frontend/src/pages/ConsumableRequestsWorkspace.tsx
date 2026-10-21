@@ -964,8 +964,7 @@ export function ConsumableRequestsWorkspace() {
                             <button
                               type="button"
                               onClick={() => {
-                                const matched = lineItems.filter((li) => li.prNumber === item.prNumber);
-                                setViewingPrItems(matched.length > 0 ? matched : [item]);
+                                setViewingPrItems([item]);
                               }}
                               className="mt-1 flex items-center gap-1 text-[10px] text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/80 px-1.5 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-800 transition-colors cursor-pointer"
                               title="Click to view & print official Velan Purchase Requisition slip"

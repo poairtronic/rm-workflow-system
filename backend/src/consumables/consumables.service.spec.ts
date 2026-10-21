@@ -231,6 +231,8 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
     it('CNS-SVC-003: should route zero-stock or new items to Track B (OPEN)', async () => {
       // 0 available in stock
       vi.spyOn(balanceRepo, 'find').mockResolvedValue([]);
+      // Product does not exist yet -> will be auto-created
+      vi.spyOn(productRepo, 'findOne').mockResolvedValue(null);
 
       const reqDto = {
         paymentMode: ConsumablePaymentMode.CREDIT,
@@ -279,6 +281,52 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
             status: ConsumableItemStatus.OPEN,
             isNewProduct: true,
             isNewVendor: true,
+          }),
+        ]),
+      );
+    });
+
+    it('CNS-SVC-003b: should idempotently re-use existing product when name already exists', async () => {
+      vi.spyOn(balanceRepo, 'find').mockResolvedValue([]);
+      // Product ALREADY exists in DB (e.g. ARG JET)
+      vi.spyOn(productRepo, 'findOne').mockResolvedValue({
+        id: 'existing-arg-jet-id',
+        code: 'ARG JET',
+        name: 'ARG JET',
+        uom: 'NOS',
+      } as any);
+
+      const saveSpy = vi.spyOn(productRepo, 'save');
+      saveSpy.mockClear();
+
+      const reqDto = {
+        paymentMode: ConsumablePaymentMode.CASH,
+        requestedBy: 'RAMU',
+        items: [
+          {
+            description: 'ARG JET',
+            requestedQty: 134,
+            isNewProduct: true,
+          },
+        ],
+      };
+
+      vi.spyOn(service, 'findOneRequest').mockResolvedValue({
+        id: 'cr-uuid-2',
+        requestCode: 'CR-2026-0002',
+        items: [],
+      } as any);
+
+      await service.createRequest(reqDto);
+
+      // Should NOT call productRepo.save (preventing UQ_products_name violation)
+      expect(saveSpy).not.toHaveBeenCalled();
+      // Should save line item referencing existing product id
+      expect(itemRepo.save).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            productId: 'existing-arg-jet-id',
+            description: 'ARG JET',
           }),
         ]),
       );

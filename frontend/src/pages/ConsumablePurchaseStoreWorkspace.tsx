@@ -106,15 +106,13 @@ export function ConsumablePurchaseStoreWorkspace() {
   };
 
   // --- SELECTION HELPERS FOR PR PRINT ---
-  const openItems = useMemo(() => {
-    return allItems.filter((i) => i.itemCategoryTrack === 'NON_STOCK_OR_NEW' && i.status === 'OPEN');
-  }, [allItems]);
-
-  const handleSelectAllOpen = (checked: boolean) => {
+  const handleSelectAllVisible = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(openItems.map((i) => i.id));
+      const visibleIds = purchaseQueueItems.map((i) => i.id);
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
     } else {
-      setSelectedIds([]);
+      const visibleIds = new Set(purchaseQueueItems.map((i) => i.id));
+      setSelectedIds((prev) => prev.filter((id) => !visibleIds.has(id)));
     }
   };
 
@@ -124,51 +122,76 @@ export function ConsumablePurchaseStoreWorkspace() {
     );
   };
 
-  // --- VIEW / RE-PRINT EXISTING PR ---
-  const handleViewOrPrintPr = (prNumber: string) => {
-    const prItems = allItems.filter((i) => i.prNumber === prNumber);
-    const targetItems = prItems.length > 0 ? prItems : allItems.filter((i) => i.id === prNumber);
-    if (targetItems.length === 0) return;
-    setPrintModalData({
-      prNumber: targetItems[0]?.prNumber || prNumber,
-      items: targetItems,
-      date: targetItems[0]?.printedAt ? new Date(targetItems[0].printedAt).toISOString() : new Date().toISOString(),
-      paymentMode: 'CASH',
-    });
-    setPrintModalOpen(true);
+  // --- PRINT SINGLE LINE ITEM ONLY ---
+  const handlePrintSingleItem = async (item: ConsumableLineItemRecord) => {
+    if (item.prNumber) {
+      // Already has a PR assigned -> Open modal with ONLY THIS SINGLE ITEM
+      setPrintModalData({
+        prNumber: item.prNumber,
+        items: [item],
+        date: item.printedAt ? new Date(item.printedAt).toISOString() : new Date().toISOString(),
+        paymentMode: 'CASH',
+      });
+      setPrintModalOpen(true);
+      return;
+    }
+
+    // If item is OPEN and needs PR generation
+    try {
+      const res = await consumablesApi.printPurchaseRequisition([item.id]);
+      const printedItem = res.items && res.items.length > 0 ? res.items[0] : item;
+      setPrintModalData({
+        prNumber: res.prNumber || item.prNumber || '151',
+        items: [printedItem], // Strictly ONLY this single item
+        date: new Date().toISOString(),
+        paymentMode: 'CASH',
+      });
+      setPrintModalOpen(true);
+      await loadData();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to generate Purchase Requisition');
+    }
   };
 
-  // --- TRIGGER PR PRINT ---
-  const handlePrintSelectedPr = async (specificItems?: ConsumableLineItemRecord[]) => {
-    const targetItems = specificItems || allItems.filter((i) => selectedIds.includes(i.id));
+  // --- TRIGGER BATCH PR PRINT FOR SELECTED ITEMS ---
+  const handlePrintSelectedPr = async () => {
+    const targetItems = allItems.filter((i) => selectedIds.includes(i.id));
     if (targetItems.length === 0) {
       toast.error('Please select at least one line item to print.');
       return;
     }
 
-    // If all target items already have a PR number, open print slip directly without re-generating!
-    const allAlreadyHavePr = targetItems.every((i) => !!i.prNumber);
-    if (allAlreadyHavePr) {
-      const prNumber = targetItems[0].prNumber!;
-      handleViewOrPrintPr(prNumber);
-      return;
-    }
+    // Check if any selected items are OPEN or need PR number assignment
+    const itemsNeedingPr = targetItems.filter((i) => !i.prNumber || i.status === 'OPEN');
 
-    try {
-      const ids = targetItems.map((i) => i.id);
-      const res = await consumablesApi.printPurchaseRequisition(ids);
+    if (itemsNeedingPr.length > 0) {
+      try {
+        const ids = targetItems.map((i) => i.id);
+        const res = await consumablesApi.printPurchaseRequisition(ids);
 
+        setPrintModalData({
+          prNumber: res.prNumber || '151',
+          items: res.items && res.items.length > 0 ? res.items : targetItems,
+          date: new Date().toISOString(),
+          paymentMode: 'CASH',
+        });
+        setPrintModalOpen(true);
+        setSelectedIds([]);
+        await loadData();
+      } catch (err: any) {
+        toast.error(err?.message || 'Failed to generate Purchase Requisition');
+      }
+    } else {
+      // All selected items already have PR numbers assigned
+      // Group them all together onto the printed PR sheet
+      const prNumber = targetItems[0].prNumber || '151';
       setPrintModalData({
-        prNumber: res.prNumber || '151',
-        items: res.items || targetItems,
-        date: new Date().toISOString(),
+        prNumber,
+        items: targetItems, // ALL selected items appear here
+        date: targetItems[0]?.printedAt ? new Date(targetItems[0].printedAt).toISOString() : new Date().toISOString(),
         paymentMode: 'CASH',
       });
       setPrintModalOpen(true);
-      setSelectedIds([]);
-      await loadData();
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to generate Purchase Requisition');
     }
   };
 
@@ -721,10 +744,13 @@ export function ConsumablePurchaseStoreWorkspace() {
                   <th className="py-3 px-3 w-10 text-center">
                     <input
                       type="checkbox"
-                      checked={openItems.length > 0 && selectedIds.length === openItems.length}
-                      onChange={(e) => handleSelectAllOpen(e.target.checked)}
+                      checked={
+                        purchaseQueueItems.length > 0 &&
+                        purchaseQueueItems.every((i) => selectedIds.includes(i.id))
+                      }
+                      onChange={(e) => handleSelectAllVisible(e.target.checked)}
                       className="rounded-sm border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                      title="Select all OPEN items"
+                      title="Select all items in purchase queue"
                     />
                   </th>
                   <th className="py-3 px-3">PR # / Req #</th>
@@ -768,14 +794,13 @@ export function ConsumablePurchaseStoreWorkspace() {
                       >
                         {/* Checkbox */}
                         <td className="py-3 px-3 text-center">
-                          {isOpen && (
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.includes(item.id)}
-                              onChange={() => handleToggleSelect(item.id)}
-                              className="rounded-sm border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                            />
-                          )}
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(item.id)}
+                            onChange={() => handleToggleSelect(item.id)}
+                            className="rounded-sm border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                            title="Select line item for PR print"
+                          />
                         </td>
 
                         {/* PR # / Req # */}
@@ -783,9 +808,9 @@ export function ConsumablePurchaseStoreWorkspace() {
                           {item.prNumber ? (
                             <button
                               type="button"
-                              onClick={() => handleViewOrPrintPr(item.prNumber!)}
+                              onClick={() => handlePrintSingleItem(item)}
                               className="px-2 py-0.5 rounded-sm bg-indigo-100 hover:bg-indigo-200 text-indigo-700 dark:bg-indigo-950 dark:hover:bg-indigo-900 dark:text-indigo-300 font-bold block w-fit mb-0.5 cursor-pointer flex items-center gap-1 transition-colors"
-                              title="Click to view & print official Velan Purchase Requisition slip"
+                              title="Click to view & print official Velan Purchase Requisition slip for this item"
                             >
                               <Printer className="w-3 h-3" />
                               PR. No. {item.prNumber}
@@ -881,7 +906,7 @@ export function ConsumablePurchaseStoreWorkspace() {
                               <Button
                                 variant="primary"
                                 size="sm"
-                                onClick={() => handlePrintSelectedPr([item])}
+                                onClick={() => handlePrintSingleItem(item)}
                                 className="bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs cursor-pointer"
                               >
                                 <Printer className="w-3 h-3" />
@@ -894,9 +919,9 @@ export function ConsumablePurchaseStoreWorkspace() {
                               <Button
                                 variant="secondary"
                                 size="sm"
-                                onClick={() => handleViewOrPrintPr(item.prNumber!)}
+                                onClick={() => handlePrintSingleItem(item)}
                                 className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 text-[11px] font-bold flex items-center gap-1 shadow-xs cursor-pointer border border-indigo-200 dark:border-indigo-800"
-                                title="View or re-print official Velan PR slip"
+                                title="View or re-print official Velan PR slip for this item"
                               >
                                 <Printer className="w-3 h-3" />
                                 Print PR Slip
