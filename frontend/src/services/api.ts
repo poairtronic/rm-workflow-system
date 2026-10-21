@@ -111,13 +111,32 @@ class ApiClient {
     }
   }
 
+  private async safeFetch(url: string, options: RequestInit & { silent?: boolean }): Promise<Response> {
+    try {
+      return await fetch(url, options);
+    } catch (err: any) {
+      const isConnError =
+        err?.name === 'TypeError' ||
+        err?.message?.includes('fetch') ||
+        err?.message?.includes('Failed to fetch') ||
+        err?.message?.includes('NetworkError');
+      const msg = isConnError
+        ? 'Cannot connect to backend server. Please verify the API is running.'
+        : (err?.message || 'Network request failed');
+      if (!options?.silent) {
+        toast.error(msg, { id: 'network-connection-refused' });
+      }
+      throw new Error(msg);
+    }
+  }
+
   private async requestWithRetry<T>(
     endpoint: string,
     options: RequestInit & { silent?: boolean },
     responseType: 'json' | 'blob' = 'json',
     isRetry = false,
   ): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${endpoint}`, options);
+    const response = await this.safeFetch(`${this.baseUrl}${endpoint}`, options);
 
     if (response.status === 401 && !isRetry && !this.isAuthRoute(endpoint)) {
       if (this.isRefreshing) {
@@ -129,7 +148,7 @@ class ApiClient {
                   ...(options.headers as Record<string, string>),
                   Authorization: `Bearer ${newToken}`,
                 };
-                const retryRes = await fetch(`${this.baseUrl}${endpoint}`, {
+                const retryRes = await this.safeFetch(`${this.baseUrl}${endpoint}`, {
                   ...options,
                   headers: retryHeaders,
                 });
@@ -162,7 +181,7 @@ class ApiClient {
           ...(options.headers as Record<string, string>),
           Authorization: `Bearer ${newToken}`,
         };
-        const retryRes = await fetch(`${this.baseUrl}${endpoint}`, {
+        const retryRes = await this.safeFetch(`${this.baseUrl}${endpoint}`, {
           ...options,
           headers: retryHeaders,
         });

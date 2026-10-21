@@ -218,6 +218,10 @@ export function ConsumablePurchaseStoreWorkspace() {
       await loadData();
     } catch (err: any) {
       toast.error(err?.message || 'Failed to receive purchase');
+      if (err?.message?.includes('status is') || err?.message?.includes('Cannot receive item')) {
+        setReceiveModalItem(null);
+        await loadData();
+      }
     } finally {
       setReceivingSubmit(false);
     }
@@ -287,6 +291,10 @@ export function ConsumablePurchaseStoreWorkspace() {
       await loadData();
     } catch (err: any) {
       toast.error(err?.message || 'Failed to issue material to production');
+      if (err?.message?.includes('status is') || err?.message?.includes('Cannot issue')) {
+        setIssueModalItem(null);
+        await loadData();
+      }
     } finally {
       setIssuingSubmit(false);
       setActionLoadingId(null);
