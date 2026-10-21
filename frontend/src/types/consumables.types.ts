@@ -7,6 +7,7 @@ export type ConsumableItemStatus =
   | 'OPEN'
   | 'PURCHASE_REQUESTED'
   | 'PURCHASE_RECEIVED'
+  | 'PARTIALLY_ISSUED'
   | 'ISSUED_TO_PRODUCTION'
   | 'RECEIVED_BY_PRODUCTION';
 

@@ -60,7 +60,7 @@ export function ConsumablePurchaseStoreWorkspace() {
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [purchaseStatusFilter, setPurchaseStatusFilter] = useState<'ALL' | 'OPEN' | 'PURCHASE_REQUESTED' | 'PURCHASE_RECEIVED'>('ALL');
+  const [purchaseStatusFilter, setPurchaseStatusFilter] = useState<'ALL' | 'OPEN' | 'PURCHASE_REQUESTED' | 'PURCHASE_RECEIVED' | 'PARTIALLY_ISSUED' | 'ISSUED_TO_PRODUCTION'>('ALL');
 
   // Selection for Batch PR Print
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -322,8 +322,10 @@ export function ConsumablePurchaseStoreWorkspace() {
   const handleOpenIssueModal = async (item: ConsumableLineItemRecord) => {
     setIssueModalItem(item);
     const req = Number(item.requestedQty) || 0;
-    const rec = Number(item.realReceivedQty) || 0;
-    const defaultQty = rec > 0 ? rec : (req > 0 ? req : 1);
+    const currentIssued = Number(item.issuedQty) || 0;
+    const remainingNeeded = Math.max(0, req - currentIssued);
+    // If partially issued, prefill with remaining quantity needed by production
+    const defaultQty = remainingNeeded > 0 ? remainingNeeded : (req > 0 ? req : 1);
     setIssueQty(defaultQty);
 
     // Initial default bin (item.binId or first available bin)
@@ -397,7 +399,10 @@ export function ConsumablePurchaseStoreWorkspace() {
   const inStockItems = useMemo(() => {
     return allItems.filter((item) => {
       const isStockTrack =
-        item.itemCategoryTrack === 'STOCK_ITEM' || item.status === 'PURCHASE_RECEIVED' || item.status === 'READY_FOR_ISSUE';
+        item.itemCategoryTrack === 'STOCK_ITEM' ||
+        item.status === 'PURCHASE_RECEIVED' ||
+        item.status === 'READY_FOR_ISSUE' ||
+        item.status === 'PARTIALLY_ISSUED';
       if (!isStockTrack) return false;
 
       const q = searchQuery.trim().toLowerCase();
@@ -450,6 +455,10 @@ export function ConsumablePurchaseStoreWorkspace() {
   // Key KPI Metrics
   const readyForIssueCount = useMemo(
     () => allItems.filter((i) => i.status === 'READY_FOR_ISSUE' || i.status === 'PURCHASE_RECEIVED').length,
+    [allItems]
+  );
+  const partiallyIssuedCount = useMemo(
+    () => allItems.filter((i) => i.status === 'PARTIALLY_ISSUED').length,
     [allItems]
   );
   const openPrCount = useMemo(
@@ -605,6 +614,8 @@ export function ConsumablePurchaseStoreWorkspace() {
                 ) : (
                   inStockItems.map((item) => {
                     const isIssued = item.status === 'ISSUED_TO_PRODUCTION' || item.status === 'RECEIVED_BY_PRODUCTION';
+                    const isPartial = item.status === 'PARTIALLY_ISSUED';
+                    const remainingQty = Math.max(0, Number(item.requestedQty) - Number(item.issuedQty || 0));
 
                     return (
                       <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
@@ -654,6 +665,11 @@ export function ConsumablePurchaseStoreWorkspace() {
                                 Inwarded in Bin
                               </span>
                             )}
+                            {isPartial && (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800 whitespace-nowrap">
+                                Partially Issued ({item.issuedQty} / {item.requestedQty} {item.uom})
+                              </span>
+                            )}
                             {isIssued && (
                               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 whitespace-nowrap">
                                 Issued ({item.issuedQty} {item.uom})
@@ -662,7 +678,18 @@ export function ConsumablePurchaseStoreWorkspace() {
                           </div>
                         </td>
                         <td className="py-3.5 px-3.5 text-center align-middle">
-                          {!isIssued ? (
+                          {isPartial ? (
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => handleOpenIssueModal(item)}
+                              disabled={actionLoadingId === item.id}
+                              className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs mx-auto cursor-pointer px-3 py-1.5"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                              Issue Remaining ({remainingQty} {item.uom})
+                            </Button>
+                          ) : !isIssued ? (
                             <Button
                               variant="primary"
                               size="sm"
@@ -791,6 +818,28 @@ export function ConsumablePurchaseStoreWorkspace() {
               >
                 Inwarded
               </button>
+              <button
+                type="button"
+                onClick={() => setPurchaseStatusFilter('PARTIALLY_ISSUED')}
+                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${
+                  purchaseStatusFilter === 'PARTIALLY_ISSUED'
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                Partially Issued ({partiallyIssuedCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPurchaseStatusFilter('ISSUED_TO_PRODUCTION')}
+                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${
+                  purchaseStatusFilter === 'ISSUED_TO_PRODUCTION'
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                Dispatched ({issuedToProdCount})
+              </button>
             </div>
           </div>
 
@@ -839,6 +888,7 @@ export function ConsumablePurchaseStoreWorkspace() {
                     const isOpen = item.status === 'OPEN';
                     const isRequested = item.status === 'PURCHASE_REQUESTED';
                     const isReceived = item.status === 'PURCHASE_RECEIVED';
+                    const isPartial = item.status === 'PARTIALLY_ISSUED';
                     const isIssued = item.status === 'ISSUED_TO_PRODUCTION' || item.status === 'RECEIVED_BY_PRODUCTION';
 
                     return (
@@ -964,6 +1014,11 @@ export function ConsumablePurchaseStoreWorkspace() {
                                 Inwarded in Store
                               </span>
                             )}
+                            {isPartial && (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800 whitespace-nowrap">
+                                Partially Issued ({item.issuedQty} / {item.requestedQty} {item.uom})
+                              </span>
+                            )}
                             {isIssued && (
                               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 whitespace-nowrap">
                                 Issued to Production
@@ -1024,6 +1079,31 @@ export function ConsumablePurchaseStoreWorkspace() {
                                 <Send className="w-3 h-3" />
                                 Issue to Floor
                               </Button>
+                            )}
+
+                            {/* Step 3B: Issue Remaining if partially issued */}
+                            {isPartial && (
+                              <div className="inline-flex items-center gap-1.5">
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={() => handleOpenIssueModal(item)}
+                                  className="bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs cursor-pointer px-3 py-1"
+                                >
+                                  <Send className="w-3 h-3" />
+                                  Issue Remaining ({Math.max(0, Number(item.requestedQty) - Number(item.issuedQty || 0))} {item.uom})
+                                </Button>
+                                {item.prNumber && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePrintSingleItem(item)}
+                                    className="p-1 rounded text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                    title="Re-print PR Slip"
+                                  >
+                                    <Printer className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
                             )}
 
                             {/* Completed: Dispatched indicator with optional re-print icon */}
@@ -1247,8 +1327,18 @@ export function ConsumablePurchaseStoreWorkspace() {
               <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1">
                 <span className="text-xs text-slate-400 uppercase font-semibold">Material to Issue</span>
                 <p className="text-sm font-bold text-slate-900 dark:text-white">{issueModalItem.description}</p>
-                <div className="flex items-center gap-4 text-xs text-slate-500 mt-1">
+                <div className="flex items-center gap-4 text-xs text-slate-500 mt-1 flex-wrap">
                   <span>Req. Qty: <b>{issueModalItem.requestedQty} {issueModalItem.uom}</b></span>
+                  {Number(issueModalItem.issuedQty) > 0 && (
+                    <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                      Already Issued: <b>{issueModalItem.issuedQty} {issueModalItem.uom}</b>
+                    </span>
+                  )}
+                  {Number(issueModalItem.issuedQty) > 0 && (
+                    <span className="text-indigo-600 dark:text-indigo-400 font-semibold">
+                      Remaining Needed: <b>{Math.max(0, Number(issueModalItem.requestedQty) - Number(issueModalItem.issuedQty))} {issueModalItem.uom}</b>
+                    </span>
+                  )}
                   <span>End User: <b>{issueModalItem.endUserInVelan || 'Plant Floor'}</b></span>
                   <span>Requester: <b>{issueModalItem.requestedBy}</b></span>
                 </div>
@@ -1300,17 +1390,21 @@ export function ConsumablePurchaseStoreWorkspace() {
               {/* Issue Quantity */}
               <div>
                 <label className="block text-xs font-semibold uppercase text-slate-600 dark:text-slate-400 mb-1">
-                  Quantity to Issue *
+                  Quantity to Issue ({issueModalItem.uom}) *
                 </label>
                 <input
                   type="number"
                   required
                   min="0.001"
+                  max={Math.max(0, Number(issueModalItem.requestedQty) - Number(issueModalItem.issuedQty || 0))}
                   step="any"
                   value={issueQty}
                   onChange={(e) => setIssueQty(parseFloat(e.target.value) || 0)}
                   className="w-full px-3 py-2 text-base font-mono font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500"
                 />
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Remaining needed by production: {Math.max(0, Number(issueModalItem.requestedQty) - Number(issueModalItem.issuedQty || 0))} {issueModalItem.uom}
+                </p>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">

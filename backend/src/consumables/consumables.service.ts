@@ -237,14 +237,22 @@ export class ConsumablesService {
             `[AUTO-MASTER] Found existing Product for "${trimmedName}" (${product.code}), re-using ID: ${product.id}`,
           );
         } else {
-          const timestamp = Date.now().toString().slice(-6);
-          const code =
-            itemDto.productCode ||
-            `CNS-${timestamp}-${Math.floor(Math.random() * 900 + 100)}`;
+          // Requirement: Product Code and Product Name are identical, and Barcode is PRD-{name}
+          const code = itemDto.productCode?.trim() || trimmedName;
+          const barcodeCandidate = `PRD-${trimmedName}`;
+
+          let finalBarcode = barcodeCandidate;
+          const existingBarcode = await this.productRepo.findOne({
+            where: { barcode: barcodeCandidate },
+          });
+          if (existingBarcode) {
+            finalBarcode = `${barcodeCandidate}-${Date.now().toString().slice(-4)}`;
+          }
 
           product = this.productRepo.create({
             code,
             name: trimmedName,
+            barcode: finalBarcode,
             familyId: family.id,
             uom: itemDto.uom || 'NOS',
             minimumInventory: 0,
@@ -252,7 +260,7 @@ export class ConsumablesService {
           });
           product = await this.productRepo.save(product);
           this.logger.log(
-            `[AUTO-MASTER] Created Consumable Product: "${product.name}" (${product.code})`,
+            `[AUTO-MASTER] Created Consumable Product: "${product.name}" (Code: ${product.code}, Barcode: ${product.barcode})`,
           );
         }
         isNewProduct = true;
@@ -545,8 +553,11 @@ export class ConsumablesService {
       // 4. Handle Immediate Auto-Issue to Production (delivers requested quantity, retains remaining stock in bin)
       if (resolvedAutoIssue) {
         // Calculate the exact quantity to issue to production:
-        // Defaults to item.requestedQty, capped at realQty received from vendor
-        const defaultIssueQty = Math.min(Number(item.requestedQty || 1), realQty);
+        // Defaults to item.requestedQty (or remaining needed), capped at realQty received from vendor
+        const currentIssued = Number(item.issuedQty || 0);
+        const requestedQty = Number(item.requestedQty || 1);
+        const remainingNeeded = Math.max(0, requestedQty - currentIssued);
+        const defaultIssueQty = Math.min(remainingNeeded > 0 ? remainingNeeded : requestedQty, realQty);
         const resolvedIssueQty =
           dto.issueQty != null && Number(dto.issueQty) > 0
             ? Number(dto.issueQty)
@@ -579,21 +590,26 @@ export class ConsumablesService {
           });
           await queryRunner.manager.save(stockOutTx);
 
-          item.issuedQty = resolvedIssueQty;
+          const newTotalIssued = currentIssued + resolvedIssueQty;
+          item.issuedQty = newTotalIssued;
           item.issuedAt = now;
-          item.status = ConsumableItemStatus.ISSUED_TO_PRODUCTION;
+          if (requestedQty > 0 && newTotalIssued < requestedQty) {
+            item.status = ConsumableItemStatus.PARTIALLY_ISSUED;
+          } else {
+            item.status = ConsumableItemStatus.ISSUED_TO_PRODUCTION;
+          }
 
           const retainedInStore = realQty - resolvedIssueQty;
           this.logger.log(
-            `[PURCHASE RECEIVED & DISPATCHED] Item: "${item.description}", Inwarded: ${realQty}, Issued to Floor: ${resolvedIssueQty}, Retained in Stores: ${retainedInStore}, Bin: ${bin.code}`,
+            `[PURCHASE RECEIVED & DISPATCHED] Item: "${item.description}", Inwarded: ${realQty}, Issued to Floor: ${resolvedIssueQty} (Total Issued: ${newTotalIssued}/${requestedQty}), Retained in Stores: ${retainedInStore}, Status: ${item.status}, Bin: ${bin.code}`,
           );
         } else {
           item.status = ConsumableItemStatus.PURCHASE_RECEIVED;
-          item.issuedQty = 0;
+          item.issuedQty = currentIssued;
         }
       } else {
         item.status = ConsumableItemStatus.PURCHASE_RECEIVED;
-        item.issuedQty = 0;
+        item.issuedQty = Number(item.issuedQty || 0);
         this.logger.log(
           `[PURCHASE RECEIVED IN STORE] Item: "${item.description}", Inwarded: ${realQty}, Retained 100% in Bin: ${bin.code}`,
         );
@@ -614,6 +630,7 @@ export class ConsumablesService {
 
   /**
    * Phase 24.2.4: Stores issues an in-stock or received consumable to production.
+   * If partially issued, status transitions to PARTIALLY_ISSUED so the item remains open for remaining quantity.
    */
   async issueToProduction(
     itemId: string,
@@ -631,10 +648,11 @@ export class ConsumablesService {
 
     if (
       item.status !== ConsumableItemStatus.READY_FOR_ISSUE &&
-      item.status !== ConsumableItemStatus.PURCHASE_RECEIVED
+      item.status !== ConsumableItemStatus.PURCHASE_RECEIVED &&
+      item.status !== ConsumableItemStatus.PARTIALLY_ISSUED
     ) {
       throw new BadRequestException(
-        `Cannot issue item: status is "${item.status}". Expected "READY_FOR_ISSUE" or "PURCHASE_RECEIVED".`,
+        `Cannot issue item: status is "${item.status}". Expected "READY_FOR_ISSUE", "PURCHASE_RECEIVED", or "PARTIALLY_ISSUED".`,
       );
     }
 
@@ -646,6 +664,16 @@ export class ConsumablesService {
     const issueQty = Number(dto.issueQty);
     if (issueQty <= 0) {
       throw new BadRequestException('Issue quantity must be greater than zero.');
+    }
+
+    const currentIssued = Number(item.issuedQty || 0);
+    const requestedQty = Number(item.requestedQty || 0);
+    const remainingNeeded = Math.max(0, requestedQty - currentIssued);
+
+    if (requestedQty > 0 && issueQty > remainingNeeded) {
+      throw new BadRequestException(
+        `Cannot issue ${issueQty} ${item.uom}. Remaining quantity needed is only ${remainingNeeded} ${item.uom}.`,
+      );
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -683,17 +711,22 @@ export class ConsumablesService {
       });
       await queryRunner.manager.save(stockOutTx);
 
-      // 3. Update line item state
+      // 3. Update line item state (accumulate issuedQty and transition status)
       item.binId = bin.id;
-      item.issuedQty = issueQty;
+      const newTotalIssued = currentIssued + issueQty;
+      item.issuedQty = newTotalIssued;
       item.issuedAt = new Date();
-      item.status = ConsumableItemStatus.ISSUED_TO_PRODUCTION;
+      if (requestedQty > 0 && newTotalIssued < requestedQty) {
+        item.status = ConsumableItemStatus.PARTIALLY_ISSUED;
+      } else {
+        item.status = ConsumableItemStatus.ISSUED_TO_PRODUCTION;
+      }
 
       const savedItem = await queryRunner.manager.save(item);
       await queryRunner.commitTransaction();
 
       this.logger.log(
-        `[ISSUED TO PRODUCTION] Item: "${item.description}", Qty: ${issueQty}, Bin: ${bin.code}`,
+        `[ISSUED TO PRODUCTION] Item: "${item.description}", Qty: ${issueQty} (Total Issued: ${newTotalIssued}/${requestedQty}), Status: ${item.status}, Bin: ${bin.code}`,
       );
 
       return this.findOneItem(savedItem.id);

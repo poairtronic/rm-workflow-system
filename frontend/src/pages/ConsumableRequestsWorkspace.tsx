@@ -285,7 +285,7 @@ export function ConsumableRequestsWorkspace() {
         return item.status === 'ISSUED_TO_PRODUCTION';
       }
       if (statusFilter === 'OPEN') {
-        return ['OPEN', 'PURCHASE_REQUESTED', 'PURCHASE_RECEIVED', 'READY_FOR_ISSUE'].includes(item.status);
+        return ['OPEN', 'PURCHASE_REQUESTED', 'PURCHASE_RECEIVED', 'READY_FOR_ISSUE', 'PARTIALLY_ISSUED'].includes(item.status);
       }
       if (statusFilter === 'CLOSED') {
         return item.status === 'RECEIVED_BY_PRODUCTION';
@@ -580,14 +580,23 @@ export function ConsumableRequestsWorkspace() {
                           {row.isNewProduct ? 'New Product Name / Description *' : 'Select Catalog Product *'}
                         </label>
                         {row.isNewProduct ? (
-                          <input
-                            type="text"
-                            required
-                            placeholder="e.g. WD-40 400ml Spray, Sandvik Carbide Insert CNMG..."
-                            value={row.description}
-                            onChange={(e) => handleUpdateRow(row.tempId, { description: e.target.value })}
-                            className="w-full px-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                          />
+                          <>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. HELLO, WD-40 400ml Spray, Sandvik Carbide Insert..."
+                              value={row.description}
+                              onChange={(e) => handleUpdateRow(row.tempId, { description: e.target.value })}
+                              className="w-full px-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                            />
+                            {row.description.trim() && (
+                              <div className="mt-1 flex items-center gap-3 text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                                <span>Code: <strong className="text-slate-800 dark:text-slate-200">{row.description.trim()}</strong></span>
+                                <span>•</span>
+                                <span>Barcode: <strong className="text-indigo-600 dark:text-indigo-400">PRD-{row.description.trim()}</strong></span>
+                              </div>
+                            )}
+                          </>
                         ) : (
                           <select
                             required
@@ -1042,6 +1051,11 @@ export function ConsumableRequestsWorkspace() {
                               Purchase Received in Store
                             </span>
                           )}
+                          {item.status === 'PARTIALLY_ISSUED' && (
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500 text-white shadow-xs">
+                              Partially Issued ({item.issuedQty} / {item.requestedQty} {item.uom})
+                            </span>
+                          )}
                           {item.status === 'ISSUED_TO_PRODUCTION' && (
                             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500 text-white animate-pulse shadow-xs">
                               Issued by Store — Ready for Handover
@@ -1072,6 +1086,10 @@ export function ConsumableRequestsWorkspace() {
                               )}
                               Confirm Received
                             </Button>
+                          ) : item.status === 'PARTIALLY_ISSUED' ? (
+                            <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                              Partial Delivery ({item.issuedQty}/{item.requestedQty})
+                            </span>
                           ) : isReceived ? (
                             <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
                               Handover Verified

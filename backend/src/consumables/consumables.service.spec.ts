@@ -331,6 +331,40 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
         ]),
       );
     });
+
+    it('CNS-SVC-003c: should auto-generate product code matching product name and barcode as PRD-{name}', async () => {
+      vi.spyOn(balanceRepo, 'find').mockResolvedValue([]);
+      vi.spyOn(productRepo, 'findOne').mockResolvedValue(null);
+      const saveSpy = vi.spyOn(productRepo, 'save');
+
+      const reqDto = {
+        paymentMode: ConsumablePaymentMode.CASH,
+        requestedBy: 'RAMU',
+        items: [
+          {
+            description: 'HELLO',
+            requestedQty: 10,
+            isNewProduct: true,
+          },
+        ],
+      };
+
+      vi.spyOn(service, 'findOneRequest').mockResolvedValue({
+        id: 'cr-uuid-3',
+        requestCode: 'CR-2026-0003',
+        items: [],
+      } as any);
+
+      await service.createRequest(reqDto);
+
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'HELLO',
+          code: 'HELLO',
+          barcode: 'PRD-HELLO',
+        }),
+      );
+    });
   });
 
   // =========================================================================
@@ -575,12 +609,14 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('CNS-SVC-012: issueToProduction should decrement balance and mark ISSUED_TO_PRODUCTION when stock sufficient', async () => {
+    it('CNS-SVC-012: issueToProduction should decrement balance and mark ISSUED_TO_PRODUCTION when full qty is issued', async () => {
       const mockItem = {
         id: 'item-uuid-1',
         productId: mockProduct.id,
         status: ConsumableItemStatus.READY_FOR_ISSUE,
         description: 'Cotton Waste 5kg',
+        requestedQty: 2,
+        issuedQty: 0,
       } as ConsumableRequestItem;
 
       vi.spyOn(itemRepo, 'findOne').mockResolvedValue(mockItem);
@@ -613,6 +649,89 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
         }),
       );
       expect(result.status).toBe(ConsumableItemStatus.ISSUED_TO_PRODUCTION);
+    });
+
+    it('CNS-SVC-012A: issueToProduction should mark PARTIALLY_ISSUED when issueQty is less than requestedQty', async () => {
+      const mockItem = {
+        id: 'item-uuid-partial',
+        productId: mockProduct.id,
+        status: ConsumableItemStatus.READY_FOR_ISSUE,
+        description: 'LONG BAR EN31 DIA 6',
+        requestedQty: 2,
+        issuedQty: 0,
+      } as ConsumableRequestItem;
+
+      vi.spyOn(itemRepo, 'findOne').mockResolvedValue(mockItem);
+      vi.spyOn(service, 'findOneItem').mockResolvedValue({
+        ...mockItem,
+        status: ConsumableItemStatus.PARTIALLY_ISSUED,
+        issuedQty: 1,
+      } as ConsumableRequestItem);
+
+      const runner = dataSource.createQueryRunner();
+      const mockBalance = { currentQuantity: 10, productId: mockProduct.id, binId: mockBin.id };
+      vi.spyOn(runner.manager, 'findOne').mockResolvedValue(mockBalance);
+
+      const result = await service.issueToProduction(mockItem.id, {
+        binId: mockBin.id,
+        issueQty: 1,
+      });
+
+      expect(mockItem.status).toBe(ConsumableItemStatus.PARTIALLY_ISSUED);
+      expect(mockItem.issuedQty).toBe(1);
+      expect(result.status).toBe(ConsumableItemStatus.PARTIALLY_ISSUED);
+    });
+
+    it('CNS-SVC-012B: issueToProduction should allow subsequent issue on PARTIALLY_ISSUED item and accumulate quantity', async () => {
+      const mockItem = {
+        id: 'item-uuid-partial-2',
+        productId: mockProduct.id,
+        status: ConsumableItemStatus.PARTIALLY_ISSUED,
+        description: 'LONG BAR EN31 DIA 6',
+        requestedQty: 2,
+        issuedQty: 1,
+      } as ConsumableRequestItem;
+
+      vi.spyOn(itemRepo, 'findOne').mockResolvedValue(mockItem);
+      vi.spyOn(service, 'findOneItem').mockResolvedValue({
+        ...mockItem,
+        status: ConsumableItemStatus.ISSUED_TO_PRODUCTION,
+        issuedQty: 2,
+      } as ConsumableRequestItem);
+
+      const runner = dataSource.createQueryRunner();
+      const mockBalance = { currentQuantity: 10, productId: mockProduct.id, binId: mockBin.id };
+      vi.spyOn(runner.manager, 'findOne').mockResolvedValue(mockBalance);
+
+      const result = await service.issueToProduction(mockItem.id, {
+        binId: mockBin.id,
+        issueQty: 1,
+      });
+
+      expect(mockItem.status).toBe(ConsumableItemStatus.ISSUED_TO_PRODUCTION);
+      expect(mockItem.issuedQty).toBe(2);
+      expect(result.status).toBe(ConsumableItemStatus.ISSUED_TO_PRODUCTION);
+    });
+
+    it('CNS-SVC-012C: issueToProduction should throw BadRequestException if issueQty exceeds remaining needed', async () => {
+      const mockItem = {
+        id: 'item-uuid-overflow',
+        productId: mockProduct.id,
+        status: ConsumableItemStatus.PARTIALLY_ISSUED,
+        description: 'LONG BAR EN31 DIA 6',
+        requestedQty: 2,
+        issuedQty: 1,
+        uom: 'NOS',
+      } as ConsumableRequestItem;
+
+      vi.spyOn(itemRepo, 'findOne').mockResolvedValue(mockItem);
+
+      await expect(
+        service.issueToProduction(mockItem.id, {
+          binId: mockBin.id,
+          issueQty: 5,
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
