@@ -30,7 +30,7 @@ async function run() {
   if (count === 0) {
     console.log('No SLAs exist. Querying active vendors and processes to seed baseline SLAs...');
     const vendorsRes = await client.query('SELECT id, name FROM vendors WHERE is_active = true ORDER BY name ASC LIMIT 5');
-    const processesRes = await client.query('SELECT id, name FROM production_processes WHERE is_active = true ORDER BY sequence_number ASC LIMIT 3');
+    const processesRes = await client.query('SELECT id, name FROM production_processes WHERE is_active = true ORDER BY sequence_number ASC LIMIT 1');
 
     if (vendorsRes.rows.length > 0 && processesRes.rows.length > 0) {
       for (const vendor of vendorsRes.rows) {

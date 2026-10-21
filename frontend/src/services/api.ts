@@ -439,6 +439,8 @@ export const vendorSlaApi = {
     if (data.isActive !== undefined) payload.isActive = data.isActive;
     return api.patch<any>(`/api/vendors/slas/${slaId}`, payload);
   },
+  deleteSla: (slaId: string) =>
+    api.delete<{ success: boolean; message: string }>(`/api/vendors/slas/${slaId}`),
   overrideSla: (slaId: string, data: SlaOverrideDto) =>
     api.post<VendorSlaOverrideItem>(`/api/vendors/slas/${slaId}/override`, data),
   getOverrides: (slaId: string) =>

@@ -104,6 +104,18 @@ export function VendorSlaWorkspace() {
     },
   });
 
+  const deleteSlaMutation = useMutation({
+    mutationFn: (slaId: string) => vendorSlaApi.deleteSla(slaId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendor-slas'] });
+      queryClient.invalidateQueries({ queryKey: ['compare-vendors-by-process'] });
+      toast.success('SLA definition deleted successfully');
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to delete SLA definition');
+    },
+  });
+
   const onSubmitNewSla = (data: CreateVendorSlaDto) => {
     if (!data.vendorId || !data.processId) {
       toast.error('Please select both a Vendor and a Process');
@@ -192,6 +204,7 @@ export function VendorSlaWorkspace() {
                 data={slas}
                 isLoading={isLoading}
                 selectedVendorId={selectedVendorForCompliance}
+                canDelete={canSave}
                 onSelectVendor={(vId, vName) => {
                   setSelectedVendorForCompliance(vId);
                   if (vName) setSelectedVendorName(vName);
@@ -201,6 +214,15 @@ export function VendorSlaWorkspace() {
                   toggleActiveMutation.mutate({ slaId: sla.id, isActive: !sla.isActive })
                 }
                 onViewDetails={(vId) => setDossierVendorId(vId)}
+                onDeleteSla={(slaId, vendorName, processName) => {
+                  if (
+                    window.confirm(
+                      `Are you sure you want to remove the SLA agreement for "${vendorName}" (${processName})?`,
+                    )
+                  ) {
+                    deleteSlaMutation.mutate(slaId);
+                  }
+                }}
               />
             )}
 
