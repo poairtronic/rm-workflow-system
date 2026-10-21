@@ -1031,40 +1031,22 @@ export function ConsumableRequestsWorkspace() {
 
                         {/* Status Badge */}
                         <td className="py-3 px-3">
-                          {item.status === 'READY_FOR_ISSUE' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-500/20">
-                              Ready for Issue (Store)
-                            </span>
-                          )}
-                          {item.status === 'OPEN' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-500/20">
-                              Open (Unprinted PR)
-                            </span>
-                          )}
-                          {item.status === 'PURCHASE_REQUESTED' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-100 text-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300 border border-indigo-500/20">
-                              PR Printed ({item.prNumber || 'Purchasing'})
-                            </span>
-                          )}
-                          {item.status === 'PURCHASE_RECEIVED' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-cyan-100 text-cyan-800 dark:bg-cyan-950/50 dark:text-cyan-300 border border-cyan-500/20">
-                              Purchase Received in Store
-                            </span>
-                          )}
-                          {item.status === 'PARTIALLY_ISSUED' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500 text-white shadow-xs">
-                              Partially Issued ({item.issuedQty} / {item.requestedQty} {item.uom})
-                            </span>
-                          )}
-                          {item.status === 'ISSUED_TO_PRODUCTION' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500 text-white animate-pulse shadow-xs">
-                              Issued by Store — Ready for Handover
-                            </span>
-                          )}
-                          {item.status === 'RECEIVED_BY_PRODUCTION' && (
+                          {item.status === 'RECEIVED_BY_PRODUCTION' ? (
                             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700 flex items-center gap-1 w-fit">
                               <CheckCircle2 className="w-3 h-3 text-emerald-500" />
                               Received & Closed
+                            </span>
+                          ) : item.status === 'ISSUED_TO_PRODUCTION' ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500 text-white animate-pulse shadow-xs">
+                              Issued by Store — Ready for Handover
+                            </span>
+                          ) : item.status === 'PARTIALLY_ISSUED' || (Number(item.issuedQty || 0) > 0 && Number(item.issuedQty || 0) < Number(item.requestedQty || 0)) ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500 text-white shadow-xs">
+                              Open (Partial: {item.issuedQty} / {item.requestedQty} {item.uom})
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-500/20">
+                              Open
                             </span>
                           )}
                         </td>

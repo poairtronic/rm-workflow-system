@@ -60,7 +60,7 @@ export function ConsumablePurchaseStoreWorkspace() {
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [purchaseStatusFilter, setPurchaseStatusFilter] = useState<'ALL' | 'OPEN' | 'PURCHASE_REQUESTED' | 'PURCHASE_RECEIVED' | 'PARTIALLY_ISSUED' | 'ISSUED_TO_PRODUCTION'>('ALL');
+  const [purchaseStatusFilter, setPurchaseStatusFilter] = useState<'ALL' | 'OPEN' | 'PARTIALLY_ISSUED' | 'DISPATCHED'>('ALL');
 
   // Selection for Batch PR Print
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -431,10 +431,25 @@ export function ConsumablePurchaseStoreWorkspace() {
 
       const isPrMatch = Boolean(item.prNumber && matchesPrNumber(item.prNumber, q));
 
-      // Status filter:
-      // If the user searches specifically for a PR number, show matches across all statuses!
-      if (purchaseStatusFilter !== 'ALL' && item.status !== purchaseStatusFilter && !isPrMatch) {
-        return false;
+      const isFull =
+        (item.status === 'ISSUED_TO_PRODUCTION' || item.status === 'RECEIVED_BY_PRODUCTION') &&
+        Number(item.issuedQty || 0) >= Number(item.requestedQty || 0);
+
+      const isPart =
+        item.status === 'PARTIALLY_ISSUED' ||
+        (Number(item.issuedQty || 0) > 0 && Number(item.issuedQty || 0) < Number(item.requestedQty || 0));
+
+      // Filter tabs: Open (not fully dispatched), Partially Issued, or Dispatched
+      if (!isPrMatch) {
+        if (purchaseStatusFilter === 'OPEN' && isFull) {
+          return false;
+        }
+        if (purchaseStatusFilter === 'PARTIALLY_ISSUED' && !isPart) {
+          return false;
+        }
+        if (purchaseStatusFilter === 'DISPATCHED' && !isFull) {
+          return false;
+        }
       }
 
       if (!q) return true;
@@ -454,23 +469,40 @@ export function ConsumablePurchaseStoreWorkspace() {
 
   // Key KPI Metrics
   const readyForIssueCount = useMemo(
-    () => allItems.filter((i) => i.status === 'READY_FOR_ISSUE' || i.status === 'PURCHASE_RECEIVED').length,
+    () => allItems.filter((i) => {
+      const isStockTrack =
+        i.itemCategoryTrack === 'STOCK_ITEM' ||
+        i.status === 'PURCHASE_RECEIVED' ||
+        i.status === 'READY_FOR_ISSUE' ||
+        i.status === 'PARTIALLY_ISSUED';
+      const isFull = (i.status === 'ISSUED_TO_PRODUCTION' || i.status === 'RECEIVED_BY_PRODUCTION') && Number(i.issuedQty || 0) >= Number(i.requestedQty || 0);
+      return isStockTrack && !isFull;
+    }).length,
     [allItems]
   );
+
+  const openPurchaseCount = useMemo(
+    () => allItems.filter((i) => {
+      if (i.itemCategoryTrack !== 'NON_STOCK_OR_NEW') return false;
+      const isFull = (i.status === 'ISSUED_TO_PRODUCTION' || i.status === 'RECEIVED_BY_PRODUCTION') && Number(i.issuedQty || 0) >= Number(i.requestedQty || 0);
+      return !isFull;
+    }).length,
+    [allItems]
+  );
+
   const partiallyIssuedCount = useMemo(
-    () => allItems.filter((i) => i.status === 'PARTIALLY_ISSUED').length,
+    () => allItems.filter((i) => {
+      const isPart = i.status === 'PARTIALLY_ISSUED' || (Number(i.issuedQty || 0) > 0 && Number(i.issuedQty || 0) < Number(i.requestedQty || 0));
+      return isPart;
+    }).length,
     [allItems]
   );
-  const openPrCount = useMemo(
-    () => allItems.filter((i) => i.itemCategoryTrack === 'NON_STOCK_OR_NEW' && i.status === 'OPEN').length,
-    [allItems]
-  );
-  const prPrintedCount = useMemo(
-    () => allItems.filter((i) => i.status === 'PURCHASE_REQUESTED').length,
-    [allItems]
-  );
-  const issuedToProdCount = useMemo(
-    () => allItems.filter((i) => i.status === 'ISSUED_TO_PRODUCTION').length,
+
+  const dispatchedCount = useMemo(
+    () => allItems.filter((i) => {
+      const isFull = (i.status === 'ISSUED_TO_PRODUCTION' || i.status === 'RECEIVED_BY_PRODUCTION') && Number(i.issuedQty || 0) >= Number(i.requestedQty || 0);
+      return isFull;
+    }).length,
     [allItems]
   );
 
@@ -496,7 +528,7 @@ export function ConsumablePurchaseStoreWorkspace() {
               className="flex items-center gap-1.5"
             >
               <Building2 className="w-4 h-4" />
-              Tab 2: Purchase Queue ({openPrCount + prPrintedCount})
+              Tab 2: Purchase Queue ({openPurchaseCount})
             </Button>
           </div>
         }
@@ -510,34 +542,34 @@ export function ConsumablePurchaseStoreWorkspace() {
             <Boxes className="w-4 h-4 text-purple-500" />
           </div>
           <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{readyForIssueCount}</p>
-          <span className="text-[11px] text-slate-400">In-stock & inwarded items</span>
+          <span className="text-[11px] text-slate-400">In-stock & available items</span>
+        </Card>
+
+        <Card className="p-4 border-l-4 border-l-blue-500">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Open Purchase Items</span>
+            <Clock className="w-4 h-4 text-blue-500" />
+          </div>
+          <p className="text-2xl font-bold mt-1 text-blue-600 dark:text-blue-400">{openPurchaseCount}</p>
+          <span className="text-[11px] text-slate-400">Active procurement requests</span>
         </Card>
 
         <Card className="p-4 border-l-4 border-l-amber-500">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Unprinted PRs</span>
-            <Clock className="w-4 h-4 text-amber-500" />
+            <span className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Partially Issued</span>
+            <Send className="w-4 h-4 text-amber-500" />
           </div>
-          <p className="text-2xl font-bold mt-1 text-amber-600 dark:text-amber-400">{openPrCount}</p>
-          <span className="text-[11px] text-slate-400">Select & print Velan PR slip</span>
-        </Card>
-
-        <Card className="p-4 border-l-4 border-l-indigo-500">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Awaiting Inward</span>
-            <PackagePlus className="w-4 h-4 text-indigo-500" />
-          </div>
-          <p className="text-2xl font-bold mt-1 text-indigo-600 dark:text-indigo-400">{prPrintedCount}</p>
-          <span className="text-[11px] text-slate-400">PR printed, pending delivery</span>
+          <p className="text-2xl font-bold mt-1 text-amber-600 dark:text-amber-400">{partiallyIssuedCount}</p>
+          <span className="text-[11px] text-slate-400">Partial delivery, awaiting balance</span>
         </Card>
 
         <Card className="p-4 border-l-4 border-l-emerald-500">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Issued to Floor</span>
+            <span className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Dispatched (Closed)</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           </div>
-          <p className="text-2xl font-bold mt-1 text-emerald-600 dark:text-emerald-400">{issuedToProdCount}</p>
-          <span className="text-[11px] text-slate-400">Awaiting production receipt</span>
+          <p className="text-2xl font-bold mt-1 text-emerald-600 dark:text-emerald-400">{dispatchedCount}</p>
+          <span className="text-[11px] text-slate-400">100% full quantity issued</span>
         </Card>
       </div>
 
@@ -613,9 +645,15 @@ export function ConsumablePurchaseStoreWorkspace() {
                   </tr>
                 ) : (
                   inStockItems.map((item) => {
-                    const isIssued = item.status === 'ISSUED_TO_PRODUCTION' || item.status === 'RECEIVED_BY_PRODUCTION';
-                    const isPartial = item.status === 'PARTIALLY_ISSUED';
-                    const remainingQty = Math.max(0, Number(item.requestedQty) - Number(item.issuedQty || 0));
+                    const isFullyIssued =
+                      (item.status === 'ISSUED_TO_PRODUCTION' || item.status === 'RECEIVED_BY_PRODUCTION') &&
+                      Number(item.issuedQty || 0) >= Number(item.requestedQty || 0);
+
+                    const isPartial =
+                      item.status === 'PARTIALLY_ISSUED' ||
+                      (Number(item.issuedQty || 0) > 0 && Number(item.issuedQty || 0) < Number(item.requestedQty || 0));
+
+                    const remainingQty = Math.max(0, Number(item.requestedQty || 0) - Number(item.issuedQty || 0));
 
                     return (
                       <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
@@ -655,30 +693,28 @@ export function ConsumablePurchaseStoreWorkspace() {
                         </td>
                         <td className="py-3.5 px-3.5 align-middle text-center">
                           <div className="inline-flex justify-center">
-                            {item.status === 'READY_FOR_ISSUE' && (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border border-purple-200 dark:border-purple-800 whitespace-nowrap">
-                                Ready for Issue
-                              </span>
-                            )}
-                            {item.status === 'PURCHASE_RECEIVED' && (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-cyan-50 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800 whitespace-nowrap">
-                                Inwarded in Bin
-                              </span>
-                            )}
-                            {isPartial && (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800 whitespace-nowrap">
-                                Partially Issued ({item.issuedQty} / {item.requestedQty} {item.uom})
-                              </span>
-                            )}
-                            {isIssued && (
+                            {isFullyIssued ? (
                               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 whitespace-nowrap">
-                                Issued ({item.issuedQty} {item.uom})
+                                Dispatched
+                              </span>
+                            ) : isPartial ? (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800 whitespace-nowrap">
+                                Open (Partial: {item.issuedQty} / {item.requestedQty} {item.uom})
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800 whitespace-nowrap">
+                                Open
                               </span>
                             )}
                           </div>
                         </td>
                         <td className="py-3.5 px-3.5 text-center align-middle">
-                          {isPartial ? (
+                          {isFullyIssued ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-md">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                              Dispatched
+                            </span>
+                          ) : isPartial ? (
                             <Button
                               variant="primary"
                               size="sm"
@@ -689,7 +725,7 @@ export function ConsumablePurchaseStoreWorkspace() {
                               <Send className="w-3.5 h-3.5" />
                               Issue Remaining ({remainingQty} {item.uom})
                             </Button>
-                          ) : !isIssued ? (
+                          ) : (
                             <Button
                               variant="primary"
                               size="sm"
@@ -700,11 +736,6 @@ export function ConsumablePurchaseStoreWorkspace() {
                               <Send className="w-3.5 h-3.5" />
                               Issue to Production
                             </Button>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-md">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                              Dispatched
-                            </span>
                           )}
                         </td>
                       </tr>
@@ -790,33 +821,11 @@ export function ConsumablePurchaseStoreWorkspace() {
                 onClick={() => setPurchaseStatusFilter('OPEN')}
                 className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${
                   purchaseStatusFilter === 'OPEN'
-                    ? 'bg-amber-600 text-white'
+                    ? 'bg-blue-600 text-white'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
                 }`}
               >
-                Open / Unprinted ({openPrCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setPurchaseStatusFilter('PURCHASE_REQUESTED')}
-                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${
-                  purchaseStatusFilter === 'PURCHASE_REQUESTED'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                }`}
-              >
-                PR Printed ({prPrintedCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setPurchaseStatusFilter('PURCHASE_RECEIVED')}
-                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${
-                  purchaseStatusFilter === 'PURCHASE_RECEIVED'
-                    ? 'bg-cyan-600 text-white'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                }`}
-              >
-                Inwarded
+                Open ({openPurchaseCount})
               </button>
               <button
                 type="button"
@@ -831,14 +840,14 @@ export function ConsumablePurchaseStoreWorkspace() {
               </button>
               <button
                 type="button"
-                onClick={() => setPurchaseStatusFilter('ISSUED_TO_PRODUCTION')}
+                onClick={() => setPurchaseStatusFilter('DISPATCHED')}
                 className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${
-                  purchaseStatusFilter === 'ISSUED_TO_PRODUCTION'
+                  purchaseStatusFilter === 'DISPATCHED'
                     ? 'bg-emerald-600 text-white'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
                 }`}
               >
-                Dispatched ({issuedToProdCount})
+                Dispatched ({dispatchedCount})
               </button>
             </div>
           </div>
@@ -864,7 +873,7 @@ export function ConsumablePurchaseStoreWorkspace() {
                   <th className="py-3 px-3.5 min-w-[200px] align-middle">Item Description</th>
                   <th className="py-3 px-3.5 min-w-[170px] align-middle">Supplier / Vendor</th>
                   <th className="py-3 px-3.5 w-28 font-mono text-right align-middle">Req. Qty</th>
-                  <th className="py-3 px-3.5 w-44 font-mono text-right align-middle">Real Inward Qty</th>
+                  <th className="py-3 px-3.5 w-44 font-mono text-right align-middle">Real Received Qty</th>
                   <th className="py-3 px-3.5 w-40 text-center align-middle">Current Stage</th>
                   <th className="py-3 px-3.5 w-52 text-center align-middle">Procurement Actions</th>
                 </tr>
@@ -885,11 +894,19 @@ export function ConsumablePurchaseStoreWorkspace() {
                   </tr>
                 ) : (
                   purchaseQueueItems.map((item) => {
-                    const isOpen = item.status === 'OPEN';
-                    const isRequested = item.status === 'PURCHASE_REQUESTED';
-                    const isReceived = item.status === 'PURCHASE_RECEIVED';
-                    const isPartial = item.status === 'PARTIALLY_ISSUED';
-                    const isIssued = item.status === 'ISSUED_TO_PRODUCTION' || item.status === 'RECEIVED_BY_PRODUCTION';
+                    const isFullyIssued =
+                      (item.status === 'ISSUED_TO_PRODUCTION' || item.status === 'RECEIVED_BY_PRODUCTION') &&
+                      Number(item.issuedQty || 0) >= Number(item.requestedQty || 0);
+
+                    const isPartial =
+                      item.status === 'PARTIALLY_ISSUED' ||
+                      (Number(item.issuedQty || 0) > 0 && Number(item.issuedQty || 0) < Number(item.requestedQty || 0));
+
+                    const remainingQty = Math.max(0, Number(item.requestedQty || 0) - Number(item.issuedQty || 0));
+
+                    const isOpenWithoutPr = !isFullyIssued && !isPartial && !item.prNumber;
+                    const isPrAssignedPendingReceive = !isFullyIssued && !isPartial && Boolean(item.prNumber) && (Number(item.realReceivedQty || 0) === 0);
+                    const isReceivedPendingIssue = !isFullyIssued && !isPartial && (Number(item.realReceivedQty || 0) > 0);
 
                     return (
                       <tr
@@ -996,32 +1013,20 @@ export function ConsumablePurchaseStoreWorkspace() {
                           )}
                         </td>
 
-                        {/* Status */}
+                        {/* Status / Current Stage */}
                         <td className="py-3.5 px-3.5 align-middle text-center">
                           <div className="inline-flex justify-center">
-                            {isOpen && (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800 whitespace-nowrap">
-                                Open (Unprinted)
-                              </span>
-                            )}
-                            {isRequested && (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 whitespace-nowrap">
-                                PR Printed ({item.prNumber})
-                              </span>
-                            )}
-                            {isReceived && (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-cyan-50 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800 whitespace-nowrap">
-                                Inwarded in Store
-                              </span>
-                            )}
-                            {isPartial && (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800 whitespace-nowrap">
-                                Partially Issued ({item.issuedQty} / {item.requestedQty} {item.uom})
-                              </span>
-                            )}
-                            {isIssued && (
+                            {isFullyIssued ? (
                               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 whitespace-nowrap">
-                                Issued to Production
+                                Dispatched
+                              </span>
+                            ) : isPartial ? (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800 whitespace-nowrap">
+                                Open (Partial: {item.issuedQty} / {item.requestedQty} {item.uom})
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800 whitespace-nowrap">
+                                Open
                               </span>
                             )}
                           </div>
@@ -1030,8 +1035,53 @@ export function ConsumablePurchaseStoreWorkspace() {
                         {/* Actions */}
                         <td className="py-3.5 px-3.5 align-middle text-center">
                           <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                            {/* Step 1: Print PR (if OPEN) */}
-                            {isOpen && (
+                            {/* Completed: Dispatched indicator with optional re-print icon */}
+                            {isFullyIssued && (
+                              <div className="inline-flex items-center gap-1.5">
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-md">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                                  Dispatched
+                                </span>
+                                {item.prNumber && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePrintSingleItem(item)}
+                                    className="p-1 rounded text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                    title="Re-print PR Slip"
+                                  >
+                                    <Printer className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Partially Issued: Issue Remaining */}
+                            {isPartial && (
+                              <div className="inline-flex items-center gap-1.5">
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={() => handleOpenIssueModal(item)}
+                                  className="bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs cursor-pointer px-3 py-1"
+                                >
+                                  <Send className="w-3 h-3" />
+                                  Issue Remaining ({remainingQty} {item.uom})
+                                </Button>
+                                {item.prNumber && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePrintSingleItem(item)}
+                                    className="p-1 rounded text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                    title="Re-print PR Slip"
+                                  >
+                                    <Printer className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Open: Print PR (if no PR assigned yet) */}
+                            {isOpenWithoutPr && (
                               <Button
                                 variant="primary"
                                 size="sm"
@@ -1043,8 +1093,8 @@ export function ConsumablePurchaseStoreWorkspace() {
                               </Button>
                             )}
 
-                            {/* Step 2: Inward Purchase (if PR Printed) */}
-                            {isRequested && (
+                            {/* Open: PR Assigned & Pending Vendor Receipt */}
+                            {isPrAssignedPendingReceive && (
                               <>
                                 <Button
                                   variant="secondary"
@@ -1068,8 +1118,8 @@ export function ConsumablePurchaseStoreWorkspace() {
                               </>
                             )}
 
-                            {/* Step 3: Issue to Production if not auto-issued */}
-                            {isReceived && (
+                            {/* Open: Goods Received in store & Ready to Issue */}
+                            {isReceivedPendingIssue && (
                               <Button
                                 variant="primary"
                                 size="sm"
@@ -1079,51 +1129,6 @@ export function ConsumablePurchaseStoreWorkspace() {
                                 <Send className="w-3 h-3" />
                                 Issue to Floor
                               </Button>
-                            )}
-
-                            {/* Step 3B: Issue Remaining if partially issued */}
-                            {isPartial && (
-                              <div className="inline-flex items-center gap-1.5">
-                                <Button
-                                  variant="primary"
-                                  size="sm"
-                                  onClick={() => handleOpenIssueModal(item)}
-                                  className="bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs cursor-pointer px-3 py-1"
-                                >
-                                  <Send className="w-3 h-3" />
-                                  Issue Remaining ({Math.max(0, Number(item.requestedQty) - Number(item.issuedQty || 0))} {item.uom})
-                                </Button>
-                                {item.prNumber && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handlePrintSingleItem(item)}
-                                    className="p-1 rounded text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                                    title="Re-print PR Slip"
-                                  >
-                                    <Printer className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Completed: Dispatched indicator with optional re-print icon */}
-                            {isIssued && (
-                              <div className="inline-flex items-center gap-1.5">
-                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-md">
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                                  Dispatched
-                                </span>
-                                {item.prNumber && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handlePrintSingleItem(item)}
-                                    className="p-1 rounded text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                                    title="Re-print PR Slip"
-                                  >
-                                    <Printer className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                              </div>
                             )}
                           </div>
                         </td>
