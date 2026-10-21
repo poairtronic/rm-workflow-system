@@ -421,9 +421,9 @@ export function ProductionConsumptionWorkspace() {
                 <div className="bg-white dark:bg-[#121526] border border-slate-200 dark:border-[#1a1e33] p-3.5 rounded-xl shadow-2xs">
                   <div className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">2. Issued</div>
                   <div className="text-xl font-black text-indigo-700 dark:text-indigo-300 mt-1">{totalIssued}</div>
-                  <div className="text-[10px] mt-0.5">
+                  <div className="text-[10px] mt-0.5 whitespace-nowrap">
                     {totalIssued < totalRequired ? (
-                      <span className="font-semibold text-purple-600 dark:text-purple-400">
+                      <span className="font-semibold text-purple-600 dark:text-purple-400 whitespace-nowrap">
                         {totalRequired - totalIssued} Pending Stores
                       </span>
                     ) : (
@@ -542,19 +542,19 @@ export function ProductionConsumptionWorkspace() {
                             No material specifications found for this component.
                           </div>
                         ) : (
-                          <table className="w-full text-left border-collapse text-xs">
+                          <table className="min-w-full text-left border-collapse text-xs">
                             <thead>
                               <tr className="bg-slate-50 dark:bg-[#161a2e] text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-[#1a1e33] font-bold uppercase tracking-wider text-[11px]">
-                                <th className="py-3 px-4">Material Specification</th>
-                                <th className="py-3 px-3 text-right">Required</th>
-                                <th className="py-3 px-3 text-right text-indigo-700 dark:text-indigo-400">Issued</th>
-                                <th className="py-3 px-3 text-right text-purple-700 dark:text-purple-400">Pending Stores</th>
-                                <th className="py-3 px-3 text-right text-blue-700 dark:text-blue-400">Received</th>
-                                <th className="py-3 px-3 text-right text-emerald-700 dark:text-emerald-400">Consumed</th>
-                                <th className="py-3 px-3 text-right text-amber-700 dark:text-amber-400">Returned</th>
-                                <th className="py-3 px-3 text-right text-purple-700 dark:text-purple-400">Floor WIP</th>
-                                <th className="py-3 px-3 text-right text-slate-500">Variance</th>
-                                <th className="py-3 px-4 text-center">Utilization</th>
+                                <th className="py-3 px-4 whitespace-nowrap">Material Specification</th>
+                                <th className="py-3 px-3 text-right whitespace-nowrap">Required</th>
+                                <th className="py-3 px-3 text-right text-indigo-700 dark:text-indigo-400 whitespace-nowrap">Issued</th>
+                                <th className="py-3 px-3 text-right text-purple-700 dark:text-purple-400 whitespace-nowrap">Pending Stores</th>
+                                <th className="py-3 px-3 text-right text-blue-700 dark:text-blue-400 whitespace-nowrap">Received</th>
+                                <th className="py-3 px-3 text-right text-emerald-700 dark:text-emerald-400 whitespace-nowrap">Consumed</th>
+                                <th className="py-3 px-3 text-right text-amber-700 dark:text-amber-400 whitespace-nowrap">Returned</th>
+                                <th className="py-3 px-3 text-right text-purple-700 dark:text-purple-400 whitespace-nowrap">Floor WIP</th>
+                                <th className="py-3 px-3 text-right text-slate-500 whitespace-nowrap">Variance</th>
+                                <th className="py-3 px-4 text-center whitespace-nowrap">Utilization</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-[#1a1e33]">
@@ -569,34 +569,35 @@ export function ProductionConsumptionWorkspace() {
                                         Grade: {item.grade || 'STD'} | Size: {item.size || 'N/A'}
                                       </div>
                                     </td>
-                                    <td className="py-3 px-3 text-right font-medium text-slate-700 dark:text-slate-300">{item.required}</td>
-                                    <td className="py-3 px-3 text-right font-bold text-indigo-700 dark:text-indigo-400">{item.issued}</td>
-                                    <td className="py-3 px-3 text-right font-semibold">
+                                    <td className="py-3 px-3 text-right font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">{item.required}</td>
+                                    <td className="py-3 px-3 text-right font-bold text-indigo-700 dark:text-indigo-400 whitespace-nowrap">{item.issued}</td>
+                                    <td className="py-3 px-3 text-right font-semibold whitespace-nowrap">
                                       {unissued > 0 ? (
-                                        <span className="text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/50 px-2 py-0.5 rounded text-[11px] border border-purple-200 dark:border-purple-800">
-                                          {unissued} pending
+                                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/50 px-2.5 py-1 rounded-md text-xs font-bold border border-purple-200 dark:border-purple-800 shadow-2xs">
+                                          <span>{unissued}</span>
+                                          <span className="text-[10px] font-semibold uppercase tracking-wider text-purple-600 dark:text-purple-400">pending</span>
                                         </span>
                                       ) : (
                                         <span className="text-slate-400 font-medium">0</span>
                                       )}
                                     </td>
-                                    <td className="py-3 px-3 text-right font-medium text-blue-700 dark:text-blue-400">{item.received}</td>
-                                    <td className="py-3 px-3 text-right font-bold text-emerald-700 dark:text-emerald-400">{item.consumed}</td>
-                                    <td className="py-3 px-3 text-right font-medium text-amber-700 dark:text-amber-400">
-                                      {item.returned}
+                                    <td className="py-3 px-3 text-right font-medium text-blue-700 dark:text-blue-400 whitespace-nowrap">{item.received}</td>
+                                    <td className="py-3 px-3 text-right font-bold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">{item.consumed}</td>
+                                    <td className="py-3 px-3 text-right font-medium text-amber-700 dark:text-amber-400 whitespace-nowrap">
+                                      <span>{item.returned}</span>
                                       {item.pendingReturned > 0 && (
-                                        <span className="block text-[10px] text-amber-500">(+{item.pendingReturned} pending)</span>
+                                        <span className="block text-[10px] text-amber-500 whitespace-nowrap">(+{item.pendingReturned} pending)</span>
                                       )}
                                     </td>
-                                    <td className="py-3 px-3 text-right font-bold text-purple-700 dark:text-purple-400">{item.wip}</td>
-                                    <td className="py-3 px-3 text-right font-medium">
+                                    <td className="py-3 px-3 text-right font-bold text-purple-700 dark:text-purple-400 whitespace-nowrap">{item.wip}</td>
+                                    <td className="py-3 px-3 text-right font-medium whitespace-nowrap">
                                       {item.unaccounted === 0 ? (
                                         <span className="text-emerald-600 dark:text-emerald-400 font-bold">0</span>
                                       ) : (
                                         <span className="text-rose-600 dark:text-rose-400 font-bold">{item.unaccounted}</span>
                                       )}
                                     </td>
-                                    <td className="py-3 px-4 text-center">
+                                    <td className="py-3 px-4 text-center whitespace-nowrap">
                                       <div className="flex items-center justify-center space-x-2">
                                         <div className="w-14 bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden border border-slate-200 dark:border-slate-700">
                                           <div

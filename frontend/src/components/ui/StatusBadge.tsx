@@ -133,7 +133,7 @@ export function StatusBadge({ status, variant: explicitVariant, className }: Sta
     return (
       <span
         className={cn(
-          "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border shadow-2xs",
+          "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border shadow-2xs whitespace-nowrap shrink-0",
           canonical.className,
           className
         )}
@@ -155,7 +155,7 @@ export function StatusBadge({ status, variant: explicitVariant, className }: Sta
   return (
     <span
       className={cn(
-        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border",
+        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap shrink-0",
         customClass || variantClasses[variant],
         className
       )}
