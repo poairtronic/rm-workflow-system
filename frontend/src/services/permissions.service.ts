@@ -22,15 +22,16 @@ export interface UserPermissionsResponse {
   roleName: string;
   effectiveModules: string[];
   roleModules: string[];
+  permissionsMap?: Record<string, 'FULL_ACCESS' | 'VIEW' | 'DENY'>;
   overrides: Array<{
     moduleKey: string;
-    accessType: 'GRANT' | 'REVOKE';
+    accessType: 'FULL_ACCESS' | 'VIEW' | 'DENY' | 'GRANT' | 'REVOKE';
   }>;
 }
 
 export interface UserOverrideItem {
   moduleKey: string;
-  action: 'GRANT' | 'REVOKE' | 'INHERIT';
+  action: 'FULL_ACCESS' | 'VIEW' | 'DENY' | 'INHERIT' | 'GRANT' | 'REVOKE';
 }
 
 export const permissionsApi = {

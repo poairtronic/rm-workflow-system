@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SystemModule } from './entities/system-module.entity.js';
 import { RoleModulePermission } from './entities/role-module-permission.entity.js';
-import { UserModulePermission } from './entities/user-module-permission.entity.js';
+import { UserModulePermission, type AccessOverrideType } from './entities/user-module-permission.entity.js';
 import { Role } from '../roles/entities/role.entity.js';
 import { User } from '../users/entities/user.entity.js';
 import { UserOverrideItemDto } from './dto/update-user-permissions.dto.js';
@@ -105,12 +105,15 @@ export class PermissionsService {
     // If user is ADMIN, effective is all modules
     if (user.role?.name === 'ADMIN') {
       const allKeys = allModules.map((m) => m.moduleKey);
+      const permissionsMap: Record<string, 'FULL_ACCESS' | 'VIEW' | 'DENY'> = {};
+      for (const k of allKeys) permissionsMap[k] = 'FULL_ACCESS';
       return {
         userId: user.id,
         userName: user.name,
         roleName: user.role.name,
         effectiveModules: allKeys,
         roleModules: allKeys,
+        permissionsMap,
         overrides: [],
       };
     }
@@ -130,12 +133,20 @@ export class PermissionsService {
     });
 
     const effectiveSet = new Set<string>(roleModules);
+    const permissionsMap: Record<string, 'FULL_ACCESS' | 'VIEW' | 'DENY'> = {};
+
+    for (const modKey of roleModules) {
+      permissionsMap[modKey] = 'FULL_ACCESS';
+    }
 
     for (const ov of userOverrides) {
-      if (ov.accessType === 'GRANT') {
+      const type = ov.accessType === 'GRANT' ? 'FULL_ACCESS' : ov.accessType === 'REVOKE' ? 'DENY' : ov.accessType;
+      if (type === 'FULL_ACCESS' || type === 'VIEW') {
         effectiveSet.add(ov.moduleKey);
-      } else if (ov.accessType === 'REVOKE') {
+        permissionsMap[ov.moduleKey] = type;
+      } else if (type === 'DENY') {
         effectiveSet.delete(ov.moduleKey);
+        permissionsMap[ov.moduleKey] = 'DENY';
       }
     }
 
@@ -145,9 +156,10 @@ export class PermissionsService {
       roleName: user.role?.name || 'UNKNOWN',
       effectiveModules: Array.from(effectiveSet),
       roleModules,
+      permissionsMap,
       overrides: userOverrides.map((o) => ({
         moduleKey: o.moduleKey,
-        accessType: o.accessType,
+        accessType: o.accessType === 'GRANT' ? 'FULL_ACCESS' : o.accessType === 'REVOKE' ? 'DENY' : o.accessType,
       })),
     };
   }
@@ -173,14 +185,18 @@ export class PermissionsService {
           where: { userId, moduleKey: item.moduleKey },
         });
 
+        const accessType = (
+          item.action === 'GRANT' ? 'FULL_ACCESS' : item.action === 'REVOKE' ? 'DENY' : item.action
+        ) as AccessOverrideType;
+
         if (existing) {
-          existing.accessType = item.action;
+          existing.accessType = accessType;
           await this.userPermRepo.save(existing);
         } else {
           const newOverride = this.userPermRepo.create({
             userId,
             moduleKey: item.moduleKey,
-            accessType: item.action,
+            accessType,
           });
           await this.userPermRepo.save(newOverride);
         }

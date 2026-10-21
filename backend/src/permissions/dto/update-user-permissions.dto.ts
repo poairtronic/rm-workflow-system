@@ -5,8 +5,8 @@ export class UserOverrideItemDto {
   @IsString()
   moduleKey!: string;
 
-  @IsIn(['GRANT', 'REVOKE', 'INHERIT'])
-  action!: 'GRANT' | 'REVOKE' | 'INHERIT';
+  @IsIn(['GRANT', 'REVOKE', 'INHERIT', 'FULL_ACCESS', 'VIEW', 'DENY'])
+  action!: 'GRANT' | 'REVOKE' | 'INHERIT' | 'FULL_ACCESS' | 'VIEW' | 'DENY';
 }
 
 export class UpdateUserPermissionsDto {

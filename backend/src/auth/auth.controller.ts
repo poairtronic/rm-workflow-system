@@ -41,9 +41,11 @@ export class AuthController {
     const userAgent = req?.headers ? req.headers['user-agent'] : undefined;
     const result = await this.authService.login(loginDto, userAgent);
     let effectiveModules: string[] = [];
+    let permissionsMap: Record<string, string> = {};
     try {
       const perms = await this.permissionsService.getUserPermissions(result.user.userId);
       effectiveModules = perms.effectiveModules;
+      permissionsMap = perms.permissionsMap || {};
     } catch {
       // Fallback
     }
@@ -53,6 +55,7 @@ export class AuthController {
         ...result.user,
         id: result.user.userId,
         effectiveModules,
+        permissionsMap,
       },
     };
   }
@@ -66,9 +69,11 @@ export class AuthController {
     const userAgent = req?.headers ? req.headers['user-agent'] : undefined;
     const result = await this.authService.rotateRefreshToken(dto.refreshToken, userAgent);
     let effectiveModules: string[] = [];
+    let permissionsMap: Record<string, string> = {};
     try {
       const perms = await this.permissionsService.getUserPermissions(result.user.userId);
       effectiveModules = perms.effectiveModules;
+      permissionsMap = perms.permissionsMap || {};
     } catch {
       // Fallback
     }
@@ -78,6 +83,7 @@ export class AuthController {
         ...result.user,
         id: result.user.userId,
         effectiveModules,
+        permissionsMap,
       },
     };
   }
@@ -153,9 +159,11 @@ export class AuthController {
   async getProfile(@Req() req: { user: any }) {
     const userId = req.user?.sub || req.user?.userId;
     let effectiveModules: string[] = [];
+    let permissionsMap: Record<string, string> = {};
     try {
       const perms = await this.permissionsService.getUserPermissions(userId);
       effectiveModules = perms.effectiveModules;
+      permissionsMap = perms.permissionsMap || {};
     } catch {
       // Fallback
     }
@@ -166,6 +174,7 @@ export class AuthController {
         ...req.user,
         id: userId,
         effectiveModules,
+        permissionsMap,
       },
     };
   }

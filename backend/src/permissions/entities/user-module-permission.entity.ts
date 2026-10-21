@@ -11,7 +11,7 @@ import {
 import { User } from '../../users/entities/user.entity.js';
 import { SystemModule } from './system-module.entity.js';
 
-export type AccessOverrideType = 'GRANT' | 'REVOKE';
+export type AccessOverrideType = 'FULL_ACCESS' | 'VIEW' | 'DENY' | 'GRANT' | 'REVOKE';
 
 @Entity('user_module_permissions')
 @Unique(['userId', 'moduleKey'])
@@ -33,7 +33,7 @@ export class UserModulePermission {
   @JoinColumn({ name: 'module_key' })
   module!: SystemModule;
 
-  @Column({ type: 'varchar', name: 'access_type', length: 10 })
+  @Column({ type: 'varchar', name: 'access_type', length: 20 })
   accessType!: AccessOverrideType;
 
   @CreateDateColumn({ name: 'created_at' })

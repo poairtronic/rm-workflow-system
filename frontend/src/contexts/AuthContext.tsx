@@ -13,6 +13,7 @@ export interface User {
   role: UserRole;
   department?: string;
   effectiveModules?: string[];
+  permissionsMap?: Record<string, 'FULL_ACCESS' | 'VIEW' | 'DENY'>;
 }
 
 interface AuthContextType {
