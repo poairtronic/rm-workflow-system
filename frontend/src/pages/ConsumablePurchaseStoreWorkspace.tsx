@@ -517,20 +517,18 @@ export function ConsumablePurchaseStoreWorkspace() {
             <button
               type="button"
               onClick={() => setActiveTab('STOCK_QUEUE')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                activeTab === 'STOCK_QUEUE'
+              className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${activeTab === 'STOCK_QUEUE'
                   ? 'bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs font-bold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+                }`}
             >
               <Boxes className={`w-3.5 h-3.5 ${activeTab === 'STOCK_QUEUE' ? 'text-indigo-600 dark:text-white' : 'text-slate-400'}`} />
               <span>In-Stock Store Queue</span>
               <span
-                className={`ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
-                  activeTab === 'STOCK_QUEUE'
+                className={`ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full ${activeTab === 'STOCK_QUEUE'
                     ? 'bg-indigo-50 text-indigo-700 dark:bg-white/20 dark:text-white'
                     : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                }`}
+                  }`}
               >
                 {readyForIssueCount}
               </span>
@@ -539,20 +537,18 @@ export function ConsumablePurchaseStoreWorkspace() {
             <button
               type="button"
               onClick={() => setActiveTab('PURCHASE_QUEUE')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                activeTab === 'PURCHASE_QUEUE'
+              className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${activeTab === 'PURCHASE_QUEUE'
                   ? 'bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs font-bold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+                }`}
             >
               <Building2 className={`w-3.5 h-3.5 ${activeTab === 'PURCHASE_QUEUE' ? 'text-amber-500 dark:text-white' : 'text-slate-400'}`} />
               <span>Purchase Queue</span>
               <span
-                className={`ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
-                  activeTab === 'PURCHASE_QUEUE'
+                className={`ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full ${activeTab === 'PURCHASE_QUEUE'
                     ? 'bg-amber-50 text-amber-700 dark:bg-white/20 dark:text-white'
                     : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                }`}
+                  }`}
               >
                 {openPurchaseCount}
               </span>
@@ -843,44 +839,40 @@ export function ConsumablePurchaseStoreWorkspace() {
               <button
                 type="button"
                 onClick={() => setPurchaseStatusFilter('ALL')}
-                className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${
-                  purchaseStatusFilter === 'ALL'
+                className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${purchaseStatusFilter === 'ALL'
                     ? 'bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs font-bold'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
+                  }`}
               >
                 All Purchase Items
               </button>
               <button
                 type="button"
                 onClick={() => setPurchaseStatusFilter('OPEN')}
-                className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${
-                  purchaseStatusFilter === 'OPEN'
+                className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${purchaseStatusFilter === 'OPEN'
                     ? 'bg-white dark:bg-blue-600 text-blue-700 dark:text-white shadow-xs font-bold'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
+                  }`}
               >
                 Open ({openPurchaseCount})
               </button>
               <button
                 type="button"
                 onClick={() => setPurchaseStatusFilter('PARTIALLY_ISSUED')}
-                className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${
-                  purchaseStatusFilter === 'PARTIALLY_ISSUED'
+                className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${purchaseStatusFilter === 'PARTIALLY_ISSUED'
                     ? 'bg-white dark:bg-amber-600 text-amber-700 dark:text-white shadow-xs font-bold'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
+                  }`}
               >
                 Partially Issued ({partiallyIssuedCount})
               </button>
               <button
                 type="button"
                 onClick={() => setPurchaseStatusFilter('DISPATCHED')}
-                className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${
-                  purchaseStatusFilter === 'DISPATCHED'
+                className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${purchaseStatusFilter === 'DISPATCHED'
                     ? 'bg-white dark:bg-emerald-600 text-emerald-700 dark:text-white shadow-xs font-bold'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
+                  }`}
               >
                 Dispatched ({dispatchedCount})
               </button>
@@ -946,11 +938,10 @@ export function ConsumablePurchaseStoreWorkspace() {
                     return (
                       <tr
                         key={item.id}
-                        className={`transition-colors ${
-                          selectedIds.includes(item.id)
+                        className={`transition-colors ${selectedIds.includes(item.id)
                             ? 'bg-indigo-50/60 dark:bg-indigo-950/30'
                             : 'hover:bg-slate-50/70 dark:hover:bg-slate-800/40'
-                        }`}
+                          }`}
                       >
                         {/* Checkbox */}
                         <td className="py-3.5 px-3 text-center align-middle">
