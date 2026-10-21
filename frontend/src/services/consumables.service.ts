@@ -56,7 +56,7 @@ export const consumablesApi = {
    */
   async getVendors(): Promise<VendorOption[]> {
     try {
-      const res = await api.get<any>('/api/vendors?limit=100');
+      const res = await api.get<any>('/api/vendors?limit=500');
       const list = res?.vendors || res?.data || (Array.isArray(res) ? res : []);
       return list.map((v: any) => ({
         id: v.id,

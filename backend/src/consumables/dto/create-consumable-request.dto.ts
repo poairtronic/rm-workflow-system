@@ -37,6 +37,10 @@ export class CreateConsumableRequestItemDto {
   requestedQty!: number;
 
   @IsOptional()
+  @IsNumber()
+  stockAvailableAtRequest?: number;
+
+  @IsOptional()
   @IsString()
   vendorId?: string;
 

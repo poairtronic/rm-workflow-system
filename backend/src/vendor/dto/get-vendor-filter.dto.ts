@@ -18,5 +18,13 @@ export class GetVendorFilterDto {
   @IsString()
   @IsOptional()
   search?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (value ? parseInt(value, 10) : undefined))
+  limit?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (value ? parseInt(value, 10) : undefined))
+  page?: number;
 }
 

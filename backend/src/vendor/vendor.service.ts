@@ -82,6 +82,13 @@ export class VendorService {
       );
     }
 
+    if (filter?.limit && filter.limit > 0) {
+      query.take(filter.limit);
+      if (filter.page && filter.page > 1) {
+        query.skip((filter.page - 1) * filter.limit);
+      }
+    }
+
     const vendors = await query.getMany();
     return vendors.sort((a, b) => {
       const numA = parseInt(a.code.replace(/\D/g, ''), 10);
