@@ -182,18 +182,22 @@ export function DcMovementsWorkspaceView() {
   };
 
   // ─────────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   // Report Columns
   // ─────────────────────────────────────────────────────────────────────────────
   const reportColumns: ColumnDef<DcComprehensiveLifecycleItemDto>[] = [
     {
       key: 'challanNumber',
       header: 'DC Number & Type',
+      width: '180px',
       render: (row) => (
-        <div className="flex flex-col">
-          <span className="font-mono text-xs font-bold text-primary">{row.challanNumber}</span>
-          <span className="text-[10px] text-slate-500 font-medium">{row.typeLabel}</span>
+        <div className="flex flex-col space-y-1">
+          <span className="font-mono text-xs font-bold text-primary tracking-tight">{row.challanNumber}</span>
+          <span className="text-[11px] text-slate-500 font-medium">{row.typeLabel}</span>
           {row.scNumber && row.scNumber !== '—' && (
-            <span className="text-[10px] font-mono text-blue-600">SC: {row.scNumber}</span>
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-blue-50 text-blue-700 border border-blue-200 w-fit">
+              SC: {row.scNumber}
+            </span>
           )}
         </div>
       ),
@@ -201,12 +205,15 @@ export function DcMovementsWorkspaceView() {
     {
       key: 'vendorName',
       header: 'Vendor / Subcontractor',
+      width: '180px',
       render: (row) => (
-        <div className="flex items-center gap-1.5">
-          <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-          <div>
-            <p className="font-medium text-slate-900 text-xs truncate max-w-44">{row.vendorName}</p>
-            {row.vendorCode && <p className="text-[10px] font-mono text-slate-400">{row.vendorCode}</p>}
+        <div className="flex items-start gap-1.5 min-w-0">
+          <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="font-semibold text-slate-900 text-xs truncate max-w-[150px]" title={row.vendorName}>
+              {row.vendorName}
+            </p>
+            {row.vendorCode && <p className="text-[10px] font-mono text-slate-500">{row.vendorCode}</p>}
           </div>
         </div>
       ),
@@ -214,16 +221,22 @@ export function DcMovementsWorkspaceView() {
     {
       key: 'material',
       header: 'Material / Part No.',
+      width: '200px',
       render: (row) => (
-        <div className="flex flex-col max-w-44">
-          <span className="font-mono text-xs font-semibold text-slate-800 truncate">
+        <div className="flex flex-col space-y-0.5 min-w-0">
+          <span
+            className="font-mono text-xs font-bold text-slate-800 truncate max-w-[180px]"
+            title={row.partNumber !== '—' ? row.partNumber : row.productCode || row.productName}
+          >
             {row.partNumber !== '—' ? row.partNumber : row.productCode || row.productName}
           </span>
-          <span className="text-[11px] text-slate-500 truncate" title={row.partName || row.productName}>
+          <span className="text-[11px] text-slate-600 truncate max-w-[180px]" title={row.partName || row.productName}>
             {row.partName || row.productName}
           </span>
           {row.processName && (
-            <span className="text-[10px] text-slate-400 truncate font-medium">Proc: {row.processName}</span>
+            <span className="inline-flex items-center text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded w-fit font-medium">
+              Proc: {row.processName}
+            </span>
           )}
         </div>
       ),
@@ -231,15 +244,16 @@ export function DcMovementsWorkspaceView() {
     {
       key: 'dates',
       header: 'Sent & Estimated Delivery',
+      width: '160px',
       render: (row) => (
-        <div className="flex flex-col text-xs font-medium space-y-0.5">
-          <div className="flex items-center gap-1 text-slate-700">
-            <span className="text-[10px] text-slate-400 uppercase font-semibold">Sent:</span>
-            <span>{row.dispatchDateFormatted}</span>
+        <div className="flex flex-col text-xs space-y-1">
+          <div className="flex items-center gap-1.5 text-slate-700">
+            <span className="text-[10px] text-slate-400 uppercase font-semibold w-8">Sent:</span>
+            <span className="font-medium font-mono text-[11px]">{row.dispatchDateFormatted}</span>
           </div>
-          <div className="flex items-center gap-1 text-blue-700">
-            <span className="text-[10px] text-slate-400 uppercase font-semibold">Est:</span>
-            <span>{row.expectedReturnDateFormatted}</span>
+          <div className="flex items-center gap-1.5 text-blue-700">
+            <span className="text-[10px] text-blue-500 uppercase font-semibold w-8">Est:</span>
+            <span className="font-semibold font-mono text-[11px]">{row.expectedReturnDateFormatted}</span>
           </div>
         </div>
       ),
@@ -247,25 +261,32 @@ export function DcMovementsWorkspaceView() {
     {
       key: 'receipt',
       header: 'Actual Receipt & SLA',
+      width: '170px',
       render: (row) => (
-        <div className="flex flex-col text-xs">
+        <div className="flex flex-col text-xs space-y-1">
           {row.actualReturnDate ? (
             <>
-              <div className="flex items-center gap-1 font-semibold text-emerald-800">
+              <div className="flex items-center gap-1.5 font-bold text-emerald-800">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span>{row.actualReturnDateFormatted}</span>
+                <span className="font-mono text-[11px]">{row.actualReturnDateFormatted}</span>
               </div>
-              <span className={`text-[10px] font-medium mt-0.5 ${row.isOnTime ? 'text-emerald-700' : 'text-amber-700'}`}>
+              <span
+                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded w-fit ${
+                  row.isOnTime
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                }`}
+              >
                 {row.deliveryTurnaround}
               </span>
             </>
           ) : (
-            <div className="flex flex-col">
+            <>
               <span className="text-xs text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block w-fit">
                 Pending Receipt
               </span>
-              <span className="text-[10px] text-slate-500 mt-0.5">{row.deliveryTurnaround}</span>
-            </div>
+              <span className="text-[10px] text-slate-500 mt-0.5 font-medium">{row.deliveryTurnaround}</span>
+            </>
           )}
         </div>
       ),
@@ -273,13 +294,14 @@ export function DcMovementsWorkspaceView() {
     {
       key: 'quantities',
       header: 'Expected vs Revised',
+      width: '150px',
       isNumeric: true,
       render: (row) => (
-        <div className="flex flex-col text-right font-mono text-xs tabular-nums">
+        <div className="flex flex-col items-end text-right font-mono text-xs tabular-nums space-y-0.5">
           <div className="text-slate-500 text-[11px]">
             Init: <strong className="text-slate-800">{row.initialExpectedQty}</strong> {row.uom}
           </div>
-          <div className="text-blue-900 font-bold">
+          <div className="text-blue-900 font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
             Rev: <strong>{row.revisedExpectedQty}</strong> {row.uom}
           </div>
         </div>
@@ -288,36 +310,41 @@ export function DcMovementsWorkspaceView() {
     {
       key: 'variation',
       header: 'Variation (Yield Diff)',
+      width: '150px',
       isNumeric: true,
       render: (row) => (
-        <div className="flex flex-col items-end">
+        <div className="flex flex-col items-end space-y-1">
           {row.hasVariation ? (
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 shadow-2xs">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
               Var: -{row.expectedVariation} {row.uom}
             </span>
           ) : (
-            <span className="text-xs text-slate-500 font-medium">0 (100% Target)</span>
+            <span className="inline-flex items-center gap-1 text-xs text-slate-600 font-medium bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+              0 (100% Target)
+            </span>
           )}
-          <span className="text-[10px] text-slate-400 mt-0.5">Not partial balance</span>
+          <span className="text-[10px] text-slate-400">Not partial balance</span>
         </div>
       ),
     },
     {
       key: 'inwardReceived',
       header: 'Actual Received (QC)',
+      width: '150px',
       isNumeric: true,
       render: (row) => (
-        <div className="flex flex-col items-end text-xs font-mono tabular-nums">
+        <div className="flex flex-col items-end text-xs font-mono tabular-nums space-y-1">
           <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
             Rec: {row.actualReceivedQty} {row.uom}
           </span>
           {row.unreceivedBalance > 0 ? (
-            <span className="text-[10px] text-amber-700 font-medium mt-0.5">
+            <span className="text-[10px] text-amber-700 font-medium">
               {row.unreceivedBalance} at vendor
             </span>
           ) : (
-            <span className="text-[10px] text-emerald-600 font-medium mt-0.5">Fully inwarded</span>
+            <span className="text-[10px] text-emerald-600 font-medium">Fully inwarded</span>
           )}
         </div>
       ),
@@ -325,36 +352,49 @@ export function DcMovementsWorkspaceView() {
     {
       key: 'qcRework',
       header: 'QC Result & Rework Loop',
+      width: '320px',
       render: (row) => (
-        <div className="flex flex-col text-xs max-w-56">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-emerald-700">Pass: {row.qcPassedQty}</span>
+        <div className="flex flex-col text-xs min-w-[280px] max-w-[320px] whitespace-normal space-y-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[11px]">
+              Pass: {row.qcPassedQty}
+            </span>
             {row.qcRejectedQty > 0 && (
-              <span className="font-bold text-rose-700 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">
+              <span className="font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 text-[11px]">
                 Rej: {row.qcRejectedQty}
               </span>
             )}
             {row.qcPendingQty > 0 && (
-              <span className="font-medium text-amber-700">In QC: {row.qcPendingQty}</span>
+              <span className="font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 text-[11px]">
+                In QC: {row.qcPendingQty}
+              </span>
             )}
           </div>
           {row.reworkEntries && row.reworkEntries.length > 0 ? (
-            <div className="mt-1 pt-1 border-t border-slate-100 space-y-1">
+            <div className="space-y-1.5 pt-1 border-t border-slate-100">
               {row.reworkEntries.map((rw, i) => (
-                <div key={i} className="text-[10px] text-slate-700 bg-slate-50 p-1 rounded border border-slate-200">
-                  <div className="flex items-center gap-1 font-semibold text-amber-800">
-                    <RotateCcw className="w-3 h-3 text-amber-600 shrink-0" />
-                    <span>{rw.isSameVendor ? 'Same Vendor' : 'New Vendor'} Rework</span>
-                    {rw.reworkDcNumber && <span className="font-mono text-primary font-bold">({rw.reworkDcNumber})</span>}
+                <div key={i} className="text-[11px] text-slate-700 bg-slate-50 p-2 rounded-lg border border-slate-200 space-y-1">
+                  <div className="flex items-center justify-between gap-1 flex-wrap">
+                    <span className="inline-flex items-center gap-1 font-bold text-amber-800 text-[11px]">
+                      <RotateCcw className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      {rw.isSameVendor ? 'Same Vendor Rework' : 'New Vendor Rework'}
+                    </span>
+                    {rw.reworkDcNumber && (
+                      <span className="font-mono text-primary font-bold bg-white px-1.5 py-0.2 rounded border border-slate-200 text-[10px]">
+                        {rw.reworkDcNumber}
+                      </span>
+                    )}
                   </div>
-                  <p className="text-[10px] text-slate-600 mt-0.5">{rw.summary}</p>
+                  <p className="text-[11px] text-slate-600 leading-relaxed break-words">{rw.summary}</p>
                 </div>
               ))}
             </div>
           ) : row.qcRejectedQty > 0 ? (
-            <span className="text-[10px] text-rose-600 font-medium mt-0.5">Defective units pending rework dispatch</span>
+            <span className="text-[11px] text-rose-600 font-medium bg-rose-50 px-2 py-0.5 rounded border border-rose-200 inline-block w-fit">
+              Defective units pending rework dispatch
+            </span>
           ) : (
-            <span className="text-[10px] text-slate-400 mt-0.5">No QC defects</span>
+            <span className="text-[11px] text-slate-400">No QC defects</span>
           )}
         </div>
       ),
@@ -362,22 +402,25 @@ export function DcMovementsWorkspaceView() {
     {
       key: 'status',
       header: 'Status',
+      width: '140px',
       render: (row) => {
         const isClosed = row.status === 'CLOSED' || row.status === 'RETURNED';
         const isPartial = row.status === 'PARTIALLY_RETURNED';
         return (
-          <span
-            className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${
-              isClosed
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                : isPartial
-                ? 'bg-amber-50 text-amber-700 border-amber-200'
-                : 'bg-blue-50 text-blue-700 border-blue-200'
-            }`}
-          >
-            {isClosed && <CheckCircle2 className="w-3 h-3 text-emerald-600 mr-1" />}
-            {row.status.replace('_', ' ')}
-          </span>
+          <div className="flex items-center">
+            <span
+              className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold border ${
+                isClosed
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : isPartial
+                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : 'bg-blue-50 text-blue-700 border-blue-200'
+              }`}
+            >
+              {isClosed && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mr-1 shrink-0" />}
+              {row.status.replace(/_/g, ' ')}
+            </span>
+          </div>
         );
       },
     },
@@ -420,6 +463,7 @@ export function DcMovementsWorkspaceView() {
     {
       key: 'date',
       header: 'Date',
+      width: '160px',
       render: (row) => (
         <span className="text-xs text-slate-600 font-medium whitespace-nowrap">
           {row.date ? new Date(row.date).toLocaleString('en-IN', {
@@ -435,6 +479,7 @@ export function DcMovementsWorkspaceView() {
     {
       key: 'challanNumber',
       header: 'DC Number',
+      width: '180px',
       render: (row) => (
         <div className="flex flex-col">
           <span className="font-mono text-xs font-bold text-primary">{row.challanNumber}</span>
@@ -445,6 +490,7 @@ export function DcMovementsWorkspaceView() {
     {
       key: 'direction',
       header: 'Direction',
+      width: '130px',
       render: (row) => {
         const isOutward = row.direction === 'OUTWARD';
         return (
@@ -464,23 +510,25 @@ export function DcMovementsWorkspaceView() {
     {
       key: 'vendorName',
       header: 'Vendor / Subcontractor',
+      width: '180px',
       render: (row) => (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 min-w-0">
           <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-          <span className="font-medium text-slate-800 text-xs truncate max-w-44">{row.vendorName}</span>
+          <span className="font-medium text-slate-800 text-xs truncate max-w-[150px]">{row.vendorName}</span>
         </div>
       ),
     },
     {
       key: 'partNumber',
       header: 'SC / Part No.',
+      width: '180px',
       render: (row) => (
-        <div className="flex flex-col">
-          <span className="font-mono text-xs font-semibold text-slate-700">
+        <div className="flex flex-col min-w-0">
+          <span className="font-mono text-xs font-semibold text-slate-700 truncate max-w-[160px]">
             {row.partNumber !== '—' ? row.partNumber : row.scNumber}
           </span>
           {row.partName && row.partName !== row.productName && (
-            <span className="text-[10px] text-slate-500 truncate max-w-40 font-medium">{row.partName}</span>
+            <span className="text-[10px] text-slate-500 truncate max-w-[160px] font-medium">{row.partName}</span>
           )}
         </div>
       ),
@@ -488,6 +536,7 @@ export function DcMovementsWorkspaceView() {
     {
       key: 'quantity',
       header: 'Qty Movement',
+      width: '150px',
       isNumeric: true,
       render: (row) => {
         const isOutward = row.direction === 'OUTWARD';
@@ -506,6 +555,7 @@ export function DcMovementsWorkspaceView() {
     {
       key: 'variation',
       header: 'Expected Variation',
+      width: '140px',
       isNumeric: true,
       render: (row) =>
         row.expectedVariation > 0 ? (
@@ -519,6 +569,7 @@ export function DcMovementsWorkspaceView() {
     {
       key: 'location',
       header: 'Stage / Bin',
+      width: '140px',
       render: (row) => (
         <span className="text-xs text-slate-600 font-medium bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
           {row.location}
@@ -528,22 +579,25 @@ export function DcMovementsWorkspaceView() {
     {
       key: 'status',
       header: 'Status',
+      width: '140px',
       render: (row) => {
         const isRet = row.status === 'RETURNED' || row.status === 'CLOSED';
         const isPart = row.status === 'PARTIALLY_RETURNED';
         return (
-          <span
-            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border ${
-              isRet
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                : isPart
-                ? 'bg-amber-50 text-amber-700 border-amber-200'
-                : 'bg-blue-50 text-blue-700 border-blue-200'
-            }`}
-          >
-            {isRet && <CheckCircle2 className="w-3 h-3 text-emerald-600" />}
-            {row.status.replace('_', ' ')}
-          </span>
+          <div className="flex items-center">
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                isRet
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : isPart
+                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : 'bg-blue-50 text-blue-700 border-blue-200'
+              }`}
+            >
+              {isRet && <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />}
+              {row.status.replace(/_/g, ' ')}
+            </span>
+          </div>
         );
       },
     },

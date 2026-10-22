@@ -12,6 +12,9 @@ export interface ColumnDef<T> {
   render?: (row: T) => React.ReactNode;
   sortable?: boolean;
   isNumeric?: boolean;
+  className?: string;
+  headerClassName?: string;
+  width?: string;
 }
 
 interface DataTableProps<T> {
@@ -28,6 +31,7 @@ interface DataTableProps<T> {
   defaultPageSize?: number;
   className?: string;
   mobileDisplay?: 'cards' | 'scroll' | 'auto';
+  stickyFirstColumn?: boolean;
 }
 
 export function DataTable<T extends { id?: string | number }>({
@@ -44,6 +48,7 @@ export function DataTable<T extends { id?: string | number }>({
   defaultPageSize = 10,
   className,
   mobileDisplay = 'auto',
+  stickyFirstColumn = true,
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebouncedValue(searchTerm, 300);
@@ -254,19 +259,21 @@ export function DataTable<T extends { id?: string | number }>({
                 activeMobileView === 'cards' ? "hidden sm:block" : "block"
               )}
             >
-              <table className="min-w-full divide-y divide-border dark:divide-[#181c30] whitespace-nowrap">
-                <thead className="bg-gray-50 dark:bg-[#0d0f1b] sticky top-0 z-10 border-b border-border dark:border-[#1e233d]">
+              <table className="min-w-full border-separate border-spacing-0 divide-y divide-border dark:divide-[#181c30]">
+                <thead className="bg-gray-50 dark:bg-[#0d0f1b] sticky top-0 z-10">
                   <tr>
                     {columns.map((col, idx) => (
                       <th
                         key={String(col.key) + idx}
                         scope="col"
+                        style={col.width ? { width: col.width, minWidth: col.width } : undefined}
                         onClick={() => handleSort(String(col.key), col.sortable)}
                         className={cn(
-                          "px-4 lg:px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-[#7a879e] uppercase tracking-wider",
-                          idx === 0 && "sticky left-0 z-20 bg-gray-50 dark:bg-[#0d0f1b] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]",
+                          "px-4 lg:px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-[#7a879e] uppercase tracking-wider bg-gray-50 dark:bg-[#0d0f1b] border-b border-border dark:border-[#1e233d] whitespace-nowrap",
+                          idx === 0 && stickyFirstColumn && "sticky left-0 z-20 shadow-[3px_0_8px_-2px_rgba(0,0,0,0.08)] border-r border-slate-200 dark:border-[#1e233d]",
                           col.sortable && "cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-[#171b30]",
-                          col.isNumeric && "text-right"
+                          col.isNumeric && "text-right",
+                          col.headerClassName
                         )}
                       >
                         <div className={cn("flex items-center gap-1", col.isNumeric && "justify-end")}>
@@ -289,7 +296,7 @@ export function DataTable<T extends { id?: string | number }>({
                       key={row.id ?? rowIndex}
                       onClick={() => onRowClick && onRowClick(row)}
                       className={cn(
-                        "transition-colors",
+                        "group transition-colors",
                         onRowClick ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-[#171b30]" : "hover:bg-slate-50/50 dark:hover:bg-[#171b30]/60"
                       )}
                     >
@@ -298,10 +305,12 @@ export function DataTable<T extends { id?: string | number }>({
                         return (
                           <td
                             key={String(col.key) + colIndex}
+                            style={col.width ? { width: col.width, minWidth: col.width } : undefined}
                             className={cn(
-                              "px-4 lg:px-6 py-3.5 text-xs sm:text-sm text-gray-900 dark:text-slate-200",
-                              colIndex === 0 && "sticky left-0 z-10 bg-white dark:bg-[#121526] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] font-medium",
-                              col.isNumeric && "text-right tabular-nums"
+                              "px-4 lg:px-6 py-3.5 text-xs sm:text-sm text-gray-900 dark:text-slate-200 border-b border-slate-100 dark:border-[#181c30] align-top",
+                              colIndex === 0 && stickyFirstColumn && "sticky left-0 z-10 bg-white dark:bg-[#121526] group-hover:bg-slate-50/80 dark:group-hover:bg-[#171b30] shadow-[3px_0_8px_-2px_rgba(0,0,0,0.08)] font-medium border-r border-slate-200 dark:border-[#1e233d]",
+                              col.isNumeric && "text-right tabular-nums whitespace-nowrap",
+                              col.className
                             )}
                           >
                             {val}
