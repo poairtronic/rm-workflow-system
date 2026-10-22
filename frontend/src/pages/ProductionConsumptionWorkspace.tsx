@@ -136,13 +136,13 @@ export function ProductionConsumptionWorkspace() {
 
     const canonical = getCanonicalStage(sc);
     if (statusFilter === 'IN_PROGRESS') {
-      return ['Partially Issued', 'Stores Issued', 'Production Pending', 'Production Received'].includes(canonical);
+      return ['Stores Issued Partially', 'Stores Issued', 'Production Received'].includes(canonical);
     }
     if (statusFilter === 'COMPLETED') {
       return ['COMPLETED', 'CLOSED'].includes(sc.status) || canonical === 'Production Received';
     }
     if (statusFilter === 'PENDING') {
-      return ['Draft', 'Design Issued', 'Stores Pending'].includes(canonical);
+      return ['Draft', 'Stores Pending'].includes(canonical);
     }
     return true;
   });

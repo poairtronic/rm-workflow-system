@@ -188,11 +188,9 @@ export function PoTraceabilityWorkspace() {
 
             const stageDistributionMap: Record<CanonicalStage, number> = {
               'Draft': 0,
-              'Design Issued': 0,
               'Stores Pending': 0,
-              'Partially Issued': 0,
+              'Stores Issued Partially': 0,
               'Stores Issued': 0,
-              'Production Pending': 0,
               'Production Received': 0,
             };
 

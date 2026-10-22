@@ -2,49 +2,34 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Ba
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, CheckCircle2, Clock, PlayCircle, FileText } from 'lucide-react';
 import type { OverviewRmWorkflowDto } from '../../types/overview.dto';
+import { getCanonicalStage, STAGE_CONFIG, type CanonicalStage } from '../../utils/canonicalStages';
 
 interface RmProductionOverviewTabProps {
   data: OverviewRmWorkflowDto;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  DRAFT: '#64748b',             // Slate Gray
-  SUBMITTED: '#8b5cf6',         // Vivid Purple
-  STORES_PENDING: '#eab308',    // Amber / Golden Yellow
-  PARTIALLY_ISSUED: '#06b6d4',  // Cyan / Sky Blue
-  ISSUED: '#2563eb',            // Royal Blue
-  IN_PRODUCTION: '#f97316',     // Vibrant Orange
-  ADDITIONAL_REQUEST: '#ec4899',// Hot Pink / Magenta
-  ACTIVE: '#6366f1',            // Indigo
-  COMPLETED: '#10b981',         // Emerald Green
-  CLOSED: '#334155',            // Dark Charcoal
-  REJECTED: '#ef4444',          // Crimson Red
-};
-
-const FALLBACK_PALETTE = [
-  '#6366f1', // Indigo
-  '#ec4899', // Pink
-  '#14b8a6', // Teal
-  '#f43f5e', // Rose
-  '#8b5cf6', // Violet
-  '#0284c7', // Sky
-  '#84cc16', // Lime
-  '#a855f7', // Purple
-  '#d97706', // Amber
-  '#059669', // Emerald
-];
-
 export function RmProductionOverviewTab({ data }: RmProductionOverviewTabProps) {
-  const pieData = Object.entries(data.scStatusMap).map(([status, count], idx) => {
-    const key = status.toUpperCase().trim();
-    const color = STATUS_COLORS[key] || FALLBACK_PALETTE[idx % FALLBACK_PALETTE.length];
-    return {
-      name: status.replace(/_/g, ' '),
-      value: count,
-      statusKey: status,
-      color,
-    };
+  const stageCounts: Record<CanonicalStage, number> = {
+    'Draft': 0,
+    'Stores Pending': 0,
+    'Stores Issued Partially': 0,
+    'Stores Issued': 0,
+    'Production Received': 0,
+  };
+
+  Object.entries(data.scStatusMap || {}).forEach(([status, count]) => {
+    const stage = getCanonicalStage(status);
+    stageCounts[stage] = (stageCounts[stage] || 0) + Number(count || 0);
   });
+
+  const pieData = Object.entries(stageCounts)
+    .filter(([_, count]) => count > 0)
+    .map(([stage, count]) => ({
+      name: stage,
+      value: count,
+      statusKey: stage,
+      color: STAGE_CONFIG[stage as CanonicalStage]?.hexColor || '#3b82f6',
+    }));
 
   const pipelineData = [
     { stage: 'Requisitions', count: Object.values(data.rmStatusMap).reduce((a, b) => a + b, 0), fill: '#6366f1' },

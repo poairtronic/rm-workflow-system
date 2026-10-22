@@ -24,6 +24,11 @@ export class DeliveryChallanItemDto {
   expectedOutputQuantity?: number;
 
   @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
+  initialExpectedQty?: number;
+
+  @IsOptional()
   @IsUUID()
   outputBinId?: string;
 

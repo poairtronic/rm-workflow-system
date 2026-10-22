@@ -4,6 +4,8 @@ export type TraceabilityEventType =
   | 'MATERIAL_ISSUED' 
   | 'DISPATCH_TYPE_1' 
   | 'DC_RETURNED' 
+  | 'REWORK_DISPATCHED'
+  | 'REWORK_RETURNED'
   | 'FINAL_INSPECTION';
 
 export interface TraceabilityEvent {
@@ -38,4 +40,7 @@ export interface ConsolidatedTraceabilityDto {
   masterData: ScMasterData;
   events: TraceabilityEvent[];
   reconciliation: ReconciliationMetrics;
+  reworkItems?: any[];
+  dcMovements?: any[];
+  deliveryChallans?: any[];
 }

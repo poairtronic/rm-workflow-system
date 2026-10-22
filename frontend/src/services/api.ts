@@ -451,7 +451,7 @@ export const vendorSlaApi = {
     api.get<VendorComparisonResult[]>(`/api/vendors/compare/by-process/${processId}`),
 };
 
-import type { DeliveryChallanDto, DcReworkItemDto } from '../types/delivery-challan.dto';
+import type { DeliveryChallanDto, DcReworkItemDto, DcLifecycleReportResponse } from '../types/delivery-challan.dto';
 import type { ProcessDcReturnDto, CloseDcDto, QcInspectDcDto, ReworkReDispatchDto } from '../types/dc-return.dto';
 
 export const deliveryChallanApi = {
@@ -550,6 +550,28 @@ export const deliveryChallanApi = {
   getPrintable: (id: string) => api.get<any>(`/api/delivery-challans/${id}/printable`),
   getNextType2ItemSequence: () =>
     api.get<{ nextSequence: number; formattedCode: string }>('/api/delivery-challans/next-type2-item-sequence'),
+  getLifecycleReport: (params?: {
+    type?: string;
+    vendorId?: string;
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    reworkOnly?: boolean;
+    search?: string;
+  }) => {
+    const query = new URLSearchParams();
+    if (params?.type && params.type !== 'ALL') query.append('type', params.type);
+    if (params?.vendorId) query.append('vendorId', params.vendorId);
+    if (params?.startDate) query.append('startDate', params.startDate);
+    if (params?.endDate) query.append('endDate', params.endDate);
+    if (params?.status && params.status !== 'ALL') query.append('status', params.status);
+    if (params?.reworkOnly) query.append('reworkOnly', 'true');
+    if (params?.search) query.append('search', params.search);
+    const queryString = query.toString();
+    return api.get<DcLifecycleReportResponse>(
+      `/api/delivery-challans/lifecycle-report${queryString ? `?${queryString}` : ''}`
+    );
+  },
 };
 
 import type { ConsolidatedTraceabilityDto } from '../types/traceability.dto';

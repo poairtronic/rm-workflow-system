@@ -44,7 +44,7 @@ export function buildTraceabilityEvents(raw: any): TraceabilityEvent[] {
       details: {
         formType: req.formType || 'RM Request',
         revisionNumber: `Rev ${req.revisionNumber || 1}`,
-        lifecycleStage: 'Design Issued',
+        lifecycleStage: 'Stores Pending',
         materialSpecificationsCount: `${req.items?.length || 0} Material Specification(s)`,
         totalRequiredQuantity: `${totalBomQty.toFixed(2)} KG / Units`,
         reviewedBy: req.reviewedBy?.name || 'Approved',
@@ -169,6 +169,9 @@ export function buildTraceabilityEvents(raw: any): TraceabilityEvent[] {
       dc.status === 'PARTIALLY_RETURNED';
 
     if (isReturned) {
+      const totalPassed = (dc.items || []).reduce((s: number, it: any) => s + (Number(it.qcPassedQty) || 0), 0);
+      const totalRejected = (dc.items || []).reduce((s: number, it: any) => s + (Number(it.qcRejectedQty) || 0), 0);
+
       events.push({
         id: `evt-dc-in-${dc.id || idx}`,
         type: 'DC_RETURNED',
@@ -183,18 +186,79 @@ export function buildTraceabilityEvents(raw: any): TraceabilityEvent[] {
             ? new Date(dc.actualReturnDate).toLocaleString()
             : new Date(dc.dispatchDate).toLocaleString(),
           returnedQuantity: `${totalReturned.toFixed(2)} Units`,
+          qcPassedQuantity: totalPassed > 0 ? `${totalPassed.toFixed(2)} Units Passed` : `${totalReturned.toFixed(2)} Units`,
+          qcRejectedQuantity: totalRejected > 0 ? `${totalRejected.toFixed(2)} Units Rejected (Rework)` : '0 Units (None)',
+          deliveryTurnaround: dc.deliveryTurnaround || 'Recorded Inward',
           balancePendingAtVendor: `${balanceInVendorCustody.toFixed(2)} Units`,
-          returnedProducts:
-            (dc.items || [])
-              .map(
-                (it: any) =>
-                  `${it.productName || 'Component'}: ${Number(it.quantityReturned || 0)} received back`
-              )
-              .join('; ') || 'Processed Parts',
           returnStatus:
             dc.status === 'CLOSED' || dc.status === 'RETURNED'
-              ? 'Fully Returned & Passed'
+              ? 'Fully Returned'
               : 'Partially Returned',
+        },
+      });
+    }
+  });
+
+  // 5b. Vendor Rework Re-Dispatches and Inward Receipts (Rework Loop)
+  const reworkItems = Array.isArray(raw.reworkItems)
+    ? raw.reworkItems
+    : (raw.deliveryChallans || []).flatMap((d: any) => d.reworkItems || []);
+
+  const uniqueReworksMap = new Map<string, any>();
+  reworkItems.forEach((rw: any) => {
+    if (!uniqueReworksMap.has(rw.id)) {
+      uniqueReworksMap.set(rw.id, rw);
+    }
+  });
+
+  Array.from(uniqueReworksMap.values()).forEach((rw: any, idx: number) => {
+    const isSameVendor = rw.isSameVendor !== undefined ? rw.isSameVendor : true;
+    const reworkVendor = rw.reworkVendorName || rw.vendorName || rw.originalVendorName || 'Rework Vendor';
+    const reworkDcNumber = rw.reworkDcNumber || rw.sourceDcNumber || 'DC';
+
+    // Sent to Rework Vendor
+    if (rw.status === 'RE_DISPATCHED' || rw.reworkStatus === 'RE_DISPATCHED' || rw.dispatchDate || rw.reworkDispatchDate) {
+      const dispatchTs = rw.reworkDispatchDate || rw.dispatchDate || rw.updatedAt || new Date().toISOString();
+      events.push({
+        id: `evt-rw-out-${rw.id || idx}`,
+        type: 'REWORK_DISPATCHED',
+        timestamp: dispatchTs,
+        actor: `Stores QC -> ${reworkVendor} (${isSameVendor ? 'Same Vendor' : 'Another Vendor'})`,
+        title: isSameVendor
+          ? `Sent for Rework to Same Vendor (${reworkVendor}) under DC ${reworkDcNumber}`
+          : `Sent for Rework to Another Vendor (${reworkVendor}) under New DC ${reworkDcNumber}`,
+        details: {
+          reworkDcNumber,
+          sourceDcNumber: rw.sourceDcNumber || 'Original DC',
+          reworkVendor,
+          vendorClassification: isSameVendor ? 'Same Vendor (Same DC)' : 'Another Vendor (New DC)',
+          originalVendor: rw.originalVendorName || 'Initial Vendor',
+          rejectedQuantitySent: `${Number(rw.rejectedQty || 0)} ${rw.uom || 'Units'}`,
+          reworkSentDateTime: new Date(dispatchTs).toLocaleString(),
+          defectRemarks: rw.qcRemarks || 'Dimensional defect / QC rejection',
+          reworkStatus: rw.reworkStatus || rw.status || 'RE_DISPATCHED',
+        },
+      });
+    }
+
+    // Received from Rework Vendor
+    if (rw.actualReturnDate || rw.reworkActualReturnDate) {
+      const returnTs = rw.reworkActualReturnDate || rw.actualReturnDate;
+      events.push({
+        id: `evt-rw-in-${rw.id || idx}`,
+        type: 'REWORK_RETURNED',
+        timestamp: returnTs,
+        actor: `${reworkVendor} -> Stores Inward (QC Cleared)`,
+        title: isSameVendor
+          ? `Rework Received from Same Vendor: ${reworkDcNumber} (${reworkVendor})`
+          : `Rework Received from Another Vendor: ${reworkDcNumber} (${reworkVendor})`,
+        details: {
+          reworkDcNumber,
+          receivedFromVendor: reworkVendor,
+          vendorClassification: isSameVendor ? 'Received from Same Vendor' : 'Received from Another Vendor',
+          reworkReceivedDateTime: new Date(returnTs).toLocaleString(),
+          reworkQuantityReceived: `${Number(rw.rejectedQty || 0)} ${rw.uom || 'Units'}`,
+          qcClearanceStatus: 'QC Cleared & Accepted into Stock',
         },
       });
     }

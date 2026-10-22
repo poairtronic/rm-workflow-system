@@ -74,6 +74,7 @@ export interface DeliveryChallanLineItemDto extends CreateDeliveryChallanItemDto
   qcPendingQty?: number;
   qcPassedQty?: number;
   qcRejectedQty?: number;
+  initialExpectedQty?: number;
   expectedReturnQty?: number;
   actualReceivedQty?: number;
   returnTargetBinId?: string;
@@ -112,3 +113,84 @@ export interface DeliveryChallanDto {
   totalGrossWeight?: number;
   cryptographicHash?: string;
 }
+
+export interface DcLifecycleReworkEntry {
+  id: string;
+  status: 'PENDING_ACK' | 'MARKED_OKAY' | 'RE_DISPATCHED';
+  rejectedQty: number;
+  uom: string;
+  isSameVendor: boolean;
+  vendorName: string;
+  reworkDcNumber?: string | null;
+  dispatchDate?: string | null;
+  actualReturnDate?: string | null;
+  qcRemarks?: string | null;
+  summary: string;
+}
+
+export interface DcComprehensiveLifecycleItemDto {
+  id: string;
+  rowId: string;
+  challanId: string;
+  challanNumber: string;
+  type: DcType;
+  typeLabel: string;
+  vendorId: string;
+  vendorName: string;
+  vendorCode: string;
+  partNumber: string;
+  partName: string;
+  productName: string;
+  productCode: string;
+  uom: string;
+  scNumber: string;
+  processName: string;
+
+  // Dates & Delivery SLA
+  dispatchDate: string | null;
+  dispatchDateFormatted: string;
+  expectedReturnDate: string | null;
+  expectedReturnDateFormatted: string;
+  actualReturnDate: string | null;
+  actualReturnDateFormatted: string;
+  estimatedDays: number | null;
+  actualDays: number | null;
+  deliveryTurnaround: string;
+  isOnTime: boolean;
+
+  // Quantities & Variation
+  quantityDispatched: number;
+  initialExpectedQty: number;
+  revisedExpectedQty: number;
+  expectedVariation: number;
+  hasVariation: boolean;
+  actualReceivedQty: number;
+  unreceivedBalance: number;
+  isFullyReceived: boolean;
+
+  // QC & Rework
+  qcPendingQty: number;
+  qcPassedQty: number;
+  qcRejectedQty: number;
+  reworkEntries: DcLifecycleReworkEntry[];
+  reworkSummary: string;
+
+  status: string;
+  notes: string;
+}
+
+export interface DcLifecycleReportResponse {
+  items: DcComprehensiveLifecycleItemDto[];
+  kpis: {
+    totalChallans: number;
+    totalDispatchedUnits: number;
+    totalReceivedUnits: number;
+    totalVariationUnits: number;
+    totalQcPendingUnits: number;
+    totalReworkUnits: number;
+    onTimeRate: number;
+    totalReceiptsCount: number;
+    onTimeReceiptCount: number;
+  };
+}
+

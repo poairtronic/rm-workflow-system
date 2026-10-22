@@ -18,15 +18,15 @@ export function ScListTable({ scs, isLoading, onSelectSc, selectedScId }: ScList
   // KPI Metrics Calculation
   const totalScCount = scs.length;
   const inProductionCount = useMemo(
-    () => scs.filter((s) => ['Production Received', 'Production Pending', 'Stores Issued', 'Partially Issued'].includes(getCanonicalStage(s))).length,
+    () => scs.filter((s) => ['Production Received', 'Stores Issued', 'Stores Issued Partially'].includes(getCanonicalStage(s))).length,
     [scs]
   );
   const completedCount = useMemo(
-    () => scs.filter((s) => ['COMPLETED', 'CLOSED'].includes(s.status)).length,
+    () => scs.filter((s) => ['COMPLETED', 'CLOSED'].includes(s.status) || getCanonicalStage(s) === 'Production Received').length,
     [scs]
   );
   const draftCount = useMemo(
-    () => scs.filter((s) => ['Draft', 'Design Issued', 'Stores Pending'].includes(getCanonicalStage(s))).length,
+    () => scs.filter((s) => ['Draft', 'Stores Pending'].includes(getCanonicalStage(s))).length,
     [scs]
   );
 
@@ -37,13 +37,13 @@ export function ScListTable({ scs, isLoading, onSelectSc, selectedScId }: ScList
 
       // Status filter
       if (statusFilter !== 'ALL') {
-        if (statusFilter === 'IN_PRODUCTION' && !['Production Received', 'Production Pending', 'Stores Issued', 'Partially Issued', 'Stores Pending'].includes(canonical)) {
+        if (statusFilter === 'IN_PRODUCTION' && !['Production Received', 'Stores Issued', 'Stores Issued Partially'].includes(canonical)) {
           return false;
         }
-        if (statusFilter === 'COMPLETED' && !['COMPLETED', 'CLOSED'].includes(sc.status)) {
+        if (statusFilter === 'COMPLETED' && !['COMPLETED', 'CLOSED'].includes(sc.status) && canonical !== 'Production Received') {
           return false;
         }
-        if (statusFilter === 'DRAFT' && !['Draft', 'Design Issued'].includes(canonical)) {
+        if (statusFilter === 'DRAFT' && !['Draft', 'Stores Pending'].includes(canonical)) {
           return false;
         }
       }

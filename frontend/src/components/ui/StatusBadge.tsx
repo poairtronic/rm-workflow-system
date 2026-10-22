@@ -11,33 +11,47 @@ const variantClasses: Record<BadgeVariant, string> = {
   neutral: 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700/50',
 };
 
-// 7 Canonical Stage badge classes
+// 5 Canonical Stage badge classes & legacy aliases
 const canonicalBadgeMap: Record<string, { label: string; className: string }> = {
+  // 1. Draft
   'DRAFT': { label: 'Draft', className: STAGE_CONFIG['Draft'].badgeClass },
-  'DESIGN_ISSUED': { label: 'Design Issued', className: STAGE_CONFIG['Design Issued'].badgeClass },
-  'DESIGN ISSUED': { label: 'Design Issued', className: STAGE_CONFIG['Design Issued'].badgeClass },
+
+  // 2. Stores Pending (design completed and pending with stores)
   'STORES_PENDING': { label: 'Stores Pending', className: STAGE_CONFIG['Stores Pending'].badgeClass },
   'STORES PENDING': { label: 'Stores Pending', className: STAGE_CONFIG['Stores Pending'].badgeClass },
-  'PARTIALLY_ISSUED': { label: 'Partially Issued', className: STAGE_CONFIG['Partially Issued'].badgeClass },
-  'PARTIALLY ISSUED': { label: 'Partially Issued', className: STAGE_CONFIG['Partially Issued'].badgeClass },
-  'PARTIAL_ISSUE': { label: 'Partially Issued', className: STAGE_CONFIG['Partially Issued'].badgeClass },
+  'DESIGN_ISSUED': { label: 'Stores Pending', className: STAGE_CONFIG['Stores Pending'].badgeClass },
+  'DESIGN ISSUED': { label: 'Stores Pending', className: STAGE_CONFIG['Stores Pending'].badgeClass },
+  'SUBMITTED': { label: 'Stores Pending', className: STAGE_CONFIG['Stores Pending'].badgeClass },
+
+  // 3. Stores Issued Partially (stores issued partial materials only and pending with stores only)
+  'STORES_ISSUED_PARTIALLY': { label: 'Stores Issued Partially', className: STAGE_CONFIG['Stores Issued Partially'].badgeClass },
+  'STORES ISSUED PARTIALLY': { label: 'Stores Issued Partially', className: STAGE_CONFIG['Stores Issued Partially'].badgeClass },
+  'PARTIALLY_ISSUED': { label: 'Stores Issued Partially', className: STAGE_CONFIG['Stores Issued Partially'].badgeClass },
+  'PARTIALLY ISSUED': { label: 'Stores Issued Partially', className: STAGE_CONFIG['Stores Issued Partially'].badgeClass },
+  'PARTIAL_ISSUE': { label: 'Stores Issued Partially', className: STAGE_CONFIG['Stores Issued Partially'].badgeClass },
+
+  // 4. Stores Issued (stores has issued and production not yet received)
   'STORES_ISSUED': { label: 'Stores Issued', className: STAGE_CONFIG['Stores Issued'].badgeClass },
   'STORES ISSUED': { label: 'Stores Issued', className: STAGE_CONFIG['Stores Issued'].badgeClass },
   'ISSUED': { label: 'Stores Issued', className: STAGE_CONFIG['Stores Issued'].badgeClass },
-  'PRODUCTION_PENDING': { label: 'Production Pending', className: STAGE_CONFIG['Production Pending'].badgeClass },
-  'PRODUCTION PENDING': { label: 'Production Pending', className: STAGE_CONFIG['Production Pending'].badgeClass },
+  'PRODUCTION_PENDING': { label: 'Stores Issued', className: STAGE_CONFIG['Stores Issued'].badgeClass },
+  'PRODUCTION PENDING': { label: 'Stores Issued', className: STAGE_CONFIG['Stores Issued'].badgeClass },
+
+  // 5. Production Received (production received the material completely)
   'PRODUCTION_RECEIVED': { label: 'Production Received', className: STAGE_CONFIG['Production Received'].badgeClass },
   'PRODUCTION RECEIVED': { label: 'Production Received', className: STAGE_CONFIG['Production Received'].badgeClass },
+  'IN_PRODUCTION': { label: 'Production Received', className: STAGE_CONFIG['Production Received'].badgeClass },
+  'IN PRODUCTION': { label: 'Production Received', className: STAGE_CONFIG['Production Received'].badgeClass },
 };
 
 // SC Statuses
 const scStatusMap: Record<string, BadgeVariant> = {
   DRAFT: 'neutral',
-  SUBMITTED: 'info',
+  SUBMITTED: 'warning',
   STORES_PENDING: 'warning',
   PARTIALLY_ISSUED: 'info',
-  ISSUED: 'success',
-  IN_PRODUCTION: 'info',
+  ISSUED: 'info',
+  IN_PRODUCTION: 'success',
   ADDITIONAL_REQUEST: 'warning',
   COMPLETED: 'success',
   CLOSED: 'neutral',

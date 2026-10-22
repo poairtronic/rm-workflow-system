@@ -224,9 +224,10 @@ export function DockReceiptWorkspace() {
     const isType1 = dc.type === 'PRODUCTION_PROCESS_OUTWARD';
     methods.reset({
       items: (dc.items || []).map((item: any) => {
-        const expected = !isType1
-          ? Number(item.expectedReturnQty ?? item.expectedOutputQuantity ?? item.quantityDispatched)
-          : Number(item.quantityDispatched);
+        const initial = !isType1
+          ? Number(item.initialExpectedQty ?? item.expectedOutputQuantity ?? item.quantityDispatched ?? 0)
+          : Number(item.initialExpectedQty ?? item.quantityDispatched ?? 0);
+        const expected = Number(item.expectedReturnQty ?? initial);
         const alreadyAccounted =
           Number(item.qcPendingQty || 0) +
           Number(item.qcPassedQty || 0) +
@@ -234,15 +235,13 @@ export function DockReceiptWorkspace() {
         const remaining = Math.max(0, expected - alreadyAccounted);
         return {
           itemId: item.id,
+          initialExpectedQty: initial,
           expectedReturnQty: expected,
           expectedOutputQuantity: expected,
           returnedProductId: item.outputProductId || item.productId,
-          destinationBinId: item.outputBinId || item.binId || '',
+          destinationBinId: item.returnTargetBinId || item.outputBinId || item.binId || '',
           receivedQuantity: remaining,
-          actualReceivedQty: Number(item.actualReceivedQty || expected || remaining),
-          usableQuantity: remaining,
-          scrapQuantity: 0,
-          _isSplit: false,
+          actualReceivedQty: remaining,
         };
       })
     });

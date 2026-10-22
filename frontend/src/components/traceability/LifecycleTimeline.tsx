@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { History, Clock, Truck, RefreshCw, Box, ChevronDown, ChevronUp } from 'lucide-react';
+import { History, Clock, Truck, RefreshCw, Box, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
 import type { TraceabilityEvent } from '../../types/traceability.dto';
 import { TimelineNodeCard } from './TimelineNodeCard';
 
@@ -19,6 +19,8 @@ export function LifecycleTimeline({ events }: LifecycleTimelineProps) {
   const issueEvents = sortedEvents.filter((e) => e.type === 'MATERIAL_ISSUED');
   const vendorDispatches = sortedEvents.filter((e) => e.type === 'DISPATCH_TYPE_1');
   const vendorReturns = sortedEvents.filter((e) => e.type === 'DC_RETURNED');
+  const reworkDispatches = sortedEvents.filter((e) => e.type === 'REWORK_DISPATCHED');
+  const reworkReturns = sortedEvents.filter((e) => e.type === 'REWORK_RETURNED');
   const firstIssueDate = issueEvents[0]?.timestamp
     ? new Date(issueEvents[0].timestamp).toLocaleString()
     : null;
@@ -58,7 +60,7 @@ export function LifecycleTimeline({ events }: LifecycleTimelineProps) {
 
       {/* Quick Summary Highlights for Auditor */}
       {events.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6 p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs">
           {/* Material Issue Milestone */}
           <div className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-200/70">
             <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
@@ -102,6 +104,25 @@ export function LifecycleTimeline({ events }: LifecycleTimelineProps) {
               <p className="font-bold text-slate-800">
                 {vendorReturns.length}{' '}
                 {vendorReturns.length === 1 ? 'inward return' : 'inward returns'}
+              </p>
+            </div>
+          </div>
+
+          {/* Rework Tracking */}
+          <div className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-200/70">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+              reworkDispatches.length > 0 ? 'bg-rose-50 text-rose-600' : 'bg-slate-100 text-slate-500'
+            }`}>
+              <RotateCcw className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Rework Tracking
+              </p>
+              <p className={`font-bold ${reworkDispatches.length > 0 ? 'text-rose-700' : 'text-slate-800'}`}>
+                {reworkDispatches.length > 0
+                  ? `${reworkDispatches.length} sent (${reworkReturns.length} returned)`
+                  : '0 rework loops (100% OK)'}
               </p>
             </div>
           </div>

@@ -113,6 +113,9 @@ export class DeliveryChallanItem {
   @Column({ name: 'qc_rejected_qty', type: 'numeric', precision: 12, scale: 3, default: 0 })
   qcRejectedQty: number;
 
+  @Column({ name: 'initial_expected_qty', type: 'numeric', precision: 12, scale: 3, nullable: true })
+  initialExpectedQty?: number | null;
+
   @Column({ name: 'expected_return_qty', type: 'numeric', precision: 12, scale: 3, nullable: true })
   expectedReturnQty?: number | null;
 

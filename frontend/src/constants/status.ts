@@ -3,20 +3,28 @@ export const WORKFLOW_STATUS_CONFIG: Record<
   { label: string; symbol: string; badgeClass: string }
 > = {
   DRAFT: { label: 'Draft', symbol: '●', badgeClass: 'badge-draft' },
-  SUBMITTED: { label: 'Submitted to Stores', symbol: '↑', badgeClass: 'badge-submitted' },
-  STORES_PENDING: { label: 'Pending Stores', symbol: '!', badgeClass: 'badge-pending' },
+  SUBMITTED: { label: 'Stores Pending', symbol: '!', badgeClass: 'badge-pending' },
+  STORES_PENDING: { label: 'Stores Pending', symbol: '!', badgeClass: 'badge-pending' },
   PARTIALLY_ISSUED: {
-    label: 'Partially Issued',
+    label: 'Stores Issued Partially',
     symbol: '⚠',
     badgeClass: 'badge-partial',
   },
-  ISSUED: { label: 'Issued', symbol: '✓', badgeClass: 'badge-issued' },
-  RECEIVED: { label: 'Received', symbol: '✓', badgeClass: 'badge-received' },
-  IN_PRODUCTION: { label: 'In Production', symbol: '⚙', badgeClass: 'badge-active' },
+  STORES_ISSUED_PARTIALLY: {
+    label: 'Stores Issued Partially',
+    symbol: '⚠',
+    badgeClass: 'badge-partial',
+  },
+  ISSUED: { label: 'Stores Issued', symbol: '✓', badgeClass: 'badge-issued' },
+  STORES_ISSUED: { label: 'Stores Issued', symbol: '✓', badgeClass: 'badge-issued' },
+  PRODUCTION_PENDING: { label: 'Stores Issued', symbol: '✓', badgeClass: 'badge-issued' },
+  RECEIVED: { label: 'Production Received', symbol: '✓', badgeClass: 'badge-received' },
+  PRODUCTION_RECEIVED: { label: 'Production Received', symbol: '✓', badgeClass: 'badge-received' },
+  IN_PRODUCTION: { label: 'Production Received', symbol: '⚙', badgeClass: 'badge-active' },
   ADDITIONAL_REQUEST: {
-    label: 'Additional Request',
+    label: 'Stores Issued',
     symbol: '↻',
     badgeClass: 'badge-additional',
   },
-  COMPLETED: { label: 'Completed', symbol: '✓', badgeClass: 'badge-success' },
+  COMPLETED: { label: 'Production Received', symbol: '✓', badgeClass: 'badge-success' },
 };

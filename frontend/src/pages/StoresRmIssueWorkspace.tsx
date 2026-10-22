@@ -4,6 +4,8 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { workflowService } from '../services/workflowService';
 import { IssueMaterialModal } from '../components/modals/IssueMaterialModal';
 import { ReviewMappingWorkspace } from './ReviewMappingWorkspace';
+import { StatusBadge } from '../components/ui/StatusBadge';
+import { getCanonicalStage } from '../utils/canonicalStages';
 
 interface DraftItem {
   poId: string;
@@ -72,21 +74,8 @@ export function StoresRmIssueWorkspace() {
   };
 
   const renderStatusBadge = (status: string) => {
-    switch (status) {
-      case 'SUBMITTED':
-        return <span className="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-md">Pending Review</span>;
-      case 'REVIEWED':
-        return <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-md">Ready to Issue</span>;
-      case 'PARTIALLY_ISSUED':
-        return <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700 rounded-md">Partially Issued</span>;
-      case 'ISSUED':
-      case 'COMPLETED':
-        return <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-md">Issued</span>;
-      case 'REJECTED':
-        return <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-md">Rejected</span>;
-      default:
-        return <span className="px-2 py-1 text-xs font-medium bg-slate-100 text-slate-700 rounded-md">{status}</span>;
-    }
+    const canonical = getCanonicalStage(status);
+    return <StatusBadge status={canonical} />;
   };
 
   const handleRejectRequisition = async () => {
@@ -232,16 +221,16 @@ export function StoresRmIssueWorkspace() {
                     <div className="flex justify-between items-center mb-1">
                       <span className="font-semibold text-slate-900">{po.poNumber}</span>
                       {isPoCompleted ? (
-                        <span className="text-xs bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full">
-                          ✓ Completed
+                        <span className="text-xs bg-blue-100 text-blue-800 font-semibold px-2 py-0.5 rounded-full">
+                          Stores Issued
                         </span>
                       ) : isPoPartial ? (
                         <span className="text-xs bg-purple-100 text-purple-800 font-semibold px-2 py-0.5 rounded-full">
-                          Partially Issued
+                          Stores Issued Partially
                         </span>
                       ) : (
                         <span className="text-xs bg-amber-100 text-amber-800 font-semibold px-2 py-0.5 rounded-full">
-                          Pending
+                          Stores Pending
                         </span>
                       )}
                     </div>
@@ -266,16 +255,16 @@ export function StoresRmIssueWorkspace() {
                       <p className="text-sm text-slate-500 mt-1">Select an SC below to issue raw materials directly to production.</p>
                     </div>
                     {isSelectedPoCompleted ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-emerald-100 text-emerald-800 rounded-full border border-emerald-300">
-                        ✓ PO Fully Issued & Completed ({poCompletedCount}/{selectedPo.scs.length} SCs)
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-blue-100 text-blue-800 rounded-full border border-blue-300">
+                        Stores Issued ({poCompletedCount}/{selectedPo.scs.length} SCs)
                       </span>
                     ) : isSelectedPoPartial ? (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-purple-100 text-purple-800 rounded-full border border-purple-300">
-                        Partially Issued ({poCompletedCount}/{selectedPo.scs.length} SCs Completed)
+                        Stores Issued Partially ({poCompletedCount}/{selectedPo.scs.length} SCs Completed)
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-amber-100 text-amber-800 rounded-full border border-amber-300">
-                        Pending Stores Issue ({selectedPo.scs.length} SCs)
+                        Stores Pending ({selectedPo.scs.length} SCs)
                       </span>
                     )}
                   </div>
@@ -296,11 +285,11 @@ export function StoresRmIssueWorkspace() {
                         <div>
                           {isScPartial ? (
                             <span className="px-2.5 py-1 text-xs font-semibold bg-purple-100 text-purple-800 rounded-md border border-purple-200">
-                              Partially Issued ({sc.totalIssued || 0}/{sc.totalRequired || 0})
+                              Stores Issued Partially ({sc.totalIssued || 0}/{sc.totalRequired || 0})
                             </span>
                           ) : isScFullyIssued ? (
-                            <span className="px-2.5 py-1 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-md border border-emerald-200">
-                              Fully Issued
+                            <span className="px-2.5 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded-md border border-blue-200">
+                              Stores Issued
                             </span>
                           ) : (
                             renderStatusBadge(sc.scStatus === 'PARTIALLY_ISSUED' ? sc.scStatus : sc.status)

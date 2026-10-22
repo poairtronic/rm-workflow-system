@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, FileText, Box, Truck, CheckSquare, ClipboardList, RefreshCw } from 'lucide-react';
+import { ChevronDown, ChevronUp, FileText, Box, Truck, CheckSquare, ClipboardList, RefreshCw, RotateCcw } from 'lucide-react';
 import type { TraceabilityEvent } from '../../types/traceability.dto';
 
 interface TimelineNodeCardProps {
@@ -24,6 +24,8 @@ export function TimelineNodeCard({ event, isLast, forceExpand }: TimelineNodeCar
       case 'MATERIAL_ISSUED': return Box;
       case 'DISPATCH_TYPE_1': return Truck;
       case 'DC_RETURNED': return RefreshCw;
+      case 'REWORK_DISPATCHED': return RotateCcw;
+      case 'REWORK_RETURNED': return CheckSquare;
       case 'FINAL_INSPECTION': return CheckSquare;
       default: return Box;
     }
@@ -36,6 +38,8 @@ export function TimelineNodeCard({ event, isLast, forceExpand }: TimelineNodeCar
       case 'MATERIAL_ISSUED': return 'text-emerald-600 bg-emerald-50 border-emerald-200';
       case 'DISPATCH_TYPE_1': return 'text-amber-600 bg-amber-50 border-amber-200';
       case 'DC_RETURNED': return 'text-indigo-600 bg-indigo-50 border-indigo-200';
+      case 'REWORK_DISPATCHED': return 'text-rose-600 bg-rose-50 border-rose-300';
+      case 'REWORK_RETURNED': return 'text-emerald-600 bg-emerald-50 border-emerald-300';
       case 'FINAL_INSPECTION': return 'text-teal-600 bg-teal-50 border-teal-200';
       default: return 'text-slate-600 bg-slate-50 border-slate-200';
     }
@@ -46,17 +50,27 @@ export function TimelineNodeCard({ event, isLast, forceExpand }: TimelineNodeCar
 
   // Extract key quick facts for immediate display
   const keyDetail =
-    event.details?.totalQuantityIssued
+    event.details?.rejectedQuantitySent
+      ? `Rework Sent: ${event.details.rejectedQuantitySent}`
+      : event.details?.reworkQuantityReceived
+      ? `Rework Received: ${event.details.reworkQuantityReceived}`
+      : event.details?.totalQuantityIssued
       ? `Issued: ${event.details.totalQuantityIssued}`
       : event.details?.dispatchedQuantity
       ? `Dispatched: ${event.details.dispatchedQuantity}`
       : event.details?.returnedQuantity
       ? `Returned: ${event.details.returnedQuantity}`
+      : event.details?.receivedQuantity
+      ? `Received: ${event.details.receivedQuantity}`
       : event.details?.consumedQuantity
       ? `Consumed: ${event.details.consumedQuantity}`
       : event.details?.totalQuantityReceived
       ? `Received: ${event.details.totalQuantityReceived}`
       : null;
+
+  const vendorClassification = event.details?.vendorClassification
+    ? String(event.details.vendorClassification)
+    : null;
 
   return (
     <div className="relative pl-12 pb-8">
@@ -80,6 +94,15 @@ export function TimelineNodeCard({ event, isLast, forceExpand }: TimelineNodeCar
           <div className="flex-1 pr-4">
             <div className="flex items-center gap-2.5 flex-wrap">
               <h3 className="text-sm font-bold text-slate-900">{event.title}</h3>
+              {vendorClassification && (
+                <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase border ${
+                  vendorClassification.includes('Another')
+                    ? 'bg-purple-100 text-purple-800 border-purple-200'
+                    : 'bg-amber-100 text-amber-800 border-amber-200'
+                }`}>
+                  {vendorClassification.includes('Another') ? 'Another Vendor' : 'Same Vendor'}
+                </span>
+              )}
               {keyDetail && (
                 <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
                   {keyDetail}

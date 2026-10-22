@@ -45,6 +45,28 @@ export class DeliveryChallanController {
     return this.deliveryChallanService.getAllDcMovements();
   }
 
+  @Get('lifecycle-report')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION, UserRole.GENERAL_MANAGER, UserRole.DESIGNER)
+  async getLifecycleReport(
+    @Query('type') type?: string,
+    @Query('vendorId') vendorId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('status') status?: string,
+    @Query('reworkOnly') reworkOnly?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.deliveryChallanService.getComprehensiveDcLifecycleReport({
+      type,
+      vendorId,
+      startDate,
+      endDate,
+      status,
+      reworkOnly: reworkOnly === 'true',
+      search,
+    });
+  }
+
   @Get('movements/:scId')
   @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION, UserRole.GENERAL_MANAGER, UserRole.DESIGNER)
   async getScMovements(@Param('scId', ParseUUIDPipe) scId: string) {

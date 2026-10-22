@@ -52,6 +52,7 @@ import {
   ConsolidatedProcessStepDto,
   ConsolidatedDeliveryChallanDto,
   ConsolidatedDcMovementDto,
+  ConsolidatedReworkEntryDto,
   ConsolidatedVendorDto,
 } from './dto/consolidated-sc-traceability.dto.js';
 import {
@@ -809,16 +810,39 @@ export class TraceabilityService {
         { scId },
         { items: { scId } }
       ],
-      relations: { vendor: true, process: true, items: { product: true } },
+      relations: {
+        vendor: true,
+        process: true,
+        items: { product: true, outputProduct: true },
+        qcInspections: true,
+        reworkItems: {
+          reworkDc: { vendor: true },
+          product: true,
+        },
+      },
       order: { dispatchDate: 'ASC' },
     });
     const dcIds = deliveryChallans.map((d) => d.id);
 
-    // 7b. DC Movements (Separate WIP movement ledger for process challans)
+    // 7b. Direct Rework Items linked to this SC or these Challans
+    const reworkItems = await this.reworkRepo.find({
+      where: [
+        { scId },
+        ...(dcIds.length > 0 ? [{ sourceDcId: In(dcIds) }] : []),
+      ],
+      relations: {
+        reworkDc: { vendor: true, items: { product: true } },
+        product: true,
+        sourceDc: { vendor: true, process: true },
+      },
+      order: { createdAt: 'ASC' },
+    });
+
+    // 7c. DC Movements (Separate WIP movement ledger for process challans)
     const dcMovements = await this.dcMovementRepo.find({
       where: { scId },
       relations: {
-        challan: { vendor: true, process: true },
+        challan: { vendor: true, process: true, items: { product: true, outputProduct: true } },
         dispatchedProduct: true,
         returnedProduct: true,
       },
@@ -1064,46 +1088,218 @@ export class TraceabilityService {
       remarks: tx.remarks,
     }));
 
-    const deliveryChallansDto: ConsolidatedDeliveryChallanDto[] = deliveryChallans.map((dc) => ({
-      id: dc.id,
-      challanNumber: dc.challanNumber,
-      type: dc.type,
-      status: dc.status,
-      dispatchDate: new Date(dc.dispatchDate).toISOString(),
-      expectedReturnDate: dc.expectedReturnDate ? new Date(dc.expectedReturnDate).toISOString() : undefined,
-      actualReturnDate: dc.actualReturnDate ? new Date(dc.actualReturnDate).toISOString() : undefined,
-      vendor: dc.vendor ? { id: dc.vendor.id, name: dc.vendor.name, code: dc.vendor.code } : undefined,
-      process: dc.process ? { id: dc.process.id, name: dc.process.name, code: dc.process.code } : undefined,
-      items: (dc.items || []).filter(item => item.scId === scId || dc.scId === scId || !item.scId).map((item) => {
-        const quantityDispatched = Number(item.quantityDispatched) || 0;
-        const quantityReturned = Number(item.quantityReturned) || 0;
-        const balanceQuantity = QuantityCalculator.roundDecimal(Math.max(0, quantityDispatched - quantityReturned));
-        return {
-          id: item.id,
-          productId: item.productId ?? undefined,
-          productName: item.product?.name,
-          quantityDispatched,
-          quantityReturned,
-          balanceQuantity,
-        };
-      }),
-    }));
+    const deliveryChallansDto: ConsolidatedDeliveryChallanDto[] = deliveryChallans.map((dc) => {
+      const dispDate = dc.dispatchDate ? new Date(dc.dispatchDate).toISOString() : new Date().toISOString();
+      const expRetDate = dc.expectedReturnDate ? new Date(dc.expectedReturnDate).toISOString() : undefined;
+      const actRetDate = dc.actualReturnDate ? new Date(dc.actualReturnDate).toISOString() : undefined;
 
-    const dcMovementsDto: ConsolidatedDcMovementDto[] = dcMovements.map((m) => ({
-      id: m.id,
-      challanId: m.challanId,
-      challanNumber: m.challan?.challanNumber,
-      processName: m.challan?.process?.name,
-      vendorName: m.challan?.vendor?.name,
-      dispatchedProductId: m.dispatchedProductId,
-      dispatchedProductName: m.dispatchedProduct?.name,
-      dispatchedQty: Number(m.dispatchedQty) || 0,
-      returnedProductId: m.returnedProductId || undefined,
-      returnedProductName: m.returnedProduct?.name,
-      returnedQty: Number(m.returnedQty) || 0,
-      status: m.status,
-      createdAt: new Date(m.createdAt).toISOString(),
-    }));
+      let deliveryTurnaround: string | undefined;
+      if (dc.dispatchDate && dc.actualReturnDate) {
+        const estDays = dc.expectedReturnDate
+          ? Math.max(0, Math.round((new Date(dc.expectedReturnDate).getTime() - new Date(dc.dispatchDate).getTime()) / (1000 * 60 * 60 * 24)))
+          : null;
+        const actDays = Math.max(0, Math.round((new Date(dc.actualReturnDate).getTime() - new Date(dc.dispatchDate).getTime()) / (1000 * 60 * 60 * 24)));
+        if (estDays !== null) {
+          const delta = estDays - actDays;
+          deliveryTurnaround = delta > 0
+            ? `${actDays}d (${delta}d ahead of schedule)`
+            : delta === 0
+            ? `On-time (${actDays}d SLA)`
+            : `${actDays}d (${Math.abs(delta)}d delayed)`;
+        } else {
+          deliveryTurnaround = `Delivered in ${actDays} days`;
+        }
+      }
+
+      const matchingReworks = (dc.reworkItems || []).concat(
+        reworkItems.filter((rw) => rw.sourceDcId === dc.id || rw.sourceDcNumber === dc.challanNumber)
+      );
+      const uniqueReworksMap = new Map<string, any>();
+      for (const rw of matchingReworks) {
+        if (!uniqueReworksMap.has(rw.id)) {
+          uniqueReworksMap.set(rw.id, rw);
+        }
+      }
+      const uniqueReworks = Array.from(uniqueReworksMap.values());
+
+      const formattedReworks: ConsolidatedReworkEntryDto[] = uniqueReworks.map((rw) => {
+        const isSame = !rw.reworkDcId || rw.originalVendorId === (rw.reworkDc?.vendorId || rw.originalVendorId);
+        const rwVendor = rw.reworkDc?.vendor?.name || (isSame ? rw.originalVendorName : 'Alternative Vendor');
+        const rwDcNum = rw.reworkDcNumber || (rw.reworkStatus === 'RE_DISPATCHED' ? dc.challanNumber : 'Pending');
+        const rwDispDate = rw.reworkDc?.dispatchDate
+          ? new Date(rw.reworkDc.dispatchDate).toISOString()
+          : (rw.reworkStatus === 'RE_DISPATCHED' ? rw.updatedAt?.toISOString() : undefined);
+        const rwRetDate = rw.reworkDc?.actualReturnDate
+          ? new Date(rw.reworkDc.actualReturnDate).toISOString()
+          : undefined;
+
+        let summary = '';
+        if (rw.reworkStatus === 'RE_DISPATCHED') {
+          summary = isSame
+            ? `Rework (${rw.rejectedQty} ${rw.uom}) sent to Same Vendor under DC ${rw.sourceDcNumber}${rwDispDate ? ` on ${new Date(rwDispDate).toLocaleDateString()}` : ''}${rwRetDate ? `, received on ${new Date(rwRetDate).toLocaleDateString()}` : ' (pending return)'}`
+            : `Rework (${rw.rejectedQty} ${rw.uom}) sent to Another Vendor (${rwVendor}) under New DC ${rwDcNum}${rwDispDate ? ` on ${new Date(rwDispDate).toLocaleDateString()}` : ''}${rwRetDate ? `, received on ${new Date(rwRetDate).toLocaleDateString()}` : ' (pending return)'}`;
+        } else {
+          summary = `QC Defect: ${rw.rejectedQty} ${rw.uom} rejected (${rw.qcRemarks || 'Pending Rework'})`;
+        }
+
+        return {
+          id: rw.id,
+          sourceDcNumber: rw.sourceDcNumber,
+          reworkDcNumber: rwDcNum,
+          rejectedQty: Number(rw.rejectedQty || 0),
+          uom: rw.uom || 'Units',
+          isSameVendor: isSame,
+          reworkVendorName: rwVendor,
+          originalVendorName: rw.originalVendorName,
+          reworkDispatchDate: rwDispDate,
+          reworkActualReturnDate: rwRetDate,
+          reworkStatus: rw.reworkStatus,
+          qcRemarks: rw.qcRemarks,
+          summary,
+        };
+      });
+
+      return {
+        id: dc.id,
+        challanNumber: dc.challanNumber,
+        type: dc.type,
+        status: dc.status,
+        dispatchDate: dispDate,
+        expectedReturnDate: expRetDate,
+        actualReturnDate: actRetDate,
+        deliveryTurnaround,
+        vendor: dc.vendor ? { id: dc.vendor.id, name: dc.vendor.name, code: dc.vendor.code } : undefined,
+        process: dc.process ? { id: dc.process.id, name: dc.process.name, code: dc.process.code } : undefined,
+        items: (dc.items || []).filter(item => item.scId === scId || dc.scId === scId || !item.scId).map((item) => {
+          const quantityDispatched = Number(item.quantityDispatched) || 0;
+          const initialExpectedQty = Number(item.initialExpectedQty ?? item.expectedOutputQuantity ?? item.quantityDispatched ?? 0);
+          const expectedReturnQty = Number(item.expectedReturnQty ?? item.initialExpectedQty ?? item.expectedOutputQuantity ?? item.quantityDispatched ?? 0);
+          const expectedVariation = Math.max(0, initialExpectedQty - expectedReturnQty);
+          const actualReceivedQty = Number(item.actualReceivedQty || 0);
+          const qcPassedQty = Number(item.qcPassedQty || 0);
+          const qcRejectedQty = Number(item.qcRejectedQty || 0);
+          const qcPendingQty = Number(item.qcPendingQty || 0);
+          const quantityReturned = Number(item.quantityReturned || actualReceivedQty || 0);
+          const balanceQuantity = QuantityCalculator.roundDecimal(Math.max(0, quantityDispatched - quantityReturned));
+          return {
+            id: item.id,
+            productId: item.productId ?? undefined,
+            productName: item.product?.name,
+            partNumber: item.partNumber,
+            quantityDispatched,
+            initialExpectedQty,
+            expectedReturnQty,
+            expectedVariation,
+            actualReceivedQty,
+            qcPassedQty,
+            qcRejectedQty,
+            qcPendingQty,
+            quantityReturned,
+            balanceQuantity,
+          };
+        }),
+        reworkItems: formattedReworks,
+      };
+    });
+
+    const dcMovementsDto: ConsolidatedDcMovementDto[] = [];
+    if (dcMovements.length > 0) {
+      for (const m of dcMovements) {
+        const dispQty = Number(m.dispatchedQty) || 0;
+        const retQty = Number(m.returnedQty) || 0;
+        const balQty = Math.max(0, dispQty - retQty);
+        const ch = m.challan;
+        const dispDate = ch?.dispatchDate ? new Date(ch.dispatchDate).toISOString() : undefined;
+        const expRetDate = ch?.expectedReturnDate ? new Date(ch.expectedReturnDate).toISOString() : undefined;
+        const actRetDate = ch?.actualReturnDate ? new Date(ch.actualReturnDate).toISOString() : undefined;
+
+        let deliveryTurnaround: string | undefined;
+        if (ch?.dispatchDate && ch?.actualReturnDate) {
+          const estDays = ch.expectedReturnDate
+            ? Math.max(0, Math.round((new Date(ch.expectedReturnDate).getTime() - new Date(ch.dispatchDate).getTime()) / (1000 * 60 * 60 * 24)))
+            : null;
+          const actDays = Math.max(0, Math.round((new Date(ch.actualReturnDate).getTime() - new Date(ch.dispatchDate).getTime()) / (1000 * 60 * 60 * 24)));
+          if (estDays !== null) {
+            const delta = estDays - actDays;
+            deliveryTurnaround = delta > 0
+              ? `${actDays}d (${delta}d ahead)`
+              : delta === 0
+              ? `On-time (${actDays}d SLA)`
+              : `${actDays}d (${Math.abs(delta)}d delayed)`;
+          } else {
+            deliveryTurnaround = `${actDays}d turnaround`;
+          }
+        }
+
+        const matchingItems = (ch?.items || []).filter(
+          (it) => it.productId === m.dispatchedProductId || it.outputProductId === m.returnedProductId || !it.productId
+        );
+        const qcPassedQty = matchingItems.reduce((s, it) => s + Number(it.qcPassedQty || 0), 0);
+        const qcRejectedQty = matchingItems.reduce((s, it) => s + Number(it.qcRejectedQty || 0), 0);
+        const qcPendingQty = matchingItems.reduce((s, it) => s + Number(it.qcPendingQty || 0), 0);
+
+        const chDto = deliveryChallansDto.find((d) => d.id === m.challanId || d.challanNumber === ch?.challanNumber);
+        const reworks = chDto?.reworkItems || [];
+
+        dcMovementsDto.push({
+          id: m.id,
+          challanId: m.challanId,
+          challanNumber: ch?.challanNumber || m.challanId?.slice(0, 8),
+          processName: ch?.process?.name || 'Subcontract Process',
+          vendorName: ch?.vendor?.name || 'Vendor',
+          vendorCode: ch?.vendor?.code,
+          dispatchedProductId: m.dispatchedProductId,
+          dispatchedProductName: m.dispatchedProduct?.name,
+          dispatchedQty: dispQty,
+          returnedProductId: m.returnedProductId || undefined,
+          returnedProductName: m.returnedProduct?.name,
+          returnedQty: retQty,
+          balanceQty: balQty,
+          status: m.status,
+          dispatchDate: dispDate,
+          expectedReturnDate: expRetDate,
+          actualReturnDate: actRetDate,
+          deliveryTurnaround,
+          qcPassedQty,
+          qcRejectedQty,
+          qcPendingQty,
+          hasRework: reworks.length > 0 || qcRejectedQty > 0,
+          reworkItems: reworks,
+          createdAt: new Date(m.createdAt).toISOString(),
+        });
+      }
+    } else {
+      for (const dc of deliveryChallansDto) {
+        for (const it of dc.items) {
+          dcMovementsDto.push({
+            id: `mov-${dc.id}-${it.id}`,
+            challanId: dc.id,
+            challanNumber: dc.challanNumber,
+            processName: dc.process?.name || 'Subcontract Process',
+            vendorName: dc.vendor?.name || 'Vendor',
+            vendorCode: dc.vendor?.code,
+            dispatchedProductId: it.productId || 'item',
+            dispatchedProductName: it.productName || it.partNumber || 'Component',
+            dispatchedQty: it.quantityDispatched,
+            returnedProductId: it.productId,
+            returnedProductName: it.productName,
+            returnedQty: it.actualReceivedQty || it.quantityReturned,
+            balanceQty: it.balanceQuantity,
+            status: dc.status,
+            dispatchDate: dc.dispatchDate,
+            expectedReturnDate: dc.expectedReturnDate,
+            actualReturnDate: dc.actualReturnDate,
+            deliveryTurnaround: dc.deliveryTurnaround,
+            qcPassedQty: it.qcPassedQty,
+            qcRejectedQty: it.qcRejectedQty,
+            qcPendingQty: it.qcPendingQty,
+            hasRework: (dc.reworkItems && dc.reworkItems.length > 0) || (it.qcRejectedQty ? it.qcRejectedQty > 0 : false),
+            reworkItems: dc.reworkItems,
+            createdAt: dc.dispatchDate,
+          });
+        }
+      }
+    }
 
     const events: any[] = [];
     events.push({
@@ -1175,9 +1371,12 @@ export class TraceabilityService {
       });
     });
 
+    // 1. Sent to Vendor & 2. Received from Vendor Events
     deliveryChallansDto.forEach((dc, idx) => {
       const totalDisp = (dc.items || []).reduce((s, it) => s + (Number(it.quantityDispatched) || 0), 0);
-      const totalRet = (dc.items || []).reduce((s, it) => s + (Number(it.quantityReturned) || 0), 0);
+      const totalRet = (dc.items || []).reduce((s, it) => s + (Number(it.actualReceivedQty || it.quantityReturned) || 0), 0);
+      const totalPassed = (dc.items || []).reduce((s, it) => s + (Number(it.qcPassedQty) || 0), 0);
+      const totalRejected = (dc.items || []).reduce((s, it) => s + (Number(it.qcRejectedQty) || 0), 0);
       const vName = dc.vendor?.name || 'External Vendor';
       const pName = dc.process?.name || dc.type;
 
@@ -1190,6 +1389,7 @@ export class TraceabilityService {
         details: {
           challanNumber: dc.challanNumber,
           sentToVendor: vName,
+          vendorCode: dc.vendor?.code || 'N/A',
           subcontractProcess: pName,
           dispatchedDateTime: new Date(dc.dispatchDate).toLocaleString(),
           dispatchedQuantity: `${totalDisp.toFixed(2)} Units`,
@@ -1209,10 +1409,100 @@ export class TraceabilityService {
             challanNumber: dc.challanNumber,
             receivedFromVendor: vName,
             subcontractProcess: pName,
-            receivedDateTime: dc.actualReturnDate ? new Date(dc.actualReturnDate).toLocaleString() : new Date(dc.dispatchDate).toLocaleString(),
-            returnedQuantity: `${totalRet.toFixed(2)} Units`,
+            receivedDateTime: dc.actualReturnDate ? new Date(dc.actualReturnDate).toLocaleString() : 'Recorded Inward',
+            receivedQuantity: `${totalRet.toFixed(2)} Units`,
+            qcPassedQuantity: `${totalPassed.toFixed(2)} Units Passed`,
+            qcRejectedQuantity: totalRejected > 0 ? `${totalRejected.toFixed(2)} Units Rejected (Rework)` : '0 Units',
+            deliveryTurnaround: dc.deliveryTurnaround || 'Recorded Inward',
             balancePendingAtVendor: `${Math.max(0, totalDisp - totalRet).toFixed(2)} Units`,
-            returnStatus: dc.status === 'CLOSED' || dc.status === 'RETURNED' ? 'Fully Returned & Passed' : 'Partially Returned',
+            returnStatus: dc.status === 'CLOSED' || dc.status === 'RETURNED' ? 'Fully Returned' : 'Partially Returned',
+          },
+        });
+      }
+    });
+
+    // 3. Sent to Rework Vendor & 4. Received from Rework Vendor Events
+    const allReworks = deliveryChallansDto.flatMap((d) => d.reworkItems || []).concat(
+      reworkItems.map((rw) => {
+        const isSame = !rw.reworkDcId || rw.originalVendorId === (rw.reworkDc?.vendorId || rw.originalVendorId);
+        const rwVendor = rw.reworkDc?.vendor?.name || (isSame ? rw.originalVendorName : 'Alternative Vendor');
+        const rwDcNum = rw.reworkDcNumber || (rw.reworkStatus === 'RE_DISPATCHED' ? rw.sourceDcNumber : 'Pending');
+        const rwDispDate = rw.reworkDc?.dispatchDate
+          ? new Date(rw.reworkDc.dispatchDate).toISOString()
+          : (rw.reworkStatus === 'RE_DISPATCHED' ? rw.updatedAt?.toISOString() : undefined);
+        const rwRetDate = rw.reworkDc?.actualReturnDate
+          ? new Date(rw.reworkDc.actualReturnDate).toISOString()
+          : undefined;
+
+        let summary = '';
+        if (rw.reworkStatus === 'RE_DISPATCHED') {
+          summary = isSame
+            ? `Rework (${rw.rejectedQty} ${rw.uom}) sent to Same Vendor under DC ${rw.sourceDcNumber}${rwDispDate ? ` on ${new Date(rwDispDate).toLocaleDateString()}` : ''}${rwRetDate ? `, received on ${new Date(rwRetDate).toLocaleDateString()}` : ' (pending return)'}`
+            : `Rework (${rw.rejectedQty} ${rw.uom}) sent to Another Vendor (${rwVendor}) under New DC ${rwDcNum}${rwDispDate ? ` on ${new Date(rwDispDate).toLocaleDateString()}` : ''}${rwRetDate ? `, received on ${new Date(rwRetDate).toLocaleDateString()}` : ' (pending return)'}`;
+        } else {
+          summary = `QC Defect: ${rw.rejectedQty} ${rw.uom} rejected (${rw.qcRemarks || 'Pending Rework'})`;
+        }
+
+        return {
+          id: rw.id,
+          sourceDcNumber: rw.sourceDcNumber,
+          reworkDcNumber: rwDcNum,
+          rejectedQty: Number(rw.rejectedQty || 0),
+          uom: rw.uom || 'Units',
+          isSameVendor: isSame,
+          reworkVendorName: rwVendor,
+          originalVendorName: rw.originalVendorName,
+          reworkDispatchDate: rwDispDate,
+          reworkActualReturnDate: rwRetDate,
+          reworkStatus: rw.reworkStatus,
+          qcRemarks: rw.qcRemarks,
+          summary,
+        };
+      })
+    );
+
+    const dedupReworks = Array.from(new Map(allReworks.map((r) => [r.id, r])).values());
+
+    dedupReworks.forEach((rw, idx) => {
+      if (rw.reworkStatus === 'RE_DISPATCHED' || rw.reworkDispatchDate) {
+        events.push({
+          id: `evt-rw-disp-${rw.id || idx}`,
+          type: 'REWORK_DISPATCHED',
+          timestamp: rw.reworkDispatchDate || new Date().toISOString(),
+          actor: `Stores QC -> ${rw.reworkVendorName} (${rw.isSameVendor ? 'Same Vendor' : 'Another Vendor'})`,
+          title: rw.isSameVendor
+            ? `Sent for Rework to Same Vendor (${rw.reworkVendorName}) under DC ${rw.reworkDcNumber || rw.sourceDcNumber}`
+            : `Sent for Rework to Another Vendor (${rw.reworkVendorName}) under New DC ${rw.reworkDcNumber}`,
+          details: {
+            reworkDcNumber: rw.reworkDcNumber || rw.sourceDcNumber,
+            sourceDcNumber: rw.sourceDcNumber,
+            reworkVendor: rw.reworkVendorName,
+            vendorClassification: rw.isSameVendor ? 'Same Vendor (Same DC)' : 'Another Vendor (New DC)',
+            originalVendor: rw.originalVendorName || 'Initial Vendor',
+            rejectedQuantitySent: `${rw.rejectedQty} ${rw.uom}`,
+            reworkSentDateTime: rw.reworkDispatchDate ? new Date(rw.reworkDispatchDate).toLocaleString() : 'N/A',
+            defectRemarks: rw.qcRemarks || 'Dimensional defect / QC rejection',
+            reworkStatus: rw.reworkStatus,
+          },
+        });
+      }
+
+      if (rw.reworkActualReturnDate) {
+        events.push({
+          id: `evt-rw-ret-${rw.id || idx}`,
+          type: 'REWORK_RETURNED',
+          timestamp: rw.reworkActualReturnDate,
+          actor: `${rw.reworkVendorName} -> Stores Inward (QC Cleared)`,
+          title: rw.isSameVendor
+            ? `Rework Received from Same Vendor: ${rw.reworkDcNumber || rw.sourceDcNumber} (${rw.reworkVendorName})`
+            : `Rework Received from Another Vendor: ${rw.reworkDcNumber} (${rw.reworkVendorName})`,
+          details: {
+            reworkDcNumber: rw.reworkDcNumber || rw.sourceDcNumber,
+            receivedFromVendor: rw.reworkVendorName,
+            vendorClassification: rw.isSameVendor ? 'Received from Same Vendor' : 'Received from Another Vendor',
+            reworkReceivedDateTime: new Date(rw.reworkActualReturnDate).toLocaleString(),
+            reworkQuantityReceived: `${rw.rejectedQty} ${rw.uom}`,
+            qcClearanceStatus: 'QC Cleared & Accepted into Stock',
           },
         });
       }
@@ -1275,6 +1565,7 @@ export class TraceabilityService {
       productionProcesses,
       deliveryChallans: deliveryChallansDto,
       dcMovements: dcMovementsDto,
+      reworkItems: dedupReworks,
       vendors,
       finalRmUsage: {
         summary: finalRmUsageResponse.summary,
@@ -1727,13 +2018,12 @@ export class TraceabilityService {
   private mapToCanonicalStage(status: string, rmSummary?: any): string {
     const s = (status || '').toUpperCase().trim();
     if (rmSummary && rmSummary.totalIssued > 0 && rmSummary.originalRm > 0 && rmSummary.totalIssued < rmSummary.originalRm) {
-      return 'Partially Issued';
+      return 'Stores Issued Partially';
     }
     if (s === 'DRAFT' || s === 'PENDING') return 'Draft';
-    if (s === 'SUBMITTED' || s === 'DESIGN_ISSUED') return 'Design Issued';
-    if (s === 'STORES_PENDING') return 'Stores Pending';
-    if (s === 'PARTIALLY_ISSUED') return 'Partially Issued';
-    if (s === 'PRODUCTION_PENDING') return 'Production Pending';
+    if (s === 'SUBMITTED' || s === 'DESIGN_ISSUED' || s === 'STORES_PENDING') return 'Stores Pending';
+    if (s === 'PARTIALLY_ISSUED' || s === 'STORES_ISSUED_PARTIALLY') return 'Stores Issued Partially';
+    if (s === 'PRODUCTION_PENDING') return 'Stores Issued';
     if (s === 'PRODUCTION_RECEIVED') return 'Production Received';
     if (s === 'ISSUED' || s === 'STORES_ISSUED') {
       if (rmSummary && rmSummary.totalConsumed > 0) return 'Production Received';
@@ -1748,20 +2038,16 @@ export class TraceabilityService {
   private buildCanonicalStatusDistribution(childComponents: PoChildComponentNodeDto[]) {
     const counts: Record<string, number> = {
       'Draft': 0,
-      'Design Issued': 0,
       'Stores Pending': 0,
-      'Partially Issued': 0,
+      'Stores Issued Partially': 0,
       'Stores Issued': 0,
-      'Production Pending': 0,
       'Production Received': 0,
     };
     const colors: Record<string, string> = {
       'Draft': '#94a3b8',
-      'Design Issued': '#0ea5e9',
       'Stores Pending': '#f59e0b',
-      'Partially Issued': '#8b5cf6',
+      'Stores Issued Partially': '#8b5cf6',
       'Stores Issued': '#3b82f6',
-      'Production Pending': '#6366f1',
       'Production Received': '#10b981',
     };
 

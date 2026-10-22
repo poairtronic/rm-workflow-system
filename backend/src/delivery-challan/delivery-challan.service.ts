@@ -266,6 +266,8 @@ export class DeliveryChallanService {
           partNumber: partNumber ?? null,
           partName: partName ?? null,
           quantityDispatched: quantityToDispatch,
+          initialExpectedQty: quantityToDispatch,
+          expectedReturnQty: quantityToDispatch,
           quantityReturned: 0,
         } as any);
         const savedDcItem = await queryRunner.manager.save(dcItem);
@@ -428,6 +430,13 @@ export class DeliveryChallanService {
           nextSeq++;
         }
 
+        const initialExpected =
+          itemDto.expectedOutputQuantity != null
+            ? Number(itemDto.expectedOutputQuantity)
+            : itemDto.initialExpectedQty != null
+            ? Number(itemDto.initialExpectedQty)
+            : quantityToDispatch;
+
         // Create DC item with Type 2 stock conversion mapping
         const dcItem = queryRunner.manager.create(DeliveryChallanItem, {
           challanId: savedChallan.id,
@@ -436,6 +445,8 @@ export class DeliveryChallanService {
           outputProductId: itemDto.outputProductId ?? null,
           expectedOutputQuantity:
             itemDto.expectedOutputQuantity != null ? Number(itemDto.expectedOutputQuantity) : null,
+          initialExpectedQty: initialExpected,
+          expectedReturnQty: initialExpected,
           outputBinId: itemDto.outputBinId ?? null,
           scId: itemDto.scId ?? null,
           processId: (itemDto.processId || dto.processId) ?? null,
@@ -853,25 +864,32 @@ export class DeliveryChallanService {
           Number(challanItem.qcPassedQty || 0) +
           Number(challanItem.qcRejectedQty || 0);
 
-        // For Type 2: allow revising the expected return quantity (e.g. from 100 to 95)
-        if (!isType1) {
-          const newExpected = dtoItem.expectedReturnQty ?? dtoItem.expectedOutputQuantity;
-          if (newExpected !== undefined && newExpected !== null && Number(newExpected) > 0) {
-            const parsedExpected = Number(newExpected);
-            if (parsedExpected < alreadyAccounted) {
-              throw new BadRequestException(
-                `Revised expected return quantity (${parsedExpected}) cannot be less than already received/accounted quantity (${alreadyAccounted}) for item ${dtoItem.itemId}`
-              );
-            }
-            challanItem.expectedReturnQty = parsedExpected;
-            challanItem.expectedOutputQuantity = parsedExpected;
+        // For Type 2 (and Type 1): allow revising the expected return quantity (e.g. from 700 to 650)
+        const newExpected = dtoItem.expectedReturnQty ?? dtoItem.expectedOutputQuantity;
+        if (newExpected !== undefined && newExpected !== null && Number(newExpected) > 0) {
+          const parsedExpected = Number(newExpected);
+          if (parsedExpected < alreadyAccounted) {
+            throw new BadRequestException(
+              `Revised expected return quantity (${parsedExpected}) cannot be less than already received/accounted quantity (${alreadyAccounted}) for item ${dtoItem.itemId}`
+            );
           }
+          if (challanItem.initialExpectedQty == null) {
+            challanItem.initialExpectedQty = Number(
+              challanItem.expectedOutputQuantity ?? challanItem.quantityDispatched
+            );
+          }
+          challanItem.expectedReturnQty = parsedExpected;
+          challanItem.expectedOutputQuantity = parsedExpected;
+        } else if (challanItem.expectedReturnQty == null) {
+          challanItem.expectedReturnQty = Number(
+            challanItem.initialExpectedQty ?? challanItem.expectedOutputQuantity ?? challanItem.quantityDispatched
+          );
         }
 
         // Validate that receivedQty does not exceed remaining unreturned balance at vendor
-        const totalTarget = !isType1
-          ? Number(challanItem.expectedReturnQty ?? challanItem.expectedOutputQuantity ?? challanItem.quantityDispatched)
-          : Number(challanItem.quantityDispatched);
+        const totalTarget = Number(
+          challanItem.expectedReturnQty ?? challanItem.initialExpectedQty ?? challanItem.expectedOutputQuantity ?? challanItem.quantityDispatched
+        );
 
         const vendorPending = Math.max(0, totalTarget - alreadyAccounted);
 
@@ -884,17 +902,18 @@ export class DeliveryChallanService {
         // Increment QC pending queue
         challanItem.qcPendingQty = Number(challanItem.qcPendingQty || 0) + qtyReceived;
 
-        // For Type 2: store editable actualReceivedQty and returnTargetBinId
-        if (!isType1) {
-          if (dtoItem.actualInwardQty !== undefined && dtoItem.actualInwardQty !== null) {
-            challanItem.actualReceivedQty = Number(dtoItem.actualInwardQty);
-          } else if (dtoItem.actualReceivedQty !== undefined && dtoItem.actualReceivedQty !== null) {
-            challanItem.actualReceivedQty = Number(dtoItem.actualReceivedQty);
-          }
-          const targetBin = dtoItem.targetBinId || dtoItem.destinationBinId;
-          if (targetBin) {
-            challanItem.returnTargetBinId = targetBin;
-          }
+        // Store editable actualReceivedQty and returnTargetBinId
+        if (dtoItem.actualReceivedQty !== undefined && dtoItem.actualReceivedQty !== null) {
+          challanItem.actualReceivedQty = Number(dtoItem.actualReceivedQty);
+        } else if (dtoItem.actualInwardQty !== undefined && dtoItem.actualInwardQty !== null) {
+          challanItem.actualReceivedQty = Number(dtoItem.actualInwardQty);
+        } else {
+          challanItem.actualReceivedQty = Number(challanItem.actualReceivedQty || 0) + qtyReceived;
+        }
+
+        const targetBin = dtoItem.targetBinId || dtoItem.destinationBinId;
+        if (targetBin) {
+          challanItem.returnTargetBinId = targetBin;
         }
 
         await itemRepo.save(challanItem);
@@ -1249,7 +1268,6 @@ export class DeliveryChallanService {
           if (existingDc.items && existingDc.items.length > 0) {
             for (const it of existingDc.items) {
               if (it.productId === item.productId || it.partNumber === item.partNumber) {
-                it.qcRejectedQty = 0;
                 it.qcPendingQty = 0;
                 if (dto.description) {
                   it.description = dto.description;
@@ -1455,18 +1473,268 @@ export class DeliveryChallanService {
   }
 
   /**
+   * Comprehensive Inward & Outward DC Lifecycle & Audit Report
+   * Detailed tracking of every DC dispatch, estimated delivery, actual receipt,
+   * initial expected vs revised expected on receipt vs variation, actual received qty,
+   * unreceived balance, QC passed, QC rejected, and rework loop (same vendor vs different vendor).
+   */
+  async getComprehensiveDcLifecycleReport(filters?: {
+    type?: string;
+    vendorId?: string;
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    reworkOnly?: boolean;
+    search?: string;
+  }): Promise<{ items: any[]; kpis: any }> {
+    const qb = this.challanRepo.createQueryBuilder('dc')
+      .leftJoinAndSelect('dc.vendor', 'vendor')
+      .leftJoinAndSelect('dc.process', 'process')
+      .leftJoinAndSelect('dc.sc', 'sc')
+      .leftJoinAndSelect('dc.items', 'item')
+      .leftJoinAndSelect('item.product', 'product')
+      .leftJoinAndSelect('item.outputProduct', 'outputProduct')
+      .leftJoinAndSelect('item.bin', 'bin')
+      .leftJoinAndSelect('item.outputBin', 'outputBin')
+      .leftJoinAndSelect('item.returnTargetBin', 'returnTargetBin')
+      .leftJoinAndSelect('dc.reworkItems', 'reworkItem')
+      .leftJoinAndSelect('reworkItem.reworkDc', 'reworkDc')
+      .leftJoinAndSelect('reworkDc.vendor', 'reworkVendor')
+      .leftJoinAndSelect('dc.qcInspections', 'qcInspection')
+      .orderBy('dc.dispatchDate', 'DESC');
+
+    if (filters?.type && filters.type !== 'ALL') {
+      qb.andWhere('dc.type = :type', { type: filters.type });
+    }
+    if (filters?.vendorId) {
+      qb.andWhere('dc.vendorId = :vendorId', { vendorId: filters.vendorId });
+    }
+    if (filters?.status && filters.status !== 'ALL') {
+      qb.andWhere('dc.status = :status', { status: filters.status });
+    }
+    if (filters?.startDate) {
+      qb.andWhere('dc.dispatchDate >= :startDate', { startDate: new Date(filters.startDate) });
+    }
+    if (filters?.endDate) {
+      qb.andWhere('dc.dispatchDate <= :endDate', { endDate: new Date(filters.endDate) });
+    }
+
+    const challans = await qb.getMany();
+
+    const reportRows: any[] = [];
+    let totalDispatchedUnits = 0;
+    let totalReceivedUnits = 0;
+    let totalVariationUnits = 0;
+    let totalQcPendingUnits = 0;
+    let totalReworkUnits = 0;
+    let onTimeReceiptCount = 0;
+    let totalReceiptsCount = 0;
+
+    for (const challan of challans) {
+      const isType1 = challan.type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD;
+      const vendorName = challan.vendor?.name || 'Unknown Vendor';
+      const vendorCode = challan.vendor?.code || '';
+
+      const dispatchDate = challan.dispatchDate ? new Date(challan.dispatchDate) : null;
+      const expectedReturnDate = challan.expectedReturnDate ? new Date(challan.expectedReturnDate) : null;
+      const actualReturnDate = challan.actualReturnDate ? new Date(challan.actualReturnDate) : null;
+
+      let estimatedDays: number | null = null;
+      if (dispatchDate && expectedReturnDate) {
+        estimatedDays = Math.max(0, Math.round((expectedReturnDate.getTime() - dispatchDate.getTime()) / (1000 * 60 * 60 * 24)));
+      }
+
+      let actualDays: number | null = null;
+      let deliveryTurnaround = 'In Transit';
+      let isOnTime = false;
+
+      if (dispatchDate && actualReturnDate) {
+        actualDays = Math.max(0, Math.round((actualReturnDate.getTime() - dispatchDate.getTime()) / (1000 * 60 * 60 * 24)));
+        totalReceiptsCount++;
+
+        if (estimatedDays !== null) {
+          const delta = estimatedDays - actualDays;
+          if (delta > 0) {
+            deliveryTurnaround = `Delivered in ${actualDays}d (${delta}d ahead of schedule)`;
+            isOnTime = true;
+            onTimeReceiptCount++;
+          } else if (delta === 0) {
+            deliveryTurnaround = `Delivered on-time (${actualDays}d SLA)`;
+            isOnTime = true;
+            onTimeReceiptCount++;
+          } else {
+            deliveryTurnaround = `Delivered in ${actualDays}d (${Math.abs(delta)}d delayed)`;
+          }
+        } else {
+          deliveryTurnaround = `Delivered in ${actualDays} days`;
+          isOnTime = true;
+          onTimeReceiptCount++;
+        }
+      } else if (expectedReturnDate) {
+        const now = new Date();
+        const diffMs = expectedReturnDate.getTime() - now.getTime();
+        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+        if (diffDays >= 0) {
+          deliveryTurnaround = `In Transit (${diffDays}d remaining till ${expectedReturnDate.toISOString().split('T')[0]})`;
+        } else {
+          deliveryTurnaround = `Overdue by ${Math.abs(diffDays)}d (Estimated: ${expectedReturnDate.toISOString().split('T')[0]})`;
+        }
+      }
+
+      const items = challan.items || [];
+      for (const item of items) {
+        const dispQty = Number(item.quantityDispatched || 0);
+        const initExpected = Number(item.initialExpectedQty ?? item.expectedOutputQuantity ?? item.quantityDispatched ?? 0);
+        const revExpected = Number(item.expectedReturnQty ?? item.initialExpectedQty ?? item.expectedOutputQuantity ?? item.quantityDispatched ?? 0);
+        const variation = Math.max(0, initExpected - revExpected);
+        const actReceived = Number(item.actualReceivedQty || 0);
+        const unrecBalance = Math.max(0, revExpected - actReceived);
+        const passedQty = Number(item.qcPassedQty || 0);
+        const rejectedQty = Number(item.qcRejectedQty || 0);
+        const pendingQty = Number(item.qcPendingQty || 0);
+
+        totalDispatchedUnits += dispQty;
+        totalReceivedUnits += actReceived;
+        totalVariationUnits += variation;
+        totalQcPendingUnits += pendingQty;
+        totalReworkUnits += rejectedQty;
+
+        // Find relevant rework items for this material
+        const matchingReworks = (challan.reworkItems || []).filter(
+          (rw) =>
+            (rw.productId && rw.productId === item.productId) ||
+            (rw.partNumber && rw.partNumber === item.partNumber) ||
+            items.length === 1
+        );
+
+        const reworkEntries = matchingReworks.map((rw) => {
+          const isSame = !rw.reworkDcId || rw.originalVendorId === (rw.reworkDc?.vendorId || rw.originalVendorId);
+          const rwVendor = rw.reworkDc?.vendor?.name || (isSame ? rw.originalVendorName : 'Alternative Vendor');
+          const rwDcNum = rw.reworkDcNumber || (rw.reworkStatus === ReworkItemStatus.RE_DISPATCHED ? challan.challanNumber : null);
+          const rwDispDate = rw.reworkDc?.dispatchDate
+            ? new Date(rw.reworkDc.dispatchDate).toISOString().split('T')[0]
+            : (rw.reworkStatus === ReworkItemStatus.RE_DISPATCHED ? rw.updatedAt?.toISOString().split('T')[0] : null);
+          const rwRetDate = rw.reworkDc?.actualReturnDate
+            ? new Date(rw.reworkDc.actualReturnDate).toISOString().split('T')[0]
+            : null;
+
+          let summary = '';
+          if (rw.reworkStatus === ReworkItemStatus.RE_DISPATCHED) {
+            summary = isSame
+              ? `Rework (${rw.rejectedQty} ${rw.uom}) sent to Same Vendor under DC ${rw.sourceDcNumber}${rwDispDate ? ` on ${rwDispDate}` : ''}${rwRetDate ? `, received on ${rwRetDate}` : ' (pending return)'}`
+              : `Rework (${rw.rejectedQty} ${rw.uom}) sent to New Vendor (${rwVendor}) under New DC ${rwDcNum}${rwDispDate ? ` on ${rwDispDate}` : ''}${rwRetDate ? `, received on ${rwRetDate}` : ' (pending return)'}`;
+          } else {
+            summary = `Defect: ${rw.rejectedQty} ${rw.uom} rejected in QC (${rw.qcRemarks || 'Pending Rework'})`;
+          }
+
+          return {
+            id: rw.id,
+            status: rw.reworkStatus,
+            rejectedQty: Number(rw.rejectedQty),
+            uom: rw.uom,
+            isSameVendor: isSame,
+            vendorName: rwVendor,
+            reworkDcNumber: rwDcNum,
+            dispatchDate: rwDispDate,
+            actualReturnDate: rwRetDate,
+            qcRemarks: rw.qcRemarks,
+            summary,
+          };
+        });
+
+        if (filters?.reworkOnly && reworkEntries.length === 0 && rejectedQty === 0) {
+          continue;
+        }
+
+        const outProd = item.outputProduct || item.product;
+
+        reportRows.push({
+          rowId: `${challan.id}-${item.id}`,
+          challanId: challan.id,
+          challanNumber: challan.challanNumber,
+          type: challan.type,
+          typeLabel: isType1 ? 'Type 1 (Process)' : 'Type 2 (Stock Conversion)',
+          vendorId: challan.vendorId,
+          vendorName,
+          vendorCode,
+          partNumber: item.partNumber || item.product?.code || '—',
+          partName: item.partName || item.product?.name || '—',
+          productName: isType1 ? (item.product?.name || item.partName || '—') : (outProd?.name || item.product?.name || '—'),
+          productCode: isType1 ? (item.product?.code || '') : (outProd?.code || item.product?.code || ''),
+          uom: item.product?.uom || outProd?.uom || 'NOS',
+          scNumber: challan.sc?.scNumber || item.sc?.scNumber || '—',
+          processName: challan.processName || challan.process?.name || item.processName || (isType1 ? 'Subcontract Process' : 'Stock Conversion'),
+
+          // Dates & Delivery SLA
+          dispatchDate: dispatchDate ? dispatchDate.toISOString() : null,
+          dispatchDateFormatted: dispatchDate ? dispatchDate.toLocaleDateString('en-IN') : '—',
+          expectedReturnDate: expectedReturnDate ? expectedReturnDate.toISOString() : null,
+          expectedReturnDateFormatted: expectedReturnDate ? expectedReturnDate.toLocaleDateString('en-IN') : '—',
+          actualReturnDate: actualReturnDate ? actualReturnDate.toISOString() : null,
+          actualReturnDateFormatted: actualReturnDate ? actualReturnDate.toLocaleDateString('en-IN') : '—',
+          estimatedDays,
+          actualDays,
+          deliveryTurnaround,
+          isOnTime,
+
+          // Quantities & Variation
+          quantityDispatched: dispQty,
+          initialExpectedQty: initExpected,
+          revisedExpectedQty: revExpected,
+          expectedVariation: variation,
+          hasVariation: variation > 0,
+          actualReceivedQty: actReceived,
+          unreceivedBalance: unrecBalance,
+          isFullyReceived: unrecBalance === 0 && actReceived > 0,
+
+          // QC & Rework
+          qcPendingQty: pendingQty,
+          qcPassedQty: passedQty,
+          qcRejectedQty: rejectedQty,
+          reworkEntries,
+          reworkSummary: reworkEntries.length > 0 ? reworkEntries.map((r) => r.summary).join(' | ') : rejectedQty > 0 ? `${rejectedQty} units rejected in QC` : 'No defects',
+
+          status: challan.status,
+          notes: challan.notes || '',
+        });
+      }
+    }
+
+    const onTimeRate = totalReceiptsCount > 0 ? Math.round((onTimeReceiptCount / totalReceiptsCount) * 100) : 100;
+
+    return {
+      items: reportRows,
+      kpis: {
+        totalChallans: challans.length,
+        totalDispatchedUnits,
+        totalReceivedUnits,
+        totalVariationUnits,
+        totalQcPendingUnits,
+        totalReworkUnits,
+        onTimeRate,
+        totalReceiptsCount,
+        onTimeReceiptCount,
+      },
+    };
+  }
+
+  /**
    * Retrieves all DC movements across both Type 1 (Process / Subcontracting)
-   * and Type 2 (General Inventory Stock Conversion).
+   * and Type 2 (General Inventory Stock Conversion) enriched with lifecycle audit details.
    */
   async getAllDcMovements(): Promise<any[]> {
     // 1. Fetch Type 1 movements from dc_movements table
     const type1Movements = await this.dcMovementRepo.find({
       relations: {
-        challan: { vendor: true },
+        challan: {
+          vendor: true,
+          reworkItems: { reworkDc: { vendor: true } },
+        },
         process: true,
         sc: true,
         dispatchedProduct: true,
         returnedProduct: true,
+        challanItem: true,
       },
       order: { createdAt: 'DESC' },
     });
@@ -1479,7 +1747,10 @@ export class DeliveryChallanService {
         },
       },
       relations: {
-        challan: { vendor: true },
+        challan: {
+          vendor: true,
+          reworkItems: { reworkDc: { vendor: true } },
+        },
         product: true,
         outputProduct: true,
         bin: true,
@@ -1496,6 +1767,22 @@ export class DeliveryChallanService {
       const retQty = Number(m.returnedQty || 0);
       const challan = m.challan;
       const vendor = challan?.vendor;
+      const item = m.challanItem;
+
+      const initExpected = Number(item?.initialExpectedQty ?? item?.quantityDispatched ?? dispQty);
+      const revExpected = Number(item?.expectedReturnQty ?? initExpected);
+      const variation = Math.max(0, initExpected - revExpected);
+      const actReceived = Number(item?.actualReceivedQty || retQty);
+      const unrecBalance = Math.max(0, revExpected - actReceived);
+
+      const matchingRework = (challan?.reworkItems || []).find(
+        (rw) => rw.productId === m.dispatchedProductId
+      );
+      const reworkSummary = matchingRework
+        ? (matchingRework.reworkStatus === ReworkItemStatus.RE_DISPATCHED
+          ? `Rework (${matchingRework.rejectedQty} ${matchingRework.uom}) under ${matchingRework.reworkDcNumber || challan?.challanNumber}`
+          : `Defect: ${matchingRework.rejectedQty} ${matchingRework.uom} rejected in QC`)
+        : 'No defects';
 
       // Outward entry (always exists)
       results.push({
@@ -1507,6 +1794,20 @@ export class DeliveryChallanService {
         challanTypeLabel: 'Type 1 (Process)',
         direction: 'OUTWARD',
         date: m.createdAt,
+        dispatchDate: challan?.dispatchDate || m.createdAt,
+        expectedReturnDate: challan?.expectedReturnDate || null,
+        actualReturnDate: challan?.actualReturnDate || null,
+        initialExpectedQty: initExpected,
+        revisedExpectedQty: revExpected,
+        expectedVariation: variation,
+        actualReceivedQty: actReceived,
+        unreceivedBalance: unrecBalance,
+        qcPassedQty: Number(item?.qcPassedQty || 0),
+        qcRejectedQty: Number(item?.qcRejectedQty || 0),
+        qcPendingQty: Number(item?.qcPendingQty || 0),
+        reworkDcNumber: matchingRework?.reworkDcNumber || null,
+        reworkStatus: matchingRework?.reworkStatus || null,
+        reworkSummary,
         vendorId: vendor?.id || challan?.vendorId,
         vendorName: vendor?.name || '—',
         vendorCode: vendor?.code || '',
@@ -1536,6 +1837,20 @@ export class DeliveryChallanService {
           challanTypeLabel: 'Type 1 (Process)',
           direction: 'INWARD',
           date: m.updatedAt || m.createdAt,
+          dispatchDate: challan?.dispatchDate || m.createdAt,
+          expectedReturnDate: challan?.expectedReturnDate || null,
+          actualReturnDate: challan?.actualReturnDate || m.updatedAt || m.createdAt,
+          initialExpectedQty: initExpected,
+          revisedExpectedQty: revExpected,
+          expectedVariation: variation,
+          actualReceivedQty: actReceived,
+          unreceivedBalance: unrecBalance,
+          qcPassedQty: Number(item?.qcPassedQty || 0),
+          qcRejectedQty: Number(item?.qcRejectedQty || 0),
+          qcPendingQty: Number(item?.qcPendingQty || 0),
+          reworkDcNumber: matchingRework?.reworkDcNumber || null,
+          reworkStatus: matchingRework?.reworkStatus || null,
+          reworkSummary,
           vendorId: vendor?.id || challan?.vendorId,
           vendorName: vendor?.name || '—',
           vendorCode: vendor?.code || '',
@@ -1563,6 +1878,21 @@ export class DeliveryChallanService {
       const challan = item.challan;
       const vendor = challan?.vendor;
 
+      const initExpected = Number(item.initialExpectedQty ?? item.expectedOutputQuantity ?? item.quantityDispatched ?? 0);
+      const revExpected = Number(item.expectedReturnQty ?? initExpected);
+      const variation = Math.max(0, initExpected - revExpected);
+      const actReceived = Number(item.actualReceivedQty || retQty);
+      const unrecBalance = Math.max(0, revExpected - actReceived);
+
+      const matchingRework = (challan?.reworkItems || []).find(
+        (rw) => rw.productId === item.productId || rw.partNumber === item.partNumber
+      );
+      const reworkSummary = matchingRework
+        ? (matchingRework.reworkStatus === ReworkItemStatus.RE_DISPATCHED
+          ? `Rework (${matchingRework.rejectedQty} ${matchingRework.uom}) under ${matchingRework.reworkDcNumber || challan?.challanNumber}`
+          : `Defect: ${matchingRework.rejectedQty} ${matchingRework.uom} rejected in QC`)
+        : 'No defects';
+
       // Outward entry (always exists)
       results.push({
         id: `t2-out-${item.id}`,
@@ -1573,6 +1903,20 @@ export class DeliveryChallanService {
         challanTypeLabel: 'Type 2 (Stock Conversion)',
         direction: 'OUTWARD',
         date: item.createdAt || challan?.dispatchDate || challan?.createdAt,
+        dispatchDate: challan?.dispatchDate || item.createdAt,
+        expectedReturnDate: challan?.expectedReturnDate || null,
+        actualReturnDate: challan?.actualReturnDate || null,
+        initialExpectedQty: initExpected,
+        revisedExpectedQty: revExpected,
+        expectedVariation: variation,
+        actualReceivedQty: actReceived,
+        unreceivedBalance: unrecBalance,
+        qcPassedQty: Number(item.qcPassedQty || 0),
+        qcRejectedQty: Number(item.qcRejectedQty || 0),
+        qcPendingQty: Number(item.qcPendingQty || 0),
+        reworkDcNumber: matchingRework?.reworkDcNumber || null,
+        reworkStatus: matchingRework?.reworkStatus || null,
+        reworkSummary,
         vendorId: vendor?.id || challan?.vendorId,
         vendorName: vendor?.name || '—',
         vendorCode: vendor?.code || '',
@@ -1603,6 +1947,20 @@ export class DeliveryChallanService {
           challanTypeLabel: 'Type 2 (Stock Conversion)',
           direction: 'INWARD',
           date: challan?.actualReturnDate || item.updatedAt || item.createdAt,
+          dispatchDate: challan?.dispatchDate || item.createdAt,
+          expectedReturnDate: challan?.expectedReturnDate || null,
+          actualReturnDate: challan?.actualReturnDate || item.updatedAt || item.createdAt,
+          initialExpectedQty: initExpected,
+          revisedExpectedQty: revExpected,
+          expectedVariation: variation,
+          actualReceivedQty: actReceived,
+          unreceivedBalance: unrecBalance,
+          qcPassedQty: Number(item.qcPassedQty || 0),
+          qcRejectedQty: Number(item.qcRejectedQty || 0),
+          qcPendingQty: Number(item.qcPendingQty || 0),
+          reworkDcNumber: matchingRework?.reworkDcNumber || null,
+          reworkStatus: matchingRework?.reworkStatus || null,
+          reworkSummary,
           vendorId: vendor?.id || challan?.vendorId,
           vendorName: vendor?.name || '—',
           vendorCode: vendor?.code || '',

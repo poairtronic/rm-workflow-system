@@ -1,5 +1,5 @@
 import { useFieldArray, useFormContext, useWatch } from 'react-hook-form';
-import { AlertCircle, FileDigit } from 'lucide-react';
+import { FileDigit, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api, unwrapList } from '../../services/api';
 import { masterDataService } from '../../services/masterDataService';
@@ -8,8 +8,11 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
   const { register, control, setValue } = useFormContext<any>();
   const { fields } = useFieldArray({ control, name: 'items' });
 
-  const { data: products } = useQuery({ queryKey: ['products'], queryFn: async () => unwrapList(await api.get<any[]>('/api/products?pageSize=1000')) });
-  
+  const { data: products } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => unwrapList(await api.get<any[]>('/api/products?pageSize=1000')),
+  });
+
   const { data: allBins = [] } = useQuery({
     queryKey: ['all-bins-master'],
     queryFn: async () => {
@@ -27,17 +30,23 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 mb-6">
-      <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 border-b border-slate-100 pb-4 gap-3">
         <div>
           <h2 className="text-[15px] font-semibold text-slate-900 flex items-center gap-2">
             <FileDigit className="w-5 h-5 text-primary" />
-            Dock Receipt Inwarding & Reconciliation Grid
+            Dock Inward & Return Verification Grid
           </h2>
           <p className="text-xs text-slate-500 mt-1">
             {isClosed
               ? 'Finalized Delivery Challan: All lines are locked for administrative review.'
-              : 'Step 1 of 2: Dock Inwarding. Received quantities enter the Quality Check (QC Pending) queue. Stock balances and WIP progress are credited after inspector QC verification.'}
+              : 'Edit expected return quantity if vendor yield changed, enter actual physical received quantity, and forward directly to QC.'}
           </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs bg-blue-50/70 border border-blue-200 text-blue-900 px-3 py-1.5 rounded-lg">
+          <Info className="w-4 h-4 text-blue-600 shrink-0" />
+          <span>
+            <strong>Variation</strong> = Initial Expected − Revised Expected (Yield difference). It is distinct from <strong>Partial Balance</strong> remaining at vendor.
+          </span>
         </div>
       </div>
 
@@ -46,56 +55,69 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
           <thead className="bg-[#F8FAFC] border-y border-slate-200 text-[11px] font-semibold uppercase text-slate-500">
             <tr>
               <th className="px-4 py-3">Dispatched Item</th>
-              <th className="px-4 py-3">Inward Returned Product</th>
-              {!isType1 && <th className="px-4 py-3">Destination Bin</th>}
-              <th className="px-4 py-3 text-right">{isType1 ? 'Dispatched' : 'Target Expected (Editable)'}</th>
-              <th className="px-4 py-3 text-right">Already Returned</th>
-              <th className="px-4 py-3 text-right">Balance at Vendor</th>
-              <th className="px-4 py-3 text-right">Dock Inward Qty (to QC)</th>
-              {!isType1 && <th className="px-4 py-3 text-right">Actual Inward Yield</th>}
-              <th className="px-4 py-3 text-right">Variance</th>
-              <th className="px-4 py-3">Split (Usable / Scrap)</th>
+              <th className="px-4 py-3">Inward Return Product</th>
+              {!isType1 && <th className="px-4 py-3">Destination Storage Bin</th>}
+              <th className="px-4 py-3 text-right">Initial Expected</th>
+              <th className="px-4 py-3 text-right">Expected on Receipt (Editable)</th>
+              <th className="px-4 py-3 text-center">Expected Variation</th>
+              <th className="px-4 py-3 text-right">Actual Received (to QC)</th>
+              <th className="px-4 py-3 text-right">Remaining at Vendor</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {fields.map((field, index) => {
-              const originalItem = dc.items?.find((item: any) => item.id === (field as any).itemId) || dc.items?.[index];
+              const originalItem =
+                dc.items?.find((item: any) => item.id === (field as any).itemId) || dc.items?.[index];
               const dispProduct = products?.find((p: any) => p.id === originalItem?.productId);
-              
+
               const alreadyAccounted =
                 Number(originalItem?.qcPendingQty || 0) +
                 Number(originalItem?.qcPassedQty || 0) +
                 Number(originalItem?.qcRejectedQty || 0);
 
-              const currentExpectedInput = formItems[index]?.expectedReturnQty;
-              const targetQty = !isType1
-                ? (currentExpectedInput !== undefined && currentExpectedInput !== null && !isNaN(Number(currentExpectedInput)) && Number(currentExpectedInput) > 0
-                    ? Number(currentExpectedInput)
-                    : Number(originalItem?.expectedReturnQty ?? originalItem?.expectedOutputQuantity ?? originalItem?.quantityDispatched ?? 0))
-                : Number(originalItem?.quantityDispatched || 0);
+              // 1. Initial Expected Qty (from DC creation baseline)
+              const initialExpectedQty = !isType1
+                ? Number(originalItem?.initialExpectedQty ?? originalItem?.expectedOutputQuantity ?? originalItem?.quantityDispatched ?? 0)
+                : Number(originalItem?.initialExpectedQty ?? originalItem?.quantityDispatched ?? 0);
 
-              const returnedQty = alreadyAccounted;
-              const remaining = Math.max(0, targetQty - alreadyAccounted);
-              
-              const receivedQty = Number(formItems[index]?.receivedQuantity || 0);
-              const balanceAtVendor = Math.max(0, remaining - receivedQty);
-              const variance = remaining - receivedQty;
-              const isShortfall = variance < 0;
+              // 2. Revised Expected Qty on Receipt
+              const formExpectedInput = formItems[index]?.expectedReturnQty;
+              const revisedExpectedQty =
+                formExpectedInput !== undefined && formExpectedInput !== null && !isNaN(Number(formExpectedInput)) && Number(formExpectedInput) > 0
+                  ? Number(formExpectedInput)
+                  : Number(originalItem?.expectedReturnQty ?? initialExpectedQty);
 
-              const isSplit = formItems[index]?._isSplit;
-              const usableQty = Number(formItems[index]?.usableQuantity || 0);
-              const scrapQty = Number(formItems[index]?.scrapQuantity || 0);
-              const splitMismatch = isSplit && (usableQty + scrapQty !== receivedQty);
+              // 3. Expected Variation (Initial - Revised)
+              const expectedVariation = Math.max(0, initialExpectedQty - revisedExpectedQty);
+              const hasVariation = expectedVariation > 0;
+
+              // 4. Actual Received Qty
+              const actualReceivedInput = formItems[index]?.receivedQuantity ?? formItems[index]?.actualReceivedQty;
+              const actualReceivedQty =
+                actualReceivedInput !== undefined && actualReceivedInput !== null && !isNaN(Number(actualReceivedInput))
+                  ? Number(actualReceivedInput)
+                  : Math.max(0, revisedExpectedQty - alreadyAccounted);
+
+              // 5. Remaining / Partial Balance at Vendor (Revised Expected - Accounted - Received Now)
+              const remainingTarget = Math.max(0, revisedExpectedQty - alreadyAccounted);
+              const unreceivedBalanceAtVendor = Math.max(0, remainingTarget - actualReceivedQty);
 
               return (
-                <tr key={field.id} className="h-14 hover:bg-[#F8FAFC]">
+                <tr key={field.id} className="h-16 hover:bg-[#F8FAFC]">
                   {/* Dispatched Product */}
                   <td className="px-4 py-3">
-                    <p className="font-medium text-slate-900">{dispProduct?.code || originalItem?.product?.code || originalItem?.productId}</p>
-                    <p className="text-xs text-slate-500">{dispProduct?.name || originalItem?.product?.name || ''}</p>
+                    <p className="font-medium text-slate-900">
+                      {originalItem?.partNumber || dispProduct?.code || originalItem?.product?.code || originalItem?.productId}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {originalItem?.partName || dispProduct?.name || originalItem?.product?.name || 'Dispatched Item'}
+                    </p>
+                    <span className="inline-block text-[10px] text-slate-400 font-mono mt-0.5">
+                      Disp: {Number(originalItem?.quantityDispatched || 0)} {dispProduct?.uom || 'NOS'}
+                    </span>
                   </td>
 
-                  {/* Returned / Converted Product */}
+                  {/* Return Converted Product */}
                   <td className="px-4 py-3">
                     {isClosed ? (
                       <div>
@@ -132,12 +154,12 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
                     )}
                   </td>
 
-                  {/* Destination Bin (Type 2 only) */}
+                  {/* Destination Storage Bin (Type 2 only) */}
                   {!isType1 && (
                     <td className="px-4 py-3">
                       {isClosed ? (
                         <span className="text-xs font-medium text-slate-700">
-                          {allBins.find((b: any) => b.id === (originalItem?.outputBinId || originalItem?.binId))?.code || '—'}
+                          {allBins.find((b: any) => b.id === (originalItem?.outputBinId || originalItem?.returnTargetBinId || originalItem?.binId))?.code || '—'}
                         </span>
                       ) : (
                         <select
@@ -146,7 +168,7 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
                           })}
                           className="w-40 h-9 px-2 rounded-lg bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary font-medium"
                         >
-                          <option value="">Select Destination Bin...</option>
+                          <option value="">Select Bin...</option>
                           {allBins.map((b: any) => (
                             <option key={b.id} value={b.id}>
                               {b.code} ({b.rack?.name || 'Rack'})
@@ -157,9 +179,18 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
                     </td>
                   )}
 
-                  <td className="px-4 py-3 text-right tabular-nums text-slate-600 font-medium">
-                    {isType1 || isClosed ? (
-                      <span>{targetQty}</span>
+                  {/* Initial Expected Qty (Fixed Baseline from Creation, e.g. 700) */}
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    <span className="font-mono text-sm font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200 inline-block">
+                      {initialExpectedQty}
+                    </span>
+                    <span className="block text-[10px] text-slate-400 mt-0.5">Created Target</span>
+                  </td>
+
+                  {/* Expected Qty on Receipt (Editable, e.g. user changes from 700 to 650) */}
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {isClosed ? (
+                      <span className="font-mono text-sm font-bold text-slate-800">{revisedExpectedQty}</span>
                     ) : (
                       <div className="flex flex-col items-end">
                         <input
@@ -178,127 +209,80 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
                               if (curReceived > newRemaining || curReceived === 0) {
                                 setValue(`items.${index}.receivedQuantity`, newRemaining);
                                 setValue(`items.${index}.actualReceivedQty`, newRemaining);
-                                if (!isSplit) {
-                                  setValue(`items.${index}.usableQuantity`, newRemaining);
-                                  setValue(`items.${index}.scrapQuantity`, 0);
-                                }
                               }
                             },
                           })}
-                          className="w-24 h-10 px-3 rounded-lg border border-blue-200 bg-blue-50/40 text-sm text-right tabular-nums font-semibold text-blue-900 focus:outline-none focus:ring-2 focus:ring-primary"
-                          title="Revise expected return quantity if vendor yield is different"
+                          className="w-28 h-10 px-3 rounded-lg border border-blue-300 bg-blue-50/50 text-sm text-right tabular-nums font-bold text-blue-900 focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
+                          title="Edit expected return quantity if vendor yield changed"
                         />
-                        <span className="text-[10px] text-blue-600 mt-0.5">Edit Target</span>
+                        <span className="text-[10px] font-medium text-blue-600 mt-0.5">Edit Expected</span>
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right tabular-nums text-slate-600 font-medium">
-                    {returnedQty}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums text-primary font-medium">
-                    {balanceAtVendor}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {isClosed || remaining <= 0 ? (
-                      <span className="text-xs font-semibold text-emerald-600">Fully Inwarded</span>
-                    ) : (
-                      <div className="flex flex-col items-end">
-                        <input
-                          type="number" step="0.001"
-                          {...register(`items.${index}.receivedQuantity` as const, { 
-                            required: 'Required',
-                            valueAsNumber: true,
-                            min: 0.001,
-                            max: { value: remaining, message: 'Exceeds remaining' },
-                            onChange: (e) => {
-                              const val = Number(e.target.value);
-                              if (!isSplit) {
-                                setValue(`items.${index}.usableQuantity`, val);
-                                setValue(`items.${index}.scrapQuantity`, 0);
-                              }
-                              if (!isType1) {
-                                const currentActual = formItems[index]?.actualReceivedQty;
-                                if (currentActual === undefined || currentActual === null || currentActual === receivedQty || currentActual === 0) {
-                                  setValue(`items.${index}.actualReceivedQty`, val);
-                                }
-                              }
-                            }
-                          })}
-                          className={`w-24 h-10 px-3 rounded-lg border text-sm text-right tabular-nums focus:outline-none focus:ring-2 ${receivedQty > remaining || receivedQty < 0.001 ? 'border-red-300 focus:ring-red-500' : 'border-slate-200 focus:ring-primary'}`}
-                        />
-                        {(receivedQty > remaining || receivedQty < 0.001) && <span className="text-[10px] text-red-500 mt-1">Invalid</span>}
-                      </div>
-                    )}
-                  </td>
-                  {!isType1 && (
-                    <td className="px-4 py-3 text-right">
-                      {isClosed || remaining <= 0 ? (
-                        <span className="text-xs font-medium text-slate-700 tabular-nums">
-                          {originalItem?.actualReceivedQty != null ? Number(originalItem.actualReceivedQty).toFixed(3) : '—'}
+
+                  {/* Expected Variation (Computed: Initial Expected - Revised Expected, e.g. 50) */}
+                  <td className="px-4 py-3 text-center">
+                    {hasVariation ? (
+                      <div className="inline-flex flex-col items-center">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                          Var: -{expectedVariation}
                         </span>
-                      ) : (
-                        <div className="flex flex-col items-end">
-                          <input
-                            type="number"
-                            step="0.001"
-                            min="0"
-                            {...register(`items.${index}.actualReceivedQty` as const, {
-                              valueAsNumber: true,
-                            })}
-                            className="w-24 h-10 px-3 rounded-lg border border-slate-200 text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-primary bg-amber-50/20"
-                            placeholder="Scale wt"
-                            title="Actual physical scale weight or converted yield (e.g. 8.500 KG vs 10.000 KG expected)"
-                          />
-                          <span className="text-[10px] text-slate-400 mt-1">Scale yield</span>
-                        </div>
-                      )}
-                    </td>
-                  )}
-                  <td className="px-4 py-3 text-right tabular-nums">
-                    {isClosed ? (
-                      <span className="text-xs font-semibold text-emerald-600">Reconciled</span>
+                        <span className="text-[10px] text-amber-700 font-medium mt-0.5">Yield Change</span>
+                      </div>
                     ) : (
-                      <span className={`font-semibold ${isShortfall ? 'text-red-600' : 'text-slate-700'}`}>
-                        {variance > 0 ? '+' : ''}{variance.toFixed(3)}
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        0 (100% Target)
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3">
-                    {isClosed ? (
-                      <span className="text-xs text-slate-400">—</span>
+
+                  {/* Actual Received Qty (to QC) (e.g. 600) */}
+                  <td className="px-4 py-3 text-right">
+                    {isClosed || remainingTarget <= 0 ? (
+                      <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded border border-emerald-200">
+                        Fully Received
+                      </span>
                     ) : (
-                      <div className="flex flex-col gap-2">
-                        <label className="flex items-center gap-2 text-xs text-slate-600 cursor-not-allowed" title="Not saved yet. DEFERRED: scrap needs a backend field and a rule on where scrap stock goes.">
-                          <input
-                            type="checkbox"
-                            disabled
-                            {...register(`items.${index}._isSplit` as const)}
-                            className="rounded border-slate-300 text-primary focus:ring-primary disabled:opacity-50"
-                          />
-                          Enable Scrap / Remanent Split
-                        </label>
-                        
-                        {isSplit && (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number" step="0.001"
-                              {...register(`items.${index}.usableQuantity` as const)}
-                              className="w-20 h-8 pl-2 pr-2 rounded border border-slate-200 text-xs text-right tabular-nums"
-                            />
-                            <span className="text-slate-400">+</span>
-                            <input
-                              type="number" step="0.001"
-                              {...register(`items.${index}.scrapQuantity` as const)}
-                              className="w-20 h-8 pl-2 pr-2 rounded border border-slate-200 text-xs text-right tabular-nums"
-                            />
-                            {splitMismatch && (
-                              <span title="Split sum must equal Received Qty">
-                                <AlertCircle className="w-4 h-4 text-red-500" />
-                              </span>
-                            )}
-                          </div>
-                        )}
+                      <div className="flex flex-col items-end">
+                        <input
+                          type="number"
+                          step="0.001"
+                          {...register(`items.${index}.receivedQuantity` as const, {
+                            required: 'Required',
+                            valueAsNumber: true,
+                            min: 0.001,
+                            max: { value: remainingTarget, message: 'Exceeds remaining' },
+                            onChange: (e) => {
+                              const val = Number(e.target.value);
+                              setValue(`items.${index}.actualReceivedQty`, val);
+                            },
+                          })}
+                          className={`w-28 h-10 px-3 rounded-lg border text-sm text-right tabular-nums font-bold focus:outline-none focus:ring-2 ${
+                            actualReceivedQty > remainingTarget || actualReceivedQty < 0.001
+                              ? 'border-red-300 focus:ring-red-500 bg-red-50/20'
+                              : 'border-emerald-300 focus:ring-emerald-500 bg-emerald-50/30 text-emerald-950 shadow-xs'
+                          }`}
+                        />
+                        <span className="text-[10px] font-semibold text-emerald-700 mt-0.5">Physical Qty (to QC)</span>
                       </div>
+                    )}
+                  </td>
+
+                  {/* Remaining at Vendor (Revised Expected - Actual Received, e.g. 50) */}
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {unreceivedBalanceAtVendor > 0 ? (
+                      <div className="inline-flex flex-col items-end">
+                        <span className="font-mono text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                          {unreceivedBalanceAtVendor} remaining
+                        </span>
+                        <span className="text-[10px] text-slate-500 mt-0.5">Pending at vendor</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                        0 (Balance Clear)
+                      </span>
                     )}
                   </td>
                 </tr>

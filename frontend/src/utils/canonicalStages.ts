@@ -1,19 +1,15 @@
 export type CanonicalStage =
   | 'Draft'
-  | 'Design Issued'
   | 'Stores Pending'
-  | 'Partially Issued'
+  | 'Stores Issued Partially'
   | 'Stores Issued'
-  | 'Production Pending'
   | 'Production Received';
 
 export const CANONICAL_STAGES: CanonicalStage[] = [
   'Draft',
-  'Design Issued',
   'Stores Pending',
-  'Partially Issued',
+  'Stores Issued Partially',
   'Stores Issued',
-  'Production Pending',
   'Production Received',
 ];
 
@@ -21,7 +17,7 @@ export const STAGE_CONFIG: Record<
   CanonicalStage,
   {
     label: CanonicalStage;
-    variant: 'neutral' | 'info' | 'warning' | 'purple' | 'blue' | 'indigo' | 'success';
+    variant: 'neutral' | 'warning' | 'purple' | 'blue' | 'success';
     badgeClass: string;
     hexColor: string;
     description: string;
@@ -32,54 +28,45 @@ export const STAGE_CONFIG: Record<
     variant: 'neutral',
     badgeClass: 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700',
     hexColor: '#94a3b8',
-    description: 'Component initialized in draft mode',
-  },
-  'Design Issued': {
-    label: 'Design Issued',
-    variant: 'info',
-    badgeClass: 'bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800',
-    hexColor: '#0ea5e9',
-    description: 'Design BOM / RM specifications finalized and released',
+    description: 'Pending with design',
   },
   'Stores Pending': {
     label: 'Stores Pending',
     variant: 'warning',
     badgeClass: 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800',
     hexColor: '#f59e0b',
-    description: 'Awaiting raw material issue from warehouse stores',
+    description: 'Design completed and pending with stores',
   },
-  'Partially Issued': {
-    label: 'Partially Issued',
+  'Stores Issued Partially': {
+    label: 'Stores Issued Partially',
     variant: 'purple',
     badgeClass: 'bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800',
     hexColor: '#8b5cf6',
-    description: 'Stores has dispatched partial raw materials; balance pending',
+    description: 'Stores issued partial materials only and pending with stores only',
   },
   'Stores Issued': {
     label: 'Stores Issued',
     variant: 'blue',
     badgeClass: 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800',
     hexColor: '#3b82f6',
-    description: 'Stores has completely issued required raw materials',
-  },
-  'Production Pending': {
-    label: 'Production Pending',
-    variant: 'indigo',
-    badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-300 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800',
-    hexColor: '#6366f1',
-    description: 'Material dispatched from stores, awaiting shop floor receipt',
+    description: 'Stores has issued and production not yet received',
   },
   'Production Received': {
     label: 'Production Received',
     variant: 'success',
     badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800',
     hexColor: '#10b981',
-    description: 'Shop floor production has received and acknowledged materials',
+    description: 'Production received the material completely',
   },
 };
 
 /**
- * Maps an SC (or status string + optional issue/receipt quantities) to strictly one of the 7 canonical stages.
+ * Maps an SC (or status string + optional issue/receipt quantities) to strictly one of the 5 canonical stages.
+ * 1. Draft: pending with design
+ * 2. Stores Pending: design completed and pending with stores
+ * 3. Stores Issued Partially: stores issued partial materials only and pending with stores only
+ * 4. Stores Issued: stores has issued and production not yet received
+ * 5. Production Received: production received the material completely
  */
 export function getCanonicalStage(item?: {
   status?: string;
@@ -112,33 +99,54 @@ export function getCanonicalStage(item?: {
     isPartiallyIssued = item.isPartiallyIssued;
   }
 
-  // 1. Partial issue detection
+  // 1. Stores Issued Partially: stores issued partial materials only and pending with stores only
   if (
     isPartiallyIssued ||
     rawStatus === 'PARTIALLY_ISSUED' ||
     rawStatus === 'PARTIALLY ISSUED' ||
     rawStatus === 'PARTIAL_ISSUE' ||
+    rawStatus === 'STORES_ISSUED_PARTIALLY' ||
+    rawStatus === 'STORES ISSUED PARTIALLY' ||
     (totalIssued !== undefined && totalRequired !== undefined && totalIssued > 0 && totalIssued < totalRequired)
   ) {
-    return 'Partially Issued';
+    return 'Stores Issued Partially';
   }
 
-  // 2. Draft
+  // 2. Draft: pending with design
   if (rawStatus === 'DRAFT' || rawStatus === 'PENDING') {
     return 'Draft';
   }
 
-  // 3. Design Issued
-  if (rawStatus === 'DESIGN_ISSUED' || rawStatus === 'DESIGN ISSUED' || rawStatus === 'SUBMITTED') {
-    return 'Design Issued';
-  }
-
-  // 4. Stores Pending
-  if (rawStatus === 'STORES_PENDING' || rawStatus === 'STORES PENDING') {
+  // 3. Stores Pending: design completed and pending with stores
+  if (
+    rawStatus === 'STORES_PENDING' ||
+    rawStatus === 'STORES PENDING' ||
+    rawStatus === 'DESIGN_ISSUED' ||
+    rawStatus === 'DESIGN ISSUED' ||
+    rawStatus === 'SUBMITTED'
+  ) {
     return 'Stores Pending';
   }
 
-  // 5. Production Received (explicit or completed or in production with receipts)
+  // 4. Stores Issued: stores has issued and production not yet received
+  if (
+    rawStatus === 'ISSUED' ||
+    rawStatus === 'STORES_ISSUED' ||
+    rawStatus === 'STORES ISSUED' ||
+    rawStatus === 'PRODUCTION_PENDING' ||
+    rawStatus === 'PRODUCTION PENDING'
+  ) {
+    // If complete receipt acknowledged by production
+    if (
+      (totalIssued !== undefined && totalIssued > 0 && totalReceived !== undefined && totalReceived >= totalIssued) ||
+      (hasReceipt && (totalReceived === undefined || totalReceived > 0) && totalIssued === undefined)
+    ) {
+      return 'Production Received';
+    }
+    return 'Stores Issued';
+  }
+
+  // 5. Production Received: production received the material completely
   if (
     rawStatus === 'PRODUCTION_RECEIVED' ||
     rawStatus === 'PRODUCTION RECEIVED' ||
@@ -148,38 +156,22 @@ export function getCanonicalStage(item?: {
     rawStatus === 'CLOSED' ||
     rawStatus === 'ADDITIONAL_REQUEST'
   ) {
+    // If explicit quantities show stores issued but production has received 0, it is still pending receipt
     if (totalIssued !== undefined && totalIssued > 0 && totalReceived !== undefined && totalReceived === 0) {
-      return 'Production Pending';
+      return 'Stores Issued';
     }
     return 'Production Received';
   }
 
-  // 6. Stores Issued / Production Pending
-  if (
-    rawStatus === 'ISSUED' ||
-    rawStatus === 'STORES_ISSUED' ||
-    rawStatus === 'STORES ISSUED'
-  ) {
-    if (hasReceipt || (totalReceived !== undefined && totalReceived > 0)) {
-      return 'Production Received';
-    }
-    if (totalIssued !== undefined && totalIssued > 0) {
-      return 'Production Pending';
-    }
+  // General fallbacks
+  if (rawStatus.includes('DRAFT')) return 'Draft';
+  if (rawStatus.includes('DESIGN') || rawStatus.includes('STORES_PEND') || rawStatus.includes('STORES PEND') || rawStatus.includes('SUBMIT')) {
+    return 'Stores Pending';
+  }
+  if (rawStatus.includes('PARTIAL')) return 'Stores Issued Partially';
+  if (rawStatus.includes('STORES_ISS') || rawStatus.includes('STORES ISS') || rawStatus.includes('PROD_PEND') || rawStatus.includes('PROD PEND') || rawStatus === 'ISSUED') {
     return 'Stores Issued';
   }
-
-  if (rawStatus === 'PRODUCTION_PENDING' || rawStatus === 'PRODUCTION PENDING') {
-    return 'Production Pending';
-  }
-
-  // 7. General fallbacks
-  if (rawStatus.includes('DRAFT')) return 'Draft';
-  if (rawStatus.includes('DESIGN')) return 'Design Issued';
-  if (rawStatus.includes('STORES_PEND') || rawStatus.includes('STORES PEND')) return 'Stores Pending';
-  if (rawStatus.includes('PARTIAL')) return 'Partially Issued';
-  if (rawStatus.includes('STORES_ISS') || rawStatus.includes('STORES ISS')) return 'Stores Issued';
-  if (rawStatus.includes('PROD_PEND') || rawStatus.includes('PROD PEND')) return 'Production Pending';
   if (rawStatus.includes('PROD') || rawStatus.includes('RECEIV') || rawStatus.includes('COMPLET') || rawStatus.includes('CLOSE')) {
     return 'Production Received';
   }
@@ -189,7 +181,7 @@ export function getCanonicalStage(item?: {
 
 /**
  * Computes the generalized overall stage for a Purchase Order based on its child SCs.
- * Follows the 7-stage manufacturing progression hierarchy.
+ * Follows the 5-stage manufacturing progression hierarchy.
  */
 export function getGeneralizedPoStage(
   scs: Array<{ status?: string; [key: string]: any }> = []
@@ -204,13 +196,10 @@ export function getGeneralizedPoStage(
   }
 
   // Progression priority:
-  // If any component has reached production received, the overall PO is actively in Production Received
   if (stages.some(s => s === 'Production Received')) return 'Production Received';
-  if (stages.some(s => s === 'Production Pending')) return 'Production Pending';
   if (stages.some(s => s === 'Stores Issued')) return 'Stores Issued';
-  if (stages.some(s => s === 'Partially Issued')) return 'Partially Issued';
+  if (stages.some(s => s === 'Stores Issued Partially')) return 'Stores Issued Partially';
   if (stages.some(s => s === 'Stores Pending')) return 'Stores Pending';
-  if (stages.some(s => s === 'Design Issued')) return 'Design Issued';
 
   return 'Draft';
 }

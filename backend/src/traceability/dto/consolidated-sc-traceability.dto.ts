@@ -211,11 +211,35 @@ export class ConsolidatedProcessStepDto {
   vendorNames!: string[];
 }
 
+export class ConsolidatedReworkEntryDto {
+  id!: string;
+  sourceDcNumber!: string;
+  reworkDcNumber?: string;
+  rejectedQty!: number;
+  uom!: string;
+  isSameVendor!: boolean;
+  reworkVendorName!: string;
+  originalVendorName?: string;
+  reworkDispatchDate?: string;
+  reworkActualReturnDate?: string;
+  reworkStatus!: string;
+  qcRemarks?: string | null;
+  summary!: string;
+}
+
 export class ConsolidatedDeliveryChallanItemDto {
   id!: string;
   productId?: string;
   productName?: string;
+  partNumber?: string | null;
   quantityDispatched!: number;
+  initialExpectedQty?: number;
+  expectedReturnQty?: number;
+  expectedVariation?: number;
+  actualReceivedQty?: number;
+  qcPassedQty?: number;
+  qcRejectedQty?: number;
+  qcPendingQty?: number;
   quantityReturned!: number;
   balanceQuantity!: number;
 }
@@ -228,6 +252,7 @@ export class ConsolidatedDeliveryChallanDto {
   dispatchDate!: string;
   expectedReturnDate?: string;
   actualReturnDate?: string;
+  deliveryTurnaround?: string;
   vendor?: {
     id: string;
     name: string;
@@ -239,6 +264,7 @@ export class ConsolidatedDeliveryChallanDto {
     code: string;
   };
   items!: ConsolidatedDeliveryChallanItemDto[];
+  reworkItems?: ConsolidatedReworkEntryDto[];
 }
 
 export class ConsolidatedVendorDto {
@@ -263,13 +289,24 @@ export class ConsolidatedDcMovementDto {
   challanNumber?: string;
   processName?: string;
   vendorName?: string;
+  vendorCode?: string;
   dispatchedProductId!: string;
   dispatchedProductName?: string;
   dispatchedQty!: number;
   returnedProductId?: string;
   returnedProductName?: string;
   returnedQty!: number;
+  balanceQty?: number;
   status!: string;
+  dispatchDate?: string;
+  expectedReturnDate?: string;
+  actualReturnDate?: string;
+  deliveryTurnaround?: string;
+  qcPassedQty?: number;
+  qcRejectedQty?: number;
+  qcPendingQty?: number;
+  hasRework?: boolean;
+  reworkItems?: ConsolidatedReworkEntryDto[];
   createdAt!: string;
 }
 
@@ -286,6 +323,7 @@ export class ConsolidatedScTraceabilityDto {
   productionProcesses!: ConsolidatedProcessStepDto[];
   deliveryChallans!: ConsolidatedDeliveryChallanDto[];
   dcMovements!: ConsolidatedDcMovementDto[];
+  reworkItems?: ConsolidatedReworkEntryDto[];
   vendors!: ConsolidatedVendorDto[];
   finalRmUsage!: ConsolidatedFinalRmUsageDto;
   generatedAt!: string;
