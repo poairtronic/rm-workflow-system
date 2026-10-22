@@ -228,10 +228,20 @@ export function DockReceiptWorkspace() {
           ? Number(item.initialExpectedQty ?? item.expectedOutputQuantity ?? item.quantityDispatched ?? 0)
           : Number(item.initialExpectedQty ?? item.quantityDispatched ?? 0);
         const expected = Number(item.expectedReturnQty ?? initial);
+        const dcNumber = dc.challanNumber || dc.dcNumber;
+        const activeReworkAtVendor = (dc.reworkItems || [])
+          .filter(
+            (r: any) =>
+              r.reworkStatus === 'RE_DISPATCHED' &&
+              (r.reworkDcNumber === dcNumber || r.sourceDcNumber === dcNumber) &&
+              (r.productId === item.productId || r.partNumber === item.partNumber),
+          )
+          .reduce((sum: number, r: any) => sum + Number(r.rejectedQty || 0), 0);
+        const settledRejected = Math.max(0, Number(item.qcRejectedQty || 0) - activeReworkAtVendor);
         const alreadyAccounted =
           Number(item.qcPendingQty || 0) +
           Number(item.qcPassedQty || 0) +
-          Number(item.qcRejectedQty || 0);
+          settledRejected;
         const remaining = Math.max(0, expected - alreadyAccounted);
         return {
           itemId: item.id,
@@ -330,10 +340,20 @@ export function DockReceiptWorkspace() {
     const expected = !isType1
       ? Number(item.expectedReturnQty ?? item.expectedOutputQuantity ?? item.quantityDispatched)
       : Number(item.quantityDispatched);
+    const dcNumber = selectedDc?.challanNumber || selectedDc?.dcNumber;
+    const activeReworkAtVendor = (selectedDc?.reworkItems || [])
+      .filter(
+        (r: any) =>
+          r.reworkStatus === 'RE_DISPATCHED' &&
+          (r.reworkDcNumber === dcNumber || r.sourceDcNumber === dcNumber) &&
+          (r.productId === item.productId || r.partNumber === item.partNumber),
+      )
+      .reduce((sum: number, r: any) => sum + Number(r.rejectedQty || 0), 0);
+    const settledRejected = Math.max(0, Number(item.qcRejectedQty || 0) - activeReworkAtVendor);
     const alreadyAccounted =
       Number(item.qcPendingQty || 0) +
       Number(item.qcPassedQty || 0) +
-      Number(item.qcRejectedQty || 0);
+      settledRejected;
     return expected > alreadyAccounted;
   });
   const canReturn = selectedDc && !isClosed && hasRemainingItems;

@@ -529,6 +529,7 @@ export class DeliveryChallanService {
         sc: {
           purchaseOrder: true,
         },
+        reworkItems: true,
       },
       order: { createdAt: 'DESC' },
     });
@@ -551,7 +552,7 @@ export class DeliveryChallanService {
   async findOne(id: string) {
     const challan = await this.challanRepo.findOne({
       where: { id },
-      relations: { items: { product: true, bin: true }, vendor: true },
+      relations: { items: { product: true, bin: true }, vendor: true, reworkItems: true },
     });
     if (!challan) {
       throw new NotFoundException(`Delivery Challan with ID ${id} not found`);
@@ -859,10 +860,22 @@ export class DeliveryChallanService {
         }
 
         const isType1 = challan.type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD;
+        const activeReworks = await queryRunner.manager.find(DcReworkItem, {
+          where: {
+            sourceDcId: challan.id,
+            reworkDcId: challan.id,
+            reworkStatus: ReworkItemStatus.RE_DISPATCHED,
+          },
+        });
+        const reworkQtyAtVendor = (activeReworks || [])
+          .filter(r => r.productId === challanItem.productId || r.partNumber === challanItem.partNumber)
+          .reduce((sum, r) => sum + Number(r.rejectedQty || 0), 0);
+
+        const settledRejected = Math.max(0, Number(challanItem.qcRejectedQty || 0) - reworkQtyAtVendor);
         const alreadyAccounted =
           Number(challanItem.qcPendingQty || 0) +
           Number(challanItem.qcPassedQty || 0) +
-          Number(challanItem.qcRejectedQty || 0);
+          settledRejected;
 
         // For Type 2 (and Type 1): allow revising the expected return quantity (e.g. from 700 to 650)
         const newExpected = dtoItem.expectedReturnQty ?? dtoItem.expectedOutputQuantity;
@@ -1258,6 +1271,7 @@ export class DeliveryChallanService {
 
         if (existingDc) {
           existingDc.dispatchDate = dispatchDate;
+          existingDc.actualReturnDate = null;
           existingDc.status = DeliveryChallanStatus.DISPATCHED;
           if (dto.targetReturnDate) {
             existingDc.expectedReturnDate = new Date(dto.targetReturnDate);

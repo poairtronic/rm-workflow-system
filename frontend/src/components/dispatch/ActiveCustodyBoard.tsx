@@ -48,9 +48,19 @@ export function getDcItemStats(dc: DeliveryChallanDto) {
     totalQcRejected += Number(item.qcRejectedQty || 0);
   }
 
+  const dcNumber = dc.challanNumber || dc.dcNumber;
+  const activeReworkAtVendor = (dc.reworkItems || [])
+    .filter(
+      (r: any) =>
+        r.reworkStatus === 'RE_DISPATCHED' &&
+        (r.reworkDcNumber === dcNumber || r.sourceDcNumber === dcNumber),
+    )
+    .reduce((sum: number, r: any) => sum + Number(r.rejectedQty || 0), 0);
+  const settledRejected = Math.max(0, totalQcRejected - activeReworkAtVendor);
+
   const pendingVendorQty = Math.max(
     0,
-    totalDispatched - totalQcPending - totalQcPassed - totalQcRejected
+    totalDispatched - totalQcPending - totalQcPassed - settledRejected,
   );
 
   return {
@@ -541,8 +551,18 @@ export function ActiveCustodyBoard({
                             const itemDispatched = Number(item.quantityDispatched ?? item.quantity ?? 0);
                             const itemPassed = Number(item.qcPassedQty || 0);
                             const itemRejected = Number(item.qcRejectedQty || 0);
+                            const itemDcNumber = dc.challanNumber || dc.dcNumber;
+                            const itemActiveRework = (dc.reworkItems || [])
+                              .filter(
+                                (r: any) =>
+                                  r.reworkStatus === 'RE_DISPATCHED' &&
+                                  (r.reworkDcNumber === itemDcNumber || r.sourceDcNumber === itemDcNumber) &&
+                                  (r.productId === item.productId || r.partNumber === (item.partNumber || item.product?.code)),
+                              )
+                              .reduce((sum: number, r: any) => sum + Number(r.rejectedQty || 0), 0);
+                            const itemSettledRejected = Math.max(0, itemRejected - itemActiveRework);
                             const itemQc = Number(item.qcPendingQty || 0);
-                            const itemVendor = Math.max(0, itemDispatched - (itemPassed + itemRejected + itemQc));
+                            const itemVendor = Math.max(0, itemDispatched - (itemPassed + itemSettledRejected + itemQc));
                             const hasActivity = itemPassed > 0 || itemRejected > 0 || itemQc > 0;
 
                             return (

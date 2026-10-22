@@ -70,10 +70,20 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
                 dc.items?.find((item: any) => item.id === (field as any).itemId) || dc.items?.[index];
               const dispProduct = products?.find((p: any) => p.id === originalItem?.productId);
 
+              const dcNumber = dc.challanNumber || dc.dcNumber;
+              const activeReworkAtVendor = (dc.reworkItems || [])
+                .filter(
+                  (r: any) =>
+                    r.reworkStatus === 'RE_DISPATCHED' &&
+                    (r.reworkDcNumber === dcNumber || r.sourceDcNumber === dcNumber) &&
+                    (r.productId === originalItem?.productId || r.partNumber === (originalItem?.partNumber || dispProduct?.code)),
+                )
+                .reduce((sum: number, r: any) => sum + Number(r.rejectedQty || 0), 0);
+              const settledRejected = Math.max(0, Number(originalItem?.qcRejectedQty || 0) - activeReworkAtVendor);
               const alreadyAccounted =
                 Number(originalItem?.qcPendingQty || 0) +
                 Number(originalItem?.qcPassedQty || 0) +
-                Number(originalItem?.qcRejectedQty || 0);
+                settledRejected;
 
               // 1. Initial Expected Qty (from DC creation baseline)
               const initialExpectedQty = !isType1

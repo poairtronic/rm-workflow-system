@@ -564,5 +564,74 @@ describe('Phase 23 — DC Quality Check Gate, Rework Module & Split Accounting (
       expect(result.deliveryChallan.scId).toBe('sc-1005');
       expect(result.deliveryChallan.vendorId).toBe('vendor-alternative-2');
     });
+
+    it('re-dispatches rework to SAME vendor, updating existing DC and item counters for inwarding', async () => {
+      const mockItem: any = {
+        id: 'item-orig-1',
+        productId: 'prod-gear-1',
+        partNumber: 'DC2-005',
+        quantityDispatched: 70,
+        expectedReturnQty: 70,
+        quantityReturned: 70,
+        qcPassedQty: 69,
+        qcRejectedQty: 1,
+        qcPendingQty: 0,
+      };
+
+      const mockExistingDc: any = {
+        id: 'dc-orig-1',
+        challanNumber: 'SDC/2627/0016',
+        vendorId: 'vendor-1',
+        type: DeliveryChallanType.GENERAL_INVENTORY_OUTWARD,
+        status: DeliveryChallanStatus.CLOSED,
+        actualReturnDate: new Date('2026-10-22'),
+        items: [mockItem],
+      };
+
+      mockQueryRunner.manager.findOne.mockImplementation(async (entity: any, options: any) => {
+        if (entity === DeliveryChallan) {
+          return mockExistingDc;
+        }
+        return null;
+      });
+
+      const mockReworkItem: any = {
+        id: 'rework-same-1',
+        sourceDcId: 'dc-orig-1',
+        sourceDcNumber: 'SDC/2627/0016',
+        dcType: DeliveryChallanType.GENERAL_INVENTORY_OUTWARD,
+        productId: 'prod-gear-1',
+        productName: 'Forged Gear Blank',
+        rejectedQty: 1,
+        uom: 'PCS',
+        originalVendorId: 'vendor-1',
+        reworkStatus: ReworkItemStatus.MARKED_OKAY,
+      };
+      mockReworkRepo.findOne.mockResolvedValue(mockReworkItem);
+
+      const result = await service.reDispatchReworkItem(
+        'rework-same-1',
+        {
+          vendorId: 'vendor-1', // Same vendor
+          targetReturnDate: new Date(Date.now() + 86400000 * 3).toISOString(),
+          notes: 'Same vendor rework re-dispatch',
+        },
+        'user-planner-1'
+      );
+
+      // Verify that the DC status is reopened to DISPATCHED and actualReturnDate cleared
+      expect(result.deliveryChallan.status).toBe(DeliveryChallanStatus.DISPATCHED);
+      expect(result.deliveryChallan.actualReturnDate).toBeNull();
+      expect(result.reworkItem.reworkStatus).toBe(ReworkItemStatus.RE_DISPATCHED);
+      // Verify item qcPendingQty is reset to 0
+      expect(mockItem.qcPendingQty).toBe(0);
+
+      // Active rework quantity at vendor (1) offsets qcRejectedQty (1)
+      const reworkQtyAtVendor = Number(result.reworkItem.rejectedQty);
+      const settledRejected = Math.max(0, mockItem.qcRejectedQty - reworkQtyAtVendor);
+      const alreadyAccounted = mockItem.qcPendingQty + mockItem.qcPassedQty + settledRejected;
+      const vendorPending = mockItem.expectedReturnQty - alreadyAccounted;
+      expect(vendorPending).toBe(1);
+    });
   });
 });
