@@ -10,6 +10,9 @@ import { NotificationsGateway } from './notifications.gateway.js';
 import { AuditService } from '../audit/audit.service.js';
 
 export const GLOBAL_WORKFLOW_EMAIL_KEY = 'GLOBAL_WORKFLOW_EMAIL_ENABLED';
+export const CONSUMABLE_EMAIL_ALERTS_KEY = 'CONSUMABLE_EMAIL_ALERTS_ENABLED';
+export const CONSUMABLE_RECEIPT_OVERDUE_ALERTS_KEY = 'CONSUMABLE_RECEIPT_OVERDUE_ALERTS_ENABLED';
+export const CONSUMABLE_PARTIALLY_ISSUED_ALERTS_KEY = 'CONSUMABLE_PARTIALLY_ISSUED_ALERTS_ENABLED';
 
 export interface SystemConfigPayload {
   appearance?: {
@@ -23,6 +26,9 @@ export interface SystemConfigPayload {
     materialIssueOverdueAlertsEnabled?: boolean;
     lowStockMslAlertsEnabled?: boolean;
     stockMovementAlertsEnabled?: boolean;
+    consumableEmailAlertsEnabled?: boolean;
+    consumableReceiptOverdueAlertsEnabled?: boolean;
+    consumablePartiallyIssuedAlertsEnabled?: boolean;
   };
   regional?: {
     timezone?: string;
@@ -89,6 +95,102 @@ export class NotificationsService {
     }
     await this.systemSettingRepository.save(setting);
     return enabled;
+  }
+
+  async getConsumableEmailAlertsEnabled(): Promise<boolean> {
+    const setting = await this.systemSettingRepository.findOne({
+      where: { key: CONSUMABLE_EMAIL_ALERTS_KEY },
+    });
+    if (!setting) return true;
+    const val = setting.value as any;
+    return !(val === false || val === 'false' || val === 'f' || val === 0 || val === '0');
+  }
+
+  async setConsumableEmailAlertsEnabled(
+    enabled: boolean,
+    updatedBy?: string,
+  ): Promise<boolean> {
+    let setting = await this.systemSettingRepository.findOne({
+      where: { key: CONSUMABLE_EMAIL_ALERTS_KEY },
+    });
+    if (!setting) {
+      setting = this.systemSettingRepository.create({
+        key: CONSUMABLE_EMAIL_ALERTS_KEY,
+        value: String(enabled),
+        updatedBy,
+      });
+    } else {
+      setting.value = String(enabled);
+      if (updatedBy) setting.updatedBy = updatedBy;
+    }
+    await this.systemSettingRepository.save(setting);
+    return enabled;
+  }
+
+  async getConsumableAlertSettings(): Promise<{
+    consumableEmailAlertsEnabled: boolean;
+    consumableReceiptOverdueAlertsEnabled: boolean;
+    consumablePartiallyIssuedAlertsEnabled: boolean;
+  }> {
+    const settings = await this.systemSettingRepository.find();
+    const map = new Map<string, string>();
+    for (const s of settings) map.set(s.key, s.value);
+    const parseBool = (k: string, def = true) => {
+      if (!map.has(k)) return def;
+      const v = map.get(k);
+      return v === 'true' || v === '1';
+    };
+    return {
+      consumableEmailAlertsEnabled: parseBool(CONSUMABLE_EMAIL_ALERTS_KEY, true),
+      consumableReceiptOverdueAlertsEnabled: parseBool(CONSUMABLE_RECEIPT_OVERDUE_ALERTS_KEY, true),
+      consumablePartiallyIssuedAlertsEnabled: parseBool(CONSUMABLE_PARTIALLY_ISSUED_ALERTS_KEY, true),
+    };
+  }
+
+  async setConsumableAlertSettings(
+    payload: {
+      consumableEmailAlertsEnabled?: boolean;
+      consumableReceiptOverdueAlertsEnabled?: boolean;
+      consumablePartiallyIssuedAlertsEnabled?: boolean;
+    },
+    updatedBy?: string,
+  ) {
+    if (typeof payload.consumableEmailAlertsEnabled === 'boolean') {
+      await this.setConsumableEmailAlertsEnabled(payload.consumableEmailAlertsEnabled, updatedBy);
+    }
+    if (typeof payload.consumableReceiptOverdueAlertsEnabled === 'boolean') {
+      let setting = await this.systemSettingRepository.findOne({
+        where: { key: CONSUMABLE_RECEIPT_OVERDUE_ALERTS_KEY },
+      });
+      if (!setting) {
+        setting = this.systemSettingRepository.create({
+          key: CONSUMABLE_RECEIPT_OVERDUE_ALERTS_KEY,
+          value: String(payload.consumableReceiptOverdueAlertsEnabled),
+          updatedBy,
+        });
+      } else {
+        setting.value = String(payload.consumableReceiptOverdueAlertsEnabled);
+        if (updatedBy) setting.updatedBy = updatedBy;
+      }
+      await this.systemSettingRepository.save(setting);
+    }
+    if (typeof payload.consumablePartiallyIssuedAlertsEnabled === 'boolean') {
+      let setting = await this.systemSettingRepository.findOne({
+        where: { key: CONSUMABLE_PARTIALLY_ISSUED_ALERTS_KEY },
+      });
+      if (!setting) {
+        setting = this.systemSettingRepository.create({
+          key: CONSUMABLE_PARTIALLY_ISSUED_ALERTS_KEY,
+          value: String(payload.consumablePartiallyIssuedAlertsEnabled),
+          updatedBy,
+        });
+      } else {
+        setting.value = String(payload.consumablePartiallyIssuedAlertsEnabled);
+        if (updatedBy) setting.updatedBy = updatedBy;
+      }
+      await this.systemSettingRepository.save(setting);
+    }
+    return this.getConsumableAlertSettings();
   }
 
   async getUserWorkflowEmailEnabled(userId: string): Promise<boolean> {
@@ -299,6 +401,9 @@ export class NotificationsService {
         materialIssueOverdueAlertsEnabled: parseBool('MATERIAL_ISSUE_OVERDUE_ALERTS_ENABLED', true),
         lowStockMslAlertsEnabled: parseBool('LOW_STOCK_MSL_ALERTS_ENABLED', true),
         stockMovementAlertsEnabled: parseBool('STOCK_MOVEMENT_ALERTS_ENABLED', true),
+        consumableEmailAlertsEnabled: parseBool(CONSUMABLE_EMAIL_ALERTS_KEY, true),
+        consumableReceiptOverdueAlertsEnabled: parseBool(CONSUMABLE_RECEIPT_OVERDUE_ALERTS_KEY, true),
+        consumablePartiallyIssuedAlertsEnabled: parseBool(CONSUMABLE_PARTIALLY_ISSUED_ALERTS_KEY, true),
       },
       regional: {
         timezone: map.get('APP_TIMEZONE') || 'Asia/Kolkata (IST)',
@@ -345,6 +450,15 @@ export class NotificationsService {
       }
       if (typeof payload.notifications.stockMovementAlertsEnabled === 'boolean') {
         toSave['STOCK_MOVEMENT_ALERTS_ENABLED'] = String(payload.notifications.stockMovementAlertsEnabled);
+      }
+      if (typeof payload.notifications.consumableEmailAlertsEnabled === 'boolean') {
+        toSave[CONSUMABLE_EMAIL_ALERTS_KEY] = String(payload.notifications.consumableEmailAlertsEnabled);
+      }
+      if (typeof payload.notifications.consumableReceiptOverdueAlertsEnabled === 'boolean') {
+        toSave[CONSUMABLE_RECEIPT_OVERDUE_ALERTS_KEY] = String(payload.notifications.consumableReceiptOverdueAlertsEnabled);
+      }
+      if (typeof payload.notifications.consumablePartiallyIssuedAlertsEnabled === 'boolean') {
+        toSave[CONSUMABLE_PARTIALLY_ISSUED_ALERTS_KEY] = String(payload.notifications.consumablePartiallyIssuedAlertsEnabled);
       }
     }
 

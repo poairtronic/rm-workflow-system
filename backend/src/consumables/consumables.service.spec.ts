@@ -777,5 +777,89 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
       ).rejects.toThrow(BadRequestException);
     });
   });
+
+  describe('Consumables SLA Sweeps & Alert Settings', () => {
+    it('CNS-SVC-015: checkAndAlertConsumableSlas should identify unreceived items >24h and partially issued items', async () => {
+      const now = Date.now();
+      const olderThan24h = new Date(now - 26 * 60 * 60 * 1000); // 26 hours ago
+      const recent = new Date(now - 2 * 60 * 60 * 1000); // 2 hours ago
+
+      const mockPendingItems = [
+        {
+          id: 'item-overdue-1',
+          createdAt: olderThan24h,
+          status: ConsumableItemStatus.OPEN,
+          itemCategoryTrack: ConsumableItemTrack.NON_STOCK_OR_NEW,
+          purchaseReceivedAt: null,
+          realReceivedQty: 0,
+          requestedQty: 10,
+          purchaseQty: 10,
+          description: 'Overdue consumable drill',
+          uom: 'NOS',
+          request: { requestCode: 'CR-2026-0001' },
+        },
+        {
+          id: 'item-partial-2',
+          createdAt: recent,
+          status: ConsumableItemStatus.PARTIALLY_ISSUED,
+          itemCategoryTrack: ConsumableItemTrack.STOCK_ITEM,
+          issuedQty: 3,
+          requestedQty: 10,
+          description: 'Partially issued coolant',
+          uom: 'LITERS',
+          request: { requestCode: 'CR-2026-0002' },
+        },
+      ] as any[];
+
+      vi.spyOn(itemRepo, 'find').mockResolvedValue(mockPendingItems);
+
+      const mockCommService = {
+        sendEvent: vi.fn().mockResolvedValue({ inAppNotifications: [], emailJobs: [] }),
+      };
+      (service as any).communicationService = mockCommService;
+
+      const res = await service.checkAndAlertConsumableSlas();
+
+      expect(res.overdueReceiptCount).toBe(1);
+      expect(res.partiallyIssuedCount).toBe(1);
+      expect(res.checkedCount).toBe(2);
+      expect(mockCommService.sendEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'CONSUMABLE_RECEIPT_OVERDUE',
+        }),
+      );
+      expect(mockCommService.sendEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'CONSUMABLE_PARTIALLY_ISSUED_OVERDUE',
+        }),
+      );
+    });
+
+    it('CNS-SVC-016: getAlertSettings and updateAlertSettings should retrieve and persist settings', async () => {
+      const mockNotifService = {
+        getConsumableAlertSettings: vi.fn().mockResolvedValue({
+          consumableEmailAlertsEnabled: true,
+          consumableReceiptOverdueAlertsEnabled: true,
+          consumablePartiallyIssuedAlertsEnabled: true,
+        }),
+        setConsumableAlertSettings: vi.fn().mockResolvedValue({
+          consumableEmailAlertsEnabled: false,
+          consumableReceiptOverdueAlertsEnabled: true,
+          consumablePartiallyIssuedAlertsEnabled: false,
+        }),
+      };
+      (service as any).notificationsService = mockNotifService;
+
+      const current = await service.getAlertSettings();
+      expect(current.consumableEmailAlertsEnabled).toBe(true);
+
+      const updated = await service.updateAlertSettings({
+        consumableEmailAlertsEnabled: false,
+        consumablePartiallyIssuedAlertsEnabled: false,
+      });
+      expect(mockNotifService.setConsumableAlertSettings).toHaveBeenCalled();
+      expect(updated.consumableEmailAlertsEnabled).toBe(false);
+    });
+  });
 });
 

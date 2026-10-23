@@ -14,6 +14,8 @@ import { StockTransaction } from '../inventory/entities/stock-transaction.entity
 import { ConsumablesService } from './consumables.service.js';
 import { ConsumablesController } from './consumables.controller.js';
 
+import { NotificationsModule } from '../notifications/notifications.module.js';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -27,6 +29,7 @@ import { ConsumablesController } from './consumables.controller.js';
       StockBalance,
       StockTransaction,
     ]),
+    NotificationsModule,
   ],
   controllers: [ConsumablesController],
   providers: [ConsumablesService],

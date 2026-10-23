@@ -3,7 +3,9 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  Optional,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In, Like, Raw } from 'typeorm';
 
@@ -35,6 +37,8 @@ import { ReceiveConsumablePurchaseDto } from './dto/receive-consumable-purchase.
 import { IssueConsumableToProductionDto } from './dto/issue-to-production.dto.js';
 import { PrintPrDto } from './dto/print-pr.dto.js';
 import { QueryConsumableItemsDto } from './dto/query-consumables.dto.js';
+import { CommunicationService } from '../notifications/communication.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 @Injectable()
 export class ConsumablesService {
@@ -60,6 +64,8 @@ export class ConsumablesService {
     private readonly balanceRepo: Repository<StockBalance>,
     @InjectRepository(StockTransaction)
     private readonly transactionRepo: Repository<StockTransaction>,
+    @Optional() private readonly communicationService?: CommunicationService,
+    @Optional() private readonly notificationsService?: NotificationsService,
   ) {}
 
   /**
@@ -1056,6 +1062,171 @@ export class ConsumablesService {
           }
         : undefined,
     }));
+  }
+
+  /**
+   * Enterprise Automated Sweep: Evaluates active consumable items:
+   * 1. Consumable not received >24 hours from creation -> CONSUMABLE_RECEIPT_OVERDUE (In-app + Email)
+   * 2. Consumable partially issued -> CONSUMABLE_PARTIALLY_ISSUED_OVERDUE (In-app + Email)
+   * Admin can toggle email alerts ON/OFF.
+   */
+  @Cron(process.env.CONSUMABLE_SLA_CRON_SCHEDULE || CronExpression.EVERY_HOUR)
+  async checkAndAlertConsumableSlas(): Promise<{
+    overdueReceiptCount: number;
+    partiallyIssuedCount: number;
+    checkedCount: number;
+    timestamp: string;
+  }> {
+    this.logger.log('Starting automated Consumables SLA and Fulfillment alert sweep.');
+    if (!this.communicationService) {
+      this.logger.warn('CommunicationService not available. Skipping consumable SLA sweep.');
+      return { overdueReceiptCount: 0, partiallyIssuedCount: 0, checkedCount: 0, timestamp: new Date().toISOString() };
+    }
+
+    try {
+      const alertSettings = this.notificationsService
+        ? await this.notificationsService.getConsumableAlertSettings()
+        : {
+            consumableEmailAlertsEnabled: true,
+            consumableReceiptOverdueAlertsEnabled: true,
+            consumablePartiallyIssuedAlertsEnabled: true,
+          };
+
+      // 1. Fetch pending items
+      const pendingItems = await this.itemRepo.find({
+        where: {
+          status: In([
+            ConsumableItemStatus.OPEN,
+            ConsumableItemStatus.PURCHASE_REQUESTED,
+            ConsumableItemStatus.PARTIALLY_ISSUED,
+            ConsumableItemStatus.READY_FOR_ISSUE,
+          ]),
+        },
+        relations: {
+          request: true,
+          product: true,
+          vendor: true,
+        },
+      });
+
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+      let overdueReceiptCount = 0;
+      let partiallyIssuedCount = 0;
+
+      for (const item of pendingItems) {
+        // --- CHECK A: NOT RECEIVED WITHIN 24 HOURS OF CREATION ---
+        const isNotReceived =
+          !item.purchaseReceivedAt &&
+          (item.status === ConsumableItemStatus.OPEN ||
+            item.status === ConsumableItemStatus.PURCHASE_REQUESTED ||
+            (Number(item.realReceivedQty || 0) === 0 && item.itemCategoryTrack === ConsumableItemTrack.NON_STOCK_OR_NEW));
+
+        if (isNotReceived && alertSettings.consumableReceiptOverdueAlertsEnabled) {
+          const itemCreatedAt = new Date(item.createdAt);
+          const elapsedMs = now.getTime() - itemCreatedAt.getTime();
+          const elapsedHours = Math.floor(elapsedMs / (1000 * 60 * 60));
+
+          if (elapsedHours >= 24) {
+            overdueReceiptCount++;
+            const pendingQty = Number(item.purchaseQty ?? item.requestedQty ?? 0);
+            try {
+              await this.communicationService.sendEvent({
+                eventType: 'CONSUMABLE_RECEIPT_OVERDUE',
+                entityType: 'CONSUMABLE_REQUEST_ITEM',
+                entityId: `${item.id}_${todayStr}`, // Unique key per day ensures no flood
+                metadata: {
+                  description: item.description,
+                  prNumber: item.prNumber ? `PR. No. ${item.prNumber}` : 'N/A',
+                  requestCode: item.request?.requestCode || 'N/A',
+                  hoursElapsed: elapsedHours,
+                  vendorName: item.newVendorName || item.vendorName || item.vendor?.name || 'Open Sourcing',
+                  purchaseQty: pendingQty,
+                  requestedQty: item.requestedQty,
+                  uom: item.uom,
+                  endUser: item.endUserInVelan || 'Plant Floor',
+                },
+              });
+            } catch (err: any) {
+              this.logger.error(`Failed to dispatch 24h receipt overdue alert for item ${item.id}: ${err?.message}`);
+            }
+          }
+        }
+
+        // --- CHECK B: PARTIALLY ISSUED ALERT ---
+        const isPartiallyIssued =
+          item.status === ConsumableItemStatus.PARTIALLY_ISSUED ||
+          (Number(item.issuedQty || 0) > 0 && Number(item.issuedQty || 0) < Number(item.requestedQty || 0));
+
+        if (isPartiallyIssued && alertSettings.consumablePartiallyIssuedAlertsEnabled) {
+          partiallyIssuedCount++;
+          const remainingQty = Math.max(0, Number(item.requestedQty) - Number(item.issuedQty || 0));
+          try {
+            await this.communicationService.sendEvent({
+              eventType: 'CONSUMABLE_PARTIALLY_ISSUED_OVERDUE',
+              entityType: 'CONSUMABLE_REQUEST_ITEM',
+              entityId: `${item.id}_part_${todayStr}`,
+              metadata: {
+                description: item.description,
+                prNumber: item.prNumber ? `PR. No. ${item.prNumber}` : 'N/A',
+                requestCode: item.request?.requestCode || 'N/A',
+                issuedQty: item.issuedQty,
+                requestedQty: item.requestedQty,
+                remainingQty,
+                uom: item.uom,
+                endUser: item.endUserInVelan || 'Plant Floor',
+              },
+            });
+          } catch (err: any) {
+            this.logger.error(`Failed to dispatch partially issued alert for item ${item.id}: ${err?.message}`);
+          }
+        }
+      }
+
+      this.logger.log(
+        `Consumables SLA sweep completed: ${overdueReceiptCount} overdue receipt(s), ${partiallyIssuedCount} partially issued item(s) checked against ${pendingItems.length} total active items.`,
+      );
+
+      return {
+        overdueReceiptCount,
+        partiallyIssuedCount,
+        checkedCount: pendingItems.length,
+        timestamp: now.toISOString(),
+      };
+    } catch (err: any) {
+      this.logger.error(`Error executing consumable SLA sweep: ${err?.message}`, err?.stack);
+      return {
+        overdueReceiptCount: 0,
+        partiallyIssuedCount: 0,
+        checkedCount: 0,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  async getAlertSettings() {
+    if (this.notificationsService) {
+      return this.notificationsService.getConsumableAlertSettings();
+    }
+    return {
+      consumableEmailAlertsEnabled: true,
+      consumableReceiptOverdueAlertsEnabled: true,
+      consumablePartiallyIssuedAlertsEnabled: true,
+    };
+  }
+
+  async updateAlertSettings(
+    payload: {
+      consumableEmailAlertsEnabled?: boolean;
+      consumableReceiptOverdueAlertsEnabled?: boolean;
+      consumablePartiallyIssuedAlertsEnabled?: boolean;
+    },
+    actorId?: string,
+  ) {
+    if (this.notificationsService) {
+      return this.notificationsService.setConsumableAlertSettings(payload, actorId);
+    }
+    return payload;
   }
 }
 

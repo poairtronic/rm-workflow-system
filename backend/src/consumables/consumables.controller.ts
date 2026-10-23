@@ -230,5 +230,41 @@ export class ConsumablesController {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     return this.consumablesService.confirmProductionReceipt(id, userId);
   }
+
+  /**
+   * Consumables SLA Alert Settings (Admin toggles for 24h receipt overdue and partial issue email alerts)
+   */
+  @Get('alert-settings')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.GENERAL_MANAGER)
+  @ApiOperation({ summary: 'Get current consumable SLA and email notification alert settings' })
+  async getAlertSettings() {
+    return this.consumablesService.getAlertSettings();
+  }
+
+  @Patch('alert-settings')
+  @Roles(UserRole.ADMIN, UserRole.GENERAL_MANAGER)
+  @ApiOperation({ summary: 'Update consumable email alert settings (enable/disable email alerts)' })
+  async updateAlertSettings(
+    @Body()
+    body: {
+      consumableEmailAlertsEnabled?: boolean;
+      consumableReceiptOverdueAlertsEnabled?: boolean;
+      consumablePartiallyIssuedAlertsEnabled?: boolean;
+    },
+    @Req() req: any,
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    return this.consumablesService.updateAlertSettings(body, userId);
+  }
+
+  /**
+   * Trigger immediate on-demand SLA alert check for consumables (>24h receipt overdue and partially issued).
+   */
+  @Post('check-sla-alerts')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.GENERAL_MANAGER)
+  @ApiOperation({ summary: 'Manually trigger immediate Consumables SLA and Fulfillment check & alert sweep' })
+  async checkSlaAlerts() {
+    return this.consumablesService.checkAndAlertConsumableSlas();
+  }
 }
 

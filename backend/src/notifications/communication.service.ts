@@ -67,6 +67,9 @@ export const PERMITTED_EMAIL_CONFIG: Record<
   DC_OVERDUE: { allowedRoles: ['STORES'], recipientType: 'ROLES' },
   // 7th: Password reset -> Requesting user
   PASSWORD_RESET: { allowedRoles: [], recipientType: 'USER' },
+  // Consumables SLA and Fulfillment alerts (Admin controllable)
+  CONSUMABLE_RECEIPT_OVERDUE: { allowedRoles: ['STORES', 'ADMIN'], recipientType: 'ROLES' },
+  CONSUMABLE_PARTIALLY_ISSUED_OVERDUE: { allowedRoles: ['STORES', 'ADMIN', 'PRODUCTION'], recipientType: 'ROLES' },
   // Diagnostic test email for admin verification
   TEST_EMAIL: {
     allowedRoles: ['ADMIN', 'STORES', 'PRODUCTION', 'DESIGNER', 'SENIOR_MANAGER', 'GENERAL_MANAGER'],
@@ -566,6 +569,54 @@ export class CommunicationService {
           },
         });
 
+      // Consumables SLA and Fulfillment alerts
+      case 'CONSUMABLE_RECEIPT_OVERDUE':
+        return this.orchestrateChannelDelivery({
+          eventType: 'CONSUMABLE_RECEIPT_OVERDUE',
+          targetUsers,
+          targetEntity: 'CONSUMABLE_REQUEST_ITEM',
+          targetId: input.entityId,
+          title: `OVERDUE SLA: Consumable Pending Receipt >24h - ${input.metadata?.description || input.entityId}`,
+          message: `Consumable item "${input.metadata?.description || input.entityId}" (PR: ${input.metadata?.prNumber || 'N/A'}, Request: ${input.metadata?.requestCode || 'N/A'}) was requested >24h ago (${input.metadata?.hoursElapsed || '24+'}h) and has not been inwarded into stores.`,
+          templateKey: 'CONSUMABLE_RECEIPT_OVERDUE',
+          subject: `[V-SMART] OVERDUE SLA: Consumable Pending Receipt >24h - ${input.metadata?.description || 'Item'}`,
+          payload: {
+            description: input.metadata?.description,
+            prNumber: input.metadata?.prNumber,
+            requestCode: input.metadata?.requestCode,
+            hoursElapsed: input.metadata?.hoursElapsed,
+            vendorName: input.metadata?.vendorName,
+            purchaseQty: input.metadata?.purchaseQty,
+            requestedQty: input.metadata?.requestedQty,
+            uom: input.metadata?.uom,
+            endUser: input.metadata?.endUser,
+          },
+          actorUserId,
+        });
+
+      case 'CONSUMABLE_PARTIALLY_ISSUED_OVERDUE':
+        return this.orchestrateChannelDelivery({
+          eventType: 'CONSUMABLE_PARTIALLY_ISSUED_OVERDUE',
+          targetUsers,
+          targetEntity: 'CONSUMABLE_REQUEST_ITEM',
+          targetId: input.entityId,
+          title: `Consumable Partially Issued: ${input.metadata?.description || input.entityId}`,
+          message: `Consumable item "${input.metadata?.description || input.entityId}" is partially issued (${input.metadata?.issuedQty || 0} / ${input.metadata?.requestedQty || 0} ${input.metadata?.uom || 'units'}). Remaining ${input.metadata?.remainingQty || 0} ${input.metadata?.uom || 'units'} pending issue.`,
+          templateKey: 'CONSUMABLE_PARTIALLY_ISSUED_OVERDUE',
+          subject: `[V-SMART] ACTION REQUIRED: Consumable Partially Issued - ${input.metadata?.description || 'Item'}`,
+          payload: {
+            description: input.metadata?.description,
+            prNumber: input.metadata?.prNumber,
+            requestCode: input.metadata?.requestCode,
+            issuedQty: input.metadata?.issuedQty,
+            requestedQty: input.metadata?.requestedQty,
+            remainingQty: input.metadata?.remainingQty,
+            uom: input.metadata?.uom,
+            endUser: input.metadata?.endUser,
+          },
+          actorUserId,
+        });
+
       default:
         this.logger.warn(`Unsupported communication event type: ${input.eventType}`);
         return { inAppNotifications: [], emailJobs: [] };
@@ -663,6 +714,14 @@ export class CommunicationService {
     if (!globalEmailEnabled) {
       this.logger.log(`Global workflow email is disabled. Skipping email jobs for event "${params.eventType}".`);
       return { inAppNotifications, emailJobs };
+    }
+
+    if (params.eventType === 'CONSUMABLE_RECEIPT_OVERDUE' || params.eventType === 'CONSUMABLE_PARTIALLY_ISSUED_OVERDUE') {
+      const consumableEmailEnabled = await this.notificationsService.getConsumableEmailAlertsEnabled();
+      if (!consumableEmailEnabled) {
+        this.logger.log(`Consumable email alerts are turned OFF by Admin. Skipping email dispatch for "${params.eventType}".`);
+        return { inAppNotifications, emailJobs };
+      }
     }
 
     // Resolve authorized recipients for this specific email event

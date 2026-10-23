@@ -160,6 +160,17 @@ export class NotificationRecipientService {
         monitoringRoles = [UserRole.SENIOR_MANAGER];
         break;
 
+      // Consumables SLA and Fulfillment alerts
+      case 'CONSUMABLE_RECEIPT_OVERDUE':
+        primaryRoles = [UserRole.STORES, UserRole.ADMIN];
+        monitoringRoles = [];
+        break;
+
+      case 'CONSUMABLE_PARTIALLY_ISSUED_OVERDUE':
+        primaryRoles = [UserRole.STORES, UserRole.ADMIN, UserRole.PRODUCTION];
+        monitoringRoles = [];
+        break;
+
       default:
         this.logger.warn(`Unknown/unsupported event type "${eventType}". Returning empty recipient list.`);
         return [];

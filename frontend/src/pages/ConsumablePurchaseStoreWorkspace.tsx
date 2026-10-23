@@ -9,12 +9,16 @@ import {
   Clock,
   Send,
   Building2,
+  Bell,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { ExportDropdown } from '../components/common/ExportDropdown';
+import type { ExportColumn } from '../utils/exportUtils';
 import { VelanPrPrintModal } from '../components/consumables/VelanPrPrintModal';
 import { EditPrIndentModal } from '../components/consumables/EditPrIndentModal';
+import { ConsumableAlertSettingsModal } from '../components/consumables/ConsumableAlertSettingsModal';
 import { consumablesApi, type BinOption } from '../services/consumables.service';
 import type { ConsumableLineItemRecord } from '../types/consumables.types';
 import toast from 'react-hot-toast';
@@ -113,6 +117,118 @@ export function ConsumablePurchaseStoreWorkspace() {
   >([]);
   const [loadingStockBins, setLoadingStockBins] = useState(false);
   const [issuingSubmit, setIssuingSubmit] = useState(false);
+
+  // Consumables SLA Alert Settings Modal State
+  const [alertSettingsModalOpen, setAlertSettingsModalOpen] = useState(false);
+
+  // Comprehensive Export Columns with Creation Timestamp
+  const consumableExportColumns: ExportColumn<ConsumableLineItemRecord>[] = useMemo(
+    () => [
+      {
+        header: 'Request #',
+        key: 'requestCode',
+        accessor: (item) => item.requestCode || 'N/A',
+      },
+      {
+        header: 'PR #',
+        key: 'prNumber',
+        accessor: (item) => (item.prNumber ? `PR. No. ${item.prNumber}` : 'No PR assigned'),
+      },
+      {
+        header: 'Creation Date & Time',
+        key: 'createdAt',
+        accessor: (item) => {
+          if (!item.createdAt) return 'N/A';
+          const d = new Date(item.createdAt);
+          return isNaN(d.getTime())
+            ? String(item.createdAt)
+            : d.toLocaleString('en-IN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true,
+              });
+        },
+      },
+      {
+        header: 'Item Description',
+        key: 'description',
+        accessor: (item) => item.description || 'N/A',
+      },
+      {
+        header: 'Product Code',
+        key: 'productCode',
+        accessor: (item) => item.productCode || '-',
+      },
+      {
+        header: 'Category Track',
+        key: 'itemCategoryTrack',
+        accessor: (item) =>
+          item.itemCategoryTrack === 'STOCK_ITEM' ? 'In-Stock Store Item' : 'Non-Stock / Purchase',
+      },
+      {
+        header: 'Supplier / Vendor',
+        key: 'vendorName',
+        accessor: (item) => item.newVendorName || item.vendorName || 'Open Sourcing',
+      },
+      {
+        header: 'Req. Qty (Production)',
+        key: 'requestedQty',
+        accessor: (item) => `${item.requestedQty || 0} ${item.uom || 'NOS'}`,
+      },
+      {
+        header: 'Store Indent Qty',
+        key: 'purchaseQty',
+        accessor: (item) => `${item.purchaseQty ?? item.requestedQty ?? 0} ${item.uom || 'NOS'}`,
+      },
+      {
+        header: 'Real Received Qty',
+        key: 'realReceivedQty',
+        accessor: (item) => `${item.realReceivedQty || 0} ${item.uom || 'NOS'}`,
+      },
+      {
+        header: 'Issued to Production',
+        key: 'issuedQty',
+        accessor: (item) => `${item.issuedQty || 0} ${item.uom || 'NOS'}`,
+      },
+      {
+        header: 'Retained Store Stock',
+        accessor: (item) =>
+          `${Math.max(0, Number(item.realReceivedQty || 0) - Number(item.issuedQty || 0))} ${item.uom || 'NOS'}`,
+      },
+      {
+        header: 'Current Stage',
+        key: 'status',
+        accessor: (item) => {
+          const isFull =
+            (item.status === 'ISSUED_TO_PRODUCTION' || item.status === 'RECEIVED_BY_PRODUCTION') &&
+            Number(item.issuedQty || 0) >= Number(item.requestedQty || 0);
+          const isPart =
+            item.status === 'PARTIALLY_ISSUED' ||
+            (Number(item.issuedQty || 0) > 0 && Number(item.issuedQty || 0) < Number(item.requestedQty || 0));
+          if (isFull) return 'Dispatched (Closed)';
+          if (isPart) return `Partially Issued (${item.issuedQty}/${item.requestedQty})`;
+          if (item.status === 'PURCHASE_RECEIVED') return 'Stock Received';
+          if (item.status === 'PURCHASE_REQUESTED') return 'PR Slip Printed';
+          return 'Open';
+        },
+      },
+      {
+        header: 'End User / Bay',
+        key: 'endUserInVelan',
+        accessor: (item) => item.endUserInVelan || '-',
+      },
+      {
+        header: 'Requested By',
+        key: 'requestedBy',
+        accessor: (item) => item.requestedBy || '-',
+      },
+    ],
+    []
+  );
 
   // Fetch items & bins
   useEffect(() => {
@@ -620,6 +736,27 @@ export function ConsumablePurchaseStoreWorkspace() {
                 />
               </div>
 
+              <ExportDropdown
+                data={inStockItems}
+                columns={consumableExportColumns}
+                fileName={`consumable_in_stock_${new Date().toISOString().split('T')[0]}`}
+                reportTitle="Velan Metrology - In-Stock Consumables Report"
+                reportSubtitle={`In-Stock Consumables Queue (${inStockItems.length} records)`}
+                buttonLabel="Export Report"
+                variant="button"
+              />
+
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setAlertSettingsModalOpen(true)}
+                className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
+                title="Consumables SLA & Email Alert Settings"
+              >
+                <Bell className="w-3.5 h-3.5 text-amber-500" />
+                Alerts
+              </Button>
+
               <Button
                 variant="secondary"
                 size="sm"
@@ -678,6 +815,23 @@ export function ConsumablePurchaseStoreWorkspace() {
                       <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="py-3.5 px-3.5 font-mono font-semibold text-slate-900 dark:text-white align-middle">
                           <span>{item.requestCode}</span>
+                          {item.createdAt && (
+                            <div
+                              className="flex items-center gap-1 text-[10px] text-slate-400 font-normal font-sans mt-0.5 whitespace-nowrap"
+                              title={`Created at: ${new Date(item.createdAt).toLocaleString('en-IN')}`}
+                            >
+                              <Clock className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                              <span>
+                                {new Date(item.createdAt).toLocaleString('en-IN', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  hour12: true,
+                                })}
+                              </span>
+                            </div>
+                          )}
                           {item.prNumber && (
                             <button
                               type="button"
@@ -804,6 +958,17 @@ export function ConsumablePurchaseStoreWorkspace() {
               <Button
                 variant="secondary"
                 size="sm"
+                onClick={() => setAlertSettingsModalOpen(true)}
+                className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
+                title="Configure 24h unreceived & partial issue email/in-app alert triggers"
+              >
+                <Bell className="w-3.5 h-3.5 text-amber-500" />
+                Alert Settings
+              </Button>
+
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={loadData}
                 disabled={loading}
                 className="flex items-center gap-1.5 text-xs"
@@ -814,7 +979,7 @@ export function ConsumablePurchaseStoreWorkspace() {
             </div>
           </div>
 
-          {/* Sub-Filters & Search */}
+          {/* Sub-Filters & Search & Filter-wise Export */}
           <div className="flex flex-col md:flex-row items-center justify-between gap-3 pt-2">
             <div className="relative w-full md:w-80">
               <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
@@ -827,47 +992,72 @@ export function ConsumablePurchaseStoreWorkspace() {
               />
             </div>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto p-1 bg-slate-100/80 dark:bg-slate-800/80 rounded-xl border border-slate-200/80 dark:border-slate-700/80">
-              <button
-                type="button"
-                onClick={() => setPurchaseStatusFilter('ALL')}
-                className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${purchaseStatusFilter === 'ALL'
-                    ? 'bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+              <div className="flex items-center gap-1.5 overflow-x-auto p-1 bg-slate-100/80 dark:bg-slate-800/80 rounded-xl border border-slate-200/80 dark:border-slate-700/80">
+                <button
+                  type="button"
+                  onClick={() => setPurchaseStatusFilter('ALL')}
+                  className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${
+                    purchaseStatusFilter === 'ALL'
+                      ? 'bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs font-bold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
-              >
-                All Purchase Items
-              </button>
-              <button
-                type="button"
-                onClick={() => setPurchaseStatusFilter('OPEN')}
-                className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${purchaseStatusFilter === 'OPEN'
-                    ? 'bg-white dark:bg-blue-600 text-blue-700 dark:text-white shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                >
+                  All Purchase Items
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPurchaseStatusFilter('OPEN')}
+                  className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${
+                    purchaseStatusFilter === 'OPEN'
+                      ? 'bg-white dark:bg-blue-600 text-blue-700 dark:text-white shadow-xs font-bold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
-              >
-                Open ({openPurchaseCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setPurchaseStatusFilter('PARTIALLY_ISSUED')}
-                className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${purchaseStatusFilter === 'PARTIALLY_ISSUED'
-                    ? 'bg-white dark:bg-amber-600 text-amber-700 dark:text-white shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                >
+                  Open ({openPurchaseCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPurchaseStatusFilter('PARTIALLY_ISSUED')}
+                  className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${
+                    purchaseStatusFilter === 'PARTIALLY_ISSUED'
+                      ? 'bg-white dark:bg-amber-600 text-amber-700 dark:text-white shadow-xs font-bold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
-              >
-                Partially Issued ({partiallyIssuedCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setPurchaseStatusFilter('DISPATCHED')}
-                className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${purchaseStatusFilter === 'DISPATCHED'
-                    ? 'bg-white dark:bg-emerald-600 text-emerald-700 dark:text-white shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                >
+                  Partially Issued ({partiallyIssuedCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPurchaseStatusFilter('DISPATCHED')}
+                  className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all cursor-pointer ${
+                    purchaseStatusFilter === 'DISPATCHED'
+                      ? 'bg-white dark:bg-emerald-600 text-emerald-700 dark:text-white shadow-xs font-bold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
-              >
-                Dispatched ({dispatchedCount})
-              </button>
+                >
+                  Dispatched ({dispatchedCount})
+                </button>
+              </div>
+
+              {/* Filter-wise Export Dropdown: exports whatever filtered items are currently active */}
+              <ExportDropdown
+                data={purchaseQueueItems}
+                columns={consumableExportColumns}
+                fileName={`consumable_purchase_${purchaseStatusFilter.toLowerCase()}_report_${new Date().toISOString().split('T')[0]}`}
+                reportTitle={`Velan Metrology - Consumable Purchase Report (${
+                  purchaseStatusFilter === 'ALL'
+                    ? 'All Items'
+                    : purchaseStatusFilter === 'OPEN'
+                    ? 'Open Items'
+                    : purchaseStatusFilter === 'PARTIALLY_ISSUED'
+                    ? 'Partially Issued Items'
+                    : 'Dispatched Items'
+                })`}
+                reportSubtitle={`Active Filter: ${purchaseStatusFilter} | Line Items: ${purchaseQueueItems.length} records | Creation Date & Time Included`}
+                buttonLabel="Export Report"
+                variant="button"
+              />
             </div>
           </div>
 
@@ -965,6 +1155,32 @@ export function ConsumablePurchaseStoreWorkspace() {
                             <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 pl-0.5">
                               {item.requestCode}
                             </span>
+                            {item.createdAt && (
+                              <div
+                                className="flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500 pl-0.5 whitespace-nowrap"
+                                title={`Created: ${new Date(item.createdAt).toLocaleString('en-IN')}`}
+                              >
+                                <Clock className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                                <span>
+                                  {new Date(item.createdAt).toLocaleString('en-IN', {
+                                    day: '2-digit',
+                                    month: 'short',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: true,
+                                  })}
+                                </span>
+                              </div>
+                            )}
+                            {/* Visual Overdue SLA Badge if unreceived > 24h */}
+                            {(isOpenWithoutPr || isPrAssignedPendingReceive) &&
+                              item.createdAt &&
+                              Date.now() - new Date(item.createdAt).getTime() >= 24 * 60 * 60 * 1000 && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-900 mt-0.5">
+                                  <Clock className="w-2.5 h-2.5 text-rose-600" />
+                                  Unreceived &gt;24h
+                                </span>
+                              )}
                           </div>
                         </td>
 
@@ -1503,6 +1719,15 @@ export function ConsumablePurchaseStoreWorkspace() {
           }}
         />
       )}
+
+      {/* ============================================================ */}
+      {/* CONSUMABLE SLA & NOTIFICATION ALERTS SETTINGS MODAL          */}
+      {/* ============================================================ */}
+      <ConsumableAlertSettingsModal
+        isOpen={alertSettingsModalOpen}
+        onClose={() => setAlertSettingsModalOpen(false)}
+        onSaved={loadData}
+      />
     </div>
   );
 }

@@ -494,6 +494,123 @@ export class TemplateService {
         };
       },
     },
+
+    CONSUMABLE_RECEIPT_OVERDUE: {
+      key: 'CONSUMABLE_RECEIPT_OVERDUE',
+      requiredVars: ['description'],
+      allowedVars: [
+        'recipientName',
+        'description',
+        'prNumber',
+        'requestCode',
+        'createdAt',
+        'hoursElapsed',
+        'vendorName',
+        'requestedQty',
+        'purchaseQty',
+        'uom',
+        'endUser',
+      ],
+      render: (vars, escape) => {
+        const desc = escape(vars.description || 'Consumable Item');
+        const pr = escape(vars.prNumber || 'N/A');
+        const reqCode = escape(vars.requestCode || 'N/A');
+        const vendor = escape(vars.vendorName || 'Open Sourcing');
+        const qty = escape(vars.purchaseQty || vars.requestedQty || 'N/A');
+        const uom = escape(vars.uom || 'units');
+        const hours = vars.hoursElapsed || '24+';
+        const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
+        const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
+        return {
+          subject: `[V-SMART] OVERDUE SLA: Consumable Pending Receipt >24h - ${vars.description || 'Item'}`,
+          text: `${name}🚨 OVERDUE CONSUMABLE RECEIPT SLA (>24h)\n\nThe following consumable item was requested more than 24 hours ago and has not been inwarded in stores:\n\n- Description: ${vars.description || 'N/A'}\n- PR Number: ${vars.prNumber || 'N/A'}\n- Request Code: ${vars.requestCode || 'N/A'}\n- Elapsed Time: ${hours} hours\n- Supplier / Vendor: ${vars.vendorName || 'Open Sourcing'}\n- Pending Quantity: ${qty} ${uom}\n- End User: ${vars.endUser || 'Plant'}\n\nPlease expedite delivery with the vendor or take necessary store fulfillment action.`,
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+              <div style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); padding: 22px 24px; color: #ffffff; text-align: center;">
+                <h2 style="margin: 0; font-size: 18px; font-weight: 800; letter-spacing: 0.5px;">🚨 CONSUMABLE RECEIPT OVERDUE (>24H SLA)</h2>
+                <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.9;">Velan Metrology Material Governance & Consumables Fulfillment</p>
+              </div>
+              <div style="padding: 24px;">
+                ${htmlName}
+                <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+                  The following consumable item was requested over <strong>24 hours ago</strong> (${hours}h elapsed) and has <strong>not yet been physically received</strong> into Stores inventory:
+                </p>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 13px; color: #1e293b;">
+                  <p style="margin: 0 0 8px;"><strong>Item Description:</strong> ${desc}</p>
+                  <p style="margin: 0 0 8px;"><strong>PR Number:</strong> ${pr}</p>
+                  <p style="margin: 0 0 8px;"><strong>Request Code:</strong> ${reqCode}</p>
+                  <p style="margin: 0 0 8px;"><strong>Quantity Pending Receipt:</strong> <span style="color: #dc2626; font-weight: 700;">${qty} ${uom}</span></p>
+                  <p style="margin: 0 0 8px;"><strong>Supplier / Vendor:</strong> ${vendor}</p>
+                  <p style="margin: 0;"><strong>End User:</strong> ${escape(vars.endUser || 'Plant Floor')}</p>
+                </div>
+                <p style="color: #64748b; font-size: 12px; margin-top: 20px;">
+                  Please follow up with the supplier or log delivery inwarding under <strong>Consumables &gt; Purchase &amp; Store Fulfillment</strong>.
+                </p>
+              </div>
+            </div>
+          `,
+        };
+      },
+    },
+
+    CONSUMABLE_PARTIALLY_ISSUED_OVERDUE: {
+      key: 'CONSUMABLE_PARTIALLY_ISSUED_OVERDUE',
+      requiredVars: ['description'],
+      allowedVars: [
+        'recipientName',
+        'description',
+        'prNumber',
+        'requestCode',
+        'createdAt',
+        'hoursElapsed',
+        'issuedQty',
+        'requestedQty',
+        'remainingQty',
+        'uom',
+        'endUser',
+      ],
+      render: (vars, escape) => {
+        const desc = escape(vars.description || 'Consumable Item');
+        const pr = escape(vars.prNumber || 'N/A');
+        const reqCode = escape(vars.requestCode || 'N/A');
+        const issued = escape(vars.issuedQty || '0');
+        const requested = escape(vars.requestedQty || '0');
+        const remaining = escape(vars.remainingQty || '0');
+        const uom = escape(vars.uom || 'units');
+        const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
+        const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
+        return {
+          subject: `[V-SMART] ACTION REQUIRED: Consumable Partially Issued - ${vars.description || 'Item'}`,
+          text: `${name}⚠️ CONSUMABLE PARTIALLY ISSUED\n\nThe following consumable item is in Partially Issued status with balance awaiting issue to Production:\n\n- Description: ${vars.description || 'N/A'}\n- PR Number: ${vars.prNumber || 'N/A'}\n- Request Code: ${vars.requestCode || 'N/A'}\n- Quantity Issued: ${issued} ${uom}\n- Quantity Requested: ${requested} ${uom}\n- Remaining Needed: ${remaining} ${uom}\n- End User: ${vars.endUser || 'Plant'}\n\nPlease issue the remaining balance to the floor.`,
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+              <div style="background: linear-gradient(135deg, #d97706 0%, #b45309 100%); padding: 22px 24px; color: #ffffff; text-align: center;">
+                <h2 style="margin: 0; font-size: 18px; font-weight: 800; letter-spacing: 0.5px;">⚠️ CONSUMABLE PARTIALLY ISSUED</h2>
+                <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.9;">Velan Metrology Material Governance & Consumables Fulfillment</p>
+              </div>
+              <div style="padding: 24px;">
+                ${htmlName}
+                <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+                  The following consumable item has only been <strong>partially issued</strong> to Production. Material balance is still required:
+                </p>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 13px; color: #1e293b;">
+                  <p style="margin: 0 0 8px;"><strong>Item Description:</strong> ${desc}</p>
+                  <p style="margin: 0 0 8px;"><strong>PR Number:</strong> ${pr}</p>
+                  <p style="margin: 0 0 8px;"><strong>Request Code:</strong> ${reqCode}</p>
+                  <p style="margin: 0 0 8px;"><strong>Quantity Already Issued:</strong> ${issued} ${uom}</p>
+                  <p style="margin: 0 0 8px;"><strong>Total Requested by Production:</strong> ${requested} ${uom}</p>
+                  <p style="margin: 0 0 8px;"><strong>Remaining Balance Needed:</strong> <span style="color: #d97706; font-weight: 700;">${remaining} ${uom}</span></p>
+                  <p style="margin: 0;"><strong>End User:</strong> ${escape(vars.endUser || 'Plant Floor')}</p>
+                </div>
+                <p style="color: #64748b; font-size: 12px; margin-top: 20px;">
+                  Please complete shop-floor issuance under <strong>Consumables &gt; Purchase &amp; Store Fulfillment</strong>.
+                </p>
+              </div>
+            </div>
+          `,
+        };
+      },
+    },
   };
 
   /**

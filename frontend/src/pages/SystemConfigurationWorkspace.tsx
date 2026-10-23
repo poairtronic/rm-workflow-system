@@ -28,6 +28,9 @@ export function SystemConfigurationWorkspace() {
   const [materialIssueOverdueAlerts, setMaterialIssueOverdueAlerts] = useState(true);
   const [lowStockMslAlerts, setLowStockMslAlerts] = useState(true);
   const [stockMovementAlerts, setStockMovementAlerts] = useState(true);
+  const [consumableEmailAlerts, setConsumableEmailAlerts] = useState(true);
+  const [consumableReceiptOverdueAlerts, setConsumableReceiptOverdueAlerts] = useState(true);
+  const [consumablePartiallyIssuedAlerts, setConsumablePartiallyIssuedAlerts] = useState(true);
 
   // Regional
   const [timezone, setTimezone] = useState('Asia/Kolkata (IST)');
@@ -61,6 +64,9 @@ export function SystemConfigurationWorkspace() {
           setMaterialIssueOverdueAlerts(res.notifications.materialIssueOverdueAlertsEnabled ?? true);
           setLowStockMslAlerts(res.notifications.lowStockMslAlertsEnabled ?? true);
           setStockMovementAlerts(res.notifications.stockMovementAlertsEnabled ?? true);
+          setConsumableEmailAlerts(res.notifications.consumableEmailAlertsEnabled ?? true);
+          setConsumableReceiptOverdueAlerts(res.notifications.consumableReceiptOverdueAlertsEnabled ?? true);
+          setConsumablePartiallyIssuedAlerts(res.notifications.consumablePartiallyIssuedAlertsEnabled ?? true);
         }
         if (res.regional) {
           setTimezone(res.regional.timezone || 'Asia/Kolkata (IST)');
@@ -98,6 +104,9 @@ export function SystemConfigurationWorkspace() {
           materialIssueOverdueAlertsEnabled: materialIssueOverdueAlerts,
           lowStockMslAlertsEnabled: lowStockMslAlerts,
           stockMovementAlertsEnabled: stockMovementAlerts,
+          consumableEmailAlertsEnabled: consumableEmailAlerts,
+          consumableReceiptOverdueAlertsEnabled: consumableReceiptOverdueAlerts,
+          consumablePartiallyIssuedAlertsEnabled: consumablePartiallyIssuedAlerts,
         },
         regional: {
           timezone,
@@ -350,6 +359,75 @@ export function SystemConfigurationWorkspace() {
                 <span
                   className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
                     stockMovementAlerts ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Consumable Email Alerts Master Toggle */}
+            <div className="flex items-center justify-between p-4 bg-slate-50/70 border border-slate-100 rounded-xl">
+              <div>
+                <span className="text-sm font-bold text-slate-900 block">Consumable Email Notifications</span>
+                <span className="text-xs text-slate-500">
+                  Enable or disable outgoing email notifications for consumable overdue receipts and fulfillment alerts
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConsumableEmailAlerts(!consumableEmailAlerts)}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  consumableEmailAlerts ? 'bg-purple-600' : 'bg-slate-300'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    consumableEmailAlerts ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Consumable 24h Receipt Overdue Alert */}
+            <div className="flex items-center justify-between p-4 bg-slate-50/70 border border-slate-100 rounded-xl">
+              <div>
+                <span className="text-sm font-bold text-slate-900 block">Consumable 24h Unreceived Overdue Alert</span>
+                <span className="text-xs text-slate-500">
+                  Trigger In-App and Email alerts when consumable requests are not received into stores within 24 hours
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConsumableReceiptOverdueAlerts(!consumableReceiptOverdueAlerts)}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  consumableReceiptOverdueAlerts ? 'bg-purple-600' : 'bg-slate-300'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    consumableReceiptOverdueAlerts ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Consumable Partially Issued Alert */}
+            <div className="flex items-center justify-between p-4 bg-slate-50/70 border border-slate-100 rounded-xl">
+              <div>
+                <span className="text-sm font-bold text-slate-900 block">Consumable Partially Issued Alert</span>
+                <span className="text-xs text-slate-500">
+                  Notify Stores and Production when an item is in partially issued status awaiting balance fulfillment
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConsumablePartiallyIssuedAlerts(!consumablePartiallyIssuedAlerts)}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  consumablePartiallyIssuedAlerts ? 'bg-purple-600' : 'bg-slate-300'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    consumablePartiallyIssuedAlerts ? 'translate-x-5' : 'translate-x-0'
                   }`}
                 />
               </button>

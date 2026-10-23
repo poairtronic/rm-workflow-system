@@ -233,4 +233,38 @@ export const consumablesApi = {
   async confirmProductionReceive(itemId: string): Promise<any> {
     return api.patch<any>(`/api/consumables/line-items/${itemId}/production-receive`, {});
   },
+
+  /**
+   * Retrieves consumable SLA & email notification alert settings
+   */
+  async getAlertSettings(): Promise<{
+    consumableEmailAlertsEnabled: boolean;
+    consumableReceiptOverdueAlertsEnabled: boolean;
+    consumablePartiallyIssuedAlertsEnabled: boolean;
+  }> {
+    return api.get<any>('/api/consumables/alert-settings');
+  },
+
+  /**
+   * Updates consumable email alert settings (Admin only)
+   */
+  async updateAlertSettings(payload: {
+    consumableEmailAlertsEnabled?: boolean;
+    consumableReceiptOverdueAlertsEnabled?: boolean;
+    consumablePartiallyIssuedAlertsEnabled?: boolean;
+  }): Promise<any> {
+    return api.patch<any>('/api/consumables/alert-settings', payload);
+  },
+
+  /**
+   * Triggers immediate SLA alert evaluation sweep (>24h receipt overdue & partial issue)
+   */
+  async checkSlaAlerts(): Promise<{
+    overdueReceiptCount: number;
+    partiallyIssuedCount: number;
+    checkedCount: number;
+    timestamp: string;
+  }> {
+    return api.post<any>('/api/consumables/check-sla-alerts', {});
+  },
 };
