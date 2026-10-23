@@ -1987,7 +1987,9 @@ export class TraceabilityService {
       poDate: po.referenceDate ? new Date(po.referenceDate).toISOString() : (po.createdAt ? new Date(po.createdAt).toISOString() : ''),
       targetDeliveryDate: po.referenceDate ? new Date(po.referenceDate).toISOString() : '',
       scs: childComponents.map((c) => ({
-        scId: c.scId,
+        scId: c.scNumber || c.scId,
+        scNumber: c.scNumber,
+        rawScId: c.scId,
         nomenclature: c.productName || c.scNumber,
         quantityOrdered: c.targetQuantity,
         quantityCompleted: c.rmSummary.totalConsumed || 0,

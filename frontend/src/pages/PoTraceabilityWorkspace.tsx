@@ -208,7 +208,9 @@ export function PoTraceabilityWorkspace() {
               }));
 
             const safeScs = rawChildComponents.map((c: any) => ({
-              scId: c.scId,
+              scId: c.scNumber || c.scId,
+              scNumber: c.scNumber,
+              rawScId: c.scId,
               nomenclature: c.productName || c.scNumber,
               quantityOrdered: c.targetQuantity || 0,
               quantityCompleted: c.rmSummary?.totalConsumed || 0,

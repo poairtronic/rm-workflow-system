@@ -35,11 +35,11 @@ export function ScAggregateGrid({ scs = [] }: ScAggregateGridProps) {
           <tbody className="divide-y divide-slate-100">
             {scs.map((sc) => (
               <tr 
-                key={sc.scId} 
+                key={sc.rawScId || sc.scId} 
                 className="h-14 hover:bg-[#F8FAFC] transition-colors group cursor-pointer"
-                onClick={() => navigate(`/governance/traceability?scId=${sc.scId}`)}
+                onClick={() => navigate(`/governance/traceability?scId=${encodeURIComponent(sc.scNumber || sc.scId)}`)}
               >
-                <td className="px-6 py-2 font-medium text-slate-900">{sc.scId}</td>
+                <td className="px-6 py-2 font-semibold text-slate-900 font-mono">{sc.scNumber || sc.scId}</td>
                 <td className="px-6 py-2 text-slate-600">{sc.nomenclature}</td>
                 <td className="px-6 py-2 text-right tabular-nums text-slate-700 font-medium">
                   {sc.quantityOrdered}

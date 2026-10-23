@@ -40,6 +40,7 @@ export function StoresRequestReturnVerifyWorkspace() {
   const [requestStatusFilter, setRequestStatusFilter] = useState<'ALL' | 'REQUESTED' | 'APPROVED' | 'ISSUED' | 'REJECTED'>('ALL');
   const [selectedReqForIssue, setSelectedReqForIssue] = useState<any>(null);
   const [rejectDialogReqId, setRejectDialogReqId] = useState<string | null>(null);
+  const [approvingReqId, setApprovingReqId] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -79,12 +80,16 @@ export function StoresRequestReturnVerifyWorkspace() {
   };
 
   const handleApproveRequest = async (id: string) => {
+    if (approvingReqId) return;
+    setApprovingReqId(id);
     try {
       await workflowService.approveAdditionalRequest(id);
       toast.success('Extra request approved');
-      loadRequests();
+      await loadRequests();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to approve request');
+    } finally {
+      setApprovingReqId(null);
     }
   };
 
@@ -714,10 +719,11 @@ export function StoresRequestReturnVerifyWorkspace() {
                                       Reject
                                     </button>
                                     <button
+                                      disabled={approvingReqId === req.id}
                                       onClick={() => handleApproveRequest(req.id)}
-                                      className="px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50 rounded border border-emerald-200 transition-colors cursor-pointer"
+                                      className="px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50 rounded border border-emerald-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                      Approve
+                                      {approvingReqId === req.id ? 'Approving...' : 'Approve'}
                                     </button>
                                   </>
                                 )}

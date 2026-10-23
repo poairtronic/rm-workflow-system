@@ -2,6 +2,8 @@ import type { CanonicalStage } from '../utils/canonicalStages';
 
 export interface PoScSummary {
   scId: string;
+  scNumber?: string;
+  rawScId?: string;
   nomenclature: string;
   quantityOrdered: number;
   quantityCompleted: number;
