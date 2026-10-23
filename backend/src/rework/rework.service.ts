@@ -26,10 +26,20 @@ export class ReworkService {
   ) {}
 
   async getReworkScList(): Promise<ReworkScItem[]> {
+    const ALLOWED_STATUSES = [
+      'PARTIALLY_ISSUED',
+      'STORES_ISSUED_PARTIALLY',
+      'ISSUED',
+      'STORES_ISSUED',
+      'IN_PRODUCTION',
+      'PRODUCTION_RECEIVED',
+    ];
+
     const results = await this.scRepo
       .createQueryBuilder('sc')
       .leftJoinAndSelect('sc.purchaseOrder', 'po')
       .leftJoinAndSelect('po.customer', 'customer')
+      .where('sc.status IN (:...statuses)', { statuses: ALLOWED_STATUSES })
       .orderBy('sc.createdAt', 'DESC')
       .getMany();
 

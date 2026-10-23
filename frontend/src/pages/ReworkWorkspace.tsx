@@ -43,6 +43,30 @@ export function ReworkWorkspace() {
     queryClient.invalidateQueries({ queryKey: ['rework-sc-list'] });
   };
 
+  // Only display items in Stores Issued, Production Received, or Stores Issued Partially
+  const filteredScList = useMemo(() => {
+    const allowed = new Set([
+      'STORES_ISSUED',
+      'STORES ISSUED',
+      'ISSUED',
+      'PRODUCTION_PENDING',
+      'PRODUCTION PENDING',
+      'PRODUCTION_RECEIVED',
+      'PRODUCTION RECEIVED',
+      'IN_PRODUCTION',
+      'IN PRODUCTION',
+      'STORES_ISSUED_PARTIALLY',
+      'STORES ISSUED PARTIALLY',
+      'PARTIALLY_ISSUED',
+      'PARTIALLY ISSUED',
+      'PARTIAL_ISSUE',
+    ]);
+    return scList.filter((item) => {
+      const normalized = (item.status || '').toUpperCase().trim();
+      return allowed.has(normalized);
+    });
+  }, [scList]);
+
   const columns = useMemo<ColumnDef<ReworkScItem>[]>(
     () => [
       {
@@ -147,7 +171,7 @@ export function ReworkWorkspace() {
         title={
           <span className="flex items-center gap-2">
             <Wrench className="w-6 h-6 text-primary" />
-            Rework / QC Governance
+            Rework Governance
           </span>
         }
         subtitle="Manage shop-floor quality inspection, log rework loops, and report component defects directly to Quality Hub."
@@ -155,21 +179,21 @@ export function ReworkWorkspace() {
 
       {/* Render States */}
       {isLoading ? (
-        <LoadingState text="Loading SC list for rework & QC..." />
+        <LoadingState text="Loading SC list for rework..." />
       ) : isError ? (
         <ErrorState
           message={(error as any)?.message || 'Failed to load SC list for rework'}
           onRetry={() => refetch()}
         />
-      ) : scList.length === 0 ? (
+      ) : filteredScList.length === 0 ? (
         <EmptyState
           title="No Sales Order Components found"
-          description="There are currently no SC records available for rework or rejection inspection."
+          description="There are currently no materials in Stores Issued, Production Received, or Partially Issued stage available for rework."
         />
       ) : (
         <DataTable
           columns={columns}
-          data={scList}
+          data={filteredScList}
           searchable={true}
           searchKeys={['scNumber', 'productName', 'poNumber', 'customerName', 'status']}
           pagination={true}
