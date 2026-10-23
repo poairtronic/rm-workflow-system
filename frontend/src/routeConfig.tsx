@@ -21,6 +21,7 @@ import {
   PlaySquare,
   ShoppingCart,
   ClipboardList,
+  Wrench,
 } from 'lucide-react';
 import type { UserRole } from './contexts/AuthContext';
 
@@ -60,6 +61,9 @@ export const DcMovementsWorkspace = lazy(() =>
 );
 export const TraceabilityWorkspace = lazy(() =>
   import('./pages/TraceabilityWorkspace').then((m) => ({ default: m.TraceabilityWorkspace })),
+);
+export const ReworkWorkspace = lazy(() =>
+  import('./pages/ReworkWorkspace').then((m) => ({ default: m.ReworkWorkspace })),
 );
 export const PoTraceabilityWorkspace = lazy(() =>
   import('./pages/PoTraceabilityWorkspace').then((m) => ({ default: m.PoTraceabilityWorkspace })),
@@ -180,6 +184,7 @@ export const ROUTE_CONFIG: RouteConfig[] = [
 
   // GOVERNANCE
   { name: 'SC Traceability', path: '/governance/traceability', icon: ShieldCheck, roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: TraceabilityWorkspace, isSidebar: true, group: 'GOVERNANCE', moduleKey: 'sc_traceability' },
+  { name: 'Rework / QC', path: '/governance/rework', icon: Wrench, roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: ReworkWorkspace, isSidebar: true, group: 'GOVERNANCE', moduleKey: 'rework_qc' },
   { name: 'PO Traceability', path: '/governance/po-traceability', icon: Network, roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: PoTraceabilityWorkspace, isSidebar: true, group: 'GOVERNANCE', moduleKey: 'po_traceability' },
   { name: 'Vendor SLAs', path: '/governance/vendor-slas', icon: Shield, roles: ['SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: VendorSlaWorkspace, isSidebar: true, group: 'GOVERNANCE', moduleKey: 'vendor_slas' },
   { name: 'Vendor Analytics', path: '/governance/vendor-analytics', icon: BarChart3, roles: ['SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: VendorDashboardWorkspace, isSidebar: true, group: 'GOVERNANCE', moduleKey: 'vendor_analytics' },

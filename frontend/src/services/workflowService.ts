@@ -1,5 +1,16 @@
 import { api } from './api';
 
+export interface ReworkScItem {
+  id: string;
+  scNumber: string;
+  productName: string;
+  targetQuantity: number;
+  status: string;
+  poNumber: string;
+  customerName: string;
+  createdAt: string;
+}
+
 export interface SC {
   id: string;
   scNumber: string;
@@ -210,4 +221,7 @@ export const workflowService = {
     api.delete<any>(`/api/sc/${scId}/documents/${attachmentId}`),
   getScDocumentDownloadUrl: (scId: string, attachmentId: string) =>
     api.get<{ url: string }>(`/api/sc/${scId}/documents/${attachmentId}/download`),
+
+  // Rework / QC (Phase 2 & 3)
+  getReworkScList: () => api.get<ReworkScItem[]>('/api/rework/sc-list'),
 };
