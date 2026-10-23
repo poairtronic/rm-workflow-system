@@ -14,6 +14,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { VelanPrPrintModal } from '../components/consumables/VelanPrPrintModal';
+import { EditPrIndentModal } from '../components/consumables/EditPrIndentModal';
 import { consumablesApi, type BinOption } from '../services/consumables.service';
 import type { ConsumableLineItemRecord } from '../types/consumables.types';
 import toast from 'react-hot-toast';
@@ -64,6 +65,11 @@ export function ConsumablePurchaseStoreWorkspace() {
 
   // Selection for Batch PR Print
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  // PR Indent Edit & Safety Stock Modal State
+  const [indentEditModalOpen, setIndentEditModalOpen] = useState(false);
+  const [indentEditItems, setIndentEditItems] = useState<ConsumableLineItemRecord[]>([]);
+  const [indentSubmitting, setIndentSubmitting] = useState(false);
 
   // PR Print Modal State
   const [printModalOpen, setPrintModalOpen] = useState(false);
@@ -151,76 +157,61 @@ export function ConsumablePurchaseStoreWorkspace() {
     );
   };
 
-  // --- PRINT SINGLE LINE ITEM ONLY ---
-  const handlePrintSingleItem = async (item: ConsumableLineItemRecord) => {
-    if (item.prNumber) {
-      // Already has a PR assigned -> Open modal with ONLY THIS SINGLE ITEM
-      setPrintModalData({
-        prNumber: item.prNumber,
-        items: [item],
-        date: item.printedAt ? new Date(item.printedAt).toISOString() : new Date().toISOString(),
-        paymentMode: 'CASH',
-      });
-      setPrintModalOpen(true);
-      return;
-    }
-
-    // If item is OPEN and needs PR generation
-    try {
-      const res = await consumablesApi.printPurchaseRequisition([item.id]);
-      const printedItem = res.items && res.items.length > 0 ? res.items[0] : item;
-      setPrintModalData({
-        prNumber: res.prNumber || item.prNumber || '1',
-        items: [printedItem], // Strictly ONLY this single item
-        date: new Date().toISOString(),
-        paymentMode: 'CASH',
-      });
-      setPrintModalOpen(true);
-      await loadData();
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to generate Purchase Requisition');
-    }
+  // --- TRIGGER INDENT PREVIEW & EDIT FOR SINGLE LINE ITEM ---
+  const handlePrintSingleItem = (item: ConsumableLineItemRecord) => {
+    setIndentEditItems([item]);
+    setIndentEditModalOpen(true);
   };
 
-  // --- TRIGGER BATCH PR PRINT FOR SELECTED ITEMS ---
-  const handlePrintSelectedPr = async () => {
+  // --- TRIGGER INDENT PREVIEW & EDIT FOR SELECTED LINE ITEMS ---
+  const handlePrintSelectedPr = () => {
     const targetItems = allItems.filter((i) => selectedIds.includes(i.id));
     if (targetItems.length === 0) {
       toast.error('Please select at least one line item to print.');
       return;
     }
+    setIndentEditItems(targetItems);
+    setIndentEditModalOpen(true);
+  };
 
-    // Check if any selected items are OPEN or need PR number assignment
-    const itemsNeedingPr = targetItems.filter((i) => !i.prNumber || i.status === 'OPEN');
+  // --- CONFIRM EDITED INDENT & GENERATE / RE-PRINT OFFICIAL PR SLIP ---
+  const handleConfirmIndentPrint = async (
+    updatedItems: Array<{ id: string; purchaseQty: number; unitPrice?: number }>,
+  ) => {
+    setIndentSubmitting(true);
+    try {
+      const ids = updatedItems.map((u) => u.id);
+      const res = await consumablesApi.printPurchaseRequisition({
+        itemIds: ids,
+        lineItemIds: ids,
+        itemUpdates: updatedItems,
+      });
 
-    if (itemsNeedingPr.length > 0) {
-      try {
-        const ids = targetItems.map((i) => i.id);
-        const res = await consumablesApi.printPurchaseRequisition(ids);
+      const itemsForSlip =
+        res.items && res.items.length > 0
+          ? res.items
+          : indentEditItems.map((it) => {
+              const match = updatedItems.find((u) => u.id === it.id);
+              return match
+                ? { ...it, purchaseQty: match.purchaseQty, unitPrice: match.unitPrice ?? it.unitPrice }
+                : it;
+            });
 
-        setPrintModalData({
-          prNumber: res.prNumber || '1',
-          items: res.items && res.items.length > 0 ? res.items : targetItems,
-          date: new Date().toISOString(),
-          paymentMode: 'CASH',
-        });
-        setPrintModalOpen(true);
-        setSelectedIds([]);
-        await loadData();
-      } catch (err: any) {
-        toast.error(err?.message || 'Failed to generate Purchase Requisition');
-      }
-    } else {
-      // All selected items already have PR numbers assigned
-      // Group them all together onto the printed PR sheet
-      const prNumber = targetItems[0].prNumber || '1';
       setPrintModalData({
-        prNumber,
-        items: targetItems, // ALL selected items appear here
-        date: targetItems[0]?.printedAt ? new Date(targetItems[0].printedAt).toISOString() : new Date().toISOString(),
+        prNumber: res.prNumber || (itemsForSlip[0]?.prNumber ? String(itemsForSlip[0].prNumber) : '1'),
+        items: itemsForSlip,
+        date: new Date().toISOString(),
         paymentMode: 'CASH',
       });
+
+      setIndentEditModalOpen(false);
       setPrintModalOpen(true);
+      setSelectedIds([]);
+      await loadData();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to generate Purchase Requisition');
+    } finally {
+      setIndentSubmitting(false);
     }
   };
 
@@ -229,9 +220,10 @@ export function ConsumablePurchaseStoreWorkspace() {
     setReceiveModalItem(item);
     const req = Number(item.requestedQty) || 0;
     const rec = Number(item.realReceivedQty) || 0;
-    // Quantity physically received from vendor (e.g. 500, 80, 70)
-    setRealReceivedQty(rec > 0 ? rec : (req > 0 ? req : 1));
-    // Quantity to immediately deliver to production (defaults to requested quantity, e.g. 5)
+    const indent = Number(item.purchaseQty ?? req) || 0;
+    // Quantity physically received from vendor defaults to indent/purchaseQty (e.g. 150)
+    setRealReceivedQty(rec > 0 ? rec : (indent > 0 ? indent : (req > 0 ? req : 1)));
+    // Quantity to immediately deliver to production strictly defaults to production request (e.g. 100)
     setDeliveryToProductionQty(req > 0 ? req : 1);
     setAutoIssueOnReceive(true);
 
@@ -899,7 +891,7 @@ export function ConsumablePurchaseStoreWorkspace() {
                   <th className="py-3 px-3.5 w-36 align-middle">PR # / Req #</th>
                   <th className="py-3 px-3.5 min-w-[200px] align-middle">Item Description</th>
                   <th className="py-3 px-3.5 min-w-[170px] align-middle">Supplier / Vendor</th>
-                  <th className="py-3 px-3.5 w-28 font-mono text-right align-middle">Req. Qty</th>
+                  <th className="py-3 px-3.5 w-32 font-mono text-right align-middle">Req. / Indent Qty</th>
                   <th className="py-3 px-3.5 w-44 font-mono text-right align-middle">Real Received Qty</th>
                   <th className="py-3 px-3.5 w-40 text-center align-middle">Current Stage</th>
                   <th className="py-3 px-3.5 w-52 text-center align-middle">Procurement Actions</th>
@@ -1014,9 +1006,26 @@ export function ConsumablePurchaseStoreWorkspace() {
                           </div>
                         </td>
 
-                        {/* Req Qty */}
+                        {/* Req / Indent Qty */}
                         <td className="py-3.5 px-3.5 font-mono text-right align-middle font-semibold text-slate-800 dark:text-slate-200">
-                          {Number(item.requestedQty || 0)} {item.uom}
+                          {(() => {
+                            const indentQty = Number(item.purchaseQty ?? item.requestedQty ?? 0);
+                            const prodReq = Number(item.requestedQty || 0);
+                            const hasExtra = item.purchaseQty != null && Number(item.purchaseQty) !== prodReq;
+                            if (hasExtra) {
+                              return (
+                                <div className="flex flex-col items-end gap-0.5">
+                                  <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                                    {indentQty} {item.uom}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 font-sans font-normal">
+                                    Prod Req: {prodReq} {item.uom}
+                                  </span>
+                                </div>
+                              );
+                            }
+                            return `${prodReq} ${item.uom}`;
+                          })()}
                         </td>
 
                         {/* Real Received Qty & Retained Stores Stock */}
@@ -1192,8 +1201,13 @@ export function ConsumablePurchaseStoreWorkspace() {
               <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1">
                 <span className="text-xs text-slate-400 uppercase font-semibold">Item to Inward</span>
                 <p className="text-sm font-bold text-slate-900 dark:text-white">{receiveModalItem.description}</p>
-                <div className="flex items-center gap-4 text-xs text-slate-500 mt-1">
+                <div className="flex items-center gap-4 text-xs text-slate-500 mt-1 flex-wrap">
                   <span>Req. Qty: <b>{receiveModalItem.requestedQty} {receiveModalItem.uom}</b></span>
+                  {receiveModalItem.purchaseQty != null && Number(receiveModalItem.purchaseQty) !== Number(receiveModalItem.requestedQty) && (
+                    <span className="text-indigo-600 dark:text-indigo-400 font-semibold">
+                      Stores Indent Qty: <b>{receiveModalItem.purchaseQty} {receiveModalItem.uom}</b>
+                    </span>
+                  )}
                   {receiveModalItem.prNumber && <span>PR. No: <b>{receiveModalItem.prNumber}</b></span>}
                   <span>End User: <b>{receiveModalItem.endUserInVelan || 'Plant'}</b></span>
                 </div>
@@ -1460,6 +1474,17 @@ export function ConsumablePurchaseStoreWorkspace() {
           </div>
         </div>
       )}
+
+      {/* ============================================================ */}
+      {/* EDITABLE PURCHASE INDENT & SAFETY STOCK PREVIEW MODAL        */}
+      {/* ============================================================ */}
+      <EditPrIndentModal
+        isOpen={indentEditModalOpen}
+        onClose={() => setIndentEditModalOpen(false)}
+        items={indentEditItems}
+        onConfirmPrint={handleConfirmIndentPrint}
+        isSubmitting={indentSubmitting}
+      />
 
       {/* ============================================================ */}
       {/* PRINTABLE VELAN METROLOGY PURCHASE REQUISITION SLIP MODAL   */}

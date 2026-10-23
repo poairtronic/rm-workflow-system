@@ -95,6 +95,15 @@ export class ConsumableRequestItem {
   requestedQty!: number;
 
   @Column({
+    name: 'purchase_qty',
+    type: 'numeric',
+    precision: 12,
+    scale: 3,
+    nullable: true,
+  })
+  purchaseQty?: number | null;
+
+  @Column({
     name: 'real_received_qty',
     type: 'numeric',
     precision: 12,

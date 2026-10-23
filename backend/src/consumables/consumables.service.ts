@@ -411,12 +411,42 @@ export class ConsumablesService {
       );
     }
 
+    // Apply safety stock / purchase quantity adjustments from stores if provided
+    const updatesMap = new Map<string, { purchaseQty?: number; unitPrice?: number; vendorId?: string }>();
+    if (dto.itemUpdates && Array.isArray(dto.itemUpdates)) {
+      for (const u of dto.itemUpdates) {
+        if (u.id) updatesMap.set(u.id, u);
+      }
+    }
+    if (dto.itemQuantities && typeof dto.itemQuantities === 'object') {
+      for (const [id, qty] of Object.entries(dto.itemQuantities)) {
+        const existing = updatesMap.get(id) || {};
+        updatesMap.set(id, { ...existing, purchaseQty: Number(qty) });
+      }
+    }
+
+    const itemsToSave: ConsumableRequestItem[] = [];
+    for (const item of items) {
+      const update = updatesMap.get(item.id);
+      if (update && update.purchaseQty != null && Number(update.purchaseQty) > 0) {
+        item.purchaseQty = Number(update.purchaseQty);
+        if (!itemsToSave.includes(item)) itemsToSave.push(item);
+      }
+      if (update && update.unitPrice != null && Number(update.unitPrice) >= 0) {
+        item.unitPrice = Number(update.unitPrice);
+        if (!itemsToSave.includes(item)) itemsToSave.push(item);
+      }
+    }
+
     // Check if items already have a PR number assigned
     const alreadyPrAssigned = items.filter((i) => i.prNumber != null);
     const openItems = items.filter((i) => i.status === ConsumableItemStatus.OPEN);
 
     // If all requested items already have a PR number, return them gracefully for re-printing
     if (openItems.length === 0 && alreadyPrAssigned.length > 0) {
+      if (itemsToSave.length > 0) {
+        await this.itemRepo.save(itemsToSave);
+      }
       const existingPr = alreadyPrAssigned[0].prNumber!;
       this.logger.log(
         `[PR RE-PRINT] Returning PR #${existingPr} for ${items.length} existing line item(s)`,
@@ -439,12 +469,13 @@ export class ConsumablesService {
       item.prNumber = prNumber;
       item.status = ConsumableItemStatus.PURCHASE_REQUESTED;
       item.printedAt = printedAt;
+      if (!itemsToSave.includes(item)) itemsToSave.push(item);
     }
 
-    if (openItems.length > 0) {
-      await this.itemRepo.save(openItems);
+    if (itemsToSave.length > 0) {
+      await this.itemRepo.save(itemsToSave);
       this.logger.log(
-        `[PR PRINTED] Assigned PR #${prNumber} to ${openItems.length} line item(s)`,
+        `[PR PRINTED] Assigned PR #${prNumber} to ${openItems.length} line item(s), saved ${itemsToSave.length} item(s)`,
       );
     }
 

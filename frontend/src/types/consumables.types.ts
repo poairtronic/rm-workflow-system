@@ -88,6 +88,7 @@ export interface ConsumableLineItemRecord {
   itemCategoryTrack: ConsumableItemTrack;
   stockAvailableAtRequest: number;
   requestedQty: number;
+  purchaseQty?: number | null;
   realReceivedQty: number;
   issuedQty: number;
   vendorId?: string | null;

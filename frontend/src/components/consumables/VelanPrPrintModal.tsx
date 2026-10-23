@@ -101,14 +101,14 @@ export function VelanPrPrintModal({
   const minimumRows = 6;
   const emptyRowsCount = Math.max(0, minimumRows - safeItems.length);
 
-  // Total estimated requisition value (if prices are specified)
+  // Total estimated requisition value (using purchaseQty if specified for stores buffer, otherwise requestedQty)
   const totalEstimatedAmount = safeItems.reduce((sum, item) => {
     const price = item.isNewVendor && item.newVendorPrice != null
       ? Number(item.newVendorPrice)
       : item.unitPrice != null
       ? Number(item.unitPrice)
       : 0;
-    const qty = Number(item.requestedQty || 0);
+    const qty = Number(item.purchaseQty ?? item.requestedQty ?? 0);
     return sum + (isNaN(price) ? 0 : price) * (qty > 0 ? qty : 1);
   }, 0);
 
@@ -280,15 +280,27 @@ export function VelanPrPrintModal({
                       )}
                     </td>
 
-                    {/* Qty & UOM (Required Stock) */}
+                    {/* Qty & UOM (Required Stock / Store Indent) */}
                     <td className="py-2 px-2 border-r border-black text-right font-mono font-bold">
-                      {Number(item.requestedQty || 0) > 0 ? (
-                        <>
-                          {item.requestedQty} <span className="text-[10px] text-slate-700">{item.uom || 'NOS'}</span>
-                        </>
-                      ) : (
-                        <span className="text-[10px] italic text-slate-500">Inquiry (0)</span>
-                      )}
+                      {(() => {
+                        const indentQty = Number(item.purchaseQty ?? item.requestedQty ?? 0);
+                        const prodReqQty = Number(item.requestedQty || 0);
+                        const hasSafetyIncrease = item.purchaseQty != null && Number(item.purchaseQty) !== prodReqQty;
+
+                        if (indentQty > 0) {
+                          return (
+                            <div>
+                              <span>{indentQty}</span> <span className="text-[10px] text-slate-700">{item.uom || 'NOS'}</span>
+                              {hasSafetyIncrease && (
+                                <span className="text-[10px] text-slate-500 font-sans block font-normal leading-tight">
+                                  (Prod Req: {prodReqQty} {item.uom || 'NOS'})
+                                </span>
+                              )}
+                            </div>
+                          );
+                        }
+                        return <span className="text-[10px] italic text-slate-500">Inquiry (0)</span>;
+                      })()}
                     </td>
 
                     {/* Supplier / Vendor Details */}

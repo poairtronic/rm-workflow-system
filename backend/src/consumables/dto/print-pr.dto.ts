@@ -20,5 +20,12 @@ export class PrintPrDto {
   @IsOptional()
   @IsString()
   printedBy?: string;
+
+  @IsOptional()
+  @IsArray()
+  itemUpdates?: Array<{ id: string; purchaseQty?: number; unitPrice?: number; vendorId?: string }>;
+
+  @IsOptional()
+  itemQuantities?: Record<string, number>;
 }
 

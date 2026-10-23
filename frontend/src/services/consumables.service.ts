@@ -182,16 +182,25 @@ export const consumablesApi = {
   /**
    * Selects OPEN items and prints purchase requisition, assigning sequential PR number (e.g. 1, 2, ...)
    */
-  async printPurchaseRequisition(lineItemIds: string[]): Promise<{
+  async printPurchaseRequisition(
+    lineItemIdsOrPayload:
+      | string[]
+      | {
+          itemIds?: string[];
+          lineItemIds?: string[];
+          itemUpdates?: Array<{ id: string; purchaseQty?: number; unitPrice?: number; vendorId?: string }>;
+          itemQuantities?: Record<string, number>;
+        },
+  ): Promise<{
     prNumber: string;
     printedCount: number;
     printedAt: string;
     items: ConsumableLineItemRecord[];
   }> {
-    return api.post<any>('/api/consumables/purchase/print-pr', {
-      itemIds: lineItemIds,
-      lineItemIds,
-    });
+    const payload = Array.isArray(lineItemIdsOrPayload)
+      ? { itemIds: lineItemIdsOrPayload, lineItemIds: lineItemIdsOrPayload }
+      : lineItemIdsOrPayload;
+    return api.post<any>('/api/consumables/purchase/print-pr', payload);
   },
 
   /**
