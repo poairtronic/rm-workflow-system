@@ -877,26 +877,34 @@ export class DeliveryChallanService {
           Number(challanItem.qcPassedQty || 0) +
           settledRejected;
 
-        // For Type 2 (and Type 1): allow revising the expected return quantity (e.g. from 700 to 650)
-        const newExpected = dtoItem.expectedReturnQty ?? dtoItem.expectedOutputQuantity;
-        if (newExpected !== undefined && newExpected !== null && Number(newExpected) > 0) {
-          const parsedExpected = Number(newExpected);
-          if (parsedExpected < alreadyAccounted) {
-            throw new BadRequestException(
-              `Revised expected return quantity (${parsedExpected}) cannot be less than already received/accounted quantity (${alreadyAccounted}) for item ${dtoItem.itemId}`
+        // For Type 2: allow revising the expected return quantity (e.g. from 700 to 650)
+        // For Type 1: Dispatched baseline is the fixed target; do not reject when batch return qty is passed
+        if (challan.type !== DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD) {
+          const newExpected = dtoItem.expectedReturnQty ?? dtoItem.expectedOutputQuantity;
+          if (newExpected !== undefined && newExpected !== null && Number(newExpected) > 0) {
+            const parsedExpected = Number(newExpected);
+            if (parsedExpected < alreadyAccounted) {
+              throw new BadRequestException(
+                `Revised expected return quantity (${parsedExpected}) cannot be less than already received/accounted quantity (${alreadyAccounted}) for item ${dtoItem.itemId}`
+              );
+            }
+            if (challanItem.initialExpectedQty == null) {
+              challanItem.initialExpectedQty = Number(
+                challanItem.expectedOutputQuantity ?? challanItem.quantityDispatched
+              );
+            }
+            challanItem.expectedReturnQty = parsedExpected;
+            challanItem.expectedOutputQuantity = parsedExpected;
+          } else if (challanItem.expectedReturnQty == null) {
+            challanItem.expectedReturnQty = Number(
+              challanItem.initialExpectedQty ?? challanItem.expectedOutputQuantity ?? challanItem.quantityDispatched
             );
           }
+        } else {
           if (challanItem.initialExpectedQty == null) {
-            challanItem.initialExpectedQty = Number(
-              challanItem.expectedOutputQuantity ?? challanItem.quantityDispatched
-            );
+            challanItem.initialExpectedQty = Number(challanItem.quantityDispatched);
           }
-          challanItem.expectedReturnQty = parsedExpected;
-          challanItem.expectedOutputQuantity = parsedExpected;
-        } else if (challanItem.expectedReturnQty == null) {
-          challanItem.expectedReturnQty = Number(
-            challanItem.initialExpectedQty ?? challanItem.expectedOutputQuantity ?? challanItem.quantityDispatched
-          );
+          challanItem.expectedReturnQty = Number(challanItem.initialExpectedQty);
         }
 
         // Validate that receivedQty does not exceed remaining unreturned balance at vendor
@@ -1118,7 +1126,7 @@ export class DeliveryChallanService {
             scNumber: sc?.scNumber || null,
             poId: po?.id || null,
             poNumber: po?.poNumber || null,
-            productId: challanItem.productId || challanItem.product?.id,
+            productId: challanItem.productId || challanItem.product?.id || null,
             productName: challanItem.product?.name || challanItem.partName || 'Defective Material',
             partNumber: challanItem.partNumber || challanItem.product?.code || null,
             uom: challanItem.product?.uom || 'PCS',
@@ -1281,7 +1289,12 @@ export class DeliveryChallanService {
           }
           if (existingDc.items && existingDc.items.length > 0) {
             for (const it of existingDc.items) {
-              if (it.productId === item.productId || it.partNumber === item.partNumber) {
+              if (
+                (item.productId && it.productId === item.productId) ||
+                (item.partNumber && it.partNumber === item.partNumber) ||
+                (it.scId && item.scId && it.scId === item.scId) ||
+                (!item.productId && !it.productId)
+              ) {
                 it.qcPendingQty = 0;
                 if (dto.description) {
                   it.description = dto.description;

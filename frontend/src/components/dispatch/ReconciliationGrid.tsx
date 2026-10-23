@@ -143,7 +143,9 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
                       {originalItem?.partName || dispProduct?.name || originalItem?.product?.name || 'Dispatched Item'}
                     </p>
                     <span className="inline-block text-[10px] text-slate-400 font-mono mt-0.5">
-                      Disp: {Number(originalItem?.quantityDispatched || 0)} {dispProduct?.uom || 'NOS'}
+                      {activeReworkAtVendor > 0
+                        ? `Rework: ${activeReworkAtVendor} ${dispProduct?.uom || 'NOS'} (Orig: ${Number(originalItem?.quantityDispatched || 0)})`
+                        : `Disp: ${Number(originalItem?.quantityDispatched || 0)} ${dispProduct?.uom || 'NOS'}`}
                     </span>
                   </td>
 
@@ -197,9 +199,19 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
                         value={initialExpectedQty}
                       />
                       <span className="font-mono text-sm font-semibold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200 inline-block">
-                        {initialExpectedQty}
+                        {activeReworkAtVendor > 0
+                          ? activeReworkAtVendor
+                          : alreadyAccounted > 0
+                          ? remainingTarget
+                          : initialExpectedQty}
                       </span>
-                      <span className="block text-[10px] text-slate-400 mt-0.5">Dispatched Target</span>
+                      <span className="block text-[10px] text-slate-400 mt-0.5">
+                        {activeReworkAtVendor > 0
+                          ? 'Rework Target'
+                          : alreadyAccounted > 0
+                          ? 'Remaining Target'
+                          : 'Dispatched Target'}
+                      </span>
                     </td>
                   ) : (
                     <>

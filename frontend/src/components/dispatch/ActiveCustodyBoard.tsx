@@ -69,7 +69,51 @@ export function getDcItemStats(dc: DeliveryChallanDto) {
     totalQcPassed,
     totalQcRejected,
     pendingVendorQty,
+    activeReworkAtVendor,
   };
+}
+
+export function getDcPrimaryCategory(
+  dc: DeliveryChallanDto,
+  stats: ReturnType<typeof getDcItemStats>,
+): 'CLOSED' | 'QUALITY_CHECK' | 'OPEN' | 'PARTIALLY_RETURNED' {
+  // 1. Closed: DC status is closed/returned or all items fully verified passed with zero remaining
+  if (
+    dc.status === 'CLOSED' ||
+    dc.status === 'RETURNED' ||
+    (stats.totalDispatched > 0 &&
+      stats.totalQcPassed >= stats.totalDispatched &&
+      stats.totalQcPending === 0 &&
+      stats.pendingVendorQty === 0)
+  ) {
+    return 'CLOSED';
+  }
+
+  // 2. Quality Check: Any material inwarded from vendor awaiting inspector QC
+  if (stats.totalQcPending > 0) {
+    return 'QUALITY_CHECK';
+  }
+
+  // 3. Open:
+  // - New DC not yet processed (nothing passed, rejected, or in QC)
+  // - OR Rework DC re-dispatched to vendor awaiting receipt (outstanding balance is the active rework batch)
+  const isFreshDispatched =
+    stats.totalQcPassed === 0 &&
+    stats.totalQcRejected === 0 &&
+    stats.totalQcPending === 0;
+
+  const isAwaitingReworkReturn =
+    stats.activeReworkAtVendor > 0 &&
+    stats.pendingVendorQty > 0 &&
+    stats.totalQcPending === 0 &&
+    stats.pendingVendorQty === stats.activeReworkAtVendor;
+
+  if (isFreshDispatched || isAwaitingReworkReturn) {
+    return 'OPEN';
+  }
+
+  // 4. Partial: Partially received and passed, with remaining balance still at vendor
+  return 'PARTIALLY_RETURNED';
 }
 
 export function ActiveCustodyBoard({
@@ -111,36 +155,13 @@ export function ActiveCustodyBoard({
     for (const dc of challans) {
       if (dc.status === 'DRAFT') continue;
       all++;
-      const stats = challanStatsMap.get(dc.id) || {
-        totalDispatched: 0,
-        totalQcPending: 0,
-        totalQcPassed: 0,
-        totalQcRejected: 0,
-        pendingVendorQty: 0,
-      };
+      const stats = challanStatsMap.get(dc.id) || getDcItemStats(dc);
+      const cat = getDcPrimaryCategory(dc, stats);
 
-      if (stats.totalQcPending > 0) {
-        qc++;
-      }
-
-      if (dc.status === 'CLOSED' || dc.status === 'RETURNED') {
-        closed++;
-      } else if (
-        (dc.status === 'OPEN' || dc.status === 'DISPATCHED') &&
-        stats.totalQcPending === 0 &&
-        stats.totalQcPassed === 0 &&
-        stats.totalQcRejected === 0
-      ) {
-        open++;
-      } else if (
-        dc.status === 'PARTIALLY_RETURNED' ||
-        (stats.pendingVendorQty > 0 &&
-          (stats.totalQcPassed > 0 ||
-            stats.totalQcRejected > 0 ||
-            stats.totalQcPending > 0))
-      ) {
-        partial++;
-      }
+      if (cat === 'CLOSED') closed++;
+      else if (cat === 'QUALITY_CHECK') qc++;
+      else if (cat === 'OPEN') open++;
+      else if (cat === 'PARTIALLY_RETURNED') partial++;
     }
 
     return {
@@ -158,41 +179,12 @@ export function ActiveCustodyBoard({
     return challans.filter((dc) => {
       if (dc.status === 'DRAFT') return false;
       if (statusFilter === 'ALL') return true;
-      if (statusFilter === 'CLOSED') {
-        return dc.status === 'CLOSED' || dc.status === 'RETURNED';
-      }
+      if (statusFilter === 'REWORK') return false; // Handled by ReworkQueueTable
 
-      const stats = challanStatsMap.get(dc.id) || {
-        totalDispatched: 0,
-        totalQcPending: 0,
-        totalQcPassed: 0,
-        totalQcRejected: 0,
-        pendingVendorQty: 0,
-      };
+      const stats = challanStatsMap.get(dc.id) || getDcItemStats(dc);
+      const cat = getDcPrimaryCategory(dc, stats);
 
-      if (statusFilter === 'QUALITY_CHECK') {
-        return stats.totalQcPending > 0;
-      }
-      if (statusFilter === 'OPEN') {
-        return (
-          (dc.status === 'OPEN' || dc.status === 'DISPATCHED') &&
-          stats.totalQcPending === 0 &&
-          stats.totalQcPassed === 0 &&
-          stats.totalQcRejected === 0
-        );
-      }
-      if (statusFilter === 'PARTIALLY_RETURNED') {
-        return (
-          dc.status === 'PARTIALLY_RETURNED' ||
-          (dc.status !== 'CLOSED' &&
-            dc.status !== 'RETURNED' &&
-            stats.pendingVendorQty > 0 &&
-            (stats.totalQcPassed > 0 ||
-              stats.totalQcRejected > 0 ||
-              stats.totalQcPending > 0))
-        );
-      }
-      return true;
+      return cat === statusFilter;
     });
   }, [challans, statusFilter, challanStatsMap]);
 
@@ -236,43 +228,36 @@ export function ActiveCustodyBoard({
     }
   };
 
-  const getStatusBadge = (status: string, hasQcPending: boolean) => {
-    if (hasQcPending) {
+  const getStatusBadge = (dc: DeliveryChallanDto, stats: ReturnType<typeof getDcItemStats>) => {
+    const cat = getDcPrimaryCategory(dc, stats);
+    if (cat === 'CLOSED') {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800 border border-purple-200">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+          Closed
+        </span>
+      );
+    }
+    if (cat === 'QUALITY_CHECK') {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800 border border-purple-200 animate-pulse">
           QC Pending
         </span>
       );
     }
-    switch (status) {
-      case 'OPEN':
-      case 'DISPATCHED':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700">
-            Open
-          </span>
-        );
-      case 'PARTIALLY_RETURNED':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700">
-            Partial
-          </span>
-        );
-      case 'CLOSED':
-      case 'RETURNED':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600">
-            Closed
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700">
-            {status}
-          </span>
-        );
+    if (cat === 'OPEN') {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+          {stats.activeReworkAtVendor > 0 ? 'Open (Rework)' : 'Open'}
+        </span>
+      );
     }
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+        Partial
+      </span>
+    );
   };
+
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mb-6">
@@ -457,13 +442,7 @@ export function ActiveCustodyBoard({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {activeChallans.map((dc) => {
-                const stats = challanStatsMap.get(dc.id) || {
-                  totalDispatched: 0,
-                  totalQcPending: 0,
-                  totalQcPassed: 0,
-                  totalQcRejected: 0,
-                  pendingVendorQty: 0,
-                };
+                const stats = challanStatsMap.get(dc.id) || getDcItemStats(dc);
                 const sla = getSlaStatus(dc.expectedReturnDate, dc.status);
                 const SlaIcon = sla.icon;
                 const isClosed =
@@ -489,7 +468,7 @@ export function ActiveCustodyBoard({
 
                     {/* Status */}
                     <td className="px-6 py-3">
-                      {getStatusBadge(dc.status, stats.totalQcPending > 0)}
+                      {getStatusBadge(dc, stats)}
                     </td>
 
                     {/* Vendor */}

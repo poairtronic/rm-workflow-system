@@ -63,12 +63,12 @@ export class DcReworkItem {
   @Column({ name: 'po_number', type: 'varchar', length: 50, nullable: true })
   poNumber?: string | null;
 
-  @Column({ name: 'product_id', type: 'uuid' })
-  productId: string;
+  @Column({ name: 'product_id', type: 'uuid', nullable: true })
+  productId?: string | null;
 
-  @ManyToOne(() => Product, { onDelete: 'RESTRICT' })
+  @ManyToOne(() => Product, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'product_id' })
-  product: Relation<Product>;
+  product?: Relation<Product> | null;
 
   @Column({ name: 'product_name', type: 'varchar', length: 255 })
   productName: string;
