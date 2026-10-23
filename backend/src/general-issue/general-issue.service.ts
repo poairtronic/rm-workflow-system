@@ -291,7 +291,7 @@ export class GeneralIssueService {
         // If no stock balance row existed, create one
         if (updateResult[1] === 0) {
           const newBalance = queryRunner.manager.create(StockBalance, {
-            binId: item.binId,
+            binId: item.binId || undefined,
             productId: item.productId,
             currentQuantity: qty,
             openingBalance: 0,
@@ -303,7 +303,7 @@ export class GeneralIssueService {
         const tx = queryRunner.manager.create(StockTransaction, {
           transactionType: TransactionType.RETURN,
           productId: item.productId,
-          destinationBinId: item.binId,
+          destinationBinId: item.binId || undefined,
           quantity: qty,
           referenceType: 'GENERAL_ISSUE_CANCEL',
           referenceId: issue.id,

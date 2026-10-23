@@ -30,12 +30,12 @@ export class GeneralIssueItem {
   @JoinColumn({ name: 'product_id' })
   product!: Product;
 
-  @Column({ name: 'bin_id' })
-  binId!: string;
+  @Column({ name: 'bin_id', type: 'uuid', nullable: true })
+  binId?: string | null;
 
-  @ManyToOne(() => Bin, { onDelete: 'RESTRICT' })
+  @ManyToOne(() => Bin, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'bin_id' })
-  bin!: Bin;
+  bin?: Bin | null;
 
   @Column({
     name: 'quantity_issued',

@@ -171,7 +171,6 @@ export function RelocateLocationStockModal({
         err.message ||
         'Failed to relocate inventory and delete location.';
       setErrorMessage(msg);
-      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }

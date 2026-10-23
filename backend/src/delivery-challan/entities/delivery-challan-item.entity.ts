@@ -75,7 +75,7 @@ export class DeliveryChallanItem {
   @Column({ name: 'bin_id', type: 'uuid', nullable: true })
   binId?: string | null;
 
-  @ManyToOne(() => Bin, { nullable: true })
+  @ManyToOne(() => Bin, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'bin_id' })
   bin?: Bin;
 
