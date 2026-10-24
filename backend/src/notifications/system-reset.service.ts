@@ -257,19 +257,29 @@ export class SystemResetService {
 
       // If audit_logs was not purged, record the audit entry
       if (!tablesToPurge.has('audit_logs')) {
-        await queryRunner.query(
-          `INSERT INTO "audit_logs" ("id", "action", "module", "details", "actorId", "createdAt")
-           VALUES (gen_random_uuid(), 'SYSTEM_DATA_RESET', 'SYSTEM_SETTINGS', $1, $2, NOW());`,
-          [
-            JSON.stringify({
-              purgedModules,
-              purgedTables: tableList,
-              actorId,
-              executedAt: new Date().toISOString(),
-            }),
-            actorId,
-          ],
-        );
+        const isUuid =
+          typeof actorId === 'string' &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(actorId);
+        const validActorId = isUuid ? actorId : null;
+
+        try {
+          await queryRunner.query(
+            `INSERT INTO "audit_logs" ("id", "entity_name", "entity_id", "action_type", "actor_id", "metadata", "created_at")
+             VALUES (gen_random_uuid(), 'SYSTEM_SETTINGS', 'SYSTEM_DATA_RESET', 'DELETE', $1, $2, NOW());`,
+            [
+              validActorId,
+              JSON.stringify({
+                action: 'SYSTEM_DATA_RESET',
+                purgedModules,
+                purgedTables: tableList,
+                actorId,
+                executedAt: new Date().toISOString(),
+              }),
+            ],
+          );
+        } catch (auditErr: any) {
+          this.logger.warn(`Could not write audit log entry: ${auditErr.message}`);
+        }
       }
 
       await queryRunner.commitTransaction();
