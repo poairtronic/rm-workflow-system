@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   CheckCircle2, 
   Clock, 
@@ -75,8 +75,8 @@ export function ProductionRmVerifyWorkspace() {
   const [receipts, setReceipts] = useState<any[]>([]);
   
   // Selection & Form State
-  const [expandedPo, setExpandedPo] = useState<string | null>(null);
-  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  const [expandedPos, setExpandedPos] = useState<Record<string, boolean>>({});
+  const hasAutoExpandedRef = useRef(false);
   const [receiveInputs, setReceiveInputs] = useState<Record<string, Record<string, number>>>({});
   const [receiptRemarks] = useState<Record<string, string>>({});
   const [receivingId, setReceivingId] = useState<string | null>(null);
@@ -225,15 +225,40 @@ export function ProductionRmVerifyWorkspace() {
     return result.sort((a, b) => a.poNumber.localeCompare(b.poNumber));
   }, [pendingIssues]);
 
-  // Automatically expand first PO if none selected
+  // Automatically expand first PO on initial data load
   useEffect(() => {
-    if (groupedByPo.length > 0 && !expandedPo) {
-      setExpandedPo(groupedByPo[0].poNumber);
-      if (groupedByPo[0].issues.length > 0 && !selectedIssueId) {
-        setSelectedIssueId(groupedByPo[0].issues[0].id);
-      }
+    if (groupedByPo.length > 0 && !hasAutoExpandedRef.current) {
+      hasAutoExpandedRef.current = true;
+      setExpandedPos({ [groupedByPo[0].poNumber]: true });
     }
-  }, [groupedByPo, expandedPo, selectedIssueId]);
+  }, [groupedByPo]);
+
+  // Toggle PO expansion without resetting on collapse
+  const togglePoExpanded = (poNumber: string) => {
+    setExpandedPos((prev) => {
+      const isCurrentlyExpanded = prev[poNumber] !== undefined ? prev[poNumber] : (groupedByPo[0]?.poNumber === poNumber);
+      return {
+        ...prev,
+        [poNumber]: !isCurrentlyExpanded,
+      };
+    });
+  };
+
+  const expandAllPos = () => {
+    const all: Record<string, boolean> = {};
+    groupedByPo.forEach((p) => {
+      all[p.poNumber] = true;
+    });
+    setExpandedPos(all);
+  };
+
+  const collapseAllPos = () => {
+    const all: Record<string, boolean> = {};
+    groupedByPo.forEach((p) => {
+      all[p.poNumber] = false;
+    });
+    setExpandedPos(all);
+  };
 
   // Filtered issues based on search & PO selection
   const filteredPendingIssues = useMemo(() => {
@@ -476,27 +501,50 @@ export function ProductionRmVerifyWorkspace() {
         </div>
 
         {activeTab === 'PENDING' && (
-          <div className="flex items-center gap-1 self-end md:self-auto bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-            <button
-              onClick={() => setViewMode('PO_GROUPED')}
-              className={`px-3 py-1 text-xs font-bold rounded-md transition-colors cursor-pointer ${
-                viewMode === 'PO_GROUPED'
-                  ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              Grouped by PO
-            </button>
-            <button
-              onClick={() => setViewMode('LIST')}
-              className={`px-3 py-1 text-xs font-bold rounded-md transition-colors cursor-pointer ${
-                viewMode === 'LIST'
-                  ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              All Work Orders
-            </button>
+          <div className="flex items-center gap-2 self-end md:self-auto flex-wrap">
+            {viewMode === 'PO_GROUPED' && filteredGroupedPos.length > 1 && (
+              <div className="flex items-center gap-1.5 text-xs mr-1">
+                <button
+                  type="button"
+                  onClick={expandAllPos}
+                  className="px-2 py-1 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 font-semibold transition-colors cursor-pointer"
+                  title="Expand all purchase order cards"
+                >
+                  Expand All
+                </button>
+                <span className="text-slate-300 dark:text-slate-700">•</span>
+                <button
+                  type="button"
+                  onClick={collapseAllPos}
+                  className="px-2 py-1 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 font-semibold transition-colors cursor-pointer"
+                  title="Collapse all purchase order cards"
+                >
+                  Collapse All
+                </button>
+              </div>
+            )}
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+              <button
+                onClick={() => setViewMode('PO_GROUPED')}
+                className={`px-3 py-1 text-xs font-bold rounded-md transition-colors cursor-pointer ${
+                  viewMode === 'PO_GROUPED'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                Grouped by PO
+              </button>
+              <button
+                onClick={() => setViewMode('LIST')}
+                className={`px-3 py-1 text-xs font-bold rounded-md transition-colors cursor-pointer ${
+                  viewMode === 'LIST'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                All Work Orders
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -523,7 +571,7 @@ export function ProductionRmVerifyWorkspace() {
           /* ============================================================ */
           <div className="space-y-4">
             {filteredGroupedPos.map((poGroup) => {
-              const isPoExpanded = expandedPo === poGroup.poNumber;
+              const isPoExpanded = Boolean(expandedPos[poGroup.poNumber]);
 
               return (
                 <div
@@ -532,8 +580,17 @@ export function ProductionRmVerifyWorkspace() {
                 >
                   {/* PO Accordion Header */}
                   <div
-                    onClick={() => setExpandedPo(isPoExpanded ? null : poGroup.poNumber)}
-                    className="p-4 md:p-5 bg-slate-50/70 dark:bg-slate-900/40 hover:bg-slate-100/60 dark:hover:bg-slate-800/40 cursor-pointer flex items-center justify-between border-b border-slate-200 dark:border-slate-800 transition-colors"
+                    onClick={() => togglePoExpanded(poGroup.poNumber)}
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={isPoExpanded}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        togglePoExpanded(poGroup.poNumber);
+                      }
+                    }}
+                    className="p-4 md:p-5 bg-slate-50/70 dark:bg-slate-900/40 hover:bg-slate-100/60 dark:hover:bg-slate-800/40 cursor-pointer flex items-center justify-between border-b border-slate-200 dark:border-slate-800 transition-colors select-none"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-lg bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
@@ -561,9 +618,18 @@ export function ProductionRmVerifyWorkspace() {
                         </span>
                         <p className="text-[10px] text-slate-400">Across {poGroup.totalIssues} dispatch lot(s)</p>
                       </div>
-                      <div className="text-slate-400">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          togglePoExpanded(poGroup.poNumber);
+                        }}
+                        className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer"
+                        title={isPoExpanded ? 'Collapse Purchase Order' : 'Expand Purchase Order'}
+                        aria-label={isPoExpanded ? 'Collapse Purchase Order' : 'Expand Purchase Order'}
+                      >
                         {isPoExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-                      </div>
+                      </button>
                     </div>
                   </div>
 

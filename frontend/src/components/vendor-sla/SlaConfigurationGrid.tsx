@@ -58,7 +58,8 @@ export function SlaConfigurationGrid({
   }, [data, viewMode]);
 
   // Determine top vendor by name / known benchmark (A PONIBASS & CO is 100% compliant benchmark)
-  const isTopVendor = (vName: string) => {
+  const isTopVendor = (vName?: string) => {
+    if (!vName || typeof vName !== 'string') return false;
     return vName.toLowerCase().includes('ponibass');
   };
 
