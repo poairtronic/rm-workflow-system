@@ -15,6 +15,7 @@ import { Role } from '../roles/entities/role.entity.js';
 
 import { NotificationRecipientService } from './notification-recipient.service.js';
 import { NotificationsGateway } from './notifications.gateway.js';
+import { SystemResetService } from './system-reset.service.js';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { NotificationsGateway } from './notifications.gateway.js';
     WorkflowNotificationService,
     CommunicationService,
     NotificationRecipientService,
+    SystemResetService,
   ],
   exports: [
     NotificationsGateway,
@@ -43,6 +45,7 @@ import { NotificationsGateway } from './notifications.gateway.js';
     WorkflowNotificationService,
     CommunicationService,
     NotificationRecipientService,
+    SystemResetService,
   ],
 })
 export class NotificationsModule {}

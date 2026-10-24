@@ -698,6 +698,8 @@ export { userMasterApi } from './userMaster.service';
 export const systemSettingsApi = {
   getConfig: () => api.get<any>('/api/notifications/system-config'),
   updateConfig: (data: any) => api.patch<any>('/api/notifications/system-config', data),
+  resetSystemData: (payload: Record<string, any>) =>
+    api.post<any>('/api/notifications/system-config/reset-data', payload),
 };
 
 export const auditLogsApi = {

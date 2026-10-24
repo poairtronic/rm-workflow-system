@@ -3,6 +3,8 @@ import { toast } from 'react-hot-toast';
 import { systemSettingsApi } from '../services/api';
 import { PageHeader } from '../components/ui';
 import { applyTheme, applyDensity } from '../utils/theme';
+import { useAuth } from '../contexts/AuthContext';
+import { ResetSystemDataModal } from '../components/settings/ResetSystemDataModal';
 import {
   Laptop,
   Bell,
@@ -11,11 +13,17 @@ import {
   CheckCircle2,
   RefreshCw,
   Save,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 
 export function SystemConfigurationWorkspace() {
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'ADMIN';
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
   // Form state
   const [theme, setTheme] = useState('Enterprise Light');
@@ -134,21 +142,32 @@ export function SystemConfigurationWorkspace() {
         subtitle="Manage enterprise global settings, notifications, and application preferences."
         breadcrumbs={<span>Home / System Settings / Configuration</span>}
         actionSlot={
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <button
               type="button"
               onClick={loadConfig}
               disabled={loading || saving}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 transition shadow-sm cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg text-xs font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800 transition shadow-xs cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setIsResetModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-rose-300 dark:border-rose-900/80 rounded-lg text-xs font-bold text-rose-700 dark:text-rose-300 bg-rose-50/70 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/40 transition shadow-xs cursor-pointer"
+                title="Selectively purge test data from system"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                <span>Reset Test Data</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={handleSave}
               disabled={loading || saving}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition shadow-sm cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition shadow-xs cursor-pointer disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
               {saving ? 'Saving...' : 'Save Changes'}
@@ -598,6 +617,45 @@ export function SystemConfigurationWorkspace() {
             </div>
           </div>
         </div>
+
+        {/* Section 5: Danger Zone - Selective Test Data Reset */}
+        {isAdmin && (
+          <div className="bg-rose-50/40 dark:bg-rose-950/20 rounded-2xl border border-rose-200 dark:border-rose-900/60 p-6 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400 rounded-xl">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-base font-black text-rose-900 dark:text-rose-200">
+                    Danger Zone: Reset &amp; Purge Test Data
+                  </h2>
+                  <p className="text-xs text-rose-700/80 dark:text-rose-300/80 mt-1 max-w-2xl">
+                    Selectively delete test data across Products, Warehouses, POs, SCs, RM issues, receipts, stock movements, and Delivery Challans. All user logins and system permissions remain strictly protected.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsResetModalOpen(true)}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer self-start sm:self-auto flex-shrink-0"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Reset Test Data</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        <ResetSystemDataModal
+          isOpen={isResetModalOpen}
+          onClose={() => setIsResetModalOpen(false)}
+          onSuccess={() => {
+            setIsResetModalOpen(false);
+            loadConfig();
+          }}
+        />
       </div>
   );
 }
