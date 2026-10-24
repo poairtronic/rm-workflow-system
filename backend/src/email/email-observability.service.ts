@@ -24,6 +24,8 @@ export interface EmailQueueObservabilitySummary {
     errorMessage?: string | null;
     eventType?: string | null;
   } | null;
+  systemHealth: 'HEALTHY' | 'DEGRADED';
+  providerStatus: 'operational' | 'degraded';
   timestamp: string;
 }
 
@@ -72,18 +74,31 @@ export class EmailObservabilityService {
       }
     }
 
-    // 2. Fetch Last Successful Send (Prefer EmailLog, fallback to EmailJob)
+    // 2. Fetch Latest Log (Any Status) to determine true real-time operational state
+    let latestLogStatus: EmailJobStatus | null = null;
+    try {
+      const latestLog = await this.emailLogRepository.findOne({
+        order: { createdAt: 'DESC' },
+      });
+      if (latestLog) {
+        latestLogStatus = latestLog.status;
+      }
+    } catch {
+      // Graceful fallback
+    }
+
+    // 3. Fetch Last Successful Send (Prefer EmailLog, fallback to EmailJob)
     let lastSuccessfulSend: EmailQueueObservabilitySummary['lastSuccessfulSend'] = null;
     try {
       const lastSuccessLog = await this.emailLogRepository.findOne({
         where: { status: EmailJobStatus.SENT },
-        order: { attemptedAt: 'DESC' },
+        order: { createdAt: 'DESC' },
       });
 
       if (lastSuccessLog) {
         lastSuccessfulSend = {
-          timestamp: lastSuccessLog.attemptedAt
-            ? new Date(lastSuccessLog.attemptedAt).toISOString()
+          timestamp: lastSuccessLog.createdAt
+            ? new Date(lastSuccessLog.createdAt).toISOString()
             : null,
           eventType: lastSuccessLog.eventType || null,
           recipientEmail: lastSuccessLog.recipientEmail || null,
@@ -105,18 +120,18 @@ export class EmailObservabilityService {
       // Graceful fallback if log table is inaccessible
     }
 
-    // 3. Fetch Last Failure (Prefer EmailLog, fallback to EmailJob)
+    // 4. Fetch Last Failure (Prefer EmailLog, fallback to EmailJob)
     let lastFailure: EmailQueueObservabilitySummary['lastFailure'] = null;
     try {
       const lastFailedLog = await this.emailLogRepository.findOne({
         where: { status: EmailJobStatus.FAILED },
-        order: { attemptedAt: 'DESC' },
+        order: { createdAt: 'DESC' },
       });
 
       if (lastFailedLog) {
         lastFailure = {
-          timestamp: lastFailedLog.attemptedAt
-            ? new Date(lastFailedLog.attemptedAt).toISOString()
+          timestamp: lastFailedLog.createdAt
+            ? new Date(lastFailedLog.createdAt).toISOString()
             : null,
           errorCode: lastFailedLog.errorCode || null,
           errorMessage: this.auditService.sanitizeError(lastFailedLog.errorMessage) || null,
@@ -142,6 +157,26 @@ export class EmailObservabilityService {
       // Graceful fallback
     }
 
+    // Real-Time Health Assessment:
+    // If the latest send attempt succeeded, the provider is working right now -> HEALTHY
+    // If last successful send is newer than or equal to last failure -> HEALTHY
+    // If there are zero failed jobs -> HEALTHY
+    // Otherwise -> DEGRADED
+    const lastSuccessMs = lastSuccessfulSend?.timestamp
+      ? new Date(lastSuccessfulSend.timestamp).getTime()
+      : 0;
+    const lastFailureMs = lastFailure?.timestamp
+      ? new Date(lastFailure.timestamp).getTime()
+      : 0;
+
+    const isHealthy =
+      latestLogStatus === EmailJobStatus.SENT ||
+      (lastSuccessMs > 0 && lastSuccessMs >= lastFailureMs) ||
+      summaryMap.failed === 0;
+
+    const systemHealth: 'HEALTHY' | 'DEGRADED' = isHealthy ? 'HEALTHY' : 'DEGRADED';
+    const providerStatus: 'operational' | 'degraded' = isHealthy ? 'operational' : 'degraded';
+
     return {
       pending: summaryMap.pending,
       processing: summaryMap.processing,
@@ -149,6 +184,8 @@ export class EmailObservabilityService {
       failed: summaryMap.failed,
       sent: summaryMap.sent,
       total: totalJobs,
+      systemHealth,
+      providerStatus,
       lastSuccessfulSend,
       lastFailure,
       timestamp: new Date().toISOString(),

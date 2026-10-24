@@ -18,6 +18,8 @@ export interface EmailQueueObservabilitySummary {
     errorMessage?: string | null;
     eventType?: string | null;
   } | null;
+  systemHealth?: 'HEALTHY' | 'DEGRADED';
+  providerStatus?: 'operational' | 'degraded';
   timestamp: string;
 }
 

@@ -193,7 +193,8 @@ export class EmailAuditService {
       );
     }
 
-    qb.orderBy('log.attemptedAt', 'DESC')
+    qb.orderBy('log.createdAt', 'DESC')
+      .addOrderBy('log.attemptedAt', 'DESC')
       .skip(offset)
       .take(limit);
 
