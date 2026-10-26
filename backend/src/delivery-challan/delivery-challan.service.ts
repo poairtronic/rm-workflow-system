@@ -203,18 +203,20 @@ export class DeliveryChallanService {
         const targetScId = itemDto.scId || headerScId;
 
         // Resolve partNumber and partName with precision:
-        // 1. If explicit partNumber and partName are supplied, use them unless they mistakenly match parent SC assembly when a specific RM item is dispatched.
-        // 2. If targetScId and productId are present, check if this is an RmItem under this SC.
+        // 1. If explicit partNumber and partName are supplied, preserve them.
+        // 2. If targetScId and rmItemId or productId are present, check if this is an RmItem under this SC.
         // 3. If missing, look up Product by productId.
         // 4. Finally, fallback to parent SalesOrderComponent assembly if still unresolved.
         let partNumber = itemDto.partNumber?.trim() || null;
         let partName = itemDto.partName?.trim() || null;
+        const targetRmItemId = itemDto.rmItemId || itemDto.productId || null;
 
-        if (targetScId && itemDto.productId) {
+        if (targetScId && targetRmItemId) {
           const rmItem = await queryRunner.manager.findOne(RmItem, {
             where: [
-              { scId: targetScId, mappedProductId: itemDto.productId },
-              { scId: targetScId, id: itemDto.productId },
+              { id: targetRmItemId },
+              { scId: targetScId, mappedProductId: targetRmItemId },
+              { scId: targetScId, id: targetRmItemId },
             ],
           });
           if (rmItem) {
@@ -224,8 +226,8 @@ export class DeliveryChallanService {
             const isScNumber = sc && partNumber === sc.scNumber;
             const isScProduct = sc && partName === sc.productName;
 
-            if (!partNumber || isScNumber) {
-              partNumber = rmItem.partNumber || null;
+            if (!partNumber || (isScNumber && rmItem.partNumber)) {
+              partNumber = rmItem.partNumber || (sc ? sc.scNumber : null);
             }
             if (!partName || isScProduct) {
               partName = rmItem.partName || rmItem.material || null;
@@ -1686,7 +1688,7 @@ export class DeliveryChallanService {
           vendorCode,
           partNumber: item.partNumber || item.product?.code || '—',
           partName: item.partName || item.product?.name || '—',
-          productName: isType1 ? (item.product?.name || item.partName || '—') : (outProd?.name || item.product?.name || '—'),
+          productName: isType1 ? (item.partName || item.product?.name || '—') : (outProd?.name || item.product?.name || '—'),
           productCode: isType1 ? (item.product?.code || '') : (outProd?.code || item.product?.code || ''),
           uom: item.product?.uom || outProd?.uom || 'NOS',
           scNumber: challan.sc?.scNumber || item.sc?.scNumber || '—',

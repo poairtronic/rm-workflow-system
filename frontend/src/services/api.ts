@@ -484,7 +484,10 @@ export const deliveryChallanApi = {
       dispatchDate: new Date().toISOString(),
       notes: data.notes || '',
       items: data.items.map((i: any) => ({
-        productId: i.productId,
+        productId: i.productId || undefined,
+        rmItemId: i.rmItemId || (i.scItemId && i.scItemId !== 'sc_assembly' ? i.scItemId : undefined),
+        partNumber: i.partNumber?.trim() || undefined,
+        partName: i.partName?.trim() || undefined,
         binId: i.binId || undefined,
         quantityDispatched: Number(i.quantity) || Number(i.quantityDispatched),
         processName: i.processName?.trim() || resolvedProcessName,

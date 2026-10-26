@@ -479,8 +479,8 @@ export function DispatchPayloadRow({
             }
             const activeIt = scRmItems.find((it: any) => it.id === scItemId);
             if (!activeIt) return null;
-            const pNum = activeIt.partNumber || activeIt.part_number;
-            const pName = activeIt.partName || activeIt.part_name;
+            const pNum = activeIt.partNumber || activeIt.part_number || selectedSc?.scNumber;
+            const pName = activeIt.partName || activeIt.part_name || activeIt.material;
             return (
               <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-100 text-[11px] text-blue-950">
                 {pNum && (

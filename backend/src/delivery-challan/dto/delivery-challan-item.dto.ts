@@ -7,6 +7,10 @@ export class DeliveryChallanItemDto {
 
   @IsOptional()
   @IsUUID()
+  rmItemId?: string;
+
+  @IsOptional()
+  @IsUUID()
   binId?: string;
 
   @IsNumber({ maxDecimalPlaces: 3 })

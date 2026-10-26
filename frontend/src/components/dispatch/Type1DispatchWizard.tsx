@@ -114,15 +114,18 @@ export function Type1DispatchWizard() {
           let resolvedPartNumber = item.partNumber?.trim() || undefined;
           let resolvedPartName = item.partName?.trim() || undefined;
           let resolvedProductId = item.productId || undefined;
+          let resolvedRmItemId: string | undefined = undefined;
 
           if (item.scItemId === 'sc_assembly') {
             resolvedPartNumber = targetSc?.scNumber || resolvedPartNumber;
             resolvedPartName = targetSc?.productName || resolvedPartName;
             resolvedProductId = undefined;
+            resolvedRmItemId = undefined;
           } else if (item.scItemId) {
+            resolvedRmItemId = item.scItemId;
             const matchedRmItem = scRmItems.find((it: any) => it.id === item.scItemId);
             if (matchedRmItem) {
-              resolvedPartNumber = matchedRmItem.partNumber || matchedRmItem.part_number || resolvedPartNumber;
+              resolvedPartNumber = matchedRmItem.partNumber || matchedRmItem.part_number || targetSc?.scNumber || resolvedPartNumber;
               resolvedPartName = matchedRmItem.partName || matchedRmItem.part_name || matchedRmItem.material || resolvedPartName;
               resolvedProductId = matchedRmItem.mappedProductId || matchedRmItem.mapped_product_id || resolvedProductId;
             }
@@ -131,6 +134,7 @@ export function Type1DispatchWizard() {
           return {
             ...item,
             productId: resolvedProductId || undefined,
+            rmItemId: resolvedRmItemId,
             binId: item.binId || undefined,
             scId: block.scId,
             processId: block.processId || undefined,
