@@ -93,7 +93,11 @@ export function CreateReworkDcModal({ isOpen, onClose, reworkItem, onSuccess }: 
 
       // Open print preview immediately in a new tab
       if (dc?.id) {
-        window.open(`/dispatch/delivery-challan/${dc.id}/print`, '_blank');
+        const rwId = data?.reworkItem?.id || reworkItem?.id;
+        const printUrl = rwId
+          ? `/dispatch/delivery-challan/${dc.id}/print?reworkId=${rwId}`
+          : `/dispatch/delivery-challan/${dc.id}/print`;
+        window.open(printUrl, '_blank');
       }
 
       if (onSuccess) onSuccess();
@@ -246,7 +250,13 @@ export function CreateReworkDcModal({ isOpen, onClose, reworkItem, onSuccess }: 
               </button>
               <button
                 type="button"
-                onClick={() => window.open(`/dispatch/delivery-challan/${dispatchedDc.id}/print`, '_blank')}
+                onClick={() => {
+                  const rwId = reworkItem?.id;
+                  const printUrl = rwId
+                    ? `/dispatch/delivery-challan/${dispatchedDc.id}/print?reworkId=${rwId}`
+                    : `/dispatch/delivery-challan/${dispatchedDc.id}/print`;
+                  window.open(printUrl, '_blank');
+                }}
                 className="inline-flex items-center gap-2 px-6 py-2.5 text-xs font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-all shadow-sm cursor-pointer"
               >
                 <Printer className="w-4 h-4" />

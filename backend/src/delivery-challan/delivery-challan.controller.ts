@@ -133,8 +133,12 @@ export class DeliveryChallanController {
 
   @Get(':id/printable')
   @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION, UserRole.GENERAL_MANAGER, UserRole.DESIGNER)
-  async getPrintable(@Param('id', ParseUUIDPipe) id: string) {
-    return this.deliveryChallanService.getPrintableChallanData(id);
+  async getPrintable(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('reworkId') reworkId?: string,
+    @Query('view') view?: string,
+  ) {
+    return this.deliveryChallanService.getPrintableChallanData(id, reworkId, view);
   }
 
   @Get(':id')

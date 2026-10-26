@@ -148,4 +148,8 @@ export class PrintableDeliveryChallanDto {
   audit: PrintableAuditInfo;
   /** ISO 8601 timestamp of when this payload was generated */
   generatedAt: string;
+  isRework?: boolean;
+  reworkId?: string;
+  hasReworkItems?: boolean;
+  originalItemsCount?: number;
 }

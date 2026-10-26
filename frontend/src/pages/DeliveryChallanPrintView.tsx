@@ -1,17 +1,21 @@
 import { useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Printer, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
+import { Printer, ArrowLeft, Loader2, AlertCircle, RotateCcw, FileText } from 'lucide-react';
 import { deliveryChallanApi } from '../services/api';
 import { VelanLogo } from '../components/print/VelanLogo';
 
 export function DeliveryChallanPrintView() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  const reworkId = searchParams.get('reworkId') || undefined;
+  const viewMode = searchParams.get('view') || undefined;
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['printable-dc', id],
-    queryFn: () => deliveryChallanApi.getPrintable(id!),
+    queryKey: ['printable-dc', id, reworkId, viewMode],
+    queryFn: () => deliveryChallanApi.getPrintable(id!, reworkId, viewMode),
     enabled: !!id,
   });
 
@@ -199,16 +203,55 @@ export function DeliveryChallanPrintView() {
       
       {/* Floating Action Bar - Hidden during physical print */}
       <div className="no-print fixed bottom-8 right-8 flex items-center gap-3 z-50">
+        {dc.hasReworkItems && (
+          <div className="flex items-center bg-white/95 backdrop-blur-xs border border-slate-300 rounded-xl p-1 shadow-lg text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => {
+                const next = new URLSearchParams(searchParams);
+                next.delete('view');
+                if (dc.reworkId) next.set('reworkId', dc.reworkId);
+                setSearchParams(next);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all cursor-pointer ${
+                dc.isRework
+                  ? 'bg-amber-100 text-amber-900 font-bold shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
+              <span>Rework DC ({displayItems.length} {displayItems.length === 1 ? 'item' : 'items'})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const next = new URLSearchParams(searchParams);
+                next.set('view', 'original');
+                next.delete('reworkId');
+                setSearchParams(next);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all cursor-pointer ${
+                !dc.isRework
+                  ? 'bg-blue-100 text-blue-900 font-bold shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5 text-blue-700" />
+              <span>Original DC ({dc.originalItemsCount || 'All'} items)</span>
+            </button>
+          </div>
+        )}
+
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 px-5 h-11 bg-white border border-slate-300 text-slate-700 rounded-lg shadow-md hover:bg-slate-50 transition-colors font-medium text-sm cursor-pointer"
+          className="flex items-center gap-2 px-5 h-11 bg-white border border-slate-300 text-slate-700 rounded-xl shadow-md hover:bg-slate-50 transition-colors font-medium text-sm cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           Back
         </button>
         <button
           onClick={handlePrint}
-          className="flex items-center gap-2 px-6 h-11 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors font-semibold text-sm cursor-pointer"
+          className="flex items-center gap-2 px-6 h-11 bg-blue-600 text-white rounded-xl shadow-md hover:bg-blue-700 transition-colors font-semibold text-sm cursor-pointer"
         >
           <Printer className="w-4 h-4" />
           Print DC
@@ -248,7 +291,7 @@ export function DeliveryChallanPrintView() {
           {/* Document Title Banner */}
           <div className="border-b border-black py-1 text-center bg-white">
             <h2 className="text-sm font-extrabold uppercase tracking-widest text-slate-900">
-              SUPPLIER DC
+              SUPPLIER DC {dc.isRework ? '(REWORK)' : ''}
             </h2>
           </div>
 

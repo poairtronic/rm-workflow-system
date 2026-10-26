@@ -550,7 +550,13 @@ export const deliveryChallanApi = {
     );
   },
   close: (id: string, data: CloseDcDto) => api.patch<DeliveryChallanDto>(`/api/delivery-challans/${id}/close`, data),
-  getPrintable: (id: string) => api.get<any>(`/api/delivery-challans/${id}/printable`),
+  getPrintable: (id: string, reworkId?: string, view?: string) => {
+    const params = new URLSearchParams();
+    if (reworkId) params.append('reworkId', reworkId);
+    if (view) params.append('view', view);
+    const qs = params.toString();
+    return api.get<any>(`/api/delivery-challans/${id}/printable${qs ? `?${qs}` : ''}`);
+  },
   getNextType2ItemSequence: () =>
     api.get<{ nextSequence: number; formattedCode: string }>('/api/delivery-challans/next-type2-item-sequence'),
   getLifecycleReport: (params?: {

@@ -567,7 +567,7 @@ export class DeliveryChallanService {
    * Eagerly loads all relational data required for a physical or PDF printout:
    *   Challan → Items → Product, Bin, Vendor, SC → PO, ProductionProcess, CreatedBy, VerifiedBy
    */
-  async getPrintableChallanData(id: string): Promise<PrintableDeliveryChallanDto> {
+  async getPrintableChallanData(id: string, reworkId?: string, view?: string): Promise<PrintableDeliveryChallanDto> {
     const challan = await this.challanRepo.findOne({
       where: { id },
       relations: {
@@ -591,27 +591,66 @@ export class DeliveryChallanService {
       throw new NotFoundException(`Delivery Challan with ID ${id} not found`);
     }
 
-    const enrichedItems = challan.items || [];
+    // Check for associated re-dispatched rework items
+    const activeReworks = await this.reworkRepo.find({
+      where: [
+        { reworkDcId: id, reworkStatus: ReworkItemStatus.RE_DISPATCHED },
+        { sourceDcId: id, reworkStatus: ReworkItemStatus.RE_DISPATCHED },
+      ],
+      relations: {
+        product: true,
+        sc: { purchaseOrder: true },
+        po: true,
+      },
+      order: { updatedAt: 'DESC' },
+    });
 
-    // Resolve SC → PO references (Type 1 challans)
-    const posSet = new Map<string, any>();
-    
-    // Check header SC
-    if (challan.sc && (challan.sc as any).purchaseOrder) {
-      const po = (challan.sc as any).purchaseOrder;
-      posSet.set(po.id, {
-        poId: po.id,
-        poNumber: po.poNumber,
-        externalReference: po.externalReference ?? null,
-        referenceDate: po.referenceDate ?? null,
-      });
+    // Determine if we should print in Rework mode
+    const isExplicitOriginal = view === 'original';
+    let targetReworkItems: DcReworkItem[] = [];
+
+    if (!isExplicitOriginal) {
+      if (reworkId) {
+        const specific = await this.reworkRepo.findOne({
+          where: { id: reworkId },
+          relations: {
+            product: true,
+            sc: { purchaseOrder: true },
+            po: true,
+          },
+        });
+        if (specific) {
+          targetReworkItems = [specific];
+        }
+      } else if (activeReworks.length > 0) {
+        // Default to active re-dispatched rework item(s) if this DC is in rework custody
+        targetReworkItems = activeReworks;
+      }
     }
 
-    // Check items SC
-    enrichedItems.forEach(item => {
-      const sc = (item as any).sc;
-      if (sc && sc.purchaseOrder) {
-        const po = sc.purchaseOrder;
+    const isReworkMode = targetReworkItems.length > 0;
+    const enrichedItems = challan.items || [];
+
+    // Resolve SC → PO references
+    const posSet = new Map<string, any>();
+
+    if (isReworkMode) {
+      targetReworkItems.forEach((rw) => {
+        const rwSc = rw.sc as any;
+        const rwPo = rw.po || rwSc?.purchaseOrder;
+        if (rwPo) {
+          posSet.set(rwPo.id, {
+            poId: rwPo.id,
+            poNumber: rwPo.poNumber,
+            externalReference: rwPo.externalReference ?? null,
+            referenceDate: rwPo.referenceDate ?? null,
+          });
+        }
+      });
+    } else {
+      // Check header SC
+      if (challan.sc && (challan.sc as any).purchaseOrder) {
+        const po = (challan.sc as any).purchaseOrder;
         posSet.set(po.id, {
           poId: po.id,
           poNumber: po.poNumber,
@@ -619,7 +658,21 @@ export class DeliveryChallanService {
           referenceDate: po.referenceDate ?? null,
         });
       }
-    });
+
+      // Check items SC
+      enrichedItems.forEach(item => {
+        const sc = (item as any).sc;
+        if (sc && sc.purchaseOrder) {
+          const po = sc.purchaseOrder;
+          posSet.set(po.id, {
+            poId: po.id,
+            poNumber: po.poNumber,
+            externalReference: po.externalReference ?? null,
+            referenceDate: po.referenceDate ?? null,
+          });
+        }
+      });
+    }
 
     const posArray = Array.from(posSet.values());
 
@@ -649,7 +702,10 @@ export class DeliveryChallanService {
     };
 
     // ─── References ───────────────────────────────────────────────────────────
-    const sc = challan.sc as any;
+    let sc = challan.sc as any;
+    if (isReworkMode && targetReworkItems[0]?.sc) {
+      sc = targetReworkItems[0].sc;
+    }
     const productionProcess = challan.process as any;
 
     const references: PrintableDeliveryChallanDto['references'] = {
@@ -672,37 +728,80 @@ export class DeliveryChallanService {
             category: productionProcess.category ?? null,
           }
         : null,
-      processName: challan.processName || null,
+      processName: challan.processName || (isReworkMode ? 'REWORK PROCESSING' : null),
     };
 
     // ─── Line Items ───────────────────────────────────────────────────────────
-    const lineItems: PrintableDeliveryChallanDto['lineItems'] = enrichedItems.map((item: any) => {
-      const dispatched = Number(item.quantityDispatched ?? 0);
-      const returned = Number(item.quantityReturned ?? 0);
-      const resolvedPartNo = item.partNumber || item.product?.code || '—';
-      const resolvedPartName = item.partName || item.product?.name || item.productId;
-      return {
-        id: item.id,
-        productId: item.productId,
-        productCode: resolvedPartNo,
-        productName: resolvedPartName,
-        partNumber: resolvedPartNo,
-        partName: resolvedPartName,
-        binId: item.binId,
-        binCode: item.bin?.code ?? '',
-        binName: item.bin?.name ?? '',
-        quantityDispatched: dispatched,
-        quantityReturned: returned,
-        quantityOutstanding: Math.max(0, dispatched - returned),
-        uom: item.product?.uom || (item.product?.name?.toUpperCase().includes('BAR') || item.product?.name?.toUpperCase().includes('ROD') ? 'MM' : 'NOS'),
-        scNumber: item.sc?.scNumber ?? sc?.scNumber,
-        poNumber: item.sc?.purchaseOrder?.poNumber ?? (sc as any)?.purchaseOrder?.poNumber,
-        processName: item.processName ?? challan.processName ?? item.process?.name ?? productionProcess?.name,
-        batchNumber: item.batchNumber,
-        description: item.description ?? null,
-      };
-    });
+    let lineItems: PrintableDeliveryChallanDto['lineItems'];
 
+    if (isReworkMode) {
+      lineItems = targetReworkItems.map((rw) => {
+        const reworkQty = Number(rw.rejectedQty || 0);
+        const resolvedPartNo = rw.partNumber || rw.product?.code || rw.scNumber || '—';
+        const resolvedPartName = rw.productName || rw.product?.name || resolvedPartNo;
+        const resolvedUom = rw.uom || 'NOS';
+        const rwSc = rw.sc as any;
+        const rwPo = rw.po || rwSc?.purchaseOrder;
+        const resolvedScNo = rw.scNumber || rwSc?.scNumber || (challan.sc as any)?.scNumber || null;
+        const resolvedPoNo = rw.poNumber || rwPo?.poNumber || (challan.sc as any)?.purchaseOrder?.poNumber || null;
+
+        // Match with challan item if present for description, batch, bin
+        const matchingItem = challan.items?.find(
+          (it: any) =>
+            (rw.productId && it.productId === rw.productId) ||
+            (rw.partNumber && it.partNumber === rw.partNumber) ||
+            (rw.scId && it.scId === rw.scId),
+        );
+
+        return {
+          id: rw.id,
+          productId: rw.productId || matchingItem?.productId || '',
+          productCode: resolvedPartNo,
+          productName: resolvedPartName,
+          partNumber: resolvedPartNo,
+          partName: resolvedPartName,
+          binId: matchingItem?.binId || '',
+          binCode: matchingItem?.bin?.code ?? '',
+          binName: matchingItem?.bin?.name ?? '',
+          quantityDispatched: reworkQty,
+          quantityReturned: 0,
+          quantityOutstanding: reworkQty,
+          uom: resolvedUom,
+          scNumber: resolvedScNo || undefined,
+          poNumber: resolvedPoNo || undefined,
+          processName: challan.processName || 'REWORK PROCESSING',
+          batchNumber: matchingItem?.batchNumber || undefined,
+          description: matchingItem?.description || (rw.qcRemarks ? `QC Defect: ${rw.qcRemarks}` : undefined) || undefined,
+        };
+      });
+    } else {
+      lineItems = enrichedItems.map((item: any) => {
+        const dispatched = Number(item.quantityDispatched ?? 0);
+        const returned = Number(item.quantityReturned ?? 0);
+        const resolvedPartNo = item.partNumber || item.product?.code || '—';
+        const resolvedPartName = item.partName || item.product?.name || item.productId;
+        return {
+          id: item.id,
+          productId: item.productId,
+          productCode: resolvedPartNo,
+          productName: resolvedPartName,
+          partNumber: resolvedPartNo,
+          partName: resolvedPartName,
+          binId: item.binId,
+          binCode: item.bin?.code ?? '',
+          binName: item.bin?.name ?? '',
+          quantityDispatched: dispatched,
+          quantityReturned: returned,
+          quantityOutstanding: Math.max(0, dispatched - returned),
+          uom: item.product?.uom || (item.product?.name?.toUpperCase().includes('BAR') || item.product?.name?.toUpperCase().includes('ROD') ? 'MM' : 'NOS'),
+          scNumber: item.sc?.scNumber ?? sc?.scNumber,
+          poNumber: item.sc?.purchaseOrder?.poNumber ?? (sc as any)?.purchaseOrder?.poNumber,
+          processName: item.processName ?? challan.processName ?? item.process?.name ?? productionProcess?.name,
+          batchNumber: item.batchNumber,
+          description: item.description ?? null,
+        };
+      });
+    }
 
     // ─── Groups (Type 1 only) ─────────────────────────────────────────────────
     // Type 2 / legacy DCs have no SC/PO/process context; leave groups empty so
@@ -767,7 +866,7 @@ export class DeliveryChallanService {
         expectedReturnDate: challan.expectedReturnDate ?? null,
         actualReturnDate: challan.actualReturnDate ?? null,
         notes: challan.notes ?? null,
-        processName: challan.processName ?? null,
+        processName: challan.processName ?? (isReworkMode ? 'REWORK PROCESSING' : null),
       },
       vendor: vendorInfo,
       references,
@@ -775,6 +874,10 @@ export class DeliveryChallanService {
       groups,
       audit,
       generatedAt: new Date().toISOString(),
+      isRework: isReworkMode,
+      reworkId: isReworkMode ? targetReworkItems[0]?.id : undefined,
+      hasReworkItems: activeReworks.length > 0,
+      originalItemsCount: enrichedItems.length,
     };
   }
 

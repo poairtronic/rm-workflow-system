@@ -261,7 +261,7 @@ export function ReworkQueueTable({ onSelectDc, challans }: ReworkQueueTableProps
                                 type="button"
                                 onClick={() =>
                                   window.open(
-                                    `/dispatch/delivery-challan/${item.reworkDcId || item.sourceDcId}/print`,
+                                    `/dispatch/delivery-challan/${item.reworkDcId || item.sourceDcId}/print?reworkId=${item.id}`,
                                     '_blank'
                                   )
                                 }
