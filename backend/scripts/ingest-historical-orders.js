@@ -70,8 +70,13 @@ async function extractOrdersFromPdf() {
   const rows = [];
 
   for (let p = 0; p < res.pages.length; p++) {
-    const pageText = res.pages[p].text;
-    const maskedText = pageText.replace(/\([^\)]*?\d+\s*NOS?[^\)]*?\)/gi, (m) => {
+    let pageText = res.pages[p].text;
+
+    // Fix unclosed rack parentheses before SC numbers
+    pageText = pageText.replace(/(\(\s*RACK\s+NO[^\)\n\r]*(?:\r?\n[^\)\n\r]*?)?)(?=\s*\b2\d{3}(?:-\d+)?\b)/gi, '$1 ) ');
+
+    // Mask embedded quantity annotations strictly without crossing newlines
+    const maskedText = pageText.replace(/\([^)\n\r]{1,60}?\d+\s*(?:NOS?|NO|SETS?|SET)[^)\n\r]{0,60}?\)/gi, (m) => {
       return m.replace(/NO/gi, '##').replace(/SET/gi, '@@');
     });
 
@@ -131,6 +136,19 @@ async function extractOrdersFromPdf() {
         const words = withoutQty.split(/\s+/);
         product = words[words.length - 1];
         rawMaterial = words.slice(0, words.length - 1).join(' ').trim();
+      }
+
+      // Clean up whitespace
+      product = product.replace(/\s+/g, ' ').trim();
+
+      // If product name is empty, inherit from previous sibling SC (e.g. 2405-2 inherits from 2405-1)
+      if (!product && rows.length > 0) {
+        const lastRow = rows[rows.length - 1];
+        const currentPrefix = scNumber.split('-')[0];
+        const lastPrefix = lastRow.scNumber.split('-')[0];
+        if (currentPrefix === lastPrefix && lastRow.product) {
+          product = lastRow.product;
+        }
       }
 
       rows.push({
