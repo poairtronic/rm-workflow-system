@@ -5,6 +5,7 @@ import {
   BadRequestException,
   HttpException,
   OnModuleInit,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, DataSource } from 'typeorm';
@@ -29,6 +30,8 @@ import { MasterFilterDto } from './dto/master-filter.dto.js';
 
 @Injectable()
 export class MasterDataService implements OnModuleInit {
+  private readonly logger = new Logger(MasterDataService.name);
+
   constructor(
     @InjectRepository(ProductCategory)
     private readonly categoryRepo: Repository<ProductCategory>,
