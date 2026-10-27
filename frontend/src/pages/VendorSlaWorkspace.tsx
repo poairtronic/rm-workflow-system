@@ -281,7 +281,7 @@ export function VendorSlaWorkspace() {
                 <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8 text-center h-72 flex flex-col items-center justify-center">
                   <Shield className="w-12 h-12 text-slate-300 mb-4" />
                   <h3 className="text-sm font-semibold text-slate-900">No Vendor Selected</h3>
-                  <p className="text-xs text-slate-500 mt-1 max-w-[220px]">
+                  <p className="text-xs text-slate-500 mt-1 max-w-55">
                     Click any row or &ldquo;Compliance&rdquo; button in the SLA matrix to view historical performance.
                   </p>
                 </div>

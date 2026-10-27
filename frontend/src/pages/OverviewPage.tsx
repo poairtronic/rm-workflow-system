@@ -48,7 +48,7 @@ export function OverviewPage() {
   });
 
   return (
-    <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto pb-10 w-full max-w-full overflow-x-hidden">
+    <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto pb-10 w-full overflow-x-hidden">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-3 border-b border-slate-200 dark:border-[#1a1e33]">
         <div>
@@ -64,7 +64,7 @@ export function OverviewPage() {
           <button
             onClick={() => refetch()}
             disabled={isFetching}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2.5 min-h-[44px] text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-[#121526] border border-slate-300 dark:border-[#1e233d] rounded-xl hover:bg-slate-50 dark:hover:bg-[#161a2e] transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2.5 min-h-11 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-[#121526] border border-slate-300 dark:border-[#1e233d] rounded-xl hover:bg-slate-50 dark:hover:bg-[#161a2e] transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isFetching ? 'animate-spin' : ''}`} />
             <span>{isFetching ? 'Refreshing...' : 'Refresh'}</span>
@@ -72,7 +72,7 @@ export function OverviewPage() {
 
           <Link
             to="/reports/generation"
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2.5 min-h-[44px] text-xs font-semibold text-white bg-primary dark:bg-indigo-600 rounded-xl hover:bg-primary/90 dark:hover:bg-indigo-500 transition-colors shadow-2xs cursor-pointer text-center"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2.5 min-h-11 text-xs font-semibold text-white bg-primary dark:bg-indigo-600 rounded-xl hover:bg-primary/90 dark:hover:bg-indigo-500 transition-colors shadow-2xs cursor-pointer text-center"
           >
             <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">Reports</span>
