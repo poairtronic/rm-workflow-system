@@ -86,7 +86,7 @@ async function bootstrap() {
         if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.onrender.com')) {
           callback(null, true);
         } else {
-          callback(new Error(`Origin ${origin} not allowed by CORS policy`));
+          callback(null, false);
         }
       },
       credentials: true,

@@ -77,6 +77,7 @@ export class MaterialIssueService {
         ScStatus.SUBMITTED,
         ScStatus.PARTIALLY_ISSUED,
         ScStatus.IN_PRODUCTION,
+        ScStatus.ADDITIONAL_REQUEST,
         'ACTIVE' as ScStatus,
       ];
       if (!allowedInitialStatuses.includes(sc.status)) {

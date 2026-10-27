@@ -116,6 +116,17 @@ export class VendorController {
   }
 
   /**
+   * Purge duplicate SLA records, keeping only the top SLA for each vendor.
+   * Placed before /:id to prevent route hijacking.
+   */
+  @Post('slas/cleanup-duplicates')
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER)
+  @InvalidateCache('vendors')
+  cleanupDuplicateSlas(): Promise<{ removedCount: number; keptCount: number; message: string }> {
+    return this.slaService.deduplicateSlas();
+  }
+
+  /**
    * Retrieve all SLA agreements across all vendors.
    * Placed before /:id to prevent route hijacking.
    */

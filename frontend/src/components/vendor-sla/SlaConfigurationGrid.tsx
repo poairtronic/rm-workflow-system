@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Settings2, BarChart2, Eye, Trash2, Award } from 'lucide-react';
+import { useMemo } from 'react';
+import { Settings2, BarChart2, Eye, Trash2, Award, Sparkles } from 'lucide-react';
 import type { VendorSlaDto } from '../../types/vendor-sla.dto';
 
 interface SlaConfigurationGridProps {
@@ -12,6 +12,8 @@ interface SlaConfigurationGridProps {
   onToggleActive?: (sla: VendorSlaDto) => void;
   onViewDetails?: (vendorId: string) => void;
   onDeleteSla?: (slaId: string, vendorName: string, processName: string) => void;
+  onCleanupDuplicates?: () => void;
+  isCleaningDuplicates?: boolean;
 }
 
 export function SlaConfigurationGrid({
@@ -24,12 +26,12 @@ export function SlaConfigurationGrid({
   onToggleActive,
   onViewDetails,
   onDeleteSla,
+  onCleanupDuplicates,
+  isCleaningDuplicates = false,
 }: SlaConfigurationGridProps) {
-  // View mode: default to 'unique' (Top SLA per Vendor) so duplicate vendor names are never shown
-  const [viewMode, setViewMode] = useState<'unique' | 'all'>('unique');
-
-  // Compute unique vendors by picking their top SLA (lowest standard TAT, active first)
-  const { displayData, vendorCounts } = useMemo(() => {
+  // Compute strictly UNIQUE vendors by picking their top SLA (active first, lowest standard TAT, lowest buffer)
+  // Ensures duplicate vendor names NEVER appear in the list!
+  const { displayData, vendorCounts, duplicateCount } = useMemo(() => {
     const grouped = new Map<string, VendorSlaDto[]>();
     for (const item of data) {
       const list = grouped.get(item.vendorId) || [];
@@ -39,10 +41,14 @@ export function SlaConfigurationGrid({
 
     const counts: Record<string, number> = {};
     const topSlas: VendorSlaDto[] = [];
+    let dupes = 0;
 
     grouped.forEach((items, vId) => {
       counts[vId] = items.length;
-      // Sort to find top SLA: active first, then lowest TAT, then lowest buffer
+      if (items.length > 1) {
+        dupes += items.length - 1;
+      }
+      // Sort to select top SLA: active first, then lowest TAT days, then lowest buffer
       const sorted = [...items].sort((a, b) => {
         if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
         if (a.standardTatDays !== b.standardTatDays) return a.standardTatDays - b.standardTatDays;
@@ -52,15 +58,17 @@ export function SlaConfigurationGrid({
     });
 
     return {
-      displayData: viewMode === 'unique' ? topSlas : data,
+      displayData: topSlas,
       vendorCounts: counts,
+      duplicateCount: dupes,
     };
-  }, [data, viewMode]);
+  }, [data]);
 
-  // Determine top vendor by name / known benchmark (A PONIBASS & CO is 100% compliant benchmark)
-  const isTopVendor = (vName?: string) => {
-    if (!vName || typeof vName !== 'string') return false;
-    return vName.toLowerCase().includes('ponibass');
+  // Determine top SLA benchmark vendor (e.g. lowest TAT or highest compliance benchmark)
+  const isTopVendor = (sla: VendorSlaDto) => {
+    if (!sla.vendorName) return false;
+    const vName = sla.vendorName.toLowerCase();
+    return vName.includes('ponibass') || sla.standardTatDays <= 5;
   };
 
   if (isLoading) {
@@ -110,48 +118,31 @@ export function SlaConfigurationGrid({
         <div>
           <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
             <span>Active SLA Matrix</span>
-            {viewMode === 'unique' && (
-              <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                Top SLA per Vendor
-              </span>
-            )}
+            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+              Top SLA per Vendor
+            </span>
           </h2>
           <p className="text-xs text-slate-500">
-            Click any row to view historical compliance, or use action buttons to configure overrides or remove entries.
+            Each vendor is listed once with their top SLA. Click a row to view compliance history.
           </p>
         </div>
 
         <div className="flex items-center gap-2.5">
-          {/* View Toggle */}
-          <div className="inline-flex items-center p-0.5 rounded-lg bg-slate-200/70 border border-slate-300 text-xs">
+          {duplicateCount > 0 && onCleanupDuplicates && canDelete && (
             <button
               type="button"
-              onClick={() => setViewMode('unique')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-all ${
-                viewMode === 'unique'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-              title="Only show each vendor once with their top SLA rule"
+              onClick={onCleanupDuplicates}
+              disabled={isCleaningDuplicates}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+              title={`Permanently purge ${duplicateCount} duplicate SLA records from the database`}
             >
-              Unique Vendors
+              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              <span>{isCleaningDuplicates ? 'Cleaning...' : `Purge ${duplicateCount} Duplicate SLAs`}</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('all')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-all ${
-                viewMode === 'all'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-              title="Show all registered process SLA records"
-            >
-              All Processes
-            </button>
-          </div>
+          )}
 
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-            {displayData.length} {viewMode === 'unique' ? 'Vendors' : 'Registered SLAs'}
+            {displayData.length} Unique Vendors
           </span>
         </div>
       </div>
@@ -161,10 +152,10 @@ export function SlaConfigurationGrid({
           <thead className="h-10 bg-slate-50 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             <tr>
               <th className="px-6 py-2">Vendor Name</th>
-              <th className="px-6 py-2">Process</th>
+              <th className="px-6 py-2">Top SLA Process</th>
               <th className="px-6 py-2 text-right">Standard TAT</th>
               <th className="px-6 py-2 text-right">Buffer</th>
-              <th className="px-6 py-2">Active Status</th>
+              <th className="px-6 py-2">Status</th>
               <th className="px-6 py-2 text-right">Actions</th>
             </tr>
           </thead>
@@ -172,7 +163,7 @@ export function SlaConfigurationGrid({
             {displayData.map((item) => {
               const isSelected = selectedVendorId === item.vendorId;
               const hasMultiple = (vendorCounts[item.vendorId] || 0) > 1;
-              const isTop = isTopVendor(item.vendorName);
+              const isTop = isTopVendor(item);
 
               return (
                 <tr
@@ -185,7 +176,7 @@ export function SlaConfigurationGrid({
                   }`}
                 >
                   <td className="px-6 py-2">
-                    <div className="font-medium text-slate-900 flex items-center gap-2">
+                    <div className="font-semibold text-slate-900 flex items-center gap-2">
                       <span>{item.vendorName}</span>
                       {isTop && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 shadow-xs">
@@ -201,7 +192,7 @@ export function SlaConfigurationGrid({
                     </div>
                     <div className="text-xs text-slate-400 font-mono mt-0.5 flex items-center gap-2">
                       <span>{item.vendorId}</span>
-                      {viewMode === 'unique' && hasMultiple && (
+                      {hasMultiple && (
                         <span className="text-[10px] font-sans px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
                           +{vendorCounts[item.vendorId] - 1} other process{vendorCounts[item.vendorId] > 2 ? 'es' : ''}
                         </span>
@@ -214,8 +205,8 @@ export function SlaConfigurationGrid({
                     </div>
                     <div className="text-xs text-slate-400">{item.processId}</div>
                   </td>
-                  <td className="px-6 py-2 text-right tabular-nums font-medium text-slate-700">
-                    {item.standardTatDays} <span className="text-xs text-slate-500">Days</span>
+                  <td className="px-6 py-2 text-right tabular-nums font-semibold text-slate-800">
+                    {item.standardTatDays} <span className="text-xs font-normal text-slate-500">Days</span>
                   </td>
                   <td className="px-6 py-2 text-right tabular-nums text-slate-600">
                     +{item.toleranceBufferDays ?? 1} <span className="text-xs text-slate-400">Days</span>
@@ -231,12 +222,12 @@ export function SlaConfigurationGrid({
                       title="Click to toggle status"
                     >
                       {item.isActive ? (
-                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 gap-1.5 whitespace-nowrap hover:bg-green-100 transition-colors">
+                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 gap-1.5 whitespace-nowrap hover:bg-green-100 transition-colors">
                           <span className="h-[6px] w-[6px] rounded-full bg-green-500"></span>
                           Active
                         </span>
                       ) : (
-                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-slate-600 bg-slate-100 border border-slate-200 gap-1.5 whitespace-nowrap hover:bg-slate-200 transition-colors">
+                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-slate-600 bg-slate-100 border border-slate-200 gap-1.5 whitespace-nowrap hover:bg-slate-200 transition-colors">
                           <span className="h-[6px] w-[6px] rounded-full bg-slate-400"></span>
                           Inactive
                         </span>
@@ -252,7 +243,7 @@ export function SlaConfigurationGrid({
                           onSelectVendor?.(item.vendorId, item.vendorName);
                         }}
                         title="View historical compliance chart"
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-medium rounded-lg shadow-sm transition-all"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-medium rounded-lg shadow-xs transition-all"
                       >
                         <BarChart2 className="w-3.5 h-3.5 text-blue-600" />
                         <span>Compliance</span>
@@ -265,7 +256,7 @@ export function SlaConfigurationGrid({
                           onOpenOverride?.(item);
                         }}
                         title="Authorize SLA exception override"
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-slate-200 hover:border-amber-300 hover:bg-amber-50 text-slate-700 hover:text-amber-800 text-xs font-medium rounded-lg shadow-sm transition-all"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-slate-200 hover:border-amber-300 hover:bg-amber-50 text-slate-700 hover:text-amber-800 text-xs font-medium rounded-lg shadow-xs transition-all"
                       >
                         <Settings2 className="w-3.5 h-3.5 text-amber-600" />
                         <span>Override</span>
@@ -279,7 +270,7 @@ export function SlaConfigurationGrid({
                             onViewDetails(item.vendorId);
                           }}
                           title="Open detailed vendor intelligence dossier"
-                          className="inline-flex items-center gap-1 px-2 py-1.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-600 hover:text-slate-900 text-xs font-medium rounded-lg shadow-sm transition-all"
+                          className="inline-flex items-center gap-1 px-2 py-1.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-600 hover:text-slate-900 text-xs font-medium rounded-lg shadow-xs transition-all"
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
@@ -293,7 +284,7 @@ export function SlaConfigurationGrid({
                             onDeleteSla(item.id, item.vendorName, item.processName);
                           }}
                           title="Delete SLA definition from list"
-                          className="inline-flex items-center gap-1 px-2 py-1.5 bg-white border border-red-200 hover:border-red-400 hover:bg-red-50 text-red-600 hover:text-red-700 text-xs font-medium rounded-lg shadow-sm transition-all"
+                          className="inline-flex items-center gap-1 px-2 py-1.5 bg-white border border-red-200 hover:border-red-400 hover:bg-red-50 text-red-600 hover:text-red-700 text-xs font-medium rounded-lg shadow-xs transition-all cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5 text-red-500" />
                           <span className="sr-only">Delete</span>

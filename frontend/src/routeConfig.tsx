@@ -237,7 +237,7 @@ export function getRoleDefaultPath(role?: string): string {
 
 export function isPathAllowedForUser(
   path?: string,
-  user?: { role?: string; effectiveModules?: string[] } | null,
+  user?: { role?: string; effectiveModules?: string[]; permissionsMap?: Record<string, 'FULL_ACCESS' | 'VIEW' | 'DENY'> } | null,
 ): boolean {
   if (!path || !user || !user.role) return false;
   if (path === '/' || path === '/login' || path === '/unauthorized') return false;
@@ -247,6 +247,17 @@ export function isPathAllowedForUser(
   const matchedRoute = ROUTE_CONFIG.find((r) => r.path === path);
   if (!matchedRoute) {
     return false;
+  }
+
+  // 1. Explicit Permissions Map overrides (VIEW, FULL_ACCESS, DENY)
+  if (matchedRoute.moduleKey && user.permissionsMap) {
+    const tier = user.permissionsMap[matchedRoute.moduleKey];
+    if (tier === 'DENY') {
+      return false; // Denied / hidden from user
+    }
+    if (tier === 'VIEW' || tier === 'FULL_ACCESS') {
+      return true; // Allowed
+    }
   }
 
   const roleAllowed = matchedRoute.roles.includes(user.role as UserRole);

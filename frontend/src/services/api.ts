@@ -441,6 +441,8 @@ export const vendorSlaApi = {
   },
   deleteSla: (slaId: string) =>
     api.delete<{ success: boolean; message: string }>(`/api/vendors/slas/${slaId}`),
+  cleanupDuplicates: () =>
+    api.post<{ removedCount: number; keptCount: number; message: string }>('/api/vendors/slas/cleanup-duplicates'),
   overrideSla: (slaId: string, data: SlaOverrideDto) =>
     api.post<VendorSlaOverrideItem>(`/api/vendors/slas/${slaId}/override`, data),
   getOverrides: (slaId: string) =>

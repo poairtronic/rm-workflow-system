@@ -16,12 +16,12 @@ interface UserAccessDrawerProps {
   onClose: () => void;
 }
 
-type PermissionTier = 'FULL_ACCESS' | 'VIEW' | 'DENY' | 'INHERIT';
+export type PermissionTier = 'VIEW' | 'FULL_ACCESS' | 'DENY';
 
 export function UserAccessDrawer({ user, isOpen, onClose }: UserAccessDrawerProps) {
   const queryClient = useQueryClient();
 
-  // Selected overrides map: moduleKey -> 'FULL_ACCESS' | 'VIEW' | 'DENY' | 'INHERIT'
+  // Selected overrides map: moduleKey -> 'VIEW' | 'FULL_ACCESS' | 'DENY'
   const [overrideState, setOverrideState] = useState<Record<string, PermissionTier>>({});
 
   // Fetch modules list
@@ -42,25 +42,31 @@ export function UserAccessDrawer({ user, isOpen, onClose }: UserAccessDrawerProp
   });
 
   useEffect(() => {
-    if (userPerms) {
+    if (userPerms && modules.length > 0) {
       const initialMap: Record<string, PermissionTier> = {};
-      // Default all modules to inherit from role
-      for (const m of modules) {
-        initialMap[m.moduleKey] = 'INHERIT';
+      const roleAllowedKeys = new Set(userPerms.roleModules || []);
+      const overridesMap = new Map<string, string>();
+      for (const ov of userPerms.overrides || []) {
+        overridesMap.set(ov.moduleKey, ov.accessType);
       }
-      // Populate existing overrides, mapping legacy GRANT/REVOKE if present
-      for (const ov of userPerms.overrides) {
-        let mappedTier: PermissionTier = 'FULL_ACCESS';
-        if (ov.accessType === 'GRANT' || ov.accessType === 'FULL_ACCESS') {
-          mappedTier = 'FULL_ACCESS';
-        } else if (ov.accessType === 'VIEW') {
-          mappedTier = 'VIEW';
-        } else if (ov.accessType === 'REVOKE' || ov.accessType === 'DENY') {
-          mappedTier = 'DENY';
-        } else if (ov.accessType === 'INHERIT') {
-          mappedTier = 'INHERIT';
+
+      for (const m of modules) {
+        if (overridesMap.has(m.moduleKey)) {
+          const ovType = overridesMap.get(m.moduleKey);
+          if (ovType === 'VIEW') {
+            initialMap[m.moduleKey] = 'VIEW';
+          } else if (ovType === 'DENY' || ovType === 'REVOKE') {
+            initialMap[m.moduleKey] = 'DENY';
+          } else {
+            initialMap[m.moduleKey] = 'FULL_ACCESS';
+          }
+        } else if (userPerms.permissionsMap && userPerms.permissionsMap[m.moduleKey]) {
+          const p = userPerms.permissionsMap[m.moduleKey];
+          initialMap[m.moduleKey] = p === 'VIEW' ? 'VIEW' : p === 'DENY' ? 'DENY' : 'FULL_ACCESS';
+        } else {
+          // If role allows, default to FULL_ACCESS, else DENY
+          initialMap[m.moduleKey] = roleAllowedKeys.has(m.moduleKey) ? 'FULL_ACCESS' : 'DENY';
         }
-        initialMap[ov.moduleKey] = mappedTier;
       }
       setOverrideState(initialMap);
     }
@@ -98,6 +104,16 @@ export function UserAccessDrawer({ user, isOpen, onClose }: UserAccessDrawerProp
     setOverrideState(nextMap);
   };
 
+  const handleResetRoleDefaults = () => {
+    const roleAllowedKeys = new Set(userPerms?.roleModules || []);
+    const nextMap: Record<string, PermissionTier> = {};
+    for (const m of modules) {
+      nextMap[m.moduleKey] = roleAllowedKeys.has(m.moduleKey) ? 'FULL_ACCESS' : 'DENY';
+    }
+    setOverrideState(nextMap);
+    toast.success('Reset to Base Role defaults');
+  };
+
   // Group modules
   const groupedModules = modules.reduce((acc, m) => {
     const g = m.groupName || 'GENERAL';
@@ -107,7 +123,6 @@ export function UserAccessDrawer({ user, isOpen, onClose }: UserAccessDrawerProp
   }, {} as Record<string, SystemModuleDto[]>);
 
   const roleName = user.role?.name || 'DESIGNER';
-  const roleAllowedKeys = new Set(userPerms?.roleModules || []);
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/40 backdrop-blur-sm transition-opacity animate-in fade-in">
@@ -115,74 +130,99 @@ export function UserAccessDrawer({ user, isOpen, onClose }: UserAccessDrawerProp
         <div className="w-screen max-w-3xl bg-white shadow-2xl flex flex-col border-l border-slate-200">
           
           {/* Header */}
-          <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50/40 flex items-start justify-between">
+          <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 via-white to-blue-50/40 flex items-start justify-between">
             <div>
               <div className="flex items-center gap-2">
                 <Shield className="w-5 h-5 text-blue-600" />
                 <h2 className="text-lg font-bold text-slate-900">Custom Module Access Control</h2>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Configure granular permissions (View / Full Access / Deny) for <strong className="text-slate-800">{user.name}</strong> ({user.email}).
+                Configure module access for <strong className="text-slate-800">{user.name}</strong> ({user.email}).
               </p>
               <div className="flex items-center gap-2 mt-2">
-                <span className="text-[11px] bg-slate-200/80 text-slate-700 font-semibold px-2 py-0.5 rounded">
+                <span className="text-[11px] bg-slate-200/80 text-slate-700 font-bold px-2 py-0.5 rounded">
                   Base Role: {roleName}
                 </span>
-                <span className="text-[11px] text-slate-500">
-                  By default, inherits role access. Choose VIEW, FULL ACCESS, or DENY to customize.
+                <span className="text-[11px] text-slate-600">
+                  Select 1 of 3 options for each page: <strong>View</strong>, <strong>Full Access</strong>, or <strong>Deny</strong>.
                 </span>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-white border border-transparent hover:border-slate-200 transition-colors"
+              className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Quick Bulk Presets Bar */}
-          <div className="px-6 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-1.5 text-slate-600 font-medium">
-              <Sliders className="w-3.5 h-3.5 text-slate-500" />
-              <span>Bulk Quick Actions:</span>
+          {/* 3 Clear Explanations Banner */}
+          <div className="px-6 py-3 bg-slate-50 border-b border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+            <div className="flex items-center gap-2 p-2 bg-blue-50/80 border border-blue-200 rounded-lg text-blue-900">
+              <Eye className="w-4 h-4 text-blue-600 shrink-0" />
+              <div>
+                <span className="font-bold block">1. View</span>
+                <span className="text-[11px] text-blue-700">Can view only (no edit)</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => handleBulkSet('INHERIT')}
-                className="flex items-center gap-1 text-[11px] px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded text-slate-700 font-medium transition-colors"
-                title="Reset all modules to match base role default"
-              >
-                <RotateCcw className="w-3 h-3 text-slate-500" />
-                Reset to Role
-              </button>
+            <div className="flex items-center gap-2 p-2 bg-emerald-50/80 border border-emerald-200 rounded-lg text-emerald-900">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+              <div>
+                <span className="font-bold block">2. Full Access</span>
+                <span className="text-[11px] text-emerald-700">Can edit, create & delete</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 p-2 bg-rose-50/80 border border-rose-200 rounded-lg text-rose-900">
+              <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+              <div>
+                <span className="font-bold block">3. Deny</span>
+                <span className="text-[11px] text-rose-700">Not visible in menu/hidden</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Bulk Presets Bar */}
+          <div className="px-6 py-2.5 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-1.5 text-slate-600 font-semibold">
+              <Sliders className="w-3.5 h-3.5 text-slate-500" />
+              <span>Bulk Set All:</span>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 type="button"
                 onClick={() => handleBulkSet('VIEW')}
-                className="flex items-center gap-1 text-[11px] px-2 py-1 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 rounded text-cyan-800 font-medium transition-colors"
+                className="flex items-center gap-1 text-xs px-2.5 py-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md text-blue-700 font-semibold transition-colors shadow-xs"
                 title="Set all modules to View Only"
               >
-                <Eye className="w-3 h-3 text-cyan-600" />
-                All View Only
+                <Eye className="w-3.5 h-3.5" />
+                All View
               </button>
               <button
                 type="button"
                 onClick={() => handleBulkSet('FULL_ACCESS')}
-                className="flex items-center gap-1 text-[11px] px-2 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded text-emerald-800 font-medium transition-colors"
+                className="flex items-center gap-1 text-xs px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md text-emerald-700 font-semibold transition-colors shadow-xs"
                 title="Grant Full Access to all modules"
               >
-                <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                <ShieldCheck className="w-3.5 h-3.5" />
                 All Full Access
               </button>
               <button
                 type="button"
                 onClick={() => handleBulkSet('DENY')}
-                className="flex items-center gap-1 text-[11px] px-2 py-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded text-rose-800 font-medium transition-colors"
-                title="Deny access to all modules"
+                className="flex items-center gap-1 text-xs px-2.5 py-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-md text-rose-700 font-semibold transition-colors shadow-xs"
+                title="Deny / Hide all modules"
               >
-                <ShieldAlert className="w-3 h-3 text-rose-600" />
+                <ShieldAlert className="w-3.5 h-3.5" />
                 All Deny
+              </button>
+              <button
+                type="button"
+                onClick={handleResetRoleDefaults}
+                className="flex items-center gap-1 text-xs px-2.5 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-md text-slate-700 font-medium transition-colors"
+                title="Reset to base role default permissions"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset to Role Defaults
               </button>
             </div>
           </div>
@@ -196,22 +236,6 @@ export function UserAccessDrawer({ user, isOpen, onClose }: UserAccessDrawerProp
               </div>
             ) : (
               <>
-                {/* Legend */}
-                <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-500 pb-2 border-b border-slate-100">
-                  <span className="flex items-center gap-1.5 text-blue-700">
-                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span> Role Inherited
-                  </span>
-                  <span className="flex items-center gap-1.5 text-cyan-700">
-                    <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 inline-block"></span> View Only
-                  </span>
-                  <span className="flex items-center gap-1.5 text-emerald-700">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Full Access
-                  </span>
-                  <span className="flex items-center gap-1.5 text-rose-700">
-                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span> Denied
-                  </span>
-                </div>
-
                 {Object.entries(groupedModules).map(([group, groupItems]) => (
                   <div key={group} className="bg-slate-50/70 border border-slate-200 rounded-xl p-4">
                     <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 px-1">
@@ -219,82 +243,47 @@ export function UserAccessDrawer({ user, isOpen, onClose }: UserAccessDrawerProp
                     </h3>
                     <div className="space-y-2.5">
                       {groupItems.map((mod) => {
-                        const isRoleAllowed = roleAllowedKeys.has(mod.moduleKey);
-                        const currentOverride = overrideState[mod.moduleKey] || 'INHERIT';
+                        const currentTier: PermissionTier = overrideState[mod.moduleKey] || 'DENY';
 
                         return (
                           <div
                             key={mod.moduleKey}
-                            className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
-                              currentOverride === 'FULL_ACCESS'
+                            className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border gap-3 transition-all ${
+                              currentTier === 'FULL_ACCESS'
                                 ? 'bg-emerald-50/80 border-emerald-300 ring-1 ring-emerald-400/30'
-                                : currentOverride === 'VIEW'
-                                ? 'bg-cyan-50/80 border-cyan-300 ring-1 ring-cyan-400/30'
-                                : currentOverride === 'DENY'
-                                ? 'bg-rose-50/80 border-rose-300 ring-1 ring-rose-400/30'
-                                : isRoleAllowed
-                                ? 'bg-white border-blue-200'
-                                : 'bg-white/60 border-slate-200 opacity-75'
+                                : currentTier === 'VIEW'
+                                ? 'bg-blue-50/80 border-blue-300 ring-1 ring-blue-400/30'
+                                : 'bg-slate-50/60 border-slate-200 opacity-80'
                             }`}
                           >
-                            <div className="flex-1 pr-3">
+                            <div className="flex-1 pr-2">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-semibold text-sm text-slate-900">{mod.name}</span>
-                                {currentOverride === 'FULL_ACCESS' && (
-                                  <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
+                                {currentTier === 'FULL_ACCESS' && (
+                                  <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded border border-emerald-300 flex items-center gap-1">
                                     <ShieldCheck className="w-3 h-3 text-emerald-600" />
                                     FULL ACCESS
                                   </span>
                                 )}
-                                {currentOverride === 'VIEW' && (
-                                  <span className="text-[10px] bg-cyan-100 text-cyan-800 font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
-                                    <Eye className="w-3 h-3 text-cyan-600" />
+                                {currentTier === 'VIEW' && (
+                                  <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded border border-blue-300 flex items-center gap-1">
+                                    <Eye className="w-3 h-3 text-blue-600" />
                                     VIEW ONLY
                                   </span>
                                 )}
-                                {currentOverride === 'DENY' && (
-                                  <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
+                                {currentTier === 'DENY' && (
+                                  <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded border border-rose-300 flex items-center gap-1">
                                     <ShieldAlert className="w-3 h-3 text-rose-600" />
-                                    DENIED
-                                  </span>
-                                )}
-                                {currentOverride === 'INHERIT' && (
-                                  <span
-                                    className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                                      isRoleAllowed
-                                        ? 'bg-blue-100 text-blue-800'
-                                        : 'bg-slate-200 text-slate-600'
-                                    }`}
-                                  >
-                                    Role Default ({isRoleAllowed ? 'Allowed' : 'Off'})
+                                    DENIED (HIDDEN)
                                   </span>
                                 )}
                               </div>
                               <p className="text-xs text-slate-500 mt-0.5">{mod.description || mod.routePath}</p>
                             </div>
 
-                            {/* 4-State Segmented Controls */}
-                            <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-lg p-0.5 shrink-0 shadow-xs">
-                              {/* INHERIT / ROLE */}
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setOverrideState((prev) => ({
-                                    ...prev,
-                                    [mod.moduleKey]: 'INHERIT',
-                                  }))
-                                }
-                                className={`px-2 py-1 text-[11px] rounded font-medium transition-colors ${
-                                  currentOverride === 'INHERIT'
-                                    ? 'bg-slate-800 text-white shadow-xs'
-                                    : 'text-slate-600 hover:bg-slate-100'
-                                }`}
-                                title={`Inherit from ${roleName} (${isRoleAllowed ? 'Role has Access' : 'Role does not have Access'})`}
-                              >
-                                Role
-                              </button>
-
-                              {/* VIEW */}
+                            {/* Exactly 3 Options Segmented Controls */}
+                            <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200 shrink-0 shadow-xs">
+                              {/* 1. VIEW */}
                               <button
                                 type="button"
                                 onClick={() =>
@@ -303,18 +292,18 @@ export function UserAccessDrawer({ user, isOpen, onClose }: UserAccessDrawerProp
                                     [mod.moduleKey]: 'VIEW',
                                   }))
                                 }
-                                className={`flex items-center gap-1 px-2 py-1 text-[11px] rounded font-medium transition-colors ${
-                                  currentOverride === 'VIEW'
-                                    ? 'bg-cyan-600 text-white shadow-xs'
-                                    : 'text-cyan-700 hover:bg-cyan-50'
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                                  currentTier === 'VIEW'
+                                    ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-600'
+                                    : 'text-slate-600 hover:text-blue-700 hover:bg-blue-50'
                                 }`}
-                                title="View Only: User can view and browse this module without modifying data"
+                                title="View Only: User can view this page, but cannot edit or make changes"
                               >
-                                <Eye className="w-3 h-3" />
+                                <Eye className="w-3.5 h-3.5" />
                                 View
                               </button>
 
-                              {/* FULL ACCESS */}
+                              {/* 2. FULL ACCESS */}
                               <button
                                 type="button"
                                 onClick={() =>
@@ -323,18 +312,18 @@ export function UserAccessDrawer({ user, isOpen, onClose }: UserAccessDrawerProp
                                     [mod.moduleKey]: 'FULL_ACCESS',
                                   }))
                                 }
-                                className={`flex items-center gap-1 px-2 py-1 text-[11px] rounded font-medium transition-colors ${
-                                  currentOverride === 'FULL_ACCESS'
-                                    ? 'bg-emerald-600 text-white shadow-xs'
-                                    : 'text-emerald-700 hover:bg-emerald-50'
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                                  currentTier === 'FULL_ACCESS'
+                                    ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-600'
+                                    : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-50'
                                 }`}
-                                title="Full Access: User can view, create, edit and perform full actions"
+                                title="Full Access: User can view, create, edit, delete and perform all actions"
                               >
-                                <ShieldCheck className="w-3 h-3" />
-                                Full
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                                Full Access
                               </button>
 
-                              {/* DENY */}
+                              {/* 3. DENY */}
                               <button
                                 type="button"
                                 onClick={() =>
@@ -343,14 +332,14 @@ export function UserAccessDrawer({ user, isOpen, onClose }: UserAccessDrawerProp
                                     [mod.moduleKey]: 'DENY',
                                   }))
                                 }
-                                className={`flex items-center gap-1 px-2 py-1 text-[11px] rounded font-medium transition-colors ${
-                                  currentOverride === 'DENY'
-                                    ? 'bg-rose-600 text-white shadow-xs'
-                                    : 'text-rose-700 hover:bg-rose-50'
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                                  currentTier === 'DENY'
+                                    ? 'bg-rose-600 text-white shadow-sm ring-1 ring-rose-600'
+                                    : 'text-slate-600 hover:text-rose-700 hover:bg-rose-50'
                                 }`}
-                                title="Deny: Block access completely regardless of role"
+                                title="Deny: Module will not be visible to this user in the sidebar"
                               >
-                                <ShieldAlert className="w-3 h-3" />
+                                <ShieldAlert className="w-3.5 h-3.5" />
                                 Deny
                               </button>
                             </div>
@@ -367,7 +356,7 @@ export function UserAccessDrawer({ user, isOpen, onClose }: UserAccessDrawerProp
           {/* Footer */}
           <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
             <span className="text-xs text-slate-500">
-              Changes take effect immediately on next page navigation or login.
+              Permissions apply immediately upon saving.
             </span>
             <div className="flex items-center gap-3">
               <Button variant="secondary" onClick={onClose} disabled={updateMutation.isPending}>

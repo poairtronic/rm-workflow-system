@@ -116,6 +116,18 @@ export function VendorSlaWorkspace() {
     },
   });
 
+  const cleanupDuplicatesMutation = useMutation({
+    mutationFn: () => vendorSlaApi.cleanupDuplicates(),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['vendor-slas'] });
+      queryClient.invalidateQueries({ queryKey: ['compare-vendors-by-process'] });
+      toast.success(res?.message || 'Duplicate SLAs purged successfully');
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to purge duplicate SLAs');
+    },
+  });
+
   const onSubmitNewSla = (data: CreateVendorSlaDto) => {
     if (!data.vendorId || !data.processId) {
       toast.error('Please select both a Vendor and a Process');
@@ -223,6 +235,8 @@ export function VendorSlaWorkspace() {
                     deleteSlaMutation.mutate(slaId);
                   }
                 }}
+                onCleanupDuplicates={() => cleanupDuplicatesMutation.mutate()}
+                isCleaningDuplicates={cleanupDuplicatesMutation.isPending}
               />
             )}
 

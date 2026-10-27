@@ -64,8 +64,6 @@ export class MslController {
   @Roles(
     UserRole.ADMIN,
     UserRole.STORES,
-    UserRole.PRODUCTION,
-    UserRole.DESIGNER,
     UserRole.SENIOR_MANAGER,
     UserRole.GENERAL_MANAGER,
   )

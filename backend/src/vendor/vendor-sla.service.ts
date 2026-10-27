@@ -558,4 +558,42 @@ export class VendorSlaService {
       message: `SLA agreement for process "${processName}" removed from vendor "${vendorName}".`,
     };
   }
+
+  /**
+   * Purges duplicate SLA records for vendors, retaining only their top SLA (lowest SLA days).
+   */
+  async deduplicateSlas(): Promise<{ removedCount: number; keptCount: number; message: string }> {
+    const all = await this.slaRepo.find({
+      relations: { vendor: true, process: true },
+      order: {
+        slaDays: 'ASC',
+        toleranceBufferDays: 'ASC',
+        createdAt: 'ASC',
+      },
+    });
+
+    const seenVendors = new Set<string>();
+    const toRemove: VendorSla[] = [];
+    let keptCount = 0;
+
+    for (const sla of all) {
+      if (seenVendors.has(sla.vendorId)) {
+        toRemove.push(sla);
+      } else {
+        seenVendors.add(sla.vendorId);
+        keptCount++;
+      }
+    }
+
+    if (toRemove.length > 0) {
+      await this.slaRepo.remove(toRemove);
+      this.logger.log(`[VENDOR SLA DEDUPLICATE] Removed ${toRemove.length} duplicate SLAs, kept ${keptCount} top SLAs.`);
+    }
+
+    return {
+      removedCount: toRemove.length,
+      keptCount,
+      message: `Cleaned up ${toRemove.length} duplicate SLA records. Retained ${keptCount} top vendor SLAs.`,
+    };
+  }
 }
