@@ -20,12 +20,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { consumablesApi } from '../services/consumables.service';
 import { VelanPrPrintModal } from '../components/consumables';
 import { matchesPrNumber } from './ConsumablePurchaseStoreWorkspace';
-import type {
-  ConsumableItemDraft,
-  ConsumableLineItemRecord,
-  ProductCatalogItem,
-  VendorOption,
-  ConsumablePaymentMode,
+import {
+  type ConsumableItemDraft,
+  type ConsumableLineItemRecord,
+  type ProductCatalogItem,
+  type VendorOption,
+  type ConsumablePaymentMode,
+  STANDARD_CONSUMABLE_ITEMS,
 } from '../types/consumables.types';
 import toast from 'react-hot-toast';
 
@@ -55,6 +56,8 @@ export function ConsumableRequestsWorkspace() {
       isNewProduct: false,
       productId: '',
       productCode: '',
+      baseProductName: '',
+      specification: '',
       description: '',
       uom: 'NOS',
       requestedQty: 1,
@@ -114,6 +117,8 @@ export function ConsumableRequestsWorkspace() {
       isNewProduct: false,
       productId: '',
       productCode: '',
+      baseProductName: '',
+      specification: '',
       description: '',
       uom: 'NOS',
       requestedQty: 1,
@@ -137,15 +142,36 @@ export function ConsumableRequestsWorkspace() {
         if (row.tempId !== tempId) return row;
         const merged = { ...row, ...updates };
 
-        // If product was selected from catalog, update description, code, uom and live stock
+        // If product was selected from catalog, update baseProductName, description, code, uom and live stock
         if (updates.productId !== undefined && !merged.isNewProduct) {
           const product = catalog.find((p) => p.id === updates.productId);
           if (product) {
-            merged.description = product.name;
+            merged.baseProductName = product.name;
+            const spec = (merged.specification || '').trim();
+            merged.description = spec ? `${product.name} ${spec}` : product.name;
             merged.productCode = product.code || '';
             merged.uom = product.uom || 'NOS';
             merged.stockAvailableAtRequest = Number(product.availableStock || 0);
+          } else {
+            merged.baseProductName = '';
+            merged.description = '';
+            merged.productCode = '';
+            merged.stockAvailableAtRequest = 0;
           }
+        }
+
+        // If specification (type bar, e.g. 5mm) is updated
+        if (updates.specification !== undefined) {
+          const spec = updates.specification.trim();
+          const base = (merged.baseProductName || '').trim();
+          merged.description = spec ? (base ? `${base} ${spec}` : spec) : base;
+        }
+
+        // If user is in New Product mode and types base product name
+        if (updates.baseProductName !== undefined && merged.isNewProduct) {
+          const base = updates.baseProductName.trim();
+          const spec = (merged.specification || '').trim();
+          merged.description = spec ? (base ? `${base} ${spec}` : spec) : base;
         }
 
         // If switched to new product
@@ -153,6 +179,14 @@ export function ConsumableRequestsWorkspace() {
           merged.productId = undefined;
           merged.productCode = undefined;
           merged.stockAvailableAtRequest = 0;
+          merged.baseProductName = '';
+          merged.specification = '';
+          merged.description = '';
+        } else if (updates.isNewProduct === false) {
+          merged.productId = '';
+          merged.baseProductName = '';
+          merged.specification = '';
+          merged.description = '';
         }
 
         return merged;
@@ -231,6 +265,8 @@ export function ConsumableRequestsWorkspace() {
           isNewProduct: false,
           productId: '',
           productCode: '',
+          baseProductName: '',
+          specification: '',
           description: '',
           uom: 'NOS',
           requestedQty: 1,
@@ -240,8 +276,8 @@ export function ConsumableRequestsWorkspace() {
       ]);
       setRemarks('');
 
-      // Refresh tracking queue and switch to tracking tab
-      await loadLineItems();
+      // Refresh tracking queue and lookups so newly created products & vendors are immediately in dropdown
+      await Promise.all([loadLookups(), loadLineItems()]);
       setActiveTab('TRACKER');
     } catch (err: any) {
       toast.error(err?.message || 'Failed to submit consumable request');
@@ -263,6 +299,38 @@ export function ConsumableRequestsWorkspace() {
       setActionInProgressId(null);
     }
   };
+
+  // Partition catalog into standard particulars (1 to 34) and custom/newly created products
+  const { standardProducts, customProducts } = useMemo(() => {
+    const stdMap = new Map<string, number>();
+    STANDARD_CONSUMABLE_ITEMS.forEach((name, idx) => {
+      stdMap.set(name.toLowerCase(), idx);
+    });
+
+    const stdList: ProductCatalogItem[] = [];
+    const custList: ProductCatalogItem[] = [];
+
+    catalog.forEach((cat) => {
+      const lower = (cat.name || '').trim().toLowerCase();
+      if (stdMap.has(lower)) {
+        stdList.push(cat);
+      } else {
+        custList.push(cat);
+      }
+    });
+
+    // Sort standard products by their defined S.No 1 to 34
+    stdList.sort((a, b) => {
+      const idxA = stdMap.get((a.name || '').trim().toLowerCase()) ?? 999;
+      const idxB = stdMap.get((b.name || '').trim().toLowerCase()) ?? 999;
+      return idxA - idxB;
+    });
+
+    // Sort custom / auto-created products alphabetically
+    custList.sort((a, b) => a.name.localeCompare(b.name));
+
+    return { standardProducts: stdList, customProducts: custList };
+  }, [catalog]);
 
   // --- FILTERED TRACKING LIST ---
   const filteredLineItems = useMemo(() => {
@@ -575,18 +643,18 @@ export function ConsumableRequestsWorkspace() {
                     {/* Primary Product Inputs */}
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
                       {/* Product Selector / Name Input */}
-                      <div className="md:col-span-6">
+                      <div className="md:col-span-4">
                         <label className="block text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">
-                          {row.isNewProduct ? 'New Product Name / Description *' : 'Select Catalog Product *'}
+                          {row.isNewProduct ? 'New Product Name *' : 'Select Consumable Product *'}
                         </label>
                         {row.isNewProduct ? (
                           <>
                             <input
                               type="text"
                               required
-                              placeholder="e.g. HELLO, WD-40 400ml Spray, Sandvik Carbide Insert..."
-                              value={row.description}
-                              onChange={(e) => handleUpdateRow(row.tempId, { description: e.target.value })}
+                              placeholder="e.g. Diamond Grinding Wheel, WD-40 400ml..."
+                              value={row.baseProductName !== undefined ? row.baseProductName : row.description}
+                              onChange={(e) => handleUpdateRow(row.tempId, { baseProductName: e.target.value })}
                               className="w-full px-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                             />
                             {row.description.trim() && (
@@ -605,13 +673,41 @@ export function ConsumableRequestsWorkspace() {
                             className="w-full px-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                           >
                             <option value="">-- Choose consumable product --</option>
-                            {catalog.map((cat) => (
-                              <option key={cat.id} value={cat.id}>
-                                {cat.name} ({cat.code || 'NO-CODE'}) — Avail: {cat.availableStock} {cat.uom || 'NOS'}
-                              </option>
-                            ))}
+                            {standardProducts.length > 0 && (
+                              <optgroup label="Standard Consumables (1 to 34)">
+                                {standardProducts.map((cat, sIdx) => (
+                                  <option key={cat.id} value={cat.id}>
+                                    {sIdx + 1}. {cat.name} — Avail: {cat.availableStock} {cat.uom || 'NOS'}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
+                            {customProducts.length > 0 && (
+                              <optgroup label="Additional / Auto-Created Products">
+                                {customProducts.map((cat) => (
+                                  <option key={cat.id} value={cat.id}>
+                                    {cat.name} — Avail: {cat.availableStock} {cat.uom || 'NOS'}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
                           </select>
                         )}
+                      </div>
+
+                      {/* Small Type Bar (Specification / Size) */}
+                      <div className="md:col-span-2">
+                        <label className="block text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">
+                          Type / Size <span className="text-slate-400 font-normal lowercase">(optional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 5mm"
+                          value={row.specification || ''}
+                          onChange={(e) => handleUpdateRow(row.tempId, { specification: e.target.value })}
+                          className="w-full px-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
+                          title="Optional specification or size (e.g. 5mm) to append to the product name"
+                        />
                       </div>
 
                       {/* UOM */}
@@ -654,6 +750,21 @@ export function ConsumableRequestsWorkspace() {
                         />
                       </div>
                     </div>
+
+                    {/* Live Output Preview */}
+                    {row.description.trim() && (
+                      <div className="mt-1 flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 bg-slate-100/80 dark:bg-slate-800/60 px-3 py-1 rounded-md border border-slate-200 dark:border-slate-700 w-fit">
+                        <span className="text-[10px] uppercase font-bold text-slate-400">Final Item Output:</span>
+                        <span className="font-bold text-indigo-600 dark:text-indigo-400 font-sans">
+                          {row.description}
+                        </span>
+                        {row.isNewProduct && (
+                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium italic">
+                            (Will auto-create in catalog)
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     {/* Expandable Vendor Context for Non-Stock or New Products */}
                     {isOutOfStock && (

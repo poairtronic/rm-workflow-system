@@ -4,6 +4,7 @@ import {
   BadRequestException,
   Logger,
   Optional,
+  OnModuleInit,
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -40,9 +41,100 @@ import { QueryConsumableItemsDto } from './dto/query-consumables.dto.js';
 import { CommunicationService } from '../notifications/communication.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 
+export const STANDARD_CONSUMABLE_ITEMS: string[] = [
+  'Gloves',
+  'Drill Bit',
+  'Safety Gloves',
+  'Ear Plugs',
+  'Brush',
+  'Hacksaw Blade',
+  'Cutting Wheel',
+  'File',
+  'Grinding Wheel',
+  'Dressing Tool',
+  'Insert',
+  'Tap set',
+  'Machine oil',
+  'Hydralic oil',
+  'Rust Oil',
+  'Coolant Oil',
+  'Ejector Pin',
+  'Spray Paint',
+  'IP',
+  'Thinner',
+  'M seal',
+  'Locktite 641',
+  'Anabond',
+  'Grub Screw',
+  'Allen Screw',
+  'Waist Cloth',
+  'Emery Wheel',
+  'Emery Sheet',
+  'Brass rod',
+  'Centre Bit',
+  'Carbide End mill',
+  'Reamer',
+  'Belt',
+  'Blue Tube',
+];
+
 @Injectable()
-export class ConsumablesService {
+export class ConsumablesService implements OnModuleInit {
   private readonly logger = new Logger(ConsumablesService.name);
+  private standardConsumablesSeeded = false;
+
+  async onModuleInit() {
+    try {
+      const { family } = await this.ensureConsumablesCategoryAndFamily();
+      await this.ensureStandardConsumableProducts(family);
+    } catch (err: any) {
+      this.logger.warn(`Could not seed standard consumables on startup: ${err?.message}`);
+    }
+  }
+
+  /**
+   * Helper: Ensures standard consumable products exist in DB under the Consumables family.
+   */
+  async ensureStandardConsumableProducts(family: ProductFamily): Promise<void> {
+    if (this.standardConsumablesSeeded) return;
+    try {
+      for (const itemName of STANDARD_CONSUMABLE_ITEMS) {
+        const trimmedName = itemName.trim();
+        const existing = await this.productRepo.findOne({
+          where: { name: Raw((alias) => `LOWER(${alias}) = LOWER(:name)`, { name: trimmedName }) },
+        });
+
+        if (!existing) {
+          const barcodeCandidate = `PRD-${trimmedName}`;
+          let finalBarcode = barcodeCandidate;
+          const existingBarcode = await this.productRepo.findOne({
+            where: { barcode: barcodeCandidate },
+          });
+          if (existingBarcode) {
+            finalBarcode = `${barcodeCandidate}-${Date.now().toString().slice(-4)}`;
+          }
+
+          const newProd = this.productRepo.create({
+            code: trimmedName,
+            name: trimmedName,
+            barcode: finalBarcode,
+            familyId: family.id,
+            uom: 'NOS',
+            minimumInventory: 0,
+            isActive: true,
+          });
+          await this.productRepo.save(newProd);
+          this.logger.log(`[CONSUMABLES-SEED] Seeded standard consumable product: "${trimmedName}"`);
+        } else if (existing.familyId !== family.id) {
+          existing.familyId = family.id;
+          await this.productRepo.save(existing);
+        }
+      }
+      this.standardConsumablesSeeded = true;
+    } catch (err: any) {
+      this.logger.warn(`Error during ensureStandardConsumableProducts: ${err?.message}`);
+    }
+  }
 
   constructor(
     private readonly dataSource: DataSource,
@@ -955,6 +1047,7 @@ export class ConsumablesService {
 
   /**
    * Queries active products with real-time aggregated warehouse stock balances.
+   * Restricts results to consumables only: standard consumable items + user-created consumable products.
    */
   async getCatalogWithStock(): Promise<
     Array<{
@@ -966,8 +1059,14 @@ export class ConsumablesService {
       category?: string;
     }>
   > {
+    const { category, family } = await this.ensureConsumablesCategoryAndFamily();
+    await this.ensureStandardConsumableProducts(family);
+
     const products = await this.productRepo.find({
-      where: { isActive: true },
+      where: [
+        { familyId: family.id, isActive: true },
+        { family: { categoryId: category.id }, isActive: true },
+      ],
       relations: { family: { category: true } },
       order: { name: 'ASC' },
     });

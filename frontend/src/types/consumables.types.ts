@@ -28,11 +28,50 @@ export interface VendorOption {
   address?: string;
 }
 
+export const STANDARD_CONSUMABLE_ITEMS: string[] = [
+  'Gloves',
+  'Drill Bit',
+  'Safety Gloves',
+  'Ear Plugs',
+  'Brush',
+  'Hacksaw Blade',
+  'Cutting Wheel',
+  'File',
+  'Grinding Wheel',
+  'Dressing Tool',
+  'Insert',
+  'Tap set',
+  'Machine oil',
+  'Hydralic oil',
+  'Rust Oil',
+  'Coolant Oil',
+  'Ejector Pin',
+  'Spray Paint',
+  'IP',
+  'Thinner',
+  'M seal',
+  'Locktite 641',
+  'Anabond',
+  'Grub Screw',
+  'Allen Screw',
+  'Waist Cloth',
+  'Emery Wheel',
+  'Emery Sheet',
+  'Brass rod',
+  'Centre Bit',
+  'Carbide End mill',
+  'Reamer',
+  'Belt',
+  'Blue Tube',
+];
+
 export interface ConsumableItemDraft {
   tempId: string;
   isNewProduct: boolean;
   productId?: string;
   productCode?: string;
+  baseProductName?: string;
+  specification?: string;
   description: string;
   uom: string;
   requestedQty: number;

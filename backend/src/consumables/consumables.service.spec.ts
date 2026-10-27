@@ -93,6 +93,7 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
 
     productRepo = {
       findOne: vi.fn().mockResolvedValue(mockProduct),
+      find: vi.fn().mockResolvedValue([mockProduct]),
       create: vi.fn().mockImplementation((d) => ({ ...d, id: 'prod-new-uuid' })),
       save: vi.fn().mockImplementation((p) => Promise.resolve(p)),
     } as any;
@@ -859,6 +860,13 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
       });
       expect(mockNotifService.setConsumableAlertSettings).toHaveBeenCalled();
       expect(updated.consumableEmailAlertsEnabled).toBe(false);
+    });
+
+    it('CNS-SVC-023: should return consumables catalog with stock and ensure standard particulars', async () => {
+      const catalog = await service.getCatalogWithStock();
+      expect(catalog).toBeDefined();
+      expect(Array.isArray(catalog)).toBe(true);
+      expect(productRepo.find).toHaveBeenCalled();
     });
   });
 });
