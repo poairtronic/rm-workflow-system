@@ -131,7 +131,7 @@ export function UserAccessDrawer({ user, isOpen, onClose }: UserAccessDrawerProp
         <div className="w-screen max-w-3xl bg-white shadow-2xl flex flex-col border-l border-slate-200">
           
           {/* Header */}
-          <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 via-white to-blue-50/40 flex items-start justify-between">
+          <div className="p-6 border-b border-slate-200 bg-linear-to-r from-slate-50 via-white to-blue-50/40 flex items-start justify-between">
             <div>
               <div className="flex items-center gap-2">
                 <Shield className="w-5 h-5 text-blue-600" />
