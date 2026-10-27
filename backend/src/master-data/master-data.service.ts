@@ -905,7 +905,53 @@ export class MasterDataService implements OnModuleInit {
       );
     }
 
-    // Safe to delete! Clean up any zero-balance records & MSL alerts
+    // 6. Check DC movements
+    const dcMovementsResult = await this.productRepo.manager.query(
+      `SELECT COUNT(*)::int as count FROM dc_movements WHERE dispatched_product_id = $1 OR returned_product_id = $1`,
+      [id],
+    );
+    const dcMovementsCount = Number(dcMovementsResult[0]?.count || 0);
+    if (dcMovementsCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete product "${product.name}" (${product.code}) because it is referenced in DC movements. You can deactivate it instead.`,
+      );
+    }
+
+    // 7. Check rework items
+    const reworkResult = await this.productRepo.manager.query(
+      `SELECT COUNT(*)::int as count FROM dc_rework_items WHERE product_id = $1`,
+      [id],
+    );
+    const reworkCount = Number(reworkResult[0]?.count || 0);
+    if (reworkCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete product "${product.name}" (${product.code}) because it is referenced in rework items. You can deactivate it instead.`,
+      );
+    }
+
+    // 8. Check consumable request items
+    const consumableItems = await this.productRepo.manager.query(
+      `SELECT COUNT(*)::int as total, 
+              COUNT(CASE WHEN real_received_qty > 0 OR issued_qty > 0 THEN 1 END)::int as fulfilled 
+       FROM consumable_request_items WHERE product_id = $1`,
+      [id],
+    );
+    const totalConsumable = Number(consumableItems[0]?.total || 0);
+    const fulfilledConsumable = Number(consumableItems[0]?.fulfilled || 0);
+
+    if (fulfilledConsumable > 0) {
+      throw new BadRequestException(
+        `Cannot delete product "${product.name}" (${product.code}) because it has been fulfilled/issued in consumable requests. You can deactivate it instead.`,
+      );
+    }
+
+    // Safe to delete! Clean up any zero-balance records, MSL alerts & unfulfilled consumable request items
+    if (totalConsumable > 0) {
+      await this.productRepo.manager.query(
+        `DELETE FROM consumable_request_items WHERE product_id = $1`,
+        [id],
+      );
+    }
     await this.productRepo.manager.query(
       `DELETE FROM stock_balances WHERE product_id = $1`,
       [id],
@@ -915,7 +961,18 @@ export class MasterDataService implements OnModuleInit {
       [id],
     );
 
-    await this.productRepo.remove(product);
+    try {
+      await this.productRepo.remove(product);
+    } catch (err: any) {
+      this.logger.error(`Failed to delete product ${id}: ${err?.message}`, err?.stack);
+      if (err?.code === '23503') {
+        throw new BadRequestException(
+          `Cannot delete product "${product.name}" (${product.code}) because it is referenced by other system records. You can deactivate it instead.`,
+        );
+      }
+      throw err;
+    }
+
     return {
       success: true,
       message: `Product "${product.name}" (${product.code}) deleted successfully.`,
