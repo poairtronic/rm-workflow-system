@@ -86,29 +86,7 @@ const SAMPLE_VENDORS = [
   { code: 'V38', name: 'SMV Engg', category: 'Engineering' },
 ];
 
-const SAMPLE_PROCESSES = [
-  {
-    code: 'PRC-SMP-HT',
-    name: 'Sample Heat Treatment',
-    sequenceNumber: 10,
-    category: 'OUTSIDE_PROCESSING',
-    description: 'Stress relieving, hardening, and tempering',
-  },
-  {
-    code: 'PRC-SMP-CNC',
-    name: 'Sample CNC Turning & Milling',
-    sequenceNumber: 20,
-    category: 'MACHINING',
-    description: 'Precision turning, 4-axis CNC milling, and boring',
-  },
-  {
-    code: 'PRC-SMP-PLT',
-    name: 'Sample Electroplating & Passivation',
-    sequenceNumber: 30,
-    category: 'SURFACE_FINISHING',
-    description: 'Electroless nickel plating and chemical passivation',
-  },
-];
+const SAMPLE_PROCESSES = [];
 
 async function seed() {
   const seedPassword = process.env.SEED_DEFAULT_PASSWORD;
@@ -343,6 +321,7 @@ async function seed() {
     for (const p of pairings) {
       const vId = vendorMap[p.vendorCode];
       const prId = processMap[p.processCode];
+      if (!vId || !prId) continue;
 
       let capRes = await client.query(
         'SELECT id FROM vendor_process_capabilities WHERE vendor_id = $1 AND process_id = $2',
