@@ -28,6 +28,7 @@ import {
 } from './interfaces/email-provider.interface.js';
 import { EmailJobStatus } from './enums/email-job-status.enum.js';
 import { EmailProvider as EmailProviderEnum } from './enums/email-provider.enum.js';
+import { GmailApiProvider } from './providers/gmail-api.provider.js';
 
 @Controller('api/email')
 export class EmailController {
@@ -38,6 +39,7 @@ export class EmailController {
     @Inject(EMAIL_PROVIDER) private readonly emailProvider: IEmailProvider,
     @InjectRepository(EmailJob)
     private readonly emailJobRepo: Repository<EmailJob>,
+    private readonly gmailProvider: GmailApiProvider,
   ) {}
 
   /**
@@ -101,18 +103,23 @@ export class EmailController {
       .andWhere('job.attempts >= job.maxAttempts')
       .getCount();
 
-    const isTokenRevoked = invalidGrantCount > 0;
+    // Live token verification
+    const tokenHealth = await this.gmailProvider.verifyTokenHealth();
+
+    const isTokenRevoked = !tokenHealth.valid || invalidGrantCount > 0;
     const hasStuckJobs = pendingStuckCount > 0;
 
     return {
       status: isTokenRevoked ? 'degraded' : 'ok',
-      gmailTokenValid: !isTokenRevoked,
+      gmailTokenValid: tokenHealth.valid,
+      tokenError: tokenHealth.error ?? null,
       invalidGrantFailuresLast60Min: invalidGrantCount,
       stuckRetryingJobs: pendingStuckCount,
       alert: isTokenRevoked
-        ? 'Gmail OAuth refresh token has expired or been revoked. Emails are not being delivered. Regenerate GMAIL_REFRESH_TOKEN via Google OAuth Playground.'
+        ? tokenHealth.error ||
+          'Gmail OAuth refresh token has expired or been revoked. Regenerate GMAIL_REFRESH_TOKEN via Google OAuth Playground.'
         : hasStuckJobs
-        ? 'Some email jobs are stuck in RETRYING state and have exceeded max attempts.'
+        ? 'Some email jobs are stuck in RETRYING state.'
         : null,
       checkedAt: new Date().toISOString(),
     };

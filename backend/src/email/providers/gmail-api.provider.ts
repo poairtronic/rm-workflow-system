@@ -1,5 +1,6 @@
 import { Injectable, Logger, Optional, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { google, gmail_v1 } from 'googleapis';
 import {
   IEmailProvider,
@@ -87,6 +88,47 @@ export class GmailApiProvider implements IEmailProvider {
       this.logger.error(
         `Failed to initialize Google OAuth2 Gmail client: ${this.maskSecrets(error?.message || String(error))}`,
       );
+    }
+  }
+
+  // Proactively refresh access token every 45 minutes
+  // Access tokens expire in 60 minutes — this keeps it always fresh
+  @Cron('0 */45 * * * *')
+  async scheduledTokenRefresh(): Promise<void> {
+    if (!this.oauth2Client) return;
+    try {
+      const { credentials } = await this.oauth2Client.refreshAccessToken();
+      this.oauth2Client.setCredentials(credentials);
+      this.logger.log('Gmail OAuth access token proactively refreshed.');
+    } catch (error: any) {
+      const msg = error?.message || String(error);
+      if (
+        msg.includes('invalid_grant') ||
+        msg.includes('Token has been expired or revoked')
+      ) {
+        this.logger.error(
+          'CRITICAL: Gmail refresh token is expired or revoked. ' +
+          'Email delivery is stopped. Regenerate GMAIL_REFRESH_TOKEN ' +
+          'via Google OAuth Playground and update the environment variable.'
+        );
+      } else {
+        this.logger.warn(`Gmail token refresh warning: ${this.maskSecrets(msg)}`);
+      }
+    }
+  }
+
+  // Call this to manually verify token health
+  async verifyTokenHealth(): Promise<{ valid: boolean; error?: string }> {
+    if (!this.oauth2Client) {
+      return { valid: false, error: 'OAuth client not initialized' };
+    }
+    try {
+      const { credentials } = await this.oauth2Client.refreshAccessToken();
+      this.oauth2Client.setCredentials(credentials);
+      return { valid: true };
+    } catch (error: any) {
+      const msg = this.maskSecrets(error?.message || String(error));
+      return { valid: false, error: msg };
     }
   }
 
