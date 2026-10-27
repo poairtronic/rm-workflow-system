@@ -30,6 +30,7 @@ import {
 } from '../services/inventoryService';
 import { masterDataService, type Product, type Bin } from '../services/masterDataService';
 import { useQueryClient } from '@tanstack/react-query';
+import { extractErrorMessage } from '../utils/extractErrorMessage';
 
 export type StockMovementMode = 'STOCK_IN' | 'STOCK_OUT' | 'ADJUST';
 export type AdjustmentSubOption = 'NORMAL' | 'TRANSFER';
@@ -383,7 +384,7 @@ export function StockMovementWorkspace() {
       queryClient.invalidateQueries({ queryKey: ['inventoryMslStatus'] });
       navigate(-1);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Operation failed');
+      toast.error(extractErrorMessage(err, 'Operation failed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -423,7 +424,7 @@ export function StockMovementWorkspace() {
       queryClient.invalidateQueries({ queryKey: ['inventoryMslStatus'] });
       navigate(-1);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Stock transfer failed');
+      toast.error(extractErrorMessage(err, 'Stock transfer failed'));
     } finally {
       setIsSubmitting(false);
     }

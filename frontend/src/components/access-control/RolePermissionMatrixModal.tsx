@@ -8,6 +8,7 @@ import {
 import { Button } from '../ui';
 import { X, Loader2, SlidersHorizontal } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { extractErrorMessage } from '../../utils/extractErrorMessage';
 
 interface RolePermissionMatrixModalProps {
   isOpen: boolean;
@@ -59,7 +60,7 @@ export function RolePermissionMatrixModal({ isOpen, onClose }: RolePermissionMat
       onClose();
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to save role matrix');
+      toast.error(extractErrorMessage(err, 'Failed to save role matrix'));
     },
   });
 

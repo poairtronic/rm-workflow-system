@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { extractErrorMessage } from '../../utils/extractErrorMessage';
 import {
   X,
   CheckCircle2,
@@ -78,8 +79,7 @@ export function QcInspectionModal({ isOpen, onClose, dc, onSuccess }: QcInspecti
       onClose();
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.message || err?.message || 'Failed to submit QC inspection';
-      toast.error(Array.isArray(msg) ? msg.join(', ') : msg);
+      toast.error(extractErrorMessage(err, 'Failed to submit QC inspection'));
     },
   });
 

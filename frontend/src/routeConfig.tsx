@@ -214,8 +214,10 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   // PRINTABLE (Not in Sidebar)
   { name: 'DC Print', path: '/dispatch/delivery-challan/:id/print', roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: DeliveryChallanPrintView, isSidebar: false, isPrintable: true },
 
-  // DEV TOOLS (Hidden from sidebar)
-  { name: 'UI Kit Showcase', path: '/dev/ui-kit', icon: FileText, roles: ['ADMIN'], component: UiKitShowcase, isSidebar: false },
+  // DEV TOOLS (Gated to development environment only)
+  ...(Boolean(import.meta.env?.DEV)
+    ? [{ name: 'UI Kit Showcase', path: '/dev/ui-kit', icon: FileText, roles: ['ADMIN'] as UserRole[], component: UiKitShowcase, isSidebar: false }]
+    : []),
 ];
 
 export function getRoleDefaultPath(role?: string): string {

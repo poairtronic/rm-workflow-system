@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FileText, Download, Calendar, FileSpreadsheet } from 'lucide-react';
 import { api, reportApi } from '../services/api';
+import { extractErrorMessage } from '../utils/extractErrorMessage';
 
 export function ReportGeneratorWorkspace() {
   const [format, setFormat] = useState<'csv' | 'excel'>('excel');
@@ -67,7 +68,7 @@ export function ReportGeneratorWorkspace() {
         downloadBlob(blob, `${reportType}_export_${dateStamp}.csv`);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Failed to generate report. You might lack permissions.');
+      setError(extractErrorMessage(err, 'Failed to generate report. You might lack permissions.'));
     } finally {
       setLoading(false);
     }

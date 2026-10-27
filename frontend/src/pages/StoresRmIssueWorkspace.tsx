@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { PackageSearch, FileText, PackagePlus, AlertCircle } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { workflowService } from '../services/workflowService';
+import { extractErrorMessage } from '../utils/extractErrorMessage';
 import { IssueMaterialModal } from '../components/modals/IssueMaterialModal';
 import { ReviewMappingWorkspace } from './ReviewMappingWorkspace';
 import { StatusBadge } from '../components/ui/StatusBadge';
@@ -91,7 +92,7 @@ export function StoresRmIssueWorkspace() {
       setRejectRemarks('');
       await loadQueue();
     } catch (err: any) {
-      alert(err.response?.data?.message || err.message || 'Failed to reject requisition');
+      alert(extractErrorMessage(err, 'Failed to reject requisition'));
     } finally {
       setSubmittingReject(false);
     }

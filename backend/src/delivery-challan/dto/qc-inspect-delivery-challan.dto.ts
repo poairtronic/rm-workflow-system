@@ -44,6 +44,10 @@ export class QcInspectDeliveryChallanDto {
   @IsISO8601()
   inspectionDate?: string;
 
+  @IsOptional()
+  @IsString()
+  remarks?: string;
+
   @ValidateNested({ each: true })
   @Type(() => QcInspectItemDto)
   @ArrayMinSize(1)

@@ -2,10 +2,11 @@ import { useEffect, useState, useMemo } from 'react';
 import { useForm, FormProvider, Controller, useFieldArray } from 'react-hook-form';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { Loader2, Lock, Plus, Trash2, Printer, CheckCircle2 } from 'lucide-react';
+import { Loader2, Lock, Plus, Trash2, Printer, CheckCircle2, Info } from 'lucide-react';
 import { deliveryChallanApi, api, unwrapList } from '../../services/api';
 import { DispatchPayloadGrid } from './DispatchPayloadGrid';
 import { SearchSelect } from '../ui/SearchSelect';
+import { VendorSlaSelector } from '../dc/VendorSlaSelector';
 
 export function Type1DispatchWizard() {
   const queryClient = useQueryClient();
@@ -65,13 +66,20 @@ export function Type1DispatchWizard() {
   // Using the first processId as the driver for SLA, if it exists
   const firstProcessId = scBlocks?.[0]?.processId;
   useEffect(() => {
-    if (vendorId && firstProcessId && slaList && slaList.length > 0) {
-      const sla = slaList.find((s: any) => s.vendorId === vendorId && s.processId === firstProcessId);
-      if (sla?.slaDays) {
-        const date = new Date();
-        date.setDate(date.getDate() + Number(sla.slaDays));
-        setValue('expectedReturnDate', date.toISOString().split('T')[0]);
+    if (vendorId) {
+      if (firstProcessId && slaList && slaList.length > 0) {
+        const sla = slaList.find((s: any) => s.vendorId === vendorId && s.processId === firstProcessId);
+        if (sla?.slaDays) {
+          const date = new Date();
+          date.setDate(date.getDate() + Number(sla.slaDays));
+          setValue('expectedReturnDate', date.toISOString().split('T')[0]);
+          return;
+        }
       }
+      // Fallback: 7 days default SLA
+      const date = new Date();
+      date.setDate(date.getDate() + 7);
+      setValue('expectedReturnDate', date.toISOString().split('T')[0]);
     }
   }, [vendorId, firstProcessId, slaList, setValue]);
 
@@ -193,6 +201,15 @@ export function Type1DispatchWizard() {
       <FormProvider {...methods}>
         <form id="dc-wizard-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           
+          {/* Stock Boundary Notice */}
+          <div className="p-4 bg-amber-50/90 border border-amber-200 rounded-xl flex items-start gap-3 shadow-xs text-amber-900">
+            <Info className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+            <div className="text-sm leading-relaxed">
+              <span className="font-semibold text-amber-950">Stock Boundary Notice: </span>
+              Type 1 dispatch tracks WIP externally. Raw stock balance is not reduced — material was already issued to production.
+            </div>
+          </div>
+
           {/* Section 1: Vendor & Date (Global DC Level) */}
           <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
             <h2 className="text-[15px] font-semibold text-slate-900 mb-6 uppercase tracking-wide border-b border-slate-100 pb-4">
@@ -234,13 +251,23 @@ export function Type1DispatchWizard() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Expected Return Date</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-slate-700">Expected Return Date</label>
+                  {vendorId && (
+                    <VendorSlaSelector
+                      vendorId={vendorId}
+                      processId={firstProcessId}
+                      slaList={slaList}
+                      badgeMode={true}
+                    />
+                  )}
+                </div>
                 <input
                   type="date"
                   {...register('expectedReturnDate', { required: 'Expected Return Date is required' })}
                   className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent tabular-nums cursor-pointer"
                 />
-                <p className="mt-1 text-[11px] text-slate-500">Universal SLA date. Auto-calculated based on first process SLA.</p>
+                <p className="mt-1 text-[11px] text-slate-500">Universal SLA date. Auto-calculated based on process SLA or system default (7 days).</p>
               </div>
             </div>
 

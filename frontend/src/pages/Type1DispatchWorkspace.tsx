@@ -1,4 +1,4 @@
-import { Send } from 'lucide-react';
+import { Send, Info } from 'lucide-react';
 import { Type1DispatchWizard } from '../components/dispatch/Type1DispatchWizard';
 
 export function Type1DispatchWorkspace() {
@@ -14,6 +14,15 @@ export function Type1DispatchWorkspace() {
           <p className="text-sm text-slate-500 mt-1">
             Dispatch material for external vendor processing (includes SC, Process, SLA, and Dispatch Groups).
           </p>
+        </div>
+      </div>
+
+      {/* Stock Boundary Banner */}
+      <div className="p-4 bg-amber-50/90 border border-amber-200 rounded-xl flex items-start gap-3 shadow-xs text-amber-900">
+        <Info className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+        <div className="text-sm leading-relaxed">
+          <span className="font-semibold text-amber-950">Stock Boundary Notice: </span>
+          Type 1 dispatch tracks WIP externally. Raw stock balance is not reduced — material was already issued to production.
         </div>
       </div>
 

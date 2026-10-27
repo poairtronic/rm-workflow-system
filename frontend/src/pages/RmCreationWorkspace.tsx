@@ -7,6 +7,7 @@ import { workflowService } from '../services/workflowService';
 import { useAuth } from '../contexts/AuthContext';
 import type { SC } from '../services/workflowService';
 import { api, unwrapList } from '../services/api';
+import { extractErrorMessage } from '../utils/extractErrorMessage';
 
 type CreationMode = 'BY_PO' | 'BY_SC' | 'STANDALONE';
 
@@ -471,7 +472,7 @@ export function RmCreationWorkspace() {
         return { success: true, poId: data?.poId };
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to save draft RM requisition.');
+      setError(extractErrorMessage(err, 'Failed to save draft RM requisition.'));
       return { success: false };
     } finally {
       setLoading(false);
@@ -504,7 +505,7 @@ export function RmCreationWorkspace() {
       }, 1500);
     } catch (err: any) {
       console.error(err);
-      setError(err.response?.data?.message || 'Failed to submit requisition to Stores.');
+      setError(extractErrorMessage(err, 'Failed to submit requisition to Stores.'));
     } finally {
       setSubmitting(false);
       setShowSubmitConfirm(false);

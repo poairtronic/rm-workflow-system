@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { extractErrorMessage } from '../../utils/extractErrorMessage';
 import {
   CheckCircle2,
   Send,
@@ -38,7 +39,7 @@ export function ReworkQueueTable({ onSelectDc, challans }: ReworkQueueTableProps
       toast.success('Rework item verified and marked ready for re-dispatch under same SC/PO!');
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.message || 'Failed to acknowledge rework item');
+      toast.error(extractErrorMessage(err, 'Failed to acknowledge rework item'));
     },
   });
 

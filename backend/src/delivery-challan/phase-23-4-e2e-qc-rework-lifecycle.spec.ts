@@ -250,6 +250,7 @@ describe('Phase 4 — End-to-End Validation & Certification (QC Gate, Rework Loo
       // Step 2: Quality Check Gate on Batch 1 (Inspector: 2 Pass / 3 Reject)
       // ─────────────────────────────────────────────────────────────────────────
       const qcInspectDto = {
+        remarks: 'Overall batch inspection notes: Heat treat variance observed',
         items: [
           {
             itemId: 'item-gear-100',
@@ -278,6 +279,7 @@ describe('Phase 4 — End-to-End Validation & Certification (QC Gate, Rework Loo
       // Vendor Balance = 10 - (2 + 3) = 5 remaining at vendor
       expect(mockItem.qcPendingQty).toBe(0);
       expect(mockItem.qcPassedQty).toBe(2);
+      expect(mockDc.verificationRemarks).toBe('Overall batch inspection notes: Heat treat variance observed');
       expect(mockItem.qcRejectedQty).toBe(3);
       expect(step2Result.status).toBe(DeliveryChallanStatus.PARTIALLY_RETURNED);
 

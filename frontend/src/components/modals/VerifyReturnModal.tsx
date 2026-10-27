@@ -3,6 +3,7 @@ import { ArrowLeft, X, AlertCircle, CheckCircle } from 'lucide-react';
 import { workflowService } from '../../services/workflowService';
 import { masterDataService } from '../../services/masterDataService';
 import type { Bin } from '../../services/masterDataService';
+import { extractErrorMessage } from '../../utils/extractErrorMessage';
 
 interface VerifyReturnModalProps {
   isOpen: boolean;
@@ -60,7 +61,7 @@ export function VerifyReturnModal({ isOpen, onClose, onSuccess, returnId, return
       onClose();
     } catch (err: any) {
       console.error(err);
-      setError(err.response?.data?.message || err.message || 'Failed to verify return.');
+      setError(extractErrorMessage(err, 'Failed to verify return.'));
     } finally {
       setSubmitting(false);
     }

@@ -9,6 +9,7 @@ import type { UserMasterDto } from '../../types/user-master.dto';
 import { Button } from '../ui';
 import { X, Shield, RotateCcw, Loader2, Eye, ShieldCheck, ShieldAlert, Sliders } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { extractErrorMessage } from '../../utils/extractErrorMessage';
 
 interface UserAccessDrawerProps {
   user: UserMasterDto | null;
@@ -82,7 +83,7 @@ export function UserAccessDrawer({ user, isOpen, onClose }: UserAccessDrawerProp
       onClose();
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to update access permissions');
+      toast.error(extractErrorMessage(err, 'Failed to update access permissions'));
     },
   });
 

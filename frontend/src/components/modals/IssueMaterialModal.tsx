@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, X, AlertCircle } from 'lucide-react';
 import { workflowService } from '../../services/workflowService';
 import { inventoryService } from '../../services/inventoryService';
+import { extractErrorMessage } from '../../utils/extractErrorMessage';
 
 interface IssueMaterialModalProps {
   isOpen: boolean;
@@ -131,7 +132,7 @@ export function IssueMaterialModal({ isOpen, onClose, onSuccess, scId, scNumber,
       setItems(itemsData);
     } catch (err: any) {
       console.error(err);
-      setError(err.response?.data?.message || err.message || 'Failed to load RM data.');
+      setError(extractErrorMessage(err, 'Failed to load RM data.'));
     } finally {
       setLoading(false);
     }
@@ -181,7 +182,7 @@ export function IssueMaterialModal({ isOpen, onClose, onSuccess, scId, scNumber,
       onClose();
     } catch (err: any) {
       console.error(err);
-      setError(err.response?.data?.message || err.message || 'Failed to issue material.');
+      setError(extractErrorMessage(err, 'Failed to issue material.'));
     } finally {
       setSubmitting(false);
     }

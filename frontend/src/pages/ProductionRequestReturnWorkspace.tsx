@@ -5,6 +5,7 @@ import { workflowService, type SC } from '../services/workflowService';
 import { masterDataService, type Product } from '../services/masterDataService';
 import { inventoryService, type ProductBinBalance } from '../services/inventoryService';
 import { unwrapList } from '../services/api';
+import { extractErrorMessage } from '../utils/extractErrorMessage';
 import toast from 'react-hot-toast';
 
 export function ProductionRequestReturnWorkspace() {
@@ -183,7 +184,7 @@ export function ProductionRequestReturnWorkspace() {
       await loadRequestHistory(selectedScIdForReq);
     } catch (err: any) {
       console.error(err);
-      toast.error(err.response?.data?.message || err.message || 'Failed to submit material request');
+      toast.error(extractErrorMessage(err, 'Failed to submit material request'));
     } finally {
       setSubmittingReq(false);
     }
@@ -226,7 +227,7 @@ export function ProductionRequestReturnWorkspace() {
       await loadReceivedItemsForSc(selectedScIdForRet);
     } catch (err: any) {
       console.error(err);
-      toast.error(err.response?.data?.message || err.message || 'Failed to submit material return');
+      toast.error(extractErrorMessage(err, 'Failed to submit material return'));
     } finally {
       setSubmittingRet(false);
     }

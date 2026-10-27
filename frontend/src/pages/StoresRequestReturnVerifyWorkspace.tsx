@@ -17,6 +17,7 @@ import {
   Inbox
 } from 'lucide-react';
 import { workflowService } from '../services/workflowService';
+import { extractErrorMessage } from '../utils/extractErrorMessage';
 import toast from 'react-hot-toast';
 import { IssueMaterialModal } from '../components/modals/IssueMaterialModal';
 import { VerifyReturnModal } from '../components/modals/VerifyReturnModal';
@@ -87,7 +88,7 @@ export function StoresRequestReturnVerifyWorkspace() {
       toast.success('Extra request approved');
       await loadRequests();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to approve request');
+      toast.error(extractErrorMessage(err, 'Failed to approve request'));
     } finally {
       setApprovingReqId(null);
     }
@@ -101,7 +102,7 @@ export function StoresRequestReturnVerifyWorkspace() {
       setRejectDialogReqId(null);
       loadRequests();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to reject request');
+      toast.error(extractErrorMessage(err, 'Failed to reject request'));
     }
   };
 

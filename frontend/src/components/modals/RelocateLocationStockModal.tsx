@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { masterDataService } from '../../services/masterDataService';
+import { extractErrorMessage } from '../../utils/extractErrorMessage';
 import type {
   Location,
   Warehouse,
@@ -166,10 +167,7 @@ export function RelocateLocationStockModal({
       );
       onSuccess();
     } catch (err: any) {
-      const msg =
-        err.response?.data?.message ||
-        err.message ||
-        'Failed to relocate inventory and delete location.';
+      const msg = extractErrorMessage(err, 'Failed to relocate inventory and delete location.');
       setErrorMessage(msg);
     } finally {
       setIsSubmitting(false);

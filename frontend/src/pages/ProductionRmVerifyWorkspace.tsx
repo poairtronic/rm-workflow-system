@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { workflowService, type MaterialIssue, type SC } from '../services/workflowService';
+import { extractErrorMessage } from '../utils/extractErrorMessage';
 import toast from 'react-hot-toast';
 
 interface EnrichedIssueItem {
@@ -357,7 +358,7 @@ export function ProductionRmVerifyWorkspace() {
       await loadData();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.response?.data?.message || err.message || 'Failed to confirm receipt');
+      toast.error(extractErrorMessage(err, 'Failed to confirm receipt'));
     } finally {
       setReceivingId(null);
     }

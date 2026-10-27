@@ -1252,7 +1252,7 @@ export class DeliveryChallanService {
           passedQty,
           rejectedQty,
           actualInwardQty: inspectDto.actualStoreInwardQty ?? null,
-          remarks: inspectDto.qcRemarks || null,
+          remarks: inspectDto.qcRemarks || dto.remarks || null,
           inspectedById: userId,
           inspectedAt: new Date(dto.inspectionDate || Date.now()),
         });
@@ -1277,6 +1277,10 @@ export class DeliveryChallanService {
         challan.status = DeliveryChallanStatus.CLOSED;
       } else {
         challan.status = DeliveryChallanStatus.PARTIALLY_RETURNED;
+      }
+
+      if (dto.remarks) {
+        challan.verificationRemarks = dto.remarks;
       }
 
       await queryRunner.manager.save(challan);

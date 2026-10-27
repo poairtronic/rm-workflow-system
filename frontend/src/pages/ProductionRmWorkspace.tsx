@@ -9,6 +9,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { workflowService } from '../services/workflowService';
+import { extractErrorMessage } from '../utils/extractErrorMessage';
 import toast from 'react-hot-toast';
 
 interface MaterialIssue {
@@ -148,7 +149,7 @@ export function ProductionRmWorkspace() {
       await loadData();
       setActiveTab('LEDGER');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || 'Failed to receive material');
+      toast.error(extractErrorMessage(err, 'Failed to receive material'));
     } finally {
       setSubmitting(false);
     }

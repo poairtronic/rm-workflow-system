@@ -9,6 +9,9 @@ import {
   Inject,
   BadRequestException,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { EmailJob } from './entities/email-job.entity.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
@@ -33,6 +36,8 @@ export class EmailController {
     private readonly emailAuditService: EmailAuditService,
     private readonly emailQueueService: EmailQueueService,
     @Inject(EMAIL_PROVIDER) private readonly emailProvider: IEmailProvider,
+    @InjectRepository(EmailJob)
+    private readonly emailJobRepo: Repository<EmailJob>,
   ) {}
 
   /**
@@ -75,6 +80,44 @@ export class EmailController {
     });
   }
 
+  @Get('health')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER)
+  async getEmailHealth() {
+    const sixtyMinutesAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+    const invalidGrantCount = await this.emailJobRepo
+      .createQueryBuilder('job')
+      .where('job.status IN (:...statuses)', {
+        statuses: [EmailJobStatus.FAILED, EmailJobStatus.RETRYING],
+      })
+      .andWhere('job.lastError ILIKE :pattern', { pattern: '%invalid_grant%' })
+      .andWhere('job.updatedAt >= :since', { since: sixtyMinutesAgo })
+      .getCount();
+
+    const pendingStuckCount = await this.emailJobRepo
+      .createQueryBuilder('job')
+      .where('job.status = :status', { status: EmailJobStatus.RETRYING })
+      .andWhere('job.attempts >= job.maxAttempts')
+      .getCount();
+
+    const isTokenRevoked = invalidGrantCount > 0;
+    const hasStuckJobs = pendingStuckCount > 0;
+
+    return {
+      status: isTokenRevoked ? 'degraded' : 'ok',
+      gmailTokenValid: !isTokenRevoked,
+      invalidGrantFailuresLast60Min: invalidGrantCount,
+      stuckRetryingJobs: pendingStuckCount,
+      alert: isTokenRevoked
+        ? 'Gmail OAuth refresh token has expired or been revoked. Emails are not being delivered. Regenerate GMAIL_REFRESH_TOKEN via Google OAuth Playground.'
+        : hasStuckJobs
+        ? 'Some email jobs are stuck in RETRYING state and have exceeded max attempts.'
+        : null,
+      checkedAt: new Date().toISOString(),
+    };
+  }
+
   /**
    * Trigger retry for a failed or dead-letter job
    */
@@ -86,6 +129,16 @@ export class EmailController {
       success: true,
       message: `Job ${jobId} queued for retry`,
     };
+  }
+
+  /**
+   * Manual dead-letter email queue resend/retry
+   */
+  @Post('resend/:jobId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async resendJob(@Param('jobId') jobId: string) {
+    return this.retryJob(jobId);
   }
 
   /**

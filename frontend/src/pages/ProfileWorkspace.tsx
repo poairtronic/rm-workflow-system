@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { profileApi } from '../services/api';
+import { extractErrorMessage } from '../utils/extractErrorMessage';
 import { PageHeader } from '../components/ui';
 import {
   User as UserIcon,
@@ -110,8 +111,7 @@ export function ProfileWorkspace() {
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
-      const msg = err.response?.data?.message || err.message || 'Failed to update password.';
-      toast.error(msg);
+      toast.error(extractErrorMessage(err, 'Failed to update password.'));
     } finally {
       setUpdatingPassword(false);
     }

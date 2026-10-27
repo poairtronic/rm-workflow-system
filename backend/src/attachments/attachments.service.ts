@@ -157,6 +157,28 @@ export class AttachmentsService {
     await this.attachmentRepo.save(attachment);
   }
 
+  async update(
+    id: string,
+    dto: { fileId?: string; documentType?: string },
+    userId: string,
+    userRole: UserRole,
+  ) {
+    const attachment = await this.findOne(id);
+    await this.validateTargetRecord(attachment.context, attachment.recordId, userRole);
+
+    if (dto.documentType) {
+      attachment.documentType = dto.documentType;
+    }
+    if (dto.fileId && dto.fileId !== attachment.fileId) {
+      const file = await this.filesService.getFileMetadata(dto.fileId);
+      if (!file) {
+        throw new NotFoundException(`File ${dto.fileId} not found.`);
+      }
+      attachment.fileId = dto.fileId;
+    }
+    return this.attachmentRepo.save(attachment);
+  }
+
   async checkFileAccess(fileId: string, user: { userId: string, roles: UserRole[] }, action: 'READ' | 'WRITE' | 'DELETE'): Promise<void> {
     const file = await this.filesService.getFileMetadata(fileId);
     

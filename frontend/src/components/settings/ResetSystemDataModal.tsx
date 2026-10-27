@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { systemSettingsApi } from '../../services/api';
+import { extractErrorMessage } from '../../utils/extractErrorMessage';
 
 interface ResetSystemDataModalProps {
   isOpen: boolean;
@@ -140,7 +141,7 @@ export function ResetSystemDataModal({ isOpen, onClose, onSuccess }: ResetSystem
     } catch (err: any) {
       console.error('System reset failed', err);
       toast.error(
-        err?.response?.data?.message || err?.message || 'Failed to execute system data reset.',
+        extractErrorMessage(err, 'Failed to execute system data reset.'),
       );
     } finally {
       setSubmitting(false);

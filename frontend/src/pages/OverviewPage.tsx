@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw, AlertTriangle, FileSpreadsheet } from 'lucide-react';
+import { RefreshCw, AlertTriangle, FileSpreadsheet, Mail, ShieldAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { api } from '../services/api';
+import { api, emailCommunicationApi } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import type { UnifiedOverviewResponseDto } from '../types/overview.dto';
 import { OverviewHeaderMetrics } from '../components/overview/OverviewHeaderMetrics';
 import { ModuleTabSelector, type OverviewTabKey } from '../components/overview/ModuleTabSelector';
@@ -27,6 +28,23 @@ export function OverviewPage() {
     },
     staleTime: 30000,
     refetchOnWindowFocus: false,
+  });
+
+  const { currentUser } = useAuth();
+  const user = currentUser;
+
+  const canSeeEmailAlert =
+    user?.role === 'ADMIN' ||
+    user?.role === 'SENIOR_MANAGER' ||
+    user?.role === 'GENERAL_MANAGER';
+
+  const { data: emailHealth } = useQuery({
+    queryKey: ['email-health'],
+    queryFn: () => emailCommunicationApi.getHealth(),
+    staleTime: 60000, // re-check every 60 seconds
+    refetchInterval: 60000,
+    enabled: canSeeEmailAlert,
+    retry: false, // don't retry — if it fails, just don't show banner
   });
 
   return (
@@ -61,6 +79,39 @@ export function OverviewPage() {
           </Link>
         </div>
       </div>
+
+      {/* Gmail Token Alert Banner — ADMIN/MANAGER only */}
+      {canSeeEmailAlert && emailHealth && emailHealth.status === 'degraded' && (
+        <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl">
+          <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+              Email Delivery Degraded
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+              {emailHealth.alert}
+            </p>
+            <div className="flex items-center gap-4 mt-2">
+              <span className="text-xs text-amber-600 dark:text-amber-500">
+                Failures (last 60 min): <strong>{emailHealth.invalidGrantFailuresLast60Min}</strong>
+              </span>
+              <span className="text-xs text-amber-600 dark:text-amber-500">
+                Stuck jobs: <strong>{emailHealth.stuckRetryingJobs}</strong>
+              </span>
+              <a
+                href="/email-communication"
+                className="text-xs font-semibold text-amber-800 dark:text-amber-300 underline underline-offset-2 hover:text-amber-900"
+              >
+                View Email Queue →
+              </a>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-amber-500 dark:text-amber-600 shrink-0">
+            <Mail className="w-3.5 h-3.5" />
+            <span>Gmail</span>
+          </div>
+        </div>
+      )}
 
       {/* Loading & Error States */}
       {isLoading && (

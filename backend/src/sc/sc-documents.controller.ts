@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Param,
   Body,
@@ -16,7 +17,7 @@ import { Roles } from '../auth/decorators/roles.decorator.js';
 import { UserRole } from '../auth/enums/role.enum.js';
 import { AttachmentsService } from '../attachments/attachments.service.js';
 import { AttachmentContext } from '../attachments/entities/attachment.entity.js';
-import { CreateProductionDocumentDto } from './dto/production-document.dto.js';
+import { CreateProductionDocumentDto, UpdateProductionDocumentDto } from './dto/production-document.dto.js';
 
 @Controller('api/sc/:scId/production-documents')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -73,6 +74,26 @@ export class ScDocumentsController {
       throw new NotFoundException('Attachment not found for this SC');
     }
     return attachment;
+  }
+
+  @Patch(':attachmentId')
+  @Roles(UserRole.ADMIN, UserRole.DESIGNER, UserRole.STORES, UserRole.PRODUCTION)
+  async updateDocument(
+    @Param('scId', ParseUUIDPipe) scId: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    @Body() dto: UpdateProductionDocumentDto,
+    @Req() req: any,
+  ) {
+    const attachment = await this.attachmentsService.findOne(attachmentId);
+    if (attachment.recordId !== scId || attachment.context !== AttachmentContext.PRODUCTION) {
+      throw new NotFoundException('Attachment not found for this SC');
+    }
+    return this.attachmentsService.update(
+      attachmentId,
+      dto,
+      req.user.userId,
+      req.user.roles[0],
+    );
   }
 
   @Delete(':attachmentId')

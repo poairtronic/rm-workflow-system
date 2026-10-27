@@ -1,5 +1,8 @@
 import { APP_CONFIG } from '../app/config';
 import { toast } from 'react-hot-toast';
+import { extractErrorMessage } from '../utils/extractErrorMessage';
+
+export { extractErrorMessage };
 
 class ApiClient {
   private baseUrl: string;
@@ -79,12 +82,7 @@ class ApiClient {
     let errorMsg = `${method} ${endpoint} failed: ${response.status} ${response.statusText}`;
     try {
       const errorJson = await response.json();
-      const extractedMessage = errorJson?.error?.message || errorJson?.message || errorJson?.error;
-      if (extractedMessage) {
-        errorMsg = Array.isArray(extractedMessage)
-          ? extractedMessage.join(', ')
-          : extractedMessage;
-      }
+      errorMsg = extractErrorMessage({ response: { data: errorJson } }, errorMsg);
     } catch {}
     
     // Global toast for errors, skip 401 as it's handled by AuthContext, and skip if silent
@@ -733,6 +731,15 @@ export const auditLogsApi = {
 };
 
 export const emailCommunicationApi = {
+  getHealth: () =>
+    api.get<{
+      status: 'ok' | 'degraded';
+      gmailTokenValid: boolean;
+      invalidGrantFailuresLast60Min: number;
+      stuckRetryingJobs: number;
+      alert: string | null;
+      checkedAt: string;
+    }>('/api/email/health'),
   getObservability: () => api.get<any>('/api/email/observability'),
   getLogs: (params: { status?: string; search?: string; limit?: number; offset?: number } = {}) => {
     const q = new URLSearchParams();

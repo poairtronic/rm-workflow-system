@@ -29,6 +29,7 @@ import { sanitizeBarcode } from '../../hooks/useBarcodeScanner';
 import { BarcodeSvg } from '../common/BarcodeSvg';
 import { BarcodeLabelModal } from './BarcodeLabelModal';
 import { toast } from 'react-hot-toast';
+import { extractErrorMessage } from '../../utils/extractErrorMessage';
 
 export type SoundProfile = 'HIGH_NOISE' | 'STANDARD' | 'SUBTLE' | 'MUTE';
 
@@ -594,11 +595,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
         setTxnRemarks('');
       }
     } catch (err: any) {
-      const errorMsg =
-        err?.response?.data?.error?.message ||
-        err?.response?.data?.message ||
-        err?.message ||
-        'Failed to process transaction';
+      const errorMsg = extractErrorMessage(err, 'Failed to process transaction');
       toast.error(`Transaction Error: ${errorMsg}`);
       playWarehouseSound('ERROR', soundProfile);
       setFlashState('ERROR');
@@ -629,11 +626,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
       // Immediately look up the newly linked product
       handleLookup(unknownBarcode);
     } catch (err: any) {
-      const errorMsg =
-        err?.response?.data?.error?.message ||
-        err?.response?.data?.message ||
-        err?.message ||
-        'Failed to link barcode';
+      const errorMsg = extractErrorMessage(err, 'Failed to link barcode');
       toast.error(`Linking Error: ${errorMsg}`);
       playWarehouseSound('ERROR', soundProfile);
     } finally {

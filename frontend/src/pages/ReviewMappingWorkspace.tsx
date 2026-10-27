@@ -16,6 +16,7 @@ import {
 import { workflowService } from '../services/workflowService';
 import { inventoryService, type ProductBinBalance } from '../services/inventoryService';
 import { ProductSelect } from '../components/inventory/ProductSelect';
+import { extractErrorMessage } from '../utils/extractErrorMessage';
 
 interface ReviewMappingWorkspaceProps {
   scId: string;
@@ -119,7 +120,7 @@ export function ReviewMappingWorkspace({
       setItems(initializedItems);
     } catch (err: any) {
       console.error(err);
-      setError(err.response?.data?.message || err.message || 'Failed to load RM details.');
+      setError(extractErrorMessage(err, 'Failed to load RM details.'));
     } finally {
       setLoading(false);
     }
@@ -187,7 +188,7 @@ export function ReviewMappingWorkspace({
       onSuccess();
     } catch (err: any) {
       console.error('Review approval error', err);
-      setError(err.response?.data?.message || err.message || 'Failed to approve RM mapping.');
+      setError(extractErrorMessage(err, 'Failed to approve RM mapping.'));
     } finally {
       setSubmitting(false);
     }
@@ -207,7 +208,7 @@ export function ReviewMappingWorkspace({
       onSuccess();
       onBack();
     } catch (err: any) {
-      alert(err.response?.data?.message || err.message || 'Failed to reject requisition.');
+      alert(extractErrorMessage(err, 'Failed to reject requisition.'));
     } finally {
       setSubmitting(false);
     }

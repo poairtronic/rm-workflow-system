@@ -8,6 +8,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { workflowService, type SC, type MaterialAccounting } from '../services/workflowService';
+import { extractErrorMessage } from '../utils/extractErrorMessage';
 import toast from 'react-hot-toast';
 import { VerifyReturnModal } from '../components/modals/VerifyReturnModal';
 
@@ -110,7 +111,7 @@ export function StoresReturnVerifyWorkspace() {
       await loadReturns();
       setActiveTab('VERIFY');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || 'Failed to submit return');
+      toast.error(extractErrorMessage(err, 'Failed to submit return'));
     } finally {
       setSubmittingReturn(false);
     }

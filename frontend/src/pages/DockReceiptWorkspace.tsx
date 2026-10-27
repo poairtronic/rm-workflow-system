@@ -13,6 +13,7 @@ import { QcInspectionModal } from '../components/dispatch/QcInspectionModal';
 import { MultiSelectFilter } from '../components/ui';
 import { ExportDropdown } from '../components/common/ExportDropdown';
 import type { ExportColumn } from '../utils/exportUtils';
+import { extractErrorMessage } from '../utils/extractErrorMessage';
 
 // Status badge
 function StatusBadge({ status }: { status: string }) {
@@ -294,14 +295,7 @@ export function DockReceiptWorkspace() {
       setSelectedDc(null);
     },
     onError: (error: any) => {
-      const msg = error?.response?.data?.message;
-      if (Array.isArray(msg)) {
-        toast.error(msg.join(', '));
-      } else if (typeof msg === 'string') {
-        toast.error(msg);
-      } else {
-        toast.error('Failed to process return. Check variances.');
-      }
+      toast.error(extractErrorMessage(error, 'Failed to process return. Check variances.'));
     }
   });
 

@@ -19,6 +19,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { getCanonicalStage } from '../utils/canonicalStages';
+import { extractErrorMessage } from '../utils/extractErrorMessage';
 
 type StatusFilter = 'ALL' | 'IN_PROGRESS' | 'COMPLETED' | 'PENDING';
 type DetailTab = 'MATRIX' | 'CONSUMPTIONS' | 'ISSUES' | 'RETURNS';
@@ -118,7 +119,7 @@ export function ProductionConsumptionWorkspace() {
       setConsumeRemarks('');
       await loadAccounting(selectedSc.id);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || 'Failed to record consumption');
+      toast.error(extractErrorMessage(err, 'Failed to record consumption'));
     } finally {
       setSubmittingConsume(false);
     }
