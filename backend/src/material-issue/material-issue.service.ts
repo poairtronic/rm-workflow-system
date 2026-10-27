@@ -75,6 +75,7 @@ export class MaterialIssueService {
       const allowedInitialStatuses = [
         ScStatus.STORES_PENDING,
         ScStatus.SUBMITTED,
+        'REVIEWED' as ScStatus,
         ScStatus.PARTIALLY_ISSUED,
         ScStatus.IN_PRODUCTION,
         ScStatus.ADDITIONAL_REQUEST,

@@ -34,6 +34,8 @@ describe('MaterialIssueService', () => {
         save: vi.fn((entity, data) =>
           Promise.resolve({ id: 'saved-id', ...data }),
         ),
+        update: vi.fn().mockResolvedValue({ affected: 1 }),
+        find: vi.fn().mockResolvedValue([]),
         findOne: vi.fn((entity, options) => {
           if (entity.name === 'SalesOrderComponent')
             return Promise.resolve({
@@ -46,6 +48,8 @@ describe('MaterialIssueService', () => {
               id: 'rm-item-1',
               scId: 'sc-1',
               material: 'Steel',
+              quantity: 100,
+              requiredQuantity: 100,
               mappedProductId: 'prod-1',
               rmRequest: { status: 'REVIEWED' },
             });
@@ -69,6 +73,10 @@ describe('MaterialIssueService', () => {
       createQueryRunner: vi.fn().mockReturnValue(queryRunnerMock),
     };
 
+    const workflowNotificationService = {
+      notifyMaterialIssued: vi.fn().mockResolvedValue({}),
+    };
+
     service = new MaterialIssueService(
       issueRepo as any,
       issueItemRepo as any,
@@ -76,6 +84,7 @@ describe('MaterialIssueService', () => {
       rmItemRepo as any,
       binRepo as any,
       dataSource as any,
+      workflowNotificationService as any,
     );
   });
 
@@ -151,5 +160,32 @@ describe('MaterialIssueService', () => {
     await expect(service.createIssue(dto, 'stores-user-1')).rejects.toThrow(
       BadRequestException,
     );
+  });
+
+  it('should allow initial issue when SC is in ADDITIONAL_REQUEST status (Fix 1.1)', async () => {
+    scRepo.findOneBy.mockResolvedValue({
+      id: 'sc-1',
+      scNumber: 'SC-001',
+      status: ScStatus.ADDITIONAL_REQUEST,
+    });
+    issueRepo.findOne.mockResolvedValue({
+      id: 'issue-1',
+      issueNumber: 'ISS-100',
+      items: [],
+    });
+
+    const dto = {
+      scId: 'sc-1',
+      items: [
+        {
+          rmItemId: 'rm-item-1',
+          binId: 'bin-1',
+          quantityIssued: 25,
+        },
+      ],
+    };
+
+    const result = await service.createIssue(dto, 'stores-user-1');
+    expect(result).toBeDefined();
   });
 });
