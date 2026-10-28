@@ -760,4 +760,6 @@ export const profileApi = {
   changePassword: (data: { currentPassword: string; newPassword: string }) => api.post<any>('/api/auth/change-password', data),
 };
 
+export { consumablesApi } from './consumables.service';
+
 

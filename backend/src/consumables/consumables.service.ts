@@ -585,6 +585,56 @@ export class ConsumablesService implements OnModuleInit {
   }
 
   /**
+   * Fetches PR items for PDF archiving — used by archive-pr-pdf endpoint
+   */
+  async getPrItemsForArchive(
+    prNumber: string,
+    itemIds: string[],
+  ): Promise<{
+    preparedBy: string;
+    items: Array<{
+      description: string;
+      productCode?: string;
+      requestedQty?: number;
+      purchaseQty?: number;
+      uom?: string;
+      unitPrice?: number;
+      vendorName?: string;
+      endUserInVelan?: string;
+      requestedBy?: string;
+    }>;
+  }> {
+    const where: any = {};
+    if (itemIds && itemIds.length > 0) {
+      where.id = In(itemIds);
+    } else if (prNumber) {
+      where.prNumber = prNumber;
+    }
+    const items = await this.itemRepo.find({
+      where,
+      relations: { product: true, vendor: true, request: true },
+    });
+    const mappedItems = items.map((item) => ({
+      description: item.description || item.product?.name || 'N/A',
+      productCode: item.product?.code,
+      requestedQty: Number(item.requestedQty ?? 0),
+      purchaseQty: item.purchaseQty != null ? Number(item.purchaseQty) : undefined,
+      uom: item.uom || 'NOS',
+      unitPrice: item.unitPrice != null ? Number(item.unitPrice) : undefined,
+      vendorName: item.vendor?.name || undefined,
+      endUserInVelan: item.endUserInVelan || undefined,
+      requestedBy: item.requestedBy || undefined,
+    }));
+    const preparedBy =
+      items[0]?.requestedBy ||
+      (items[0]?.request as any)?.createdByName ||
+      items[0]?.request?.preparedBy ||
+      items[0]?.request?.requestedBy ||
+      'Production User';
+    return { preparedBy, items: mappedItems };
+  }
+
+  /**
    * Phase 24.2.3: Stores receives purchased item into a selected bin with real quantity,
    * atomic STOCK_IN, and optional immediate auto-issue to production.
    */

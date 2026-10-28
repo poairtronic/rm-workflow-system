@@ -21,6 +21,9 @@ import { RmItem } from '../rm/entities/rm-item.entity.js';
 import { SalesOrderComponent } from '../sc/entities/sc.entity.js';
 import { Product } from '../inventory/entities/product.entity.js';
 import { PrintableDeliveryChallanDto, PrintableCompanyInfo } from './dto/printable-delivery-challan.dto.js';
+import { UploadedFile } from '../files/entities/uploaded-file.entity.js';
+import { Attachment } from '../attachments/entities/attachment.entity.js';
+import { PdfGeneratorService } from '../reports/pdf/pdf-generator.service.js';
 
 @Injectable()
 export class DeliveryChallanService {
@@ -39,6 +42,11 @@ export class DeliveryChallanService {
     private readonly reworkRepo: Repository<DcReworkItem>,
     private readonly dataSource: DataSource,
     @Optional() private readonly communicationService?: CommunicationService,
+    @Optional() @InjectRepository(UploadedFile)
+    private readonly uploadedFileRepo?: Repository<UploadedFile>,
+    @Optional() @InjectRepository(Attachment)
+    private readonly attachmentRepo?: Repository<Attachment>,
+    @Optional() private readonly pdfGeneratorService?: PdfGeneratorService,
   ) {}
 
   /**
@@ -313,6 +321,56 @@ export class DeliveryChallanService {
       }
       // Fire-and-forget DC_CREATED notification (non-critical — must not roll back transaction)
       this.fireNotification('DC_CREATED', savedChallanDetails, userId);
+
+      if (this.pdfGeneratorService) {
+        const challanForPdf = await this.challanRepo.findOne({
+          where: { id: savedChallanDetails.id },
+          relations: { items: true, vendor: true, sc: true, createdBy: true },
+        });
+        if (challanForPdf) {
+          this.pdfGeneratorService
+            .generateDeliveryChallanPdf(challanForPdf)
+            .then(async (buffer) => {
+              const archived = await this.pdfGeneratorService!.archivePdf(
+                buffer,
+                'challan',
+                savedChallanDetails.id,
+                userId,
+              );
+              // Write to attachments table so DC files are queryable
+              // Find the uploaded_files record just created by archivePdf
+              // archivePdf calls filesService.uploadRawBuffer which saves to uploaded_files
+              // We need the uploaded_files id — query by storageKey
+              const uploadedFile = await this.uploadedFileRepo?.findOne({
+                where: { storageKey: archived.storageKey },
+              });
+              if (uploadedFile && this.attachmentRepo) {
+                const existing = await this.attachmentRepo.findOne({
+                  where: {
+                    fileId: uploadedFile.id,
+                    context: 'DELIVERY_CHALLAN' as any,
+                    recordId: savedChallanDetails.id,
+                  },
+                });
+                if (!existing) {
+                  await this.attachmentRepo.save({
+                    fileId: uploadedFile.id,
+                    context: 'DELIVERY_CHALLAN' as any,
+                    recordId: savedChallanDetails.id,
+                    documentType: 'DC_PDF',
+                    createdById: userId,
+                    isActive: true,
+                  });
+                }
+              }
+            })
+            .catch((err) =>
+              this.logger.warn(
+                `DC PDF auto-archive failed for ${savedChallanDetails.challanNumber}: ${err?.message}`,
+              ),
+            );
+        }
+      }
       return savedChallanDetails;
     } catch (err) {
       await queryRunner.rollbackTransaction();
@@ -474,6 +532,56 @@ export class DeliveryChallanService {
       }
       // Fire-and-forget DC_CREATED notification for Type 2
       this.fireNotification('DC_CREATED', savedChallanDetails, userId);
+
+      if (this.pdfGeneratorService) {
+        const challanForPdf = await this.challanRepo.findOne({
+          where: { id: savedChallanDetails.id },
+          relations: { items: true, vendor: true, sc: true, createdBy: true },
+        });
+        if (challanForPdf) {
+          this.pdfGeneratorService
+            .generateDeliveryChallanPdf(challanForPdf)
+            .then(async (buffer) => {
+              const archived = await this.pdfGeneratorService!.archivePdf(
+                buffer,
+                'challan',
+                savedChallanDetails.id,
+                userId,
+              );
+              // Write to attachments table so DC files are queryable
+              // Find the uploaded_files record just created by archivePdf
+              // archivePdf calls filesService.uploadRawBuffer which saves to uploaded_files
+              // We need the uploaded_files id — query by storageKey
+              const uploadedFile = await this.uploadedFileRepo?.findOne({
+                where: { storageKey: archived.storageKey },
+              });
+              if (uploadedFile && this.attachmentRepo) {
+                const existing = await this.attachmentRepo.findOne({
+                  where: {
+                    fileId: uploadedFile.id,
+                    context: 'DELIVERY_CHALLAN' as any,
+                    recordId: savedChallanDetails.id,
+                  },
+                });
+                if (!existing) {
+                  await this.attachmentRepo.save({
+                    fileId: uploadedFile.id,
+                    context: 'DELIVERY_CHALLAN' as any,
+                    recordId: savedChallanDetails.id,
+                    documentType: 'DC_PDF',
+                    createdById: userId,
+                    isActive: true,
+                  });
+                }
+              }
+            })
+            .catch((err) =>
+              this.logger.warn(
+                `DC PDF auto-archive failed for ${savedChallanDetails.challanNumber}: ${err?.message}`,
+              ),
+            );
+        }
+      }
       return savedChallanDetails;
     } catch (err) {
       await queryRunner.rollbackTransaction();

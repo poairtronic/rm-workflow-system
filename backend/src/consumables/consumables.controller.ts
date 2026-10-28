@@ -8,10 +8,14 @@ import {
   Query,
   UseGuards,
   Req,
+  Res,
+  Optional,
   ParseUUIDPipe,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ConsumablesService } from './consumables.service.js';
+import { PdfGeneratorService } from '../reports/pdf/pdf-generator.service.js';
 import { CreateConsumableRequestDto } from './dto/create-consumable-request.dto.js';
 import { ReceiveConsumablePurchaseDto } from './dto/receive-consumable-purchase.dto.js';
 import { IssueConsumableToProductionDto } from './dto/issue-to-production.dto.js';
@@ -27,7 +31,10 @@ import { UserRole } from '../auth/enums/role.enum.js';
 @Controller('api/consumables')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ConsumablesController {
-  constructor(private readonly consumablesService: ConsumablesService) {}
+  constructor(
+    private readonly consumablesService: ConsumablesService,
+    @Optional() private readonly pdfGeneratorService?: PdfGeneratorService,
+  ) {}
 
   /**
    * Phase 24.2.1: Submit a new consumable request document with line items.
@@ -182,6 +189,54 @@ export class ConsumablesController {
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     return this.consumablesService.printPurchaseRequisition(dto, userId);
+  }
+
+  /**
+   * Generate and archive PR PDF to Supabase.
+   * Called automatically after VelanPrPrintModal confirms print.
+   */
+  @Post('requests/archive-pr-pdf')
+  @Roles(
+    UserRole.PRODUCTION,
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+  )
+  @ApiOperation({ summary: 'Generate and archive PR PDF to Supabase storage' })
+  async archivePrPdf(
+    @Body() body: { prNumber: string; itemIds: string[] },
+    @Req() req: any,
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    if (!this.pdfGeneratorService) {
+      return { success: false, message: 'PDF service not available' };
+    }
+    // Fetch items for the PR
+    const result = await this.consumablesService.getPrItemsForArchive(
+      body.prNumber,
+      body.itemIds,
+    );
+    // Generate PDF
+    const buffer = await this.pdfGeneratorService.generateConsumablePrPdf({
+      prNumber: body.prNumber,
+      printedAt: new Date(),
+      preparedBy: result.preparedBy,
+      items: result.items,
+    });
+    // Archive to Supabase
+    const archived = await this.pdfGeneratorService.archivePdf(
+      buffer,
+      'pr',
+      `PR-${body.prNumber}-${Date.now()}`,
+      userId,
+    );
+    return {
+      success: true,
+      prNumber: body.prNumber,
+      downloadUrl: archived.downloadUrl,
+      storageKey: archived.storageKey,
+    };
   }
 
   /**

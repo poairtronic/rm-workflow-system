@@ -3,6 +3,7 @@ import { Printer, X } from 'lucide-react';
 import { VelanLogo } from '../print/VelanLogo';
 import { Button } from '../ui/Button';
 import type { ConsumableLineItemRecord } from '../../types/consumables.types';
+import { consumablesApi } from '../../services/api';
 
 export interface VelanPrPrintModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export interface VelanPrPrintModalProps {
   verifiedBy?: string | null;
   approvedBy?: string | null;
   onPrintConfirmed?: () => void;
+  itemIds?: string[];
 }
 
 function safeFormatDate(input?: string | Date | null): string {
@@ -62,6 +64,7 @@ export function VelanPrPrintModal({
   verifiedBy,
   approvedBy,
   onPrintConfirmed,
+  itemIds,
 }: VelanPrPrintModalProps) {
   // Prevent page scroll when modal is open
   useEffect(() => {
@@ -84,8 +87,22 @@ export function VelanPrPrintModal({
       const originalTitle = document.title;
       document.title = `Velan-PR-${prNumber}`;
       window.print();
-      setTimeout(() => {
+      setTimeout(async () => {
         document.title = originalTitle;
+        // Archive PDF to Supabase after print
+        try {
+          const resolvedIds =
+            itemIds && itemIds.length > 0
+              ? itemIds
+              : (items || []).map((i) => i.id).filter(Boolean) as string[];
+          await consumablesApi.archivePrPdf({
+            prNumber: String(prNumber),
+            itemIds: resolvedIds,
+          });
+        } catch (archiveErr) {
+          // Non-blocking — archive failure must not break the print flow
+          console.warn('PR PDF archive failed (non-critical):', archiveErr);
+        }
         if (onPrintConfirmed) {
           onPrintConfirmed();
         }

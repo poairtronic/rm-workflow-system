@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException, InternalServerErrorException, Optional } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException, InternalServerErrorException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UploadedFile } from './entities/uploaded-file.entity.js';
@@ -9,6 +9,12 @@ import 'multer';
 
 @Injectable()
 export class FilesService {
+  private readonly logger = new Logger(FilesService.name);
+
+  get uploadedFileRepo(): Repository<UploadedFile> {
+    return this.uploadedFileRepository;
+  }
+
   constructor(
     @InjectRepository(UploadedFile)
     private readonly uploadedFileRepository: Repository<UploadedFile>,
@@ -170,5 +176,44 @@ export class FilesService {
     } catch (error) {
       console.error(`Failed to physically delete file ${file.storageKey} from storage`, error);
     }
+  }
+
+  /**
+   * Cleans up uploaded files older than 24 hours that were never
+   * attached to any business entity (PO, SC, RM, DC, PR).
+   * Safe to run as a weekly scheduled job.
+   * Returns count of files soft-deleted.
+   */
+  async cleanupOrphanedUploads(): Promise<{ cleaned: number }> {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const orphans = await this.uploadedFileRepo
+      .createQueryBuilder('f')
+      .leftJoin(
+        'attachments',
+        'a',
+        'a.file_id = f.id AND a.is_active = true',
+      )
+      .where('f.is_active = true')
+      .andWhere('f.created_at < :cutoff', { cutoff })
+      .andWhere('a.id IS NULL')
+      .select(['f.id', 'f.storage_key'])
+      .getMany();
+    if (orphans.length === 0) return { cleaned: 0 };
+    for (const file of orphans) {
+      try {
+        const storageKey = file.storageKey || (file as any).storage_key;
+        if (storageKey) {
+          await this.storageProvider.delete(storageKey);
+        }
+      } catch {
+        // Storage delete failure is non-blocking
+      }
+      await this.uploadedFileRepo.update(file.id, {
+        isActive: false,
+        removedAt: new Date(),
+      });
+    }
+    this.logger.log(`Orphan cleanup: soft-deleted ${orphans.length} unlinked upload(s)`);
+    return { cleaned: orphans.length };
   }
 }

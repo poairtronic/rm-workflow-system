@@ -17,6 +17,9 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FilesService } from './files.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { RolesGuard } from '../auth/guards/roles.guard.js';
+import { Roles } from '../auth/decorators/roles.decorator.js';
+import { UserRole } from '../auth/enums/role.enum.js';
 import { AttachmentsService } from '../attachments/attachments.service.js';
 import { forwardRef, Inject } from '@nestjs/common';
 
@@ -129,5 +132,12 @@ export class FilesController {
     const userId = req.user.userId;
     await this.filesService.removeFile(userId, id);
     return { success: true };
+  }
+
+  @Post('cleanup-orphans')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async cleanupOrphans() {
+    return this.filesService.cleanupOrphanedUploads();
   }
 }

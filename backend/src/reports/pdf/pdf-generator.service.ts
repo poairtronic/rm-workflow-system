@@ -379,11 +379,204 @@ export class PdfGeneratorService {
   }
 
   /**
+   * Generates low-RAM PDF for Consumable Purchase Requisition (PR)
+   */
+  async generateConsumablePrPdf(data: {
+    prNumber: string;
+    printedAt?: Date;
+    preparedBy?: string;
+    items: Array<{
+      description: string;
+      productCode?: string;
+      requestedQty?: number;
+      purchaseQty?: number;
+      uom?: string;
+      unitPrice?: number;
+      vendorName?: string;
+      endUserInVelan?: string;
+      requestedBy?: string;
+    }>;
+  }): Promise<Buffer> {
+    const items = data.items || [];
+    let totalItems = items.length;
+    let totalEstimatedValue = 0;
+
+    const tableBody: any[][] = [
+      [
+        { text: '#', style: 'tableHeader', alignment: 'center' },
+        { text: 'Description of Goods', style: 'tableHeader' },
+        { text: 'Code', style: 'tableHeader' },
+        { text: 'Qty', style: 'tableHeader', alignment: 'right' },
+        { text: 'UOM', style: 'tableHeader', alignment: 'center' },
+        { text: 'Approx Price', style: 'tableHeader', alignment: 'right' },
+        { text: 'Supplier / Vendor', style: 'tableHeader' },
+        { text: 'End User', style: 'tableHeader' },
+      ],
+    ];
+
+    items.forEach((item, index) => {
+      const qty = Number(item.purchaseQty ?? item.requestedQty ?? 0);
+      const price = item.unitPrice != null ? Number(item.unitPrice) : 0;
+      if (price > 0 && qty > 0) {
+        totalEstimatedValue += price * qty;
+      }
+
+      tableBody.push([
+        { text: String(index + 1), alignment: 'center' },
+        { text: item.description || 'N/A', bold: true },
+        { text: item.productCode || '-', fontSize: 8 },
+        { text: qty > 0 ? qty.toLocaleString() : 'Inquiry', alignment: 'right', bold: true },
+        { text: item.uom || 'NOS', alignment: 'center' },
+        { text: price > 0 ? `Rs. ${price.toFixed(2)}` : '-', alignment: 'right' },
+        { text: item.vendorName || 'Open Market', fontSize: 8 },
+        { text: item.endUserInVelan || 'General Plant Use', fontSize: 8 },
+      ]);
+    });
+
+    tableBody.push([
+      { text: `TOTAL ITEMS: ${totalItems}`, colSpan: 5, bold: true, alignment: 'left' },
+      {},
+      {},
+      {},
+      {},
+      {
+        text: totalEstimatedValue > 0 ? `Rs. ${totalEstimatedValue.toFixed(2)}` : '-',
+        bold: true,
+        alignment: 'right',
+      },
+      { text: '', colSpan: 2 },
+      {},
+    ]);
+
+    const dateStr = data.printedAt
+      ? new Date(data.printedAt).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+
+    const docDefinition: any = {
+      defaultStyle: {
+        font: 'Helvetica',
+        fontSize: 9,
+        color: '#1E293B',
+      },
+      pageMargins: [40, 40, 40, 40],
+      content: [
+        {
+          columns: [
+            {
+              width: '*',
+              stack: [
+                { text: 'VELAN VALVES INDIA PRIVATE LIMITED', style: 'companyName' },
+                { text: 'Consumables & Plant Maintenance Requisition', style: 'companySubtitle' },
+                { text: 'Factory Unit, Industrial Area', style: 'companyAddress' },
+              ],
+            },
+            {
+              width: 'auto',
+              stack: [
+                { text: 'PURCHASE REQUISITION', style: 'docBadge' },
+                { text: `PR #${data.prNumber}`, style: 'docBadgeSub' },
+              ],
+              alignment: 'right',
+            },
+          ],
+        },
+        { canvas: [{ type: 'line', x1: 0, y1: 10, x2: 515, y2: 10, lineWidth: 1.5, lineColor: '#D97706' }] },
+        { text: '', margin: [0, 10] },
+
+        {
+          table: {
+            widths: ['25%', '25%', '25%', '25%'],
+            body: [
+              [
+                { text: 'PR Number:', bold: true, fillColor: '#F8FAFC' },
+                { text: String(data.prNumber), bold: true, color: '#D97706' },
+                { text: 'Date / Printed:', bold: true, fillColor: '#F8FAFC' },
+                { text: dateStr },
+              ],
+              [
+                { text: 'Prepared By:', bold: true, fillColor: '#F8FAFC' },
+                { text: data.preparedBy || 'Production User' },
+                { text: 'Status:', bold: true, fillColor: '#F8FAFC' },
+                { text: 'PURCHASE REQUESTED', bold: true, color: '#059669' },
+              ],
+            ],
+          },
+          layout: {
+            hLineWidth: () => 0.5,
+            vLineWidth: () => 0.5,
+            hLineColor: () => '#CBD5E1',
+            vLineColor: () => '#CBD5E1',
+          },
+        },
+
+        { text: 'REQUISITION LINE ITEMS', style: 'sectionHeaderAmber', margin: [0, 16, 0, 8] },
+
+        {
+          table: {
+            headerRows: 1,
+            widths: ['6%', '28%', '14%', '10%', '8%', '14%', '10%', '10%'],
+            body: tableBody,
+          },
+          layout: {
+            fillColor: (rowIndex: number) => (rowIndex === 0 ? '#B45309' : rowIndex % 2 === 0 ? '#F8FAFC' : null),
+            hLineWidth: () => 0.5,
+            vLineWidth: () => 0.5,
+            hLineColor: () => '#E2E8F0',
+            vLineColor: () => '#E2E8F0',
+          },
+        },
+
+        { text: '', margin: [0, 20] },
+
+        {
+          columns: [
+            {
+              stack: [
+                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 140, y2: 0, lineWidth: 0.5, lineColor: '#94A3B8' }] },
+                { text: 'Prepared By', fontSize: 8, bold: true, margin: [0, 4, 0, 0] },
+                { text: data.preparedBy || 'Production User', fontSize: 7.5, color: '#64748B' },
+              ],
+            },
+            {
+              stack: [
+                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 140, y2: 0, lineWidth: 0.5, lineColor: '#94A3B8' }] },
+                { text: 'Verified By (Stores)', fontSize: 8, bold: true, margin: [0, 4, 0, 0] },
+                { text: 'Stores Officer', fontSize: 7.5, color: '#64748B' },
+              ],
+              alignment: 'center',
+            },
+            {
+              stack: [
+                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 140, y2: 0, lineWidth: 0.5, lineColor: '#94A3B8' }] },
+                { text: 'Approved By (Head)', fontSize: 8, bold: true, margin: [0, 4, 0, 0] },
+                { text: 'General Manager / Management', fontSize: 7.5, color: '#64748B' },
+              ],
+              alignment: 'right',
+            },
+          ],
+        },
+      ],
+      styles: {
+        companyName: { fontSize: 13, bold: true, color: '#0F172A' },
+        companySubtitle: { fontSize: 8, color: '#64748B', margin: [0, 2, 0, 0] },
+        companyAddress: { fontSize: 7.5, color: '#94A3B8' },
+        docBadge: { fontSize: 13, bold: true, color: '#B45309' },
+        docBadgeSub: { fontSize: 7.5, bold: true, color: '#64748B', margin: [0, 2, 0, 0] },
+        sectionHeaderAmber: { fontSize: 10, bold: true, color: '#B45309' },
+        tableHeader: { bold: true, color: '#FFFFFF', fontSize: 8 },
+      },
+    };
+
+    const pdfDoc = pdfmake.createPdf(docDefinition);
+    return await pdfDoc.getBuffer();
+  }
+
+  /**
    * Archives PDF directly to Supabase Storage bucket ('rmrit-documents')
    */
   async archivePdf(
     buffer: Buffer,
-    documentType: 'challan' | 'issue-slip',
+    documentType: 'challan' | 'issue-slip' | 'pr' | string,
     documentId: string,
     userId = 'SYSTEM',
   ): Promise<{ downloadUrl: string; storageKey: string }> {
@@ -391,8 +584,12 @@ export class PdfGeneratorService {
       throw new Error('FilesService is not available for PDF cloud archiving.');
     }
 
-    const storageKey = `documents/${documentType}s/${documentId}.pdf`;
-    const originalName = `${documentType}_${documentId}.pdf`;
+    const folder =
+      documentType === 'pr'
+        ? 'purchase-requisitions'
+        : `${documentType}s`;
+    const storageKey = `documents/${folder}/${documentId}.pdf`;
+    const originalName = `${documentId}.pdf`;
 
     await this.filesService.uploadRawBuffer(
       buffer,

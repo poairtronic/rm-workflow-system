@@ -203,6 +203,12 @@ export const consumablesApi = {
     return api.post<any>('/api/consumables/purchase/print-pr', payload);
   },
 
+  archivePrPdf: (data: { prNumber: string; itemIds: string[] }) =>
+    api.post<{ success: boolean; prNumber: string; downloadUrl: string; storageKey: string }>(
+      '/api/consumables/requests/archive-pr-pdf',
+      data,
+    ),
+
   /**
    * Stores receives purchased item into bin with editable real quantity & atomic STOCK_IN
    */

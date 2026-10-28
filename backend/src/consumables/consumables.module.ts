@@ -15,6 +15,8 @@ import { ConsumablesService } from './consumables.service.js';
 import { ConsumablesController } from './consumables.controller.js';
 
 import { NotificationsModule } from '../notifications/notifications.module.js';
+import { PdfGeneratorService } from '../reports/pdf/pdf-generator.service.js';
+import { FilesModule } from '../files/files.module.js';
 
 @Module({
   imports: [
@@ -30,9 +32,10 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
       StockTransaction,
     ]),
     NotificationsModule,
+    FilesModule,
   ],
   controllers: [ConsumablesController],
-  providers: [ConsumablesService],
+  providers: [ConsumablesService, PdfGeneratorService],
   exports: [ConsumablesService],
 })
 export class ConsumablesModule {}
