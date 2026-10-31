@@ -29,6 +29,22 @@ import { ExportDropdown } from '../components/common/ExportDropdown';
 import type { ExportColumn } from '../utils/exportUtils';
 const UOM_OPTIONS = ['MM', 'NOS', 'PC', 'KG', 'KGS', 'MTRS', 'LTRS', 'BOX', 'PACK', 'SET', 'ROLL'];
 
+export function getStockMslStatus(
+  currentQuantity: number,
+  msl: number | null | undefined
+): 'DEFICIT' | 'OUT_OF_STOCK' | 'CRITICAL' | 'LOW' | 'OK' {
+  const qty = Number(currentQuantity) || 0;
+  if (qty < 0) return 'DEFICIT';
+  if (qty === 0) return 'OUT_OF_STOCK';
+
+  const mslVal = Number(msl) || 0;
+  if (mslVal <= 0) return 'OK';
+
+  if (qty <= mslVal * 0.5) return 'CRITICAL';
+  if (qty < mslVal) return 'LOW';
+  return 'OK';
+}
+
 export function InventoryStockWorkspace() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -306,15 +322,12 @@ export function InventoryStockWorkspace() {
       if (uomFilter && b.uom !== uomFilter) return false;
 
       // MSL
-      const mslVal = b.msl ?? 0;
-      const diff = b.currentQuantity - mslVal;
-      let status = 'OK';
-      if (diff < 0) status = 'CRITICAL';
-      else if (diff <= 5) status = 'LOW';
-      
-      if (mslFilter === 'BELOW' && status !== 'CRITICAL') return false;
+      const status = getStockMslStatus(b.currentQuantity, b.msl);
+      if (mslFilter === 'OUT_OF_STOCK' && status !== 'OUT_OF_STOCK') return false;
+      if (mslFilter === 'CRITICAL' && status !== 'CRITICAL') return false;
       if (mslFilter === 'AT' && status !== 'LOW') return false;
       if (mslFilter === 'ABOVE' && status !== 'OK') return false;
+      if (mslFilter === 'BELOW' && (status !== 'CRITICAL' && status !== 'LOW' && status !== 'OUT_OF_STOCK')) return false;
       
       // Status
       if (statusFilter === 'ACTIVE' && p && !p.isActive) return false;
@@ -390,18 +403,23 @@ export function InventoryStockWorkspace() {
       key: 'status', 
       header: 'Status', 
       render: (r) => {
-        const val = Number(r.currentQuantity);
-        if (val < 0) {
+        const status = getStockMslStatus(r.currentQuantity, r.msl);
+        if (status === 'DEFICIT') {
           return (
             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-600 text-white shadow-xs">
               DEFICIT
             </span>
           );
         }
-        if (r.msl === undefined || r.msl === null) return <StatusBadge status="OK" />;
-        const diff = val - Number(r.msl);
-        if (diff < 0) return <StatusBadge status="CRITICAL" />;
-        if (diff <= 5) return <StatusBadge status="LOW" />;
+        if (status === 'OUT_OF_STOCK') {
+          return <StatusBadge status="OUT_OF_STOCK" />;
+        }
+        if (status === 'CRITICAL') {
+          return <StatusBadge status="CRITICAL" />;
+        }
+        if (status === 'LOW') {
+          return <StatusBadge status="LOW" />;
+        }
         return <StatusBadge status="OK" />;
       } 
     },
@@ -500,13 +518,7 @@ export function InventoryStockWorkspace() {
     {
       header: 'Status',
       accessor: (r) => {
-        const val = Number(r.currentQuantity);
-        if (val < 0) return 'DEFICIT';
-        if (r.msl === undefined || r.msl === null) return 'OK';
-        const diff = val - Number(r.msl);
-        if (diff < 0) return 'CRITICAL';
-        if (diff <= 5) return 'LOW';
-        return 'OK';
+        return getStockMslStatus(r.currentQuantity, r.msl);
       },
     },
   ];
@@ -792,9 +804,11 @@ export function InventoryStockWorkspace() {
                     className="min-h-[40px] px-3 rounded-xl border border-slate-300 dark:border-[#1e233d] bg-white dark:bg-[#0e111f] text-xs text-slate-700 dark:text-slate-200 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer font-medium"
                   >
                     <option value="">All MSL Monitoring</option>
-                    <option value="BELOW">Below MSL (Critical)</option>
-                    <option value="AT">Near MSL (Low)</option>
-                    <option value="ABOVE">Above MSL (Ok)</option>
+                    <option value="OUT_OF_STOCK">Zero Stock (Out of Stock)</option>
+                    <option value="CRITICAL">Near Zero / Critical (≤50% MSL)</option>
+                    <option value="AT">Near MSL (Low Stock)</option>
+                    <option value="ABOVE">Above MSL (Good / Ok)</option>
+                    <option value="BELOW">All Breached (Out of Stock / Critical / Low)</option>
                   </select>
                   <select
                     value={statusFilter}

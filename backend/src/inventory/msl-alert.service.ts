@@ -59,9 +59,10 @@ export class MslAlertService {
       where: { productId, status: MslAlertStatus.ACTIVE },
     });
 
-    // 1. BREACH DETECTED: OUT_OF_STOCK or LOW_STOCK
+    // 1. BREACH DETECTED: OUT_OF_STOCK, CRITICAL, or LOW_STOCK
     if (
       result.status === MslStockStatus.OUT_OF_STOCK ||
+      result.status === MslStockStatus.CRITICAL ||
       result.status === MslStockStatus.LOW_STOCK
     ) {
       // DUPLICATE SUPPRESSION: An active alert already exists; do not duplicate
@@ -96,6 +97,8 @@ export class MslAlertService {
       const eventType =
         result.status === MslStockStatus.OUT_OF_STOCK
           ? 'MSL_OUT_OF_STOCK'
+          : result.status === MslStockStatus.CRITICAL
+          ? 'MSL_CRITICAL'
           : 'MSL_LOW_STOCK';
 
       let eventResult: CommunicationEventResult | undefined;

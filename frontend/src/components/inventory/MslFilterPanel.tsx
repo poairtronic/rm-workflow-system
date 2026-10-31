@@ -316,10 +316,10 @@ export function MslFilterPanel({
               className="min-h-[40px] px-3 rounded-xl border border-slate-300 dark:border-[#1e233d] bg-white dark:bg-[#0e111f] text-xs text-slate-700 dark:text-slate-200 hover:border-slate-400 focus:border-blue-600 focus:outline-none cursor-pointer font-medium"
             >
               <option value="">All MSL Monitoring</option>
-              <option value="OUT_OF_STOCK">Zero Stock / Stockout Risk</option>
-              <option value="CRITICAL">Critical Breaches (&lt;50% MSL)</option>
-              <option value="LOW_STOCK">Below MSL Target</option>
-              <option value="NORMAL">Optimal / Above MSL</option>
+              <option value="OUT_OF_STOCK">Zero Stock (Critical Out of Stock)</option>
+              <option value="CRITICAL">Near Zero / Critical (&le;50% MSL)</option>
+              <option value="LOW_STOCK">Near MSL (Low Stock)</option>
+              <option value="NORMAL">Above MSL (Good)</option>
             </select>
             <select
               value={statusFilter}

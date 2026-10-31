@@ -86,8 +86,14 @@ const arStatusMap: Record<string, BadgeVariant> = {
 // Stock Severity
 const stockSeverityMap: Record<string, BadgeVariant> = {
   OK: 'success',
+  GOOD: 'success',
+  NORMAL: 'success',
   LOW: 'warning',
+  LOW_STOCK: 'warning',
+  BELOW_MSL: 'warning',
   CRITICAL: 'error',
+  OUT_OF_STOCK: 'error',
+  DEFICIT: 'error',
 };
 
 // SLA State

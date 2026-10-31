@@ -7,6 +7,7 @@ import { StockBalance } from './entities/stock-balance.entity.js';
 export enum MslStockStatus {
   NORMAL = 'NORMAL',
   LOW_STOCK = 'LOW_STOCK',
+  CRITICAL = 'CRITICAL',
   OUT_OF_STOCK = 'OUT_OF_STOCK',
   EXCESS = 'EXCESS',
 }
@@ -53,6 +54,9 @@ export function deriveMslStatus(
     if (stock <= 0) {
       return MslStockStatus.OUT_OF_STOCK;
     }
+    if (stock <= min * 0.5) {
+      return MslStockStatus.CRITICAL;
+    }
     if (stock < min) {
       return MslStockStatus.LOW_STOCK;
     }
@@ -92,7 +96,11 @@ export function computeMslResult(
   const isBreached = status !== MslStockStatus.NORMAL;
 
   let deficit: number | undefined;
-  if (status === MslStockStatus.OUT_OF_STOCK || status === MslStockStatus.LOW_STOCK) {
+  if (
+    status === MslStockStatus.OUT_OF_STOCK ||
+    status === MslStockStatus.CRITICAL ||
+    status === MslStockStatus.LOW_STOCK
+  ) {
     deficit = Math.max(0, min - stock);
   }
 

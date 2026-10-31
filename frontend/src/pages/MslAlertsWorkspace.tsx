@@ -151,13 +151,15 @@ export function MslAlertsWorkspace() {
       const currentStock = Number(item.currentStock) || 0;
       const minInventory = Number(item.minimumInventory) || 0;
 
-      let severity: 'OUT_OF_STOCK' | 'CRITICAL' | 'LOW_STOCK' = 'LOW_STOCK';
-      if (item.status === 'OUT_OF_STOCK' || currentStock <= 0) {
+      let severity: 'OUT_OF_STOCK' | 'CRITICAL' | 'LOW_STOCK' | 'GOOD' = 'GOOD';
+      if (currentStock <= 0 || item.status === 'OUT_OF_STOCK') {
         severity = 'OUT_OF_STOCK';
-      } else if (item.status === 'CRITICAL' || currentStock <= minInventory * 0.5) {
+      } else if (minInventory > 0 && (item.status === 'CRITICAL' || currentStock <= minInventory * 0.5)) {
         severity = 'CRITICAL';
-      } else {
+      } else if (minInventory > 0 && (item.status === 'BELOW_MSL' || item.status === 'LOW_STOCK' || currentStock < minInventory)) {
         severity = 'LOW_STOCK';
+      } else {
+        severity = 'GOOD';
       }
 
       return {
@@ -332,14 +334,7 @@ export function MslAlertsWorkspace() {
         if (mslFilter === 'OUT_OF_STOCK' && item.severity !== 'OUT_OF_STOCK') return false;
         if (mslFilter === 'CRITICAL' && item.severity !== 'CRITICAL') return false;
         if (mslFilter === 'LOW_STOCK' && item.severity !== 'LOW_STOCK') return false;
-        if (
-          mslFilter === 'NORMAL' &&
-          (item.severity === 'OUT_OF_STOCK' ||
-            item.severity === 'CRITICAL' ||
-            item.severity === 'LOW_STOCK')
-        ) {
-          return false;
-        }
+        if ((mslFilter === 'NORMAL' || mslFilter === 'GOOD') && item.severity !== 'GOOD') return false;
       }
 
       // 10. Status Filter (Active / Inactive)

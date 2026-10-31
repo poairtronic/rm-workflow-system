@@ -6,8 +6,8 @@ import { DeficitProgressBar } from './DeficitProgressBar';
 const SeverityBadge = ({ severity }: { severity: MslException['severity'] }) => {
   if (severity === 'OUT_OF_STOCK') {
     return (
-      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold gap-1.5 whitespace-nowrap bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
-        <span className="h-[6px] w-[6px] rounded-full bg-slate-600 dark:bg-slate-400"></span>
+      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold gap-1.5 whitespace-nowrap bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
+        <span className="h-[6px] w-[6px] rounded-full bg-rose-600"></span>
         OUT OF STOCK
       </span>
     );
@@ -17,6 +17,14 @@ const SeverityBadge = ({ severity }: { severity: MslException['severity'] }) => 
       <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold gap-1.5 whitespace-nowrap bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-900">
         <span className="h-[6px] w-[6px] rounded-full bg-rose-600"></span>
         CRITICAL
+      </span>
+    );
+  }
+  if (severity === 'GOOD') {
+    return (
+      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold gap-1.5 whitespace-nowrap bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900">
+        <span className="h-[6px] w-[6px] rounded-full bg-emerald-600"></span>
+        GOOD
       </span>
     );
   }

@@ -61,6 +61,7 @@ export const PERMITTED_EMAIL_CONFIG: Record<
   EXTRA_MATERIAL_ISSUED: { allowedRoles: ['PRODUCTION'], recipientType: 'ROLES' },
   // 5th: Stock in MSL reached -> Stores
   MSL_LOW_STOCK: { allowedRoles: ['STORES'], recipientType: 'ROLES' },
+  MSL_CRITICAL: { allowedRoles: ['STORES'], recipientType: 'ROLES' },
   MSL_OUT_OF_STOCK: { allowedRoles: ['STORES'], recipientType: 'ROLES' },
   // 6th: DC reached expected return date & crossed expected return date -> Stores
   DC_APPROACHING_SLA: { allowedRoles: ['STORES'], recipientType: 'ROLES' },
@@ -380,17 +381,19 @@ export class CommunicationService {
           actorUserId,
         });
 
+      case 'MSL_CRITICAL':
       case 'MSL_LOW_STOCK': {
+        const isCritical = input.eventType === 'MSL_CRITICAL';
         const uomSuffix = input.metadata?.uom ? ` ${input.metadata.uom}` : '';
         return this.orchestrateChannelDelivery({
-          eventType: 'MSL_LOW_STOCK',
+          eventType: isCritical ? 'MSL_CRITICAL' : 'MSL_LOW_STOCK',
           targetUsers,
           targetEntity: 'PRODUCT',
           targetId: input.entityId,
-          title: `Low Stock Alert: ${input.metadata?.productName || input.entityId}`,
-          message: `Product ${input.metadata?.productName || input.entityId} has dropped below Minimum Stock Level (${input.metadata?.currentStock ?? 0} / ${input.metadata?.minimumInventory ?? 0}${uomSuffix}). Deficit: ${input.metadata?.deficit ?? 0}${uomSuffix}.`,
-          templateKey: 'MSL_LOW_STOCK',
-          subject: `[V-SMART Alert] Low Stock Warning: ${input.metadata?.productName || input.entityId}`,
+          title: `${isCritical ? 'Critical Stock Alert' : 'Low Stock Alert'}: ${input.metadata?.productName || input.entityId}`,
+          message: `Product ${input.metadata?.productName || input.entityId} has dropped ${isCritical ? 'critically low (near zero)' : 'below Minimum Stock Level'} (${input.metadata?.currentStock ?? 0} / ${input.metadata?.minimumInventory ?? 0}${uomSuffix}). Deficit: ${input.metadata?.deficit ?? 0}${uomSuffix}.`,
+          templateKey: isCritical ? 'MSL_OUT_OF_STOCK' : 'MSL_LOW_STOCK',
+          subject: `[V-SMART Alert] ${isCritical ? 'CRITICAL: Stock Warning' : 'Low Stock Warning'}: ${input.metadata?.productName || input.entityId}`,
           payload: {
             productName: input.metadata?.productName || input.entityId,
             productId: input.entityId,
