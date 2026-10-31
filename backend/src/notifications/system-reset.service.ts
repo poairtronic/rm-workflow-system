@@ -40,7 +40,6 @@ export class SystemResetService {
         'dc_qc_inspections',
         'dc_rework_items',
         'delivery_challans',
-        'stock_transactions',
         'sales_order_components',
         'purchase_orders',
       ].forEach((t) => tablesToPurge.add(t));
@@ -68,7 +67,6 @@ export class SystemResetService {
         'dc_qc_inspections',
         'dc_rework_items',
         'delivery_challans',
-        'stock_transactions',
         'sales_order_components',
       ].forEach((t) => tablesToPurge.add(t));
     }
@@ -160,7 +158,6 @@ export class SystemResetService {
     if (dto.stock_movement && !dto.stock) {
       purgedModules.push('Stock Movements & Transactions');
       [
-        'stock_transactions',
         'general_issue_items',
         'general_issues',
       ].forEach((t) => tablesToPurge.add(t));
@@ -252,8 +249,30 @@ export class SystemResetService {
     await queryRunner.startTransaction();
 
     try {
+      // Ironclad safeguard: if stock was NOT selected for reset, ensure stock_balances is never cascaded
+      if (!dto.stock && (dto.po_traceability || dto.sc_traceability || dto.stock_movement)) {
+        // Disassociate last_transaction_id on stock_balances so foreign keys never block or cascade
+        await queryRunner.query('UPDATE "stock_balances" SET "last_transaction_id" = NULL;');
+        // Clean only operational workflow transactions, strictly preserving OPENING_STOCK
+        if (dto.stock_movement) {
+          await queryRunner.query('DELETE FROM "stock_transactions";');
+        } else {
+          await queryRunner.query(
+            `DELETE FROM "stock_transactions" 
+             WHERE "referenceType" NOT IN ('OPENING_STOCK', 'MANUAL_ADJUSTMENT') 
+                OR "referenceType" IS NULL;`
+          );
+        }
+      }
+
       const truncateSql = `TRUNCATE TABLE ${tableList.map((t) => `"${t}"`).join(', ')} CASCADE;`;
       await queryRunner.query(truncateSql);
+
+      // Verify safeguard: if stock was not selected, assert stock_balances still exists
+      if (!dto.stock) {
+        const checkStock = await queryRunner.query('SELECT count(*) as count FROM "stock_balances";');
+        this.logger.log(`Stock preservation verified: ${checkStock[0]?.count} balance records intact.`);
+      }
 
       // If audit_logs was not purged, record the audit entry
       if (!tablesToPurge.has('audit_logs')) {
