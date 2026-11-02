@@ -86,6 +86,8 @@ export interface IssueLogEntry {
   items: {
     id: string;
     rmItemId: string;
+    productId?: string;
+    productName?: string;
     material: string;
     quantityIssued: number;
     heatNumber?: string;

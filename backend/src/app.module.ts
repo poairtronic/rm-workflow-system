@@ -8,6 +8,7 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { ALL_ENTITIES } from './config/data-source.js';
 import { RefreshToken } from './auth/entities/refresh-token.entity.js';
+import { EcrMaterialPending } from './ecr-issues/entities/ecr-material-pending.entity.js';
 import { AuthModule } from './auth/auth.module.js';
 import { UsersModule } from './users/users.module.js';
 import { RolesModule } from './roles/roles.module.js';
@@ -39,6 +40,7 @@ import { ReportsModule } from './reports/reports.module.js';
 import { MasterDataCacheModule } from './common/cache/master-data-cache.module.js';
 import { ConsumablesModule } from './consumables/consumables.module.js';
 import { ReworkModule } from './rework/rework.module.js';
+import { EcrIssuesModule } from './ecr-issues/ecr-issues.module.js';
 
 @Module({
   imports: [
@@ -61,7 +63,7 @@ import { ReworkModule } from './rework/rework.module.js';
         return {
           type: 'postgres',
           url: dbUrl,
-          entities: [RefreshToken, ...ALL_ENTITIES.filter((e) => e !== RefreshToken)],
+          entities: [RefreshToken, EcrMaterialPending, ...ALL_ENTITIES.filter((e) => e !== RefreshToken)],
           autoLoadEntities: true,
           synchronize: configService.get("TYPEORM_SYNC") === "true" || (!(configService.get("NODE_ENV") === "production") && (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1"))),
           ssl: isSsl ? { rejectUnauthorized: false } : false,
@@ -109,6 +111,7 @@ import { ReworkModule } from './rework/rework.module.js';
     MasterDataCacheModule,
     ConsumablesModule,
     ReworkModule,
+    EcrIssuesModule,
   ],
 
   controllers: [AppController],

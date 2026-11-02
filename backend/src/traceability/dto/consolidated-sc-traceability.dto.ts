@@ -82,6 +82,9 @@ export class ConsolidatedRmRequestDto {
 export class ConsolidatedIssueItemDto {
   id!: string;
   rmItemId!: string;
+  productId?: string;
+  productName?: string;
+  material?: string;
   quantityIssued!: number;
   remarks?: string;
 }

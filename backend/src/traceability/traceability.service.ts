@@ -767,7 +767,7 @@ export class TraceabilityService {
     // 2. Material Issues
     const issues = await this.materialIssueRepo.find({
       where: { scId },
-      relations: { items: true, issuedBy: true },
+      relations: { items: { rmItem: { mappedProduct: true } }, issuedBy: true },
       order: { issueDate: 'ASC' },
     });
     const issueIds = issues.map((i) => i.id);
@@ -1009,12 +1009,19 @@ export class TraceabilityService {
       issueDate: new Date(iss.issueDate).toISOString(),
       issuedBy: iss.issuedBy ? { id: iss.issuedBy.id, name: iss.issuedBy.name } : undefined,
       remarks: iss.remarks,
-      items: (iss.items || []).map((item) => ({
-        id: item.id,
-        rmItemId: item.rmItemId,
-        quantityIssued: Number(item.quantityIssued) || 0,
-        remarks: item.remarks,
-      })),
+      items: (iss.items || []).map((item) => {
+        const prodName = item.rmItem?.mappedProduct?.name || item.rmItem?.material || 'Material';
+        const prodId = item.rmItem?.mappedProductId || item.rmItem?.mappedProduct?.id;
+        return {
+          id: item.id,
+          rmItemId: item.rmItemId,
+          productId: prodId,
+          productName: prodName,
+          material: prodName,
+          quantityIssued: Number(item.quantityIssued) || 0,
+          remarks: item.remarks,
+        };
+      }),
     }));
 
     const receiptsDto: ConsolidatedReceiptDto[] = receipts.map((rec) => ({
@@ -1350,6 +1357,13 @@ export class TraceabilityService {
           totalQuantityIssued: `${totalIss.toFixed(2)} KG / Units`,
           issuedBy: iss.issuedBy?.name || 'Stores Warehouse',
           remarks: iss.remarks || 'Raw material issued to production',
+          itemsBreakdown:
+            (iss.items || [])
+              .map(
+                (it: any, itemIdx: number) =>
+                  `${it.productName || it.material || 'Part #' + (itemIdx + 1)}: ${Number(it.quantityIssued || 0)} issued`
+              )
+              .join('; ') || 'N/A',
         },
       });
     });

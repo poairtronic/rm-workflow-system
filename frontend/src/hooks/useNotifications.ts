@@ -105,7 +105,7 @@ export function useNotifications(options?: UseNotificationsOptions) {
     const token = localStorage.getItem('rm_access_token');
     if (!token) return;
 
-    const backendUrl = APP_CONFIG.apiBaseUrl || 'http://localhost:3000';
+    const backendUrl = APP_CONFIG.apiBaseUrl || 'http://localhost:3001';
 
     const socket: Socket = io(backendUrl, {
       auth: { token },

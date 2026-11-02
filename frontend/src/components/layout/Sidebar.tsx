@@ -1,4 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { io, Socket } from 'socket.io-client';
+import { APP_CONFIG } from '../../app/config';
+import { ecrIssuesService } from '../../services/ecrIssues.service';
+import type { EcrIssuePending } from '../../types/ecrIssues.types';
 import { LogOut, X } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,6 +17,43 @@ interface SidebarProps {
 export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const { currentUser, logout } = useAuth();
   const location = useLocation();
+  const queryClient = useQueryClient();
+
+  // Fetch pending count from GET /api/ecr-issues
+  const { data: ecrIssues = [] } = useQuery<EcrIssuePending[]>({
+    queryKey: ['ecr-issues'],
+    queryFn: () => ecrIssuesService.getEcrIssues(),
+    enabled: !!currentUser,
+    staleTime: 30000,
+  });
+
+  const pendingEcrCount = useMemo(() => {
+    return (ecrIssues || []).filter((i) => i.status === 'PENDING').length;
+  }, [ecrIssues]);
+
+  // Update badge when socket event arrives
+  useEffect(() => {
+    if (!currentUser) return;
+    const token = localStorage.getItem('rm_access_token');
+    if (!token) return;
+
+    const backendUrl = APP_CONFIG.apiBaseUrl || 'http://localhost:3000';
+    const socket: Socket = io(backendUrl, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+    });
+
+    socket.on('notification', (payload: any) => {
+      if (payload?.type === 'ECR_ISSUE') {
+        queryClient.invalidateQueries({ queryKey: ['ecr-issues'] });
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [currentUser, queryClient]);
 
   // Close mobile drawer on route change
   useEffect(() => {
@@ -107,7 +149,12 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                       }
                     >
                       <Icon className="w-4 h-4 shrink-0" />
-                      <span className="truncate">{item.name}</span>
+                      <span className="truncate flex-1">{item.name}</span>
+                      {item.path === '/governance/ecr-issues' && pendingEcrCount > 0 && (
+                        <span className="ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                          {pendingEcrCount}
+                        </span>
+                      )}
                     </NavLink>
                   );
                 })}

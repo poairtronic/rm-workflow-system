@@ -714,7 +714,7 @@ export class ProductionService {
       relations: {
         rmItems: true,
         purchaseOrder: true,
-        materialIssues: { items: { rmItem: true }, issuedBy: true },
+        materialIssues: { items: { rmItem: { mappedProduct: true } }, issuedBy: true },
         materialConsumptions: { recordedBy: true, rmItem: true },
         materialReturns: { items: { rmItem: true }, returnedBy: true, confirmedBy: true },
       },
@@ -837,14 +837,20 @@ export class ProductionService {
       remarks: iss.remarks,
       issuedBy: iss.issuedBy ? (iss.issuedBy.name || iss.issuedBy.email) : 'Stores',
       createdAt: iss.createdAt,
-      items: (iss.items || []).map((it) => ({
-        id: it.id,
-        rmItemId: it.rmItemId,
-        material: it.rmItem?.material || 'Material',
-        quantityIssued: Number(it.quantityIssued) || 0,
-        heatNumber: it.heatNumber,
-        batchNumber: it.batchNumber,
-      })),
+      items: (iss.items || []).map((it) => {
+        const prodName = it.rmItem?.mappedProduct?.name || it.rmItem?.material || 'Material';
+        const prodId = it.rmItem?.mappedProductId || it.rmItem?.mappedProduct?.id;
+        return {
+          id: it.id,
+          rmItemId: it.rmItemId,
+          productId: prodId,
+          productName: prodName,
+          material: prodName,
+          quantityIssued: Number(it.quantityIssued) || 0,
+          heatNumber: it.heatNumber,
+          batchNumber: it.batchNumber,
+        };
+      }),
       totalQuantity: (iss.items || []).reduce(
         (sum, it) => sum + (Number(it.quantityIssued) || 0),
         0,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   PlaySquare, 
   AlertCircle, 
@@ -12,7 +12,9 @@ import {
   Package,
   RotateCcw,
   Layers,
-  Calendar
+  Calendar,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { workflowService, type SC, type MaterialAccounting } from '../services/workflowService';
 import toast from 'react-hot-toast';
@@ -35,6 +37,7 @@ export function ProductionConsumptionWorkspace() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [activeTab, setActiveTab] = useState<DetailTab>('MATRIX');
+  const [expandedIssueId, setExpandedIssueId] = useState<string | null>(null);
 
   // Daily Consumption Modal State
   const [showConsumeModal, setShowConsumeModal] = useState(false);
@@ -235,7 +238,7 @@ export function ProductionConsumptionWorkspace() {
       {/* Main Split Layout: SC & PO Filter Drawer on left (4 cols), Comprehensive Accounting on right (8 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left: Work Orders & PO Selector */}
-        <div className="lg:col-span-4 bg-white dark:bg-[#121526] border border-slate-200 dark:border-[#1a1e33] rounded-xl shadow-xs overflow-hidden flex flex-col h-[780px]">
+        <div className="lg:col-span-4 bg-white dark:bg-[#121526] border border-slate-200 dark:border-[#1a1e33] rounded-xl shadow-xs overflow-hidden flex flex-col h-195">
           <div className="p-3.5 border-b border-slate-100 dark:border-[#1a1e33] bg-slate-50/70 dark:bg-[#161a2e] space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
@@ -680,33 +683,87 @@ export function ProductionConsumptionWorkspace() {
                                 <th className="py-3 px-3 text-right">Items Dispatched</th>
                                 <th className="py-3 px-4">Dispatched By</th>
                                 <th className="py-3 px-4">Remarks</th>
+                                <th className="py-3 px-3 text-center w-12">Detail</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-[#1a1e33]">
-                              {accounting.issues.map((iss) => (
-                                <tr key={iss.id} className="hover:bg-slate-50/60 dark:hover:bg-[#161a2e]/60 transition-colors">
-                                  <td className="py-3 px-4 font-bold text-indigo-700 dark:text-indigo-400">
-                                    {iss.issueNumber}
-                                  </td>
-                                  <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
-                                    {new Date(iss.createdAt).toLocaleString()}
-                                  </td>
-                                  <td className="py-3 px-4">
-                                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                                      {iss.issueType}
-                                    </span>
-                                  </td>
-                                  <td className="py-3 px-3 text-right font-black text-slate-900 dark:text-white">
-                                    {iss.totalQuantity} units ({iss.items?.length || 0} specs)
-                                  </td>
-                                  <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
-                                    {iss.issuedBy}
-                                  </td>
-                                  <td className="py-3 px-4 text-slate-500 dark:text-slate-400 italic">
-                                    {iss.remarks || '—'}
-                                  </td>
-                                </tr>
-                              ))}
+                              {accounting.issues.map((iss) => {
+                                const isExpanded = expandedIssueId === iss.id;
+                                return (
+                                  <React.Fragment key={iss.id}>
+                                    <tr 
+                                      onClick={() => setExpandedIssueId(isExpanded ? null : iss.id)}
+                                      className="hover:bg-slate-50/80 dark:hover:bg-[#161a2e]/80 transition-colors cursor-pointer select-none"
+                                    >
+                                      <td className="py-3 px-4 font-bold text-indigo-700 dark:text-indigo-400">
+                                        {iss.issueNumber}
+                                      </td>
+                                      <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
+                                        {new Date(iss.createdAt).toLocaleString()}
+                                      </td>
+                                      <td className="py-3 px-4">
+                                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                                          {iss.issueType}
+                                        </span>
+                                      </td>
+                                      <td className="py-3 px-3 text-right font-black text-slate-900 dark:text-white">
+                                        {iss.totalQuantity} units ({iss.items?.length || 0} specs)
+                                      </td>
+                                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
+                                        {iss.issuedBy}
+                                      </td>
+                                      <td className="py-3 px-4 text-slate-500 dark:text-slate-400 italic">
+                                        {iss.remarks || '—'}
+                                      </td>
+                                      <td className="py-3 px-3 text-center text-slate-400">
+                                        {isExpanded ? (
+                                          <ChevronUp className="w-4 h-4 inline-block text-indigo-600" />
+                                        ) : (
+                                          <ChevronDown className="w-4 h-4 inline-block hover:text-slate-600" />
+                                        )}
+                                      </td>
+                                    </tr>
+                                    {isExpanded && (
+                                      <tr className="bg-slate-50/90 dark:bg-[#161a2e]/90">
+                                        <td colSpan={7} className="px-6 py-3 border-y border-indigo-100 dark:border-indigo-950/60">
+                                          <div className="space-y-2">
+                                            <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                                              <span>Itemized Dispatched Specifications ({iss.items?.length || 0})</span>
+                                              <span className="text-[10px] lowercase font-normal text-slate-400">Click row again to collapse</span>
+                                            </div>
+                                            <div className="bg-white dark:bg-[#121526] rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden shadow-2xs">
+                                              <table className="w-full text-left text-xs">
+                                                <thead className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800 text-[10px] uppercase">
+                                                  <tr>
+                                                    <th className="py-2 px-3">Product / Raw Material</th>
+                                                    <th className="py-2 px-3 text-right">Quantity Issued</th>
+                                                    <th className="py-2 px-3">Heat / Batch #</th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                                                  {(iss.items || []).map((item, itemIdx) => (
+                                                    <tr key={item.id || itemIdx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                                                      <td className="py-2 px-3 font-semibold text-slate-900 dark:text-white">
+                                                        {item.productName || item.material || 'Material Item'}
+                                                      </td>
+                                                      <td className="py-2 px-3 text-right font-bold text-indigo-600 dark:text-indigo-400">
+                                                        {item.quantityIssued} units
+                                                      </td>
+                                                      <td className="py-2 px-3 text-slate-500 dark:text-slate-400 font-mono text-[11px]">
+                                                        {[item.heatNumber && `Heat: ${item.heatNumber}`, item.batchNumber && `Batch: ${item.batchNumber}`].filter(Boolean).join(' | ') || '—'}
+                                                      </td>
+                                                    </tr>
+                                                  ))}
+                                                </tbody>
+                                              </table>
+                                            </div>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </React.Fragment>
+                                );
+                              })}
                             </tbody>
                           </table>
                         )}

@@ -82,8 +82,10 @@ export function buildTraceabilityEvents(raw: any): TraceabilityEvent[] {
         itemsBreakdown:
           (iss.items || [])
             .map(
-              (it: any, itemIdx: number) =>
-                `Part #${itemIdx + 1}: ${Number(it.quantityIssued || 0)} issued`
+              (it: any, itemIdx: number) => {
+                const name = it.productName || it.material || it.product?.name || `Part #${itemIdx + 1}`;
+                return `${name}: ${Number(it.quantityIssued || 0)} issued`;
+              }
             )
             .join('; ') || 'N/A',
       },
