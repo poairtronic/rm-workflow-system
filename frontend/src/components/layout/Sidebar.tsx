@@ -4,6 +4,8 @@ import { io, Socket } from 'socket.io-client';
 import { APP_CONFIG } from '../../app/config';
 import { ecrIssuesService } from '../../services/ecrIssues.service';
 import type { EcrIssuePending } from '../../types/ecrIssues.types';
+import { mercIndentService } from '../../services/mercIndent.service';
+import type { MercIndentSummary } from '../../types/mercIndent.types';
 import { LogOut, X } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -31,6 +33,18 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     return (ecrIssues || []).filter((i) => i.status === 'PENDING').length;
   }, [ecrIssues]);
 
+  // Fetch pending count from GET /api/merc-indents
+  const { data: mercIndents = [] } = useQuery<MercIndentSummary[]>({
+    queryKey: ['merc-indents'],
+    queryFn: () => mercIndentService.getMercIndents(),
+    enabled: !!currentUser,
+    staleTime: 30000,
+  });
+
+  const pendingMercCount = useMemo(() => {
+    return (mercIndents || []).filter((i) => i.status === 'PENDING' || i.status === 'PARTIAL').length;
+  }, [mercIndents]);
+
   // Update badge when socket event arrives
   useEffect(() => {
     if (!currentUser) return;
@@ -47,6 +61,9 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     socket.on('notification', (payload: any) => {
       if (payload?.type === 'ECR_ISSUE') {
         queryClient.invalidateQueries({ queryKey: ['ecr-issues'] });
+      }
+      if (payload?.type === 'MERC_INDENT') {
+        queryClient.invalidateQueries({ queryKey: ['merc-indents'] });
       }
     });
 
@@ -153,6 +170,11 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                       {item.path === '/governance/ecr-issues' && pendingEcrCount > 0 && (
                         <span className="ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
                           {pendingEcrCount}
+                        </span>
+                      )}
+                      {item.path === '/governance/merc-indents' && pendingMercCount > 0 && (
+                        <span className="ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                          {pendingMercCount}
                         </span>
                       )}
                     </NavLink>

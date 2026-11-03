@@ -41,6 +41,7 @@ import { MasterDataCacheModule } from './common/cache/master-data-cache.module.j
 import { ConsumablesModule } from './consumables/consumables.module.js';
 import { ReworkModule } from './rework/rework.module.js';
 import { EcrIssuesModule } from './ecr-issues/ecr-issues.module.js';
+import { MercIndentModule } from './merc-indent/merc-indent.module.js';
 
 @Module({
   imports: [
@@ -112,6 +113,7 @@ import { EcrIssuesModule } from './ecr-issues/ecr-issues.module.js';
     ConsumablesModule,
     ReworkModule,
     EcrIssuesModule,
+    MercIndentModule,
   ],
 
   controllers: [AppController],

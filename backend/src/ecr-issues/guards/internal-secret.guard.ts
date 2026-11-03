@@ -21,6 +21,8 @@ export class InternalSecretGuard implements CanActivate {
     const expectedSecret =
       this.configService?.get<string>('RM_INTERNAL_SECRET') ||
       process.env.RM_INTERNAL_SECRET ||
+      this.configService?.get<string>('MERC_INTERNAL_SECRET') ||
+      process.env.MERC_INTERNAL_SECRET ||
       this.configService?.get<string>('ECR_INTERNAL_SECRET') ||
       process.env.ECR_INTERNAL_SECRET;
 
@@ -37,4 +39,3 @@ export class InternalSecretGuard implements CanActivate {
 }
 
 export default InternalSecretGuard;
-

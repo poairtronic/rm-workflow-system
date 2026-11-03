@@ -284,9 +284,9 @@ export class EcrIssuesService {
         const client = new (Client as any)({ connectionString: ecrDbUrl });
         await client.connect();
         const res = await client.query(
-          `SELECT id, "reportNumber", "inspectionType", "scNo", "poNo", "scOrPoNo", "componentName", quantity, "createdAt", "updatedAt", "componentsIssued"
+          `SELECT id, "reportNumber", status, "inspectionType", "scNo", "poNo", "scOrPoNo", "componentName", quantity, "createdAt", "updatedAt", "componentsIssued"
            FROM defect_reports
-           WHERE status = 'APPROVED'
+           WHERE status IN ('APPROVED', 'COMPONENTS_ISSUED')
            ORDER BY "createdAt" DESC`
         );
         await client.end();
@@ -301,7 +301,8 @@ export class EcrIssuesService {
             component: r.componentName || 'Unknown',
             quantityAffected: Number(r.quantity) || 1,
             approvedAt: r.updatedAt || r.createdAt,
-            componentsIssued: !!r.componentsIssued,
+            status: r.status,
+            componentsIssued: !!r.componentsIssued || r.status === 'COMPONENTS_ISSUED',
           }));
           this.logger.log(`[ECR-Sync] Fetched ${reports.length} approved reports via direct DB fallback`);
         }

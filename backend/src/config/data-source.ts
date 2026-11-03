@@ -78,6 +78,8 @@ import { RefreshToken } from '../auth/entities/refresh-token.entity.js';
 import { PasswordResetToken } from '../auth/entities/password-reset-token.entity.js';
 import { ConsumableRequest } from '../consumables/entities/consumable-request.entity.js';
 import { ConsumableRequestItem } from '../consumables/entities/consumable-request-item.entity.js';
+import { MercIndentPending } from '../merc-indent/entities/merc-indent-pending.entity.js';
+import { MercIndentLineItem } from '../merc-indent/entities/merc-indent-line-item.entity.js';
 export const ALL_ENTITIES = [
   Role,
   User,
@@ -134,6 +136,8 @@ export const ALL_ENTITIES = [
   DcReworkItem,
   ConsumableRequest,
   ConsumableRequestItem,
+  MercIndentPending,
+  MercIndentLineItem,
 ];
 
 const dbUrl =

@@ -69,6 +69,12 @@ export const ReworkWorkspace = lazy(() =>
 export const EcrMaterialIssue = lazy(() =>
   import('./pages/governance/EcrMaterialIssue').then((m) => ({ default: m.EcrMaterialIssue })),
 );
+export const MercIndentIssue = lazy(() =>
+  import('./pages/governance/MercIndentIssue').then((m) => ({ default: m.MercIndentIssue })),
+);
+export const MercIndentIssueDetail = lazy(() =>
+  import('./pages/governance/MercIndentIssueDetail').then((m) => ({ default: m.MercIndentIssueDetail })),
+);
 export const PoTraceabilityWorkspace = lazy(() =>
   import('./pages/PoTraceabilityWorkspace').then((m) => ({ default: m.PoTraceabilityWorkspace })),
 );
@@ -190,6 +196,8 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   { name: 'SC Traceability', path: '/governance/traceability', icon: ShieldCheck, roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: TraceabilityWorkspace, isSidebar: true, group: 'GOVERNANCE', moduleKey: 'sc_traceability' },
   { name: 'Rework', path: '/governance/rework', icon: Wrench, roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: ReworkWorkspace, isSidebar: true, group: 'GOVERNANCE', moduleKey: 'rework_qc' },
   { name: 'ECR Material Issue', path: '/governance/ecr-issues', icon: Layers, roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: EcrMaterialIssue, isSidebar: true, group: 'GOVERNANCE', moduleKey: 'ecr_issues' },
+  { name: 'MERC Indent Issue', path: '/governance/merc-indents', icon: ClipboardList, roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: MercIndentIssue, isSidebar: true, group: 'GOVERNANCE', moduleKey: 'merc_indents' },
+  { name: 'MERC Indent Issue Detail', path: '/governance/merc-indents/:id', roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: MercIndentIssueDetail, isSidebar: false },
   { name: 'PO Traceability', path: '/governance/po-traceability', icon: Network, roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: PoTraceabilityWorkspace, isSidebar: true, group: 'GOVERNANCE', moduleKey: 'po_traceability' },
   { name: 'Vendor SLAs', path: '/governance/vendor-slas', icon: Shield, roles: ['SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: VendorSlaWorkspace, isSidebar: true, group: 'GOVERNANCE', moduleKey: 'vendor_slas' },
   { name: 'Vendor Analytics', path: '/governance/vendor-analytics', icon: BarChart3, roles: ['SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: VendorDashboardWorkspace, isSidebar: true, group: 'GOVERNANCE', moduleKey: 'vendor_analytics' },

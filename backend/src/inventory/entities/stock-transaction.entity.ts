@@ -28,6 +28,8 @@ export enum TransactionType {
   CONSUMPTION = 'CONSUMPTION',
   SHIPPING = 'SHIPPING',
   TRANSIT = 'TRANSIT',
+  ECR_REWORK_ISSUE = 'ECR_REWORK_ISSUE',
+  MERC_INDENT_ISSUE = 'MERC_INDENT_ISSUE',
 }
 
 export enum AdjustmentDirection {
