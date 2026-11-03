@@ -42,6 +42,13 @@ export class EcrIssuesController {
     return this.ecrIssuesService.getAll();
   }
 
+  @Post('ecr-issues/sync')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  async syncFromEcr() {
+    return this.ecrIssuesService.syncFromEcr();
+  }
+
   @Get('ecr-issues/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.STORES, UserRole.ADMIN)

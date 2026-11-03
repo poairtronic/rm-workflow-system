@@ -15,13 +15,20 @@ export const ecrIssuesService = {
     return api.get<EcrIssueDetail>(`/api/ecr-issues/${id}`);
   },
 
-  issueEcrMaterial: async (
+    issueEcrMaterial: async (
     id: string,
     payload: IssueEcrPayload,
   ): Promise<{ success: boolean; itemsIssued: number; materialIssueId: string; issuedAt: string }> => {
     return api.post<{ success: boolean; itemsIssued: number; materialIssueId: string; issuedAt: string }>(
       `/api/ecr-issues/${id}/issue`,
       payload,
+    );
+  },
+
+  syncEcrIssues: async (): Promise<{ success: boolean; syncedCount: number; message: string }> => {
+    return api.post<{ success: boolean; syncedCount: number; message: string }>(
+      '/api/ecr-issues/sync',
+      {},
     );
   },
 };

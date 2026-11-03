@@ -39,6 +39,12 @@ services:
         sync: false
       - key: GMAIL_SENDER_EMAIL
         value: posuppportairtronic@gmail.com
+      - key: ECR_API_URL
+        value: https://error-correction-application.onrender.com
+      - key: ECR_INTERNAL_SECRET
+        value: vsmart_ecr_bridge_2026_secure
+      - key: RM_INTERNAL_SECRET
+        value: vsmart_ecr_bridge_2026_secure
 
   # 2. Frontend Static Site (React 19 / Vite SPA)
   - type: web

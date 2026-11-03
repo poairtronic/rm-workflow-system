@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Search,
   ChevronUp,
+  RefreshCw,
 } from 'lucide-react';
 import { APP_CONFIG } from '../../app/config';
 import { ecrIssuesService } from '../../services/ecrIssues.service';
@@ -47,6 +48,24 @@ export function EcrMaterialIssue() {
   const [detail, setDetail] = useState<EcrIssueDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    try {
+      const res = await ecrIssuesService.syncEcrIssues();
+      if (res && res.syncedCount > 0) {
+        toast.success(`Synced ${res.syncedCount} new approved report(s) from ECR`);
+      } else {
+        toast.success(res?.message || 'ECR reports are up to date');
+      }
+      await queryClient.invalidateQueries({ queryKey: ['ecr-issues'] });
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to sync with ECR');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Selected issue items map: key -> SelectedIssueRow
   const [selectedItemsMap, setSelectedItemsMap] = useState<Record<string, SelectedIssueRow>>({});
@@ -476,6 +495,18 @@ export function EcrMaterialIssue() {
           </span>
         }
         subtitle="Issue replacement material for approved rework and rejection reports"
+        actionSlot={
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+            {isSyncing ? 'Syncing...' : 'Sync with ECR'}
+          </Button>
+        }
       />
 
       {/* Render Table States */}
