@@ -24,7 +24,7 @@ export function MercIndentIssue() {
 
   // 1. Fetch MERC Indents summary list
   const {
-    data: indents = [],
+    data: rawIndents = [],
     isLoading,
     isError,
     error,
@@ -32,9 +32,12 @@ export function MercIndentIssue() {
   } = useQuery<MercIndentSummary[]>({
     queryKey: ['merc-indents'],
     queryFn: async () => {
-      return await mercIndentService.getMercIndents();
+      const res = await mercIndentService.getMercIndents();
+      return Array.isArray(res) ? res : [];
     },
   });
+
+  const indents: MercIndentSummary[] = Array.isArray(rawIndents) ? rawIndents : [];
 
   // 2. Socket.IO Real-time listener
   useEffect(() => {
@@ -98,7 +101,7 @@ export function MercIndentIssue() {
       header: 'INDENT NO',
       render: (row) => (
         <span className="font-mono font-semibold text-slate-900 dark:text-white">
-          {row.indentNumber}
+          {row?.indentNumber || '—'}
         </span>
       ),
     },
@@ -107,7 +110,7 @@ export function MercIndentIssue() {
       header: 'PO NUMBER',
       render: (row) => (
         <span className="font-mono text-slate-600 dark:text-slate-400">
-          {row.poNumber || '—'}
+          {row?.poNumber || '—'}
         </span>
       ),
     },
@@ -116,7 +119,7 @@ export function MercIndentIssue() {
       header: 'CUSTOMER',
       render: (row) => (
         <span className="font-medium text-slate-900 dark:text-slate-100">
-          {row.customerName || '—'}
+          {row?.customerName || '—'}
         </span>
       ),
     },
@@ -124,19 +127,21 @@ export function MercIndentIssue() {
       key: 'items',
       header: 'ITEMS',
       render: (row) => {
-        const isComplete = row.issuedItems === row.totalItems && row.totalItems > 0;
+        const total = Number(row?.totalItems) || 0;
+        const issued = Number(row?.issuedItems) || 0;
+        const isComplete = issued === total && total > 0;
         return (
           <div className="flex items-center gap-2">
             <span
               className={`font-semibold text-xs ${
                 isComplete
                   ? 'text-emerald-600 dark:text-emerald-400'
-                  : row.issuedItems > 0
+                  : issued > 0
                   ? 'text-amber-600 dark:text-amber-400'
                   : 'text-slate-700 dark:text-slate-300'
               }`}
             >
-              {row.issuedItems}/{row.totalItems} issued
+              {issued}/{total} issued
             </span>
           </div>
         );
@@ -145,13 +150,13 @@ export function MercIndentIssue() {
     {
       key: 'status',
       header: 'STATUS',
-      render: (row) => renderStatusBadge(row.status),
+      render: (row) => renderStatusBadge(row?.status || 'PENDING'),
     },
     {
       key: 'actions',
       header: 'ACTIONS',
       render: (row) => {
-        const isFullyIssued = row.status === 'ISSUED';
+        const isFullyIssued = row?.status === 'ISSUED';
         return (
           <Button
             size="sm"

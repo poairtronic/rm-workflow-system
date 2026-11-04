@@ -74,7 +74,8 @@ export function MercIndentIssueDetail() {
         setLoadingBins(true);
         const res = await masterDataService.getBins({ pageSize: 1000, isActive: true });
         if (isMounted) {
-          setAllBins(res.data || []);
+          const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+          setAllBins(list);
         }
       } catch (err: any) {
         console.warn('Could not load master bins:', err?.message);
@@ -90,13 +91,14 @@ export function MercIndentIssueDetail() {
 
   // 3. Initialize / sync form states per line item when data arrives
   useEffect(() => {
-    if (!indent?.lineItems) return;
+    const items = Array.isArray(indent?.lineItems) ? indent.lineItems : [];
+    if (items.length === 0) return;
 
     setFormStates((prev) => {
       const next: Record<string, LineItemFormState> = { ...prev };
 
-      for (const item of indent.lineItems) {
-        if (next[item.id]) continue; // keep existing user inputs
+      for (const item of items) {
+        if (!item || next[item.id]) continue; // keep existing user inputs
 
         const remaining = Math.max(
           0,
@@ -104,14 +106,16 @@ export function MercIndentIssueDetail() {
         );
 
         // Pre-select first suggested product with available stock
-        const firstWithStock = (item.suggestedProducts || []).find(
-          (p) => p.bins && p.bins.some((b) => b.currentQty > 0),
+        const suggested = Array.isArray(item.suggestedProducts) ? item.suggestedProducts : [];
+        const firstWithStock = suggested.find(
+          (p) => Array.isArray(p?.bins) && p.bins.some((b) => b?.currentQty > 0),
         );
-        const defaultProd = firstWithStock || item.suggestedProducts?.[0];
+        const defaultProd = firstWithStock || suggested[0];
         const defaultProdId = defaultProd ? defaultProd.productId : '';
 
         // Pre-select first bin with stock
-        const validBin = defaultProd?.bins?.find((b) => b.currentQty > 0) || defaultProd?.bins?.[0];
+        const bins = Array.isArray(defaultProd?.bins) ? defaultProd.bins : [];
+        const validBin = bins.find((b) => b?.currentQty > 0) || bins[0];
         const defaultBinId = validBin ? validBin.binId : '';
 
         const defaultQty = validBin
@@ -168,8 +172,10 @@ export function MercIndentIssueDetail() {
       return;
     }
 
-    const prod = suggestedProducts.find((p) => p.productId === productId);
-    const validBin = prod?.bins?.find((b) => b.currentQty > 0) || prod?.bins?.[0];
+    const prods = Array.isArray(suggestedProducts) ? suggestedProducts : [];
+    const prod = prods.find((p) => p?.productId === productId);
+    const bins = Array.isArray(prod?.bins) ? prod.bins : [];
+    const validBin = bins.find((b) => b?.currentQty > 0) || bins[0];
     const binId = validBin ? validBin.binId : '';
 
     const remaining = Math.max(0, itemReq - itemIssued);
@@ -236,7 +242,7 @@ export function MercIndentIssueDetail() {
 
   // Handle issuing stock for a single line item
   const handleIssueItem = async (item: MercIndentFullDetail['lineItems'][0]) => {
-    if (!indent) return;
+    if (!indent || !item) return;
     const state = formStates[item.id];
     if (!state) return;
 
@@ -254,8 +260,10 @@ export function MercIndentIssueDetail() {
     }
 
     // Verify stock in selected bin
-    const activeProduct = item.suggestedProducts.find((p) => p.productId === state.productId);
-    const activeBin = activeProduct?.bins.find((b) => b.binId === state.binId);
+    const prods = Array.isArray(item.suggestedProducts) ? item.suggestedProducts : [];
+    const activeProduct = prods.find((p) => p?.productId === state.productId);
+    const bins = Array.isArray(activeProduct?.bins) ? activeProduct.bins : [];
+    const activeBin = bins.find((b) => b?.binId === state.binId);
     const availableStock = activeBin ? activeBin.currentQty : 0;
 
     if (state.quantityToIssue > availableStock) {
@@ -350,8 +358,9 @@ export function MercIndentIssueDetail() {
     );
   }
 
-  const issuedCount = indent.lineItems.filter((i) => i.status === 'ISSUED').length;
-  const totalCount = indent.lineItems.length;
+  const lineItemsList = Array.isArray(indent?.lineItems) ? indent.lineItems : [];
+  const issuedCount = lineItemsList.filter((i) => i?.status === 'ISSUED').length;
+  const totalCount = lineItemsList.length;
   const progressPercent = totalCount > 0 ? Math.round((issuedCount / totalCount) * 100) : 0;
 
   return (
@@ -378,9 +387,9 @@ export function MercIndentIssueDetail() {
 
       {/* Page Header */}
       <PageHeader
-        title={`MERC Indent — ${indent.indentNumber}`}
+        title={`MERC Indent — ${indent.indentNumber || 'Details'}`}
         subtitle="Inline material issuance and live inventory tracking for production indents"
-        actionSlot={renderStatusBadge(indent.status)}
+        actionSlot={renderStatusBadge(indent.status || 'PENDING')}
       />
 
       {/* Summary Card */}
@@ -448,7 +457,7 @@ export function MercIndentIssueDetail() {
         <div>
           <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Package className="w-5 h-5 text-emerald-600" />
-            Line Items To Issue ({indent.lineItems.length})
+            Line Items To Issue ({lineItemsList.length})
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Select products and storage bins inline to issue materials directly from RM stores.
@@ -458,7 +467,8 @@ export function MercIndentIssueDetail() {
 
       {/* Line Items List */}
       <div className="space-y-4">
-        {indent.lineItems.map((item, idx) => {
+        {lineItemsList.map((item, idx) => {
+          if (!item) return null;
           const isFullyIssued = item.status === 'ISSUED';
           const isRawMat = item.itemType === 'RAW_MATERIAL';
           const form = formStates[item.id] || {
@@ -476,10 +486,10 @@ export function MercIndentIssueDetail() {
             error: null,
           };
 
-          const activeProduct = item.suggestedProducts.find(
-            (p) => p.productId === form.productId,
-          );
-          const activeBin = activeProduct?.bins.find((b) => b.binId === form.binId);
+          const prods = Array.isArray(item.suggestedProducts) ? item.suggestedProducts : [];
+          const activeProduct = prods.find((p) => p?.productId === form.productId);
+          const bins = Array.isArray(activeProduct?.bins) ? activeProduct.bins : [];
+          const activeBin = bins.find((b) => b?.binId === form.binId);
           const availableBinStock = activeBin ? activeBin.currentQty : 0;
           const remainingToIssue = Math.max(
             0,
@@ -579,7 +589,7 @@ export function MercIndentIssueDetail() {
                         <div className="md:col-span-5 space-y-1.5">
                           <div className="flex items-center justify-between">
                             <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                              RM Product * ({item.suggestedProducts?.length || 0} Products)
+                              RM Product * ({prods.length} Products)
                             </label>
                             <button
                               type="button"
@@ -608,19 +618,23 @@ export function MercIndentIssueDetail() {
 
                           {(() => {
                             const searchFilter = (form.searchFilter || '').trim().toLowerCase();
-                            const allProds = item.suggestedProducts || [];
+                            const allProds = prods;
                             const filtered = searchFilter
-                              ? allProds.filter((p) => p.productName.toLowerCase().includes(searchFilter))
+                              ? allProds.filter((p) =>
+                                  (p?.productName || '').toLowerCase().includes(searchFilter),
+                                )
                               : allProds;
 
                             // Ensure currently selected product stays in list even when filtered
-                            const selectedProdInFiltered = form.productId && filtered.some((p) => p.productId === form.productId);
-                            const displayed = (selectedProdInFiltered || !form.productId)
-                              ? filtered
-                              : [...filtered, ...allProds.filter((p) => p.productId === form.productId)];
+                            const selectedProdInFiltered =
+                              form.productId && filtered.some((p) => p?.productId === form.productId);
+                            const displayed =
+                              selectedProdInFiltered || !form.productId
+                                ? filtered
+                                : [...filtered, ...allProds.filter((p) => p?.productId === form.productId)];
 
-                            const suggestedMatches = displayed.filter((p) => p.isSuggested);
-                            const otherCatalog = displayed.filter((p) => !p.isSuggested);
+                            const suggestedMatches = displayed.filter((p) => p?.isSuggested);
+                            const otherCatalog = displayed.filter((p) => !p?.isSuggested);
 
                             return (
                               <select
@@ -693,11 +707,9 @@ export function MercIndentIssueDetail() {
 
                           <select
                             value={form.binId}
-                            disabled={!form.productId || (activeProduct?.bins?.length || 0) === 0}
+                            disabled={!form.productId || bins.length === 0}
                             onChange={(e) => {
-                              const bin = activeProduct?.bins.find(
-                                (b) => b.binId === e.target.value,
-                              );
+                              const bin = bins.find((b) => b?.binId === e.target.value);
                               updateItemState(item.id, {
                                 binId: e.target.value,
                                 quantityToIssue: bin
@@ -714,11 +726,11 @@ export function MercIndentIssueDetail() {
                             <option value="" disabled>
                               {!form.productId
                                 ? '-- Select product first --'
-                                : (activeProduct?.bins?.length || 0) === 0
+                                : bins.length === 0
                                 ? '-- No bins with stock --'
                                 : '-- Select Bin --'}
                             </option>
-                            {(activeProduct?.bins || []).map((b) => (
+                            {bins.map((b) => (
                               <option key={b.binId} value={b.binId}>
                                 {b.rackCode} &gt; {b.binCode} ({b.currentQty} available)
                               </option>
@@ -735,7 +747,7 @@ export function MercIndentIssueDetail() {
                                 {availableBinStock} {item.unit || 'units'}
                               </span>
                             </div>
-                          ) : form.productId && (activeProduct?.bins?.length || 0) === 0 ? (
+                          ) : form.productId && bins.length === 0 ? (
                             <p className="text-[11px] text-rose-500 font-medium">
                               ⚠️ No bins have stock for this product. Use &ldquo;+ New Product&rdquo; to add stock.
                             </p>
@@ -847,7 +859,7 @@ export function MercIndentIssueDetail() {
                               className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#141829] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             >
                               <option value="">-- Select storage bin --</option>
-                              {allBins.map((bin) => (
+                              {(Array.isArray(allBins) ? allBins : []).map((bin) => (
                                 <option key={bin.id} value={bin.id}>
                                   {bin.rack?.code ? `${bin.rack.code} > ` : ''}
                                   {bin.code} ({bin.name})

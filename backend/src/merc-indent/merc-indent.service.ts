@@ -322,7 +322,7 @@ export class MercIndentService {
 
     return {
       ...record,
-      lineItems: lineItemsWithStock,
+      lineItems: lineItemsWithStock ?? [],
     };
   }
 
@@ -464,7 +464,13 @@ export class MercIndentService {
       updatedAt: record.updatedAt,
       totalItems: enrichedLineItems.length,
       issuedItems: enrichedLineItems.filter((i) => i.status === 'ISSUED').length,
-      lineItems: enrichedLineItems,
+      lineItems: (enrichedLineItems ?? []).map((item) => ({
+        ...item,
+        suggestedProducts: (item.suggestedProducts ?? []).map((p) => ({
+          ...p,
+          bins: p.bins ?? [],
+        })),
+      })),
     };
   }
 

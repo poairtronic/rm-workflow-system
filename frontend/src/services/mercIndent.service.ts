@@ -10,20 +10,58 @@ import type {
 
 export const mercIndentService = {
   getMercIndents: async (): Promise<MercIndentSummary[]> => {
-    const res = await api.get<MercIndentSummary[]>('/api/merc-indents');
-    return Array.isArray(res) ? res : (res as any)?.data || [];
+    const res = await api.get<any>('/api/merc-indents');
+    const list = Array.isArray(res) ? res : res?.data;
+    return Array.isArray(list) ? list : [];
   },
 
   getMercIndentById: async (id: string): Promise<MercIndentDetail> => {
-    return api.get<MercIndentDetail>(`/api/merc-indents/${id}`);
+    const res = await api.get<any>(`/api/merc-indents/${id}`);
+    const data =
+      res?.data && typeof res.data === 'object' && !Array.isArray(res.data) && res.data.id
+        ? res.data
+        : res || {};
+    return {
+      ...data,
+      lineItems: Array.isArray(data?.lineItems) ? data.lineItems : [],
+    };
   },
 
   getMercIndentFullDetail: async (id: string): Promise<MercIndentFullDetail> => {
-    return api.get<MercIndentFullDetail>(`/api/merc-indents/${id}/full-detail`);
+    const res = await api.get<any>(`/api/merc-indents/${id}/full-detail`);
+    const data =
+      res?.data && typeof res.data === 'object' && !Array.isArray(res.data) && res.data.id
+        ? res.data
+        : res || {};
+    return {
+      ...data,
+      lineItems: (Array.isArray(data?.lineItems) ? data.lineItems : []).map((item: any) => ({
+        ...item,
+        suggestedProducts: (Array.isArray(item?.suggestedProducts) ? item.suggestedProducts : []).map(
+          (p: any) => ({
+            ...p,
+            bins: Array.isArray(p?.bins) ? p.bins : [],
+          }),
+        ),
+      })),
+    };
   },
 
   getMercItemDetail: async (id: string, itemId: string): Promise<MercItemDetail> => {
-    return api.get<MercItemDetail>(`/api/merc-indents/${id}/items/${itemId}`);
+    const res = await api.get<any>(`/api/merc-indents/${id}/items/${itemId}`);
+    const data =
+      res?.data && typeof res.data === 'object' && !Array.isArray(res.data) && res.data.id
+        ? res.data
+        : res || {};
+    return {
+      ...data,
+      suggestedProducts: (Array.isArray(data?.suggestedProducts) ? data.suggestedProducts : []).map(
+        (p: any) => ({
+          ...p,
+          bins: Array.isArray(p?.bins) ? p.bins : [],
+        }),
+      ),
+    };
   },
 
   issueMercItem: async (
@@ -54,4 +92,3 @@ export const mercIndentService = {
 };
 
 export default mercIndentService;
-
