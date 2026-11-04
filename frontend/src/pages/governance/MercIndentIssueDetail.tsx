@@ -34,6 +34,7 @@ interface LineItemFormState {
   isCreateMode: boolean;
   newProductName: string;
   newProductDesc: string;
+  newProductUom: string;
   newProductInitialStock: number;
   newProductBinId: string;
   creatingProduct: boolean;
@@ -118,15 +119,30 @@ export function MercIndentIssueDetail() {
         const validBin = bins.find((b) => b?.currentQty > 0) || bins[0];
         const defaultBinId = validBin ? validBin.binId : '';
 
+        // If product is stocked in MM and item specifies length in mm,
+        // calculate default quantity in MM for the required pieces
+        const isMm = (defaultProd?.uom || '').toUpperCase() === 'MM';
+        const itemLen = Number(item.lengthMm) || 0;
+        const targetQty =
+          isMm && itemLen > 0
+            ? itemLen * (remaining > 0 ? remaining : 1)
+            : remaining > 0
+            ? remaining
+            : 1;
+
         const defaultQty = validBin
-          ? Math.min(remaining > 0 ? remaining : 1, validBin.currentQty || 1)
-          : remaining > 0
-          ? remaining
-          : 1;
+          ? Math.min(targetQty, validBin.currentQty || targetQty)
+          : targetQty;
 
         const descParts: string[] = [];
         if (item.material) descParts.push(item.material);
         if (item.shape) descParts.push(item.shape);
+
+        const defaultNewUom =
+          item.unit ||
+          (item.itemType === 'RAW_MATERIAL' && (item.shape || '').toLowerCase().includes('bar')
+            ? 'MM'
+            : 'NOS');
 
         next[item.id] = {
           productId: defaultProdId,
@@ -136,7 +152,8 @@ export function MercIndentIssueDetail() {
           isCreateMode: false,
           newProductName: item.name || '',
           newProductDesc: descParts.join(' | '),
-          newProductInitialStock: remaining > 0 ? remaining : 1,
+          newProductUom: defaultNewUom,
+          newProductInitialStock: targetQty,
           newProductBinId: '',
           creatingProduct: false,
           issuing: false,
@@ -166,6 +183,7 @@ export function MercIndentIssueDetail() {
     suggestedProducts: SuggestedProduct[],
     itemReq: number,
     itemIssued: number,
+    itemLengthMm?: number | null,
   ) => {
     if (productId === '__CREATE_NEW__') {
       updateItemState(itemId, { isCreateMode: true, error: null });
@@ -179,11 +197,18 @@ export function MercIndentIssueDetail() {
     const binId = validBin ? validBin.binId : '';
 
     const remaining = Math.max(0, itemReq - itemIssued);
+    const isMm = (prod?.uom || '').toUpperCase() === 'MM';
+    const itemLen = Number(itemLengthMm) || 0;
+    const targetQty =
+      isMm && itemLen > 0
+        ? itemLen * (remaining > 0 ? remaining : 1)
+        : remaining > 0
+        ? remaining
+        : 1;
+
     const qty = validBin
-      ? Math.min(remaining > 0 ? remaining : 1, validBin.currentQty || 1)
-      : remaining > 0
-      ? remaining
-      : 1;
+      ? Math.min(targetQty, validBin.currentQty || targetQty)
+      : targetQty;
 
     updateItemState(itemId, {
       productId,
@@ -209,7 +234,7 @@ export function MercIndentIssueDetail() {
       const payload = {
         name: state.newProductName.trim(),
         description: state.newProductDesc.trim() || undefined,
-        unitId: itemUnit || 'NOS',
+        unitId: state.newProductUom || itemUnit || 'NOS',
         initialStock: state.newProductInitialStock > 0 ? Number(state.newProductInitialStock) : undefined,
         binId: state.newProductBinId || undefined,
       };
@@ -262,12 +287,13 @@ export function MercIndentIssueDetail() {
     // Verify stock in selected bin
     const prods = Array.isArray(item.suggestedProducts) ? item.suggestedProducts : [];
     const activeProduct = prods.find((p) => p?.productId === state.productId);
+    const activeUom = activeProduct?.uom || (item.rmProduct as any)?.uom || item.unit || 'NOS';
     const bins = Array.isArray(activeProduct?.bins) ? activeProduct.bins : [];
     const activeBin = bins.find((b) => b?.binId === state.binId);
     const availableStock = activeBin ? activeBin.currentQty : 0;
 
     if (state.quantityToIssue > availableStock) {
-      const err = `Insufficient stock in selected bin (Available: ${availableStock}, Requested: ${state.quantityToIssue})`;
+      const err = `Insufficient stock in selected bin (Available: ${availableStock} ${activeUom}, Requested: ${state.quantityToIssue} ${activeUom})`;
       toast.error(err);
       updateItemState(item.id, { error: err });
       return;
@@ -282,7 +308,7 @@ export function MercIndentIssueDetail() {
       };
 
       await mercIndentService.issueMercItem(indent.id, item.id, payload);
-      toast.success(`Material issued for ${item.name}. MERC indent updated.`);
+      toast.success(`Issued ${state.quantityToIssue} ${activeUom} for ${item.name}. MERC indent updated.`);
 
       // Refresh both list and detail query cache
       await Promise.all([
@@ -488,6 +514,8 @@ export function MercIndentIssueDetail() {
 
           const prods = Array.isArray(item.suggestedProducts) ? item.suggestedProducts : [];
           const activeProduct = prods.find((p) => p?.productId === form.productId);
+          const activeUom =
+            activeProduct?.uom || (item.rmProduct as any)?.uom || item.unit || 'NOS';
           const bins = Array.isArray(activeProduct?.bins) ? activeProduct.bins : [];
           const activeBin = bins.find((b) => b?.binId === form.binId);
           const availableBinStock = activeBin ? activeBin.currentQty : 0;
@@ -646,6 +674,7 @@ export function MercIndentIssueDetail() {
                                     item.suggestedProducts,
                                     Number(item.quantityRequired),
                                     Number(item.quantityIssued || 0),
+                                    item.lengthMm,
                                   )
                                 }
                                 className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#141829] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
@@ -658,7 +687,7 @@ export function MercIndentIssueDetail() {
                                   <optgroup label="⭐ Suggested Matches (Fuzzy Match)">
                                     {suggestedMatches.map((p) => (
                                       <option key={`sug-${p.productId}`} value={p.productId}>
-                                        ★ {p.productName} ({p.totalStock > 0 ? `Stock: ${p.totalStock} ${item.unit || 'NOS'}` : 'Stock: 0'})
+                                        ★ {p.productName} ({p.totalStock > 0 ? `Stock: ${p.totalStock} ${p.uom || 'NOS'}` : 'Stock: 0'})
                                       </option>
                                     ))}
                                   </optgroup>
@@ -667,7 +696,7 @@ export function MercIndentIssueDetail() {
                                 <optgroup label={suggestedMatches.length > 0 ? '📦 All Other Catalog Products' : '📦 All Catalog Products'}>
                                   {(suggestedMatches.length > 0 ? otherCatalog : displayed).map((p) => (
                                     <option key={`all-${p.productId}`} value={p.productId}>
-                                      {p.productName} ({p.totalStock > 0 ? `Stock: ${p.totalStock} ${item.unit || 'NOS'}` : 'Stock: 0'})
+                                      {p.productName} ({p.totalStock > 0 ? `Stock: ${p.totalStock} ${p.uom || 'NOS'}` : 'Stock: 0'})
                                     </option>
                                   ))}
                                 </optgroup>
@@ -684,7 +713,7 @@ export function MercIndentIssueDetail() {
                                 <>
                                   <span className="w-2 h-2 rounded-full bg-emerald-500" />
                                   <span className="text-emerald-600 dark:text-emerald-400">
-                                    Stock: {activeProduct.totalStock} {item.unit || 'NOS'}
+                                    Stock: {activeProduct.totalStock} {activeUom}
                                   </span>
                                 </>
                               ) : (
@@ -710,13 +739,19 @@ export function MercIndentIssueDetail() {
                             disabled={!form.productId || bins.length === 0}
                             onChange={(e) => {
                               const bin = bins.find((b) => b?.binId === e.target.value);
+                              const isMm = activeUom.toUpperCase() === 'MM';
+                              const itemLen = Number(item.lengthMm) || 0;
+                              const targetQty =
+                                isMm && itemLen > 0
+                                  ? itemLen * (remainingToIssue > 0 ? remainingToIssue : 1)
+                                  : remainingToIssue > 0
+                                  ? remainingToIssue
+                                  : 1;
+
                               updateItemState(item.id, {
                                 binId: e.target.value,
                                 quantityToIssue: bin
-                                  ? Math.min(
-                                      remainingToIssue > 0 ? remainingToIssue : 1,
-                                      bin.currentQty || 1,
-                                    )
+                                  ? Math.min(targetQty, bin.currentQty || targetQty)
                                   : form.quantityToIssue,
                                 error: null,
                               });
@@ -732,7 +767,7 @@ export function MercIndentIssueDetail() {
                             </option>
                             {bins.map((b) => (
                               <option key={b.binId} value={b.binId}>
-                                {b.rackCode} &gt; {b.binCode} ({b.currentQty} available)
+                                {b.rackCode} &gt; {b.binCode} ({b.currentQty} {activeUom} available)
                               </option>
                             ))}
                           </select>
@@ -744,7 +779,7 @@ export function MercIndentIssueDetail() {
                                 Available in bin:
                               </span>
                               <span className="font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
-                                {availableBinStock} {item.unit || 'units'}
+                                {availableBinStock} {activeUom}
                               </span>
                             </div>
                           ) : form.productId && bins.length === 0 ? (
@@ -757,7 +792,7 @@ export function MercIndentIssueDetail() {
                         {/* 3. Quantity to Issue */}
                         <div className="md:col-span-3 space-y-1.5">
                           <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                            Qty to Issue *
+                            Qty to Issue ({activeUom}) *
                           </label>
 
                           <input
@@ -776,6 +811,11 @@ export function MercIndentIssueDetail() {
 
                           <div className="text-[11px] text-slate-500 dark:text-slate-400 pt-0.5">
                             Needed: {remainingToIssue} {item.unit || ''}
+                            {activeUom.toUpperCase() === 'MM' && Number(item.lengthMm) > 0 && (
+                              <span className="ml-1 text-emerald-600 dark:text-emerald-400 font-medium">
+                                ({Number(item.lengthMm) * remainingToIssue} MM total @ {item.lengthMm} MM/pc)
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -798,7 +838,7 @@ export function MercIndentIssueDetail() {
                           </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 text-xs">
                           <div className="sm:col-span-2">
                             <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                               Product Name *
@@ -827,6 +867,25 @@ export function MercIndentIssueDetail() {
                               className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#141829] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                               placeholder="Specifications or remarks"
                             />
+                          </div>
+
+                          <div>
+                            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                              UOM *
+                            </label>
+                            <select
+                              value={form.newProductUom}
+                              onChange={(e) =>
+                                updateItemState(item.id, { newProductUom: e.target.value })
+                              }
+                              className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#141829] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
+                            >
+                              <option value="MM">MM (Long Bar / Millimeters)</option>
+                              <option value="NOS">NOS (Numbers / Pieces)</option>
+                              <option value="PCS">PCS (Pieces / Fine Blank)</option>
+                              <option value="KG">KG (Kilograms)</option>
+                              <option value="MTR">MTR (Meters)</option>
+                            </select>
                           </div>
 
                           <div>
@@ -883,7 +942,7 @@ export function MercIndentIssueDetail() {
                           <Button
                             size="sm"
                             disabled={form.creatingProduct || !form.newProductName.trim()}
-                            onClick={() => handleCreateNewProduct(item.id, item.unit)}
+                            onClick={() => handleCreateNewProduct(item.id, activeUom)}
                             className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 text-xs"
                           >
                             {form.creatingProduct ? 'Creating...' : 'Create Product & Add Stock'}
@@ -897,7 +956,7 @@ export function MercIndentIssueDetail() {
                       <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300/50 dark:border-amber-800/40 text-amber-800 dark:text-amber-300 text-xs">
                         <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                         <span>
-                          ⚠️ Only <strong>{availableBinStock} {item.unit || 'units'}</strong> available in selected bin, but you need <strong>{form.quantityToIssue} {item.unit || 'units'}</strong>.
+                          ⚠️ Only <strong>{availableBinStock} {activeUom}</strong> available in selected bin, but you need <strong>{form.quantityToIssue} {activeUom}</strong>.
                         </span>
                       </div>
                     )}
@@ -927,7 +986,7 @@ export function MercIndentIssueDetail() {
                           <CheckCircle2 className="w-4 h-4" />
                           {form.issuing
                             ? 'Issuing Material...'
-                            : `Issue This Item (${form.quantityToIssue} ${item.unit || 'units'})`}
+                            : `Issue This Item (${form.quantityToIssue} ${activeUom})`}
                         </Button>
                       </div>
                     )}

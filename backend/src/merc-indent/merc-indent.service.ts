@@ -36,6 +36,7 @@ export interface SuggestedProductDto {
   productId: string;
   productName: string;
   totalStock: number;
+  uom: string;
   bins: SuggestedProductBinDto[];
   isSuggested?: boolean;
 }
@@ -440,6 +441,7 @@ export class MercIndentService {
           productId: p.id,
           productName: p.name,
           totalStock,
+          uom: p.uom || 'NOS',
           bins,
           isSuggested,
         };
@@ -468,6 +470,7 @@ export class MercIndentService {
         ...item,
         suggestedProducts: (item.suggestedProducts ?? []).map((p) => ({
           ...p,
+          uom: p.uom || 'NOS',
           bins: p.bins ?? [],
         })),
       })),
@@ -579,6 +582,7 @@ export class MercIndentService {
           productId: p.id,
           productName: p.name,
           totalStock,
+          uom: p.uom || 'NOS',
           bins,
         };
       });
@@ -696,7 +700,19 @@ export class MercIndentService {
       const prevQuantityIssued = Number(lineItem.quantityIssued) || 0;
       const newQuantityIssued = prevQuantityIssued + Number(dto.quantityIssued);
       const quantityRequired = Number(lineItem.quantityRequired) || 0;
-      newItemStatus = newQuantityIssued >= quantityRequired ? 'ISSUED' : 'PARTIAL';
+
+      // Determine required total based on product UOM and line item dimensions
+      const product = await queryRunner.manager.findOne(Product, {
+        where: { id: dto.productId },
+      });
+      const isMmUom = (product?.uom || '').toUpperCase() === 'MM';
+      const itemLength = Number(lineItem.lengthMm) || 0;
+      const totalRequired =
+        isMmUom && itemLength > 0
+          ? itemLength * quantityRequired
+          : quantityRequired;
+
+      newItemStatus = newQuantityIssued >= totalRequired ? 'ISSUED' : 'PARTIAL';
 
       lineItem.quantityIssued = newQuantityIssued;
       lineItem.status = newItemStatus;

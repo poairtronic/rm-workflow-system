@@ -26,6 +26,11 @@ export interface MercLineItem {
   status: 'PENDING' | 'PARTIAL' | 'ISSUED';
   rmProductId?: string | null;
   rmBinId?: string | null;
+  rmProduct?: {
+    id: string;
+    name: string;
+    uom?: string;
+  } | null;
   currentStock?: number;
 }
 
@@ -53,6 +58,7 @@ export interface SuggestedProduct {
   productId: string;
   productName: string;
   totalStock: number;
+  uom?: string;
   bins: SuggestedProductBin[];
   isSuggested?: boolean;
 }
