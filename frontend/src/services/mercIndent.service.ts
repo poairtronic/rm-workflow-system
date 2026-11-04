@@ -89,6 +89,16 @@ export const mercIndentService = {
   }> => {
     return api.post('/api/merc-indents/products/create-and-stock', payload);
   },
+
+  syncFromMerc: async (): Promise<{
+    success: boolean;
+    totalFetched: number;
+    newlyAdded: number;
+    message: string;
+  }> => {
+    const res = await api.post<any>('/api/merc-indents/sync');
+    return res?.data && res.data.success !== undefined ? res.data : res;
+  },
 };
 
 export default mercIndentService;

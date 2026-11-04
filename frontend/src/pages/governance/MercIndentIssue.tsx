@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
@@ -21,6 +21,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 export function MercIndentIssue() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // 1. Fetch MERC Indents summary list
   const {
@@ -38,6 +39,35 @@ export function MercIndentIssue() {
   });
 
   const indents: MercIndentSummary[] = Array.isArray(rawIndents) ? rawIndents : [];
+
+  const handleSyncAndRefresh = async () => {
+    try {
+      setIsSyncing(true);
+      const res = await mercIndentService.syncFromMerc();
+      if (res?.newlyAdded && res.newlyAdded > 0) {
+        toast.success(`Synced ${res.newlyAdded} new indent(s) from MERC!`);
+      } else {
+        toast.success('MERC indents up to date.');
+      }
+    } catch {
+      toast('Refreshed local indents list.');
+    } finally {
+      setIsSyncing(false);
+      refetch();
+    }
+  };
+
+  // 1.1 Silent background sync on mount so page always has latest data
+  useEffect(() => {
+    mercIndentService
+      .syncFromMerc()
+      .then((res) => {
+        if (res?.newlyAdded && res.newlyAdded > 0) {
+          refetch();
+        }
+      })
+      .catch(() => {});
+  }, [refetch]);
 
   // 2. Socket.IO Real-time listener
   useEffect(() => {
@@ -194,11 +224,12 @@ export function MercIndentIssue() {
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => refetch()}
-            className="flex items-center gap-2"
+            disabled={isSyncing}
+            onClick={handleSyncAndRefresh}
+            className="flex items-center gap-2 border border-slate-300 dark:border-slate-700 font-semibold"
           >
-            <RefreshCw className="w-4 h-4" />
-            Refresh
+            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin text-emerald-500' : ''}`} />
+            {isSyncing ? 'Syncing...' : 'Refresh & Sync MERC'}
           </Button>
         }
       />

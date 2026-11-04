@@ -43,6 +43,13 @@ export class MercIndentController {
     return this.mercIndentService.getAll();
   }
 
+  @Post('merc-indents/sync')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  async syncFromMerc() {
+    return this.mercIndentService.syncFromMerc();
+  }
+
   @Post('merc-indents/products/create-and-stock')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.STORES, UserRole.ADMIN)

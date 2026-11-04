@@ -917,6 +917,97 @@ export class MercIndentService {
       await queryRunner.release();
     }
   }
+
+  /**
+   * Actively synchronizes pending indents directly from MERC application.
+   * Calls MERC's /api/internal/indents/pending endpoint and imports any new indents.
+   * Also triggers MERC's outbox retry to flush any pending webhooks.
+   */
+  async syncFromMerc(): Promise<{
+    success: boolean;
+    totalFetched: number;
+    newlyAdded: number;
+    message: string;
+  }> {
+    const mercBase = (process.env.MERC_API_URL || 'https://indent-application.onrender.com').replace(/\/+$/, '');
+    const mercSecret =
+      process.env.MERC_INTERNAL_SECRET ||
+      process.env.RM_INTERNAL_SECRET ||
+      'vsmart_merc_bridge_2026_secure';
+
+    let newlyAdded = 0;
+    let totalFetched = 0;
+
+    // 1. Pull directly from MERC /api/internal/indents/pending
+    try {
+      this.logger.log(`[MERC-Sync] Pulling pending indents from ${mercBase}/api/internal/indents/pending`);
+      const res = await fetch(`${mercBase}/api/internal/indents/pending`, {
+        method: 'GET',
+        headers: {
+          'x-internal-secret': mercSecret,
+        },
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (res.ok) {
+        const body: any = await res.json();
+        const indents = Array.isArray(body) ? body : body?.data ?? [];
+        if (Array.isArray(indents)) {
+          totalFetched = indents.length;
+          for (const item of indents) {
+            if (
+              !item?.indentId ||
+              !item?.indentNumber ||
+              !Array.isArray(item?.lineItems) ||
+              item.lineItems.length === 0
+            ) {
+              continue;
+            }
+            const exists = await this.mercIndentPendingRepo.findOne({
+              where: { indentId: item.indentId },
+            });
+            if (!exists) {
+              await this.receiveMercIndent({
+                indentId: item.indentId,
+                indentNumber: item.indentNumber,
+                poNumber: item.poNumber || undefined,
+                customerName: item.customerName || undefined,
+                layoutNumber: item.layoutNumber || undefined,
+                mercCurrentState: item.mercCurrentState || 'DESIGN_COMPLETED',
+                lineItems: item.lineItems,
+              });
+              newlyAdded++;
+            }
+          }
+        }
+      } else {
+        this.logger.warn(`[MERC-Sync] Pull endpoint returned HTTP ${res.status}`);
+      }
+    } catch (err: any) {
+      this.logger.warn(`[MERC-Sync] Pull error: ${err?.message}`);
+    }
+
+    // 2. Also trigger MERC's outbox retry to flush any pending webhook entries
+    try {
+      await fetch(`${mercBase}/api/internal/rm/retry-outbox`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-internal-secret': mercSecret,
+        },
+        signal: AbortSignal.timeout(5000),
+      });
+    } catch {
+      // Non-fatal background trigger
+    }
+
+    return {
+      success: true,
+      totalFetched,
+      newlyAdded,
+      message: `Synchronized from MERC: ${totalFetched} found, ${newlyAdded} newly added.`,
+    };
+  }
 }
 
 export default MercIndentService;
