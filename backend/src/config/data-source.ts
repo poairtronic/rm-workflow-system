@@ -80,6 +80,7 @@ import { ConsumableRequest } from '../consumables/entities/consumable-request.en
 import { ConsumableRequestItem } from '../consumables/entities/consumable-request-item.entity.js';
 import { MercIndentPending } from '../merc-indent/entities/merc-indent-pending.entity.js';
 import { MercIndentLineItem } from '../merc-indent/entities/merc-indent-line-item.entity.js';
+import { EcrMaterialPending } from '../ecr-issues/entities/ecr-material-pending.entity.js';
 export const ALL_ENTITIES = [
   Role,
   User,
@@ -138,6 +139,7 @@ export const ALL_ENTITIES = [
   ConsumableRequestItem,
   MercIndentPending,
   MercIndentLineItem,
+  EcrMaterialPending,
 ];
 
 const dbUrl =

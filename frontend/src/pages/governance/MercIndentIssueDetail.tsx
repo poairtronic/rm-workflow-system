@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { io, Socket } from 'socket.io-client';
 import { toast } from 'react-hot-toast';
+import { APP_CONFIG } from '../../app/config';
 import {
   ArrowLeft,
   Package,
@@ -164,6 +166,38 @@ export function MercIndentIssueDetail() {
       return next;
     });
   }, [indent]);
+
+  // 4. Socket.IO Real-time listener for incoming MERC indent updates
+  useEffect(() => {
+    const token = localStorage.getItem('rm_access_token');
+    if (!token) return;
+
+    const backendUrl = APP_CONFIG.apiBaseUrl || 'http://localhost:3002';
+    const socket: Socket = io(backendUrl, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
+    });
+
+    const handleMercIndentNotification = (payload: any) => {
+      // Only react to events for MERC_INDENT
+      if (payload?.type === 'MERC_INDENT') {
+        toast('Indent updated — refreshing...', { icon: '🔄' });
+        queryClient.invalidateQueries({ queryKey: ['merc-indent-full', id] });
+        queryClient.invalidateQueries({ queryKey: ['merc-indents'] });
+        refetch();
+      }
+    };
+
+    socket.on('notification', handleMercIndentNotification);
+
+    return () => {
+      socket.off('notification', handleMercIndentNotification);
+      socket.disconnect();
+    };
+  }, [id, queryClient, refetch]);
 
   // Update specific line item form state
   const updateItemState = (itemId: string, patch: Partial<LineItemFormState>) => {
