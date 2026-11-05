@@ -719,7 +719,8 @@ export function ActiveCustodyBoard({
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            window.open(`/dispatch/delivery-challan/${dc.id}/print`, '_blank');
+                            const rwQuery = matchingTargetRw?.id ? `?reworkId=${matchingTargetRw.id}` : '';
+                            window.open(`/dispatch/delivery-challan/${dc.id}/print${rwQuery}`, '_blank');
                           }}
                           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-slate-600 hover:text-blue-700 hover:bg-blue-50 rounded-md border border-slate-200 transition-colors shadow-2xs text-xs font-medium cursor-pointer"
                           title="Print Supplier Delivery Challan"

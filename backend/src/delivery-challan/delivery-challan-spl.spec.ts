@@ -6,7 +6,7 @@ import { DeliveryChallan, DeliveryChallanType, DeliveryChallanStatus } from './e
 import { DeliveryChallanItem } from './entities/delivery-challan-item.entity.js';
 import { DcMovement } from './entities/dc-movement.entity.js';
 import { DcQcInspection } from './entities/dc-qc-inspection.entity.js';
-import { DcReworkItem } from './entities/dc-rework-item.entity.js';
+import { DcReworkItem, ReworkItemStatus } from './entities/dc-rework-item.entity.js';
 import { MercIndentPending } from '../merc-indent/entities/merc-indent-pending.entity.js';
 import { MercIndentLineItem } from '../merc-indent/entities/merc-indent-line-item.entity.js';
 import { Vendor } from '../vendor/entities/vendor.entity.js';
@@ -18,6 +18,7 @@ describe('Special Process Delivery Challan (Type 3) Service', () => {
   let mockChallanRepo: any;
   let mockPendingRepo: any;
   let mockLineItemRepo: any;
+  let mockReworkRepo: any;
   let mockDataSource: any;
   let mockQueryRunner: any;
 
@@ -34,6 +35,11 @@ describe('Special Process Delivery Challan (Type 3) Service', () => {
 
     mockLineItemRepo = {
       find: vi.fn(),
+    };
+
+    mockReworkRepo = {
+      find: vi.fn().mockResolvedValue([]),
+      findOne: vi.fn().mockResolvedValue(null),
     };
 
     mockQueryRunner = {
@@ -62,7 +68,7 @@ describe('Special Process Delivery Challan (Type 3) Service', () => {
         { provide: getRepositoryToken(DeliveryChallanItem), useValue: {} },
         { provide: getRepositoryToken(DcMovement), useValue: {} },
         { provide: getRepositoryToken(DcQcInspection), useValue: {} },
-        { provide: getRepositoryToken(DcReworkItem), useValue: {} },
+        { provide: getRepositoryToken(DcReworkItem), useValue: mockReworkRepo },
         { provide: getRepositoryToken(MercIndentPending), useValue: mockPendingRepo },
         { provide: getRepositoryToken(MercIndentLineItem), useValue: mockLineItemRepo },
         { provide: DataSource, useValue: mockDataSource },
@@ -394,6 +400,63 @@ describe('Special Process Delivery Challan (Type 3) Service', () => {
       expect(printable.items[0].quantity).toBe(8);
       expect(printable.items[0].unit).toBe('NOS');
       expect(printable.items[0].batchNo).toBe('BATCH-SPL-01');
+    });
+
+    it('returns only the rework line item when printing SPL DC in rework mode (same vendor rework)', async () => {
+      const mockSplDc = {
+        id: 'spl-dc-uuid-99',
+        challanNumber: 'SDC/2627/0015',
+        type: DeliveryChallanType.SPL_PROCESS,
+        status: DeliveryChallanStatus.OPEN,
+        poNumber: 'AGIPL PO 1340',
+        layoutNumber: '1340',
+        mercIndentNumber: 'AGIPL-IND-2026-230',
+        notes: 'REWORK DC FOR DEFECTIVE UNITS FROM SDC/2627/0015',
+        createdAt: new Date('2026-11-05T10:00:00Z'),
+        vendor: {
+          id: 'v-spl',
+          name: 'ABI ENGINEERINGS',
+          address: 'PADI',
+        },
+        items: [
+          {
+            id: 'item-1',
+            poPartLabel: 'AGIPL PO 1340 - AL 65 X 25',
+            partNumber: 'AL 65 X 25',
+            quantityDispatched: 1,
+            processName: '2121',
+          },
+          {
+            id: 'item-2',
+            poPartLabel: 'AGIPL PO 1340 - TAP',
+            partNumber: 'TAP',
+            quantityDispatched: 112,
+            processName: '2121',
+          },
+        ],
+      };
+
+      const mockReworkItem = {
+        id: 'rw-item-1',
+        sourceDcId: 'spl-dc-uuid-99',
+        reworkDcId: 'spl-dc-uuid-99',
+        partNumber: 'TAP',
+        productName: 'TAP',
+        rejectedQty: 1,
+        reworkStatus: ReworkItemStatus.RE_DISPATCHED,
+        poNumber: 'AGIPL PO 1340',
+      };
+
+      mockChallanRepo.findOne.mockResolvedValue(mockSplDc);
+      mockReworkRepo.find.mockResolvedValue([mockReworkItem]);
+
+      const printable = (await service.getPrintableChallanData('spl-dc-uuid-99', undefined, 'rework')) as any;
+
+      expect(printable.isRework).toBe(true);
+      expect(printable.dcTypeLabel).toBe('SUPPLIER DC (REWORK)');
+      expect(printable.items).toHaveLength(1);
+      expect(printable.items[0].partNo).toBe('AGIPL PO 1340 - TAP');
+      expect(printable.items[0].quantity).toBe(1);
     });
   });
 });

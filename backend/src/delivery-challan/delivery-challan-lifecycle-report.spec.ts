@@ -23,6 +23,11 @@ describe('Delivery Challan Comprehensive Inward/Outward Audit & Variation Report
       getRepository: vi.fn(),
     };
 
+    const mockReworkRepo = {
+      find: vi.fn().mockResolvedValue([]),
+      findOne: vi.fn().mockResolvedValue(null),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DeliveryChallanService,
@@ -30,7 +35,7 @@ describe('Delivery Challan Comprehensive Inward/Outward Audit & Variation Report
         { provide: getRepositoryToken(DeliveryChallanItem), useValue: {} },
         { provide: getRepositoryToken(DcMovement), useValue: {} },
         { provide: getRepositoryToken(DcQcInspection), useValue: {} },
-        { provide: getRepositoryToken(DcReworkItem), useValue: {} },
+        { provide: getRepositoryToken(DcReworkItem), useValue: mockReworkRepo },
         { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
@@ -150,7 +155,7 @@ describe('Delivery Challan Comprehensive Inward/Outward Audit & Variation Report
     expect(row1.qcRejectedQty).toBe(1);
     expect(row1.reworkEntries).toHaveLength(1);
     expect(row1.reworkEntries[0].isSameVendor).toBe(true);
-    expect(row1.reworkEntries[0].summary).toContain('sent to Same Vendor under DC DC-2026-0001 on 2026-10-14, received on 2026-10-17');
+    expect(row1.reworkEntries[0].summary).toContain('to Same Vendor on 2026-10-14, received on 2026-10-17');
 
     // Verify Scenario 2: DC-002 (Type 2 Variations vs Partial Received)
     const row2 = report.items[1];

@@ -6,6 +6,7 @@ import {
   BadRequestException,
   Optional,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In, Raw } from 'typeorm';
 import { MercIndentPending } from './entities/merc-indent-pending.entity.js';
@@ -937,42 +938,32 @@ export class MercIndentService implements OnModuleInit {
       await queryRunner.release();
     }
 
-    // 7. After commit — call MERC webhook (outside transaction, non-blocking)
-    try {
-      const mercUrl = (process.env.MERC_API_URL || '').replace(/\/+$/, '');
-      const mercSecret = process.env.MERC_INTERNAL_SECRET || process.env.RM_INTERNAL_SECRET || '';
-
-      if (!mercUrl || !mercSecret) {
-        this.logger.warn('[MERC-Integration] MERC_API_URL or MERC_INTERNAL_SECRET not set');
-      } else {
-        const callbackPayload = {
-          indentId: pendingRecord.indentId,
+    // 7. Emit Socket.IO event for real-time UI refresh across active clients
+    if (this.notificationsGateway) {
+      try {
+        const socketPayload = {
+          type: 'MERC_INDENT',
+          indentId: pendingRecord.id,
           indentNumber: pendingRecord.indentNumber,
-          mercItemId: lineItem.mercItemId,
-          itemType: lineItem.itemType,
-          quantityIssued: dto.quantityIssued,
-          issuedAt: new Date().toISOString(),
-          issuedByName: actorName,
-          newItemStatus,
-          newIndentStatus,
+          message: `MERC line item "${lineItem.name}" issued (${dto.quantityIssued}). Indent status: ${newIndentStatus}.`,
         };
-
-        await fetch(`${mercUrl}/api/internal/rm/item-issued`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-internal-secret': mercSecret,
-          },
-          body: JSON.stringify(callbackPayload),
-        });
-
-        this.logger.log(
-          `[MERC-Integration] Successfully sent issue webhook to MERC for item ${lineItem.mercItemId}`,
-        );
+        if (this.notificationsGateway.server) {
+          this.notificationsGateway.server.emit('notification', socketPayload);
+        }
+      } catch (err: any) {
+        this.logger.warn(`Socket.IO emit error: ${err?.message}`);
       }
-    } catch (err: any) {
-      this.logger.error(`[MERC-Integration] Callback failed: ${err?.message}`);
     }
+
+    // 8. After commit — call MERC webhook to update external MERC order status live
+    await this.sendIssueCallbackToMerc(
+      pendingRecord,
+      lineItem,
+      Number(dto.quantityIssued),
+      actorName,
+      newItemStatus,
+      newIndentStatus,
+    );
 
     return {
       success: true,
@@ -1128,6 +1119,136 @@ export class MercIndentService implements OnModuleInit {
   }
 
   /**
+   * Helper to resolve the correct MERC API base URL.
+   * Gracefully falls back to the live deployed Render instance if unset or if localhost:3001 is offline.
+   */
+  getMercBaseUrl(): string {
+    const raw = (process.env.MERC_API_URL || '').trim();
+    if (!raw || raw.includes('localhost:3001')) {
+      return 'https://indent-application.onrender.com';
+    }
+    return raw.replace(/\/+$/, '');
+  }
+
+  /**
+   * Helper to resolve the shared internal secret for MERC communication.
+   */
+  getMercSecret(): string {
+    return (
+      process.env.MERC_INTERNAL_SECRET ||
+      process.env.RM_INTERNAL_SECRET ||
+      'vsmart_merc_bridge_2026_secure'
+    );
+  }
+
+  /**
+   * Sends an item-issued webhook callback to the MERC system with automatic retry and response tracking.
+   */
+  async sendIssueCallbackToMerc(
+    pendingRecord: MercIndentPending,
+    lineItem: MercIndentLineItem,
+    quantityIssued: number,
+    actorName: string,
+    newItemStatus: string,
+    newIndentStatus: string,
+  ): Promise<boolean> {
+    const mercUrl = this.getMercBaseUrl();
+    const mercSecret = this.getMercSecret();
+
+    const callbackPayload = {
+      indentId: pendingRecord.indentId,
+      indentNumber: pendingRecord.indentNumber,
+      mercItemId: lineItem.mercItemId,
+      itemType: lineItem.itemType,
+      quantityIssued: Number(quantityIssued),
+      issuedAt: new Date().toISOString(),
+      issuedByName: actorName,
+      newItemStatus,
+      newIndentStatus,
+    };
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const res = await fetch(`${mercUrl}/api/internal/rm/item-issued`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-internal-secret': mercSecret,
+          },
+          body: JSON.stringify(callbackPayload),
+          signal: AbortSignal.timeout(15000),
+        });
+
+        if (res.ok) {
+          const body: any = await res.json().catch(() => null);
+          this.logger.log(
+            `[MERC-Integration] Successfully sent issue webhook to MERC for item ${lineItem.mercItemId}. Status: ${res.status}. Body: ${JSON.stringify(body)}`,
+          );
+          if (body?.updatedStatus) {
+            pendingRecord.mercCurrentState = body.updatedStatus;
+            await this.mercIndentPendingRepo.save(pendingRecord);
+          }
+          return true;
+        } else {
+          const errText = await res.text().catch(() => '');
+          this.logger.warn(
+            `[MERC-Integration] Attempt ${attempt} failed: HTTP ${res.status} - ${errText}`,
+          );
+        }
+      } catch (err: any) {
+        this.logger.warn(`[MERC-Integration] Attempt ${attempt} error: ${err?.message}`);
+      }
+
+      if (attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Reconciles all issued items of an indent with MERC.
+   */
+  async reconcileIssuedItemsWithMerc(pendingRecord: MercIndentPending): Promise<void> {
+    try {
+      const lineItems = await this.mercIndentLineItemRepo.find({
+        where: { mercIndentPendingId: pendingRecord.id },
+      });
+
+      for (const item of lineItems) {
+        const qtyIssued = Number(item.quantityIssued) || 0;
+        if (item.status === 'ISSUED' || qtyIssued > 0) {
+          await this.sendIssueCallbackToMerc(
+            pendingRecord,
+            item,
+            qtyIssued,
+            'Automated Sync Reconciler',
+            item.status,
+            pendingRecord.status,
+          );
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(
+        `[MERC-Reconcile] Error reconciling items for indent ${pendingRecord.indentNumber}: ${err?.message}`,
+      );
+    }
+  }
+
+  /**
+   * Background cron to keep indents automatically and lively in sync with MERC every 25 seconds.
+   */
+  @Cron(process.env.MERC_SYNC_CRON_SCHEDULE || '*/25 * * * * *')
+  async handleScheduledMercSync(): Promise<void> {
+    try {
+      await this.syncFromMerc();
+    } catch (err: any) {
+      this.logger.warn(`[MERC-Sync-Cron] Scheduled sync error: ${err?.message}`);
+    }
+  }
+
+  /**
    * Actively synchronizes pending indents directly from MERC application.
    * Calls MERC's /api/internal/indents/pending endpoint and imports any new indents.
    * Also triggers MERC's outbox retry to flush any pending webhooks.
@@ -1138,18 +1259,15 @@ export class MercIndentService implements OnModuleInit {
     newlyAdded: number;
     message: string;
   }> {
-    const mercBase = (process.env.MERC_API_URL || 'https://indent-application.onrender.com').replace(/\/+$/, '');
-    const mercSecret =
-      process.env.MERC_INTERNAL_SECRET ||
-      process.env.RM_INTERNAL_SECRET ||
-      'vsmart_merc_bridge_2026_secure';
+    const mercBase = this.getMercBaseUrl();
+    const mercSecret = this.getMercSecret();
 
     let newlyAdded = 0;
     let totalFetched = 0;
+    let updatedCount = 0;
 
     // 1. Pull directly from MERC /api/internal/indents/pending
     try {
-      this.logger.log(`[MERC-Sync] Pulling pending indents from ${mercBase}/api/internal/indents/pending`);
       const res = await fetch(`${mercBase}/api/internal/indents/pending`, {
         method: 'GET',
         headers: {
@@ -1187,16 +1305,34 @@ export class MercIndentService implements OnModuleInit {
               });
               newlyAdded++;
             } else {
-              // Existing indent: backfill missing poNumber, vendorName, source, etc.
-              await this.receiveMercIndent({
-                indentId: item.indentId,
-                indentNumber: item.indentNumber,
-                poNumber: item.poNumber || undefined,
-                customerName: item.customerName || undefined,
-                layoutNumber: item.layoutNumber || undefined,
-                mercCurrentState: item.mercCurrentState || exists.mercCurrentState || 'DESIGN_COMPLETED',
-                lineItems: item.lineItems,
-              });
+              // Existing indent: sync latest poNumber, layoutNumber, and status
+              let hasChanges = false;
+              if (item.poNumber && exists.poNumber !== item.poNumber) {
+                exists.poNumber = item.poNumber;
+                hasChanges = true;
+              }
+              if (item.layoutNumber && exists.layoutNumber !== item.layoutNumber) {
+                exists.layoutNumber = item.layoutNumber;
+                hasChanges = true;
+              }
+              if (item.mercCurrentState && exists.mercCurrentState !== item.mercCurrentState) {
+                exists.mercCurrentState = item.mercCurrentState;
+                hasChanges = true;
+              }
+              if (hasChanges) {
+                await this.mercIndentPendingRepo.save(exists);
+                updatedCount++;
+              }
+
+              // RECONCILIATION: Check if RM has this indent marked as ISSUED or PARTIAL,
+              // but MERC is still showing DESIGN_COMPLETED or STORES_PROCESSING!
+              if (
+                (exists.status === 'ISSUED' || exists.status === 'PARTIAL') &&
+                (item.mercCurrentState === 'DESIGN_COMPLETED' ||
+                  item.mercCurrentState === 'STORES_PROCESSING')
+              ) {
+                await this.reconcileIssuedItemsWithMerc(exists);
+              }
             }
           }
         }
@@ -1221,11 +1357,19 @@ export class MercIndentService implements OnModuleInit {
       // Non-fatal background trigger
     }
 
+    // 3. Emit real-time notification if new indents arrived or were updated
+    if ((newlyAdded > 0 || updatedCount > 0) && this.notificationsGateway?.server) {
+      this.notificationsGateway.server.emit('notification', {
+        type: 'MERC_INDENT',
+        message: `${newlyAdded} new / ${updatedCount} updated MERC indents synchronized lively.`,
+      });
+    }
+
     return {
       success: true,
       totalFetched,
       newlyAdded,
-      message: `Synchronized from MERC: ${totalFetched} found, ${newlyAdded} newly added.`,
+      message: `Synchronized from MERC: ${totalFetched} found, ${newlyAdded} newly added, ${updatedCount} updated.`,
     };
   }
 
@@ -1284,33 +1428,15 @@ export class MercIndentService implements OnModuleInit {
       }
     }
 
-    // MERC Webhook callback
-    try {
-      const mercUrl = (process.env.MERC_API_URL || '').replace(/\/+$/, '');
-      const mercSecret = process.env.MERC_INTERNAL_SECRET || process.env.RM_INTERNAL_SECRET || '';
-      if (mercUrl && mercSecret) {
-        await fetch(`${mercUrl}/api/internal/rm/item-issued`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-internal-secret': mercSecret,
-          },
-          body: JSON.stringify({
-            indentId: pendingRecord.indentId,
-            indentNumber: pendingRecord.indentNumber,
-            mercItemId: lineItem.mercItemId,
-            itemType: lineItem.itemType,
-            quantityIssued: lineItem.quantityIssued,
-            issuedAt: new Date().toISOString(),
-            issuedByName: actorName,
-            newItemStatus: 'ISSUED',
-            newIndentStatus,
-          }),
-        });
-      }
-    } catch (webhookErr) {
-      this.logger.warn(`Failed to notify MERC of short-close: ${webhookErr}`);
-    }
+    // Call MERC webhook to update external MERC order status live
+    await this.sendIssueCallbackToMerc(
+      pendingRecord,
+      lineItem,
+      Number(lineItem.quantityIssued) || 0,
+      actorName,
+      'ISSUED',
+      newIndentStatus,
+    );
 
     return {
       success: true,

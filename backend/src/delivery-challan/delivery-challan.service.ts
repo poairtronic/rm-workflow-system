@@ -1006,161 +1006,6 @@ export class DeliveryChallanService {
     if (!challan) {
       throw new NotFoundException(`Delivery Challan with ID ${id} not found`);
     }
-    // Handle Special Process (Type 3) DC Printout
-    if (challan.type === DeliveryChallanType.SPL_PROCESS || challan.type === 'SPL_PROCESS') {
-      const vendor = challan.vendor;
-      const items = (challan.items || []).map((item, index) => {
-        const partNo = item.poPartLabel ?? item.partNumber ?? '';
-        const particulars = item.poPartLabel ?? item.description ?? '';
-        const dispatchedQty = Number(item.quantityDispatched ?? 0);
-
-        return {
-          slNo: index + 1,
-          // KEY DIFFERENCE: Part No prints as "PO123 - BASE PLATE"
-          partNo,
-          partNumber: partNo,
-          // Particulars/Product name also uses poPartLabel
-          particulars,
-          productName: particulars,
-          description: item.description ?? '',
-          quantity: dispatchedQty,
-          quantityDispatched: dispatchedQty,
-          unit: 'NOS',
-          uom: 'NOS',
-          batchNo: item.batchNumber ?? null,
-          batchNumber: item.batchNumber ?? null,
-        };
-      });
-
-      const lineItems = (challan.items || []).map((item) => {
-        const partNo = item.poPartLabel ?? item.partNumber ?? '';
-        const particulars = item.poPartLabel ?? item.description ?? '';
-        const dispatchedQty = Number(item.quantityDispatched ?? 0);
-
-        return {
-          id: item.id,
-          productId: item.productId || '',
-          productCode: partNo,
-          productName: particulars,
-          partNumber: partNo,
-          partName: particulars,
-          binId: item.binId || '',
-          binCode: item.bin?.code ?? '',
-          binName: item.bin?.name ?? '',
-          quantityDispatched: dispatchedQty,
-          quantityReturned: Number(item.quantityReturned ?? 0),
-          quantityOutstanding: Math.max(0, dispatchedQty - Number(item.quantityReturned ?? 0)),
-          uom: 'NOS',
-          poNumber: challan.poNumber || undefined,
-          processName: item.processName || challan.processName || 'SPECIAL PROCESS',
-          batchNumber: item.batchNumber || undefined,
-          description: item.description ?? null,
-        };
-      });
-
-      const resolvedProcessType =
-        challan.items?.[0]?.processName || challan.processName || 'SPECIAL PROCESS';
-
-      const companyObj = {
-        name: 'VELAN METROLOGY INDIA PRIVATE LIMITED',
-        address: 'NO 146/87 A&B, Jayaram Nagar Main Road, Vanagaram, Chennai - 600095',
-        phone: '9600703283',
-        email: 'velanmetrology@gmail.com',
-        gstin: '33AAICV7596H1ZR',
-        state: 'Tamil Nadu',
-        stateCode: '33',
-        website: null,
-      };
-
-      const vendorObj = {
-        id: vendor?.id ?? challan.vendorId,
-        code: vendor?.code ?? '',
-        name: vendor?.name ?? '',
-        address: vendor?.address ?? null,
-        contactPerson: vendor?.contactPerson ?? null,
-        phone: vendor?.phone ?? null,
-        email: vendor?.email ?? null,
-        category: vendor?.category ?? null,
-      };
-
-      const auditObj = {
-        createdById: challan.createdById ?? null,
-        createdByName: (challan.createdBy as any)?.name ?? null,
-        createdAt: challan.createdAt,
-        verifiedById: challan.verifiedById ?? null,
-        verifiedByName: (challan.verifiedBy as any)?.name ?? null,
-        verificationRemarks: challan.verificationRemarks ?? null,
-        authorizedSignatory: '___________________________',
-        termsAndConditions:
-          'All materials dispatched under this challan remain the property of ' +
-          companyObj.name +
-          ' until formally returned and verified. The vendor is responsible for safe custody of all goods. ' +
-          'Any damage, loss, or discrepancy must be reported within 24 hours of receipt.',
-      };
-
-      return {
-        // Step 2 specific fields
-        dcNumber: challan.challanNumber,
-        dcType: 'SPL_PROCESS',
-        dcTypeLabel: 'SUPPLIER DC',
-        date: challan.createdAt,
-        vendor: {
-          name: vendor?.name || '',
-          address: vendor?.address || '',
-          contactPerson: vendor?.contactPerson ?? null,
-          phone: vendor?.phone ?? null,
-        },
-        poNumber: challan.poNumber,
-        layoutNumber: challan.layoutNumber ?? null,
-        mercIndentNumber: challan.mercIndentNumber ?? null,
-        processType: resolvedProcessType,
-        remarks: challan.notes ?? '',
-        items,
-        companyName: companyObj.name,
-        companyAddress: companyObj.address,
-        companyPhone: companyObj.phone,
-        companyEmail: companyObj.email,
-        companyGstin: companyObj.gstin,
-        companyState: `${companyObj.stateCode} / ${companyObj.state}`,
-
-        // Additional compatibility properties for Frontend Print View & PrintableDeliveryChallanDto
-        company: companyObj,
-        challan: {
-          id: challan.id,
-          challanNumber: challan.challanNumber,
-          type: challan.type,
-          status: challan.status,
-          dispatchDate: challan.dispatchDate ?? challan.createdAt,
-          expectedReturnDate: challan.expectedReturnDate ?? null,
-          actualReturnDate: challan.actualReturnDate ?? null,
-          notes: challan.notes ?? null,
-          processName: resolvedProcessType,
-        },
-        references: {
-          sc: null,
-          pos: challan.poNumber
-            ? [
-                {
-                  poId: '',
-                  poNumber: challan.poNumber,
-                  externalReference: null,
-                  referenceDate: null,
-                },
-              ]
-            : [],
-          process: null,
-          processName: resolvedProcessType,
-        },
-        lineItems,
-        groups: [],
-        audit: auditObj,
-        generatedAt: new Date().toISOString(),
-        isRework: false,
-        hasReworkItems: false,
-        originalItemsCount: items.length,
-      } as any;
-    }
-
     // Check for associated re-dispatched rework items
     const activeReworks = await this.reworkRepo.find({
       where: [
@@ -1203,6 +1048,15 @@ export class DeliveryChallanService {
 
     // Resolve SC → PO references
     const posSet = new Map<string, any>();
+
+    if (challan.poNumber) {
+      posSet.set('challan-header-po', {
+        poId: '',
+        poNumber: challan.poNumber,
+        externalReference: null,
+        referenceDate: null,
+      });
+    }
 
     if (isReworkMode) {
       targetReworkItems.forEach((rw) => {
@@ -1309,12 +1163,25 @@ export class DeliveryChallanService {
     if (isReworkMode) {
       lineItems = targetReworkItems.map((rw) => {
         const reworkQty = Number(rw.rejectedQty || 0);
-        const matchingItem = challan.items?.find(
-          (it: any) =>
+        const matchingItem = challan.items?.find((it: any) => {
+          const itPoLabel = it.poPartLabel || '';
+          return (
             (rw.productId && it.productId === rw.productId) ||
-            (rw.partNumber && it.partNumber === rw.partNumber) ||
-            (rw.scId && it.scId === rw.scId),
-        );
+            (rw.partNumber &&
+              (it.partNumber === rw.partNumber ||
+                (itPoLabel &&
+                  (itPoLabel === rw.partNumber ||
+                    itPoLabel.includes(rw.partNumber) ||
+                    rw.partNumber.includes(itPoLabel))))) ||
+            (rw.productName &&
+              (it.partName === rw.productName ||
+                (itPoLabel &&
+                  (itPoLabel === rw.productName ||
+                    itPoLabel.includes(rw.productName) ||
+                    rw.productName.includes(itPoLabel))))) ||
+            (rw.scId && it.scId === rw.scId)
+          );
+        });
 
         const isSpl =
           challan.type === DeliveryChallanType.SPL_PROCESS ||
@@ -1455,7 +1322,58 @@ export class DeliveryChallanService {
         'Any damage, loss, or discrepancy must be reported within 24 hours of receipt.',
     };
 
+    const isSplChallan =
+      challan.type === DeliveryChallanType.SPL_PROCESS ||
+      challan.type === 'SPL_PROCESS' ||
+      !!challan.poNumber;
+
+    const resolvedProcessType =
+      (isReworkMode ? 'REWORK PROCESSING' : null) ||
+      challan.items?.[0]?.processName ||
+      challan.processName ||
+      (isSplChallan ? 'SPECIAL PROCESS' : null);
+
+    const items = lineItems.map((item, index) => {
+      const partNo = item.partNumber ?? item.productCode ?? '';
+      const particulars = item.partName ?? item.productName ?? '';
+      const dispatchedQty = Number(item.quantityDispatched ?? 0);
+
+      return {
+        slNo: index + 1,
+        partNo,
+        partNumber: partNo,
+        particulars,
+        productName: particulars,
+        description: item.description ?? '',
+        quantity: dispatchedQty,
+        quantityDispatched: dispatchedQty,
+        unit: item.uom || 'NOS',
+        uom: item.uom || 'NOS',
+        batchNo: item.batchNumber ?? null,
+        batchNumber: item.batchNumber ?? null,
+      };
+    });
+
     return {
+      // Step 2 & root properties for compatibility with all templates and tests
+      dcNumber: challan.challanNumber,
+      dcType: challan.type,
+      dcTypeLabel: isReworkMode ? 'SUPPLIER DC (REWORK)' : 'SUPPLIER DC',
+      date: challan.dispatchDate || challan.createdAt,
+      poNumber: challan.poNumber || (isReworkMode ? (targetReworkItems[0]?.poNumber || (targetReworkItems[0] as any)?.po?.poNumber) : null) || null,
+      layoutNumber: challan.layoutNumber || null,
+      mercIndentNumber: challan.mercIndentNumber || null,
+      processType: resolvedProcessType,
+      remarks: challan.notes ?? '',
+      items,
+
+      companyName: companyInfo.name,
+      companyAddress: companyInfo.address,
+      companyPhone: companyInfo.phone,
+      companyEmail: companyInfo.email,
+      companyGstin: companyInfo.gstin,
+      companyState: `${companyInfo.stateCode} / ${companyInfo.state}`,
+
       company: companyInfo,
       challan: {
         id: challan.id,
@@ -1466,13 +1384,16 @@ export class DeliveryChallanService {
         expectedReturnDate: challan.expectedReturnDate ?? null,
         actualReturnDate: challan.actualReturnDate ?? null,
         notes: challan.notes ?? null,
-        processName: challan.processName ?? (isReworkMode ? 'REWORK PROCESSING' : null),
+        processName: resolvedProcessType,
         poNumber: challan.poNumber || (isReworkMode ? (targetReworkItems[0]?.poNumber || (targetReworkItems[0] as any)?.po?.poNumber) : null) || null,
         layoutNumber: challan.layoutNumber || null,
         mercIndentNumber: challan.mercIndentNumber || null,
       },
       vendor: vendorInfo,
-      references,
+      references: {
+        ...references,
+        processName: resolvedProcessType,
+      },
       lineItems,
       groups,
       audit,
@@ -1481,7 +1402,7 @@ export class DeliveryChallanService {
       reworkId: isReworkMode ? targetReworkItems[0]?.id : undefined,
       hasReworkItems: activeReworks.length > 0,
       originalItemsCount: enrichedItems.length,
-    };
+    } as any;
   }
 
   async getVendorCustodySummary(vendorId: string) {
@@ -2015,12 +1936,28 @@ export class DeliveryChallanService {
           }
           if (existingDc.items && existingDc.items.length > 0) {
             for (const it of existingDc.items) {
-              if (
-                (item.productId && it.productId === item.productId) ||
-                (item.partNumber && it.partNumber === item.partNumber) ||
-                (it.scId && item.scId && it.scId === item.scId) ||
-                (!item.productId && !it.productId)
-              ) {
+              const itPoLabel = it.poPartLabel || '';
+              const isMatch =
+                Boolean(item.productId && it.productId === item.productId) ||
+                Boolean(
+                  item.partNumber &&
+                    (it.partNumber === item.partNumber ||
+                      (itPoLabel &&
+                        (itPoLabel === item.partNumber ||
+                          itPoLabel.includes(item.partNumber) ||
+                          item.partNumber.includes(itPoLabel)))),
+                ) ||
+                Boolean(
+                  item.productName &&
+                    (it.partName === item.productName ||
+                      (itPoLabel &&
+                        (itPoLabel === item.productName ||
+                          itPoLabel.includes(item.productName) ||
+                          item.productName.includes(itPoLabel)))),
+                ) ||
+                Boolean(item.scId && it.scId && it.scId === item.scId);
+
+              if (isMatch) {
                 it.qcPendingQty = 0;
                 if (dto.description) {
                   it.description = dto.description;
