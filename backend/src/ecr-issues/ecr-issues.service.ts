@@ -247,8 +247,11 @@ export class EcrIssuesService {
     const candidateUrls = [
       `${ecrApiUrl}/api/internal/approved-reports`,
       `${ecrApiUrl}/internal/approved-reports`,
+      `${ecrApiUrl}/api/internal/stores-processing-reports`,
+      `${ecrApiUrl}/internal/stores-processing-reports`,
     ];
 
+    let httpSucceeded = false;
     for (const url of candidateUrls) {
       try {
         const res = await fetch(url, {
@@ -263,6 +266,7 @@ export class EcrIssuesService {
             const data = await res.json();
             if (Array.isArray(data)) {
               reports = data;
+              httpSucceeded = true;
               this.logger.log(`[ECR-Sync] Fetched ${reports.length} approved reports via HTTP from ${url}`);
               break;
             }
@@ -273,8 +277,8 @@ export class EcrIssuesService {
       }
     }
 
-    // Strategy 2: If HTTP didn't yield reports, fallback to direct query of ECR database
-    if (reports.length === 0) {
+    // Strategy 2: If HTTP endpoint was unreachable, fallback to direct query of ECR database for APPROVED unissued reports
+    if (!httpSucceeded) {
       try {
         const ecrDbUrl =
           process.env.ECR_DATABASE_URL ||
@@ -286,7 +290,7 @@ export class EcrIssuesService {
         const res = await client.query(
           `SELECT id, "reportNumber", status, "inspectionType", "scNo", "poNo", "scOrPoNo", "componentName", quantity, "createdAt", "updatedAt", "componentsIssued"
            FROM defect_reports
-           WHERE status IN ('APPROVED', 'COMPONENTS_ISSUED')
+           WHERE status = 'APPROVED' AND ("componentsIssued" IS NULL OR "componentsIssued" = false)
            ORDER BY "createdAt" DESC`
         );
         await client.end();

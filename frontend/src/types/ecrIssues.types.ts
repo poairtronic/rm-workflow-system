@@ -34,7 +34,7 @@ export interface EcrIssuePending {
   poNumber: string;
   component: string;
   quantityAffected: number;
-  status: 'PENDING' | 'ISSUED';
+  status: 'PENDING' | 'ISSUED' | 'PARTIAL' | string;
   issuedAt?: string | null;
   issuedById?: string | null;
   stockTransactionId?: string | null;

@@ -91,6 +91,24 @@ export function EcrMaterialIssue() {
     },
   });
 
+  // 1.1 Tab Filter State: ALL | OPEN | CLOSED
+  const [activeTab, setActiveTab] = useState<'ALL' | 'OPEN' | 'CLOSED'>('ALL');
+
+  const openIssues = useMemo(
+    () => issues.filter((i) => i.status !== 'ISSUED'),
+    [issues]
+  );
+  const closedIssues = useMemo(
+    () => issues.filter((i) => i.status === 'ISSUED'),
+    [issues]
+  );
+
+  const filteredIssues = useMemo(() => {
+    if (activeTab === 'OPEN') return openIssues;
+    if (activeTab === 'CLOSED') return closedIssues;
+    return issues;
+  }, [activeTab, issues, openIssues, closedIssues]);
+
   // 2. Socket.IO Real-time listener for incoming ECR material issues
   useEffect(() => {
     const token = localStorage.getItem('rm_access_token');
@@ -445,13 +463,16 @@ export function EcrMaterialIssue() {
       key: 'status',
       header: 'Status',
       render: (row: EcrIssuePending) => {
-        const isPending = row.status === 'PENDING';
+        const isIssued = row.status === 'ISSUED';
+        const isPartial = (row.status as string) === 'PARTIAL';
         return (
           <span
             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-              isPending
-                ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-                : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+              isIssued
+                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                : isPartial
+                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                  : 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
             }`}
           >
             {row.status}
@@ -509,6 +530,72 @@ export function EcrMaterialIssue() {
         }
       />
 
+      {/* 3 Modules Filter Tabs: ALL, OPEN, CLOSED */}
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+        <button
+          type="button"
+          onClick={() => setActiveTab('ALL')}
+          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 ${
+            activeTab === 'ALL'
+              ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <span>All</span>
+          <span
+            className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold ${
+              activeTab === 'ALL'
+                ? 'bg-slate-700 text-slate-100 dark:bg-slate-300 dark:text-slate-900'
+                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+            }`}
+          >
+            {issues.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('OPEN')}
+          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 ${
+            activeTab === 'OPEN'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40'
+          }`}
+        >
+          <span>Open</span>
+          <span
+            className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold ${
+              activeTab === 'OPEN'
+                ? 'bg-blue-500 text-white'
+                : 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300'
+            }`}
+          >
+            {openIssues.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('CLOSED')}
+          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 ${
+            activeTab === 'CLOSED'
+              ? 'bg-emerald-600 text-white shadow-xs'
+              : 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+          }`}
+        >
+          <span>Closed</span>
+          <span
+            className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold ${
+              activeTab === 'CLOSED'
+                ? 'bg-emerald-500 text-white'
+                : 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300'
+            }`}
+          >
+            {closedIssues.length}
+          </span>
+        </button>
+      </div>
+
       {/* Render Table States */}
       {isLoading ? (
         <LoadingState text="Loading ECR material issues..." />
@@ -522,10 +609,27 @@ export function EcrMaterialIssue() {
           title="No ECR Material Issues"
           description="There are currently no rework or rejection replacement requests pending material issuance."
         />
+      ) : filteredIssues.length === 0 ? (
+        <EmptyState
+          title={
+            activeTab === 'OPEN'
+              ? 'No Open Material Issues'
+              : activeTab === 'CLOSED'
+                ? 'No Closed Material Issues'
+                : 'No Material Issues Found'
+          }
+          description={
+            activeTab === 'OPEN'
+              ? 'All replacement material requests have been fully issued.'
+              : activeTab === 'CLOSED'
+                ? 'No issued replacement reports found in history.'
+                : 'No records matching the selected tab.'
+          }
+        />
       ) : (
         <DataTable
           columns={columns}
-          data={issues}
+          data={filteredIssues}
           searchable={true}
           searchKeys={['reportNumber', 'scNumber', 'component']}
           pagination={true}
