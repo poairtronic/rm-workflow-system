@@ -56,6 +56,14 @@ export class MercLineItemDto {
   @IsOptional()
   @IsString()
   unit?: string;
+
+  @IsOptional()
+  @IsString()
+  vendorName?: string;
+
+  @IsOptional()
+  @IsString()
+  source?: string; // 'In-house' | 'Vendor'
 }
 
 export class ReceiveMercIndentDto {

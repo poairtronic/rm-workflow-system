@@ -62,6 +62,12 @@ export class MercIndentLineItem {
   @Column({ type: 'varchar', nullable: true })
   unit?: string | null;
 
+  @Column({ name: 'vendor_name', type: 'varchar', nullable: true })
+  vendorName?: string | null;
+
+  @Column({ name: 'source', type: 'varchar', nullable: true })
+  source?: string | null;
+
   @Column({ type: 'varchar', default: 'PENDING' })
   status!: string;
 

@@ -26,6 +26,7 @@ import { masterDataService, type Bin } from '../../services/masterDataService';
 import type {
   MercIndentFullDetail,
   SuggestedProduct,
+  MercLineItem,
 } from '../../types/mercIndent.types';
 
 interface LineItemFormState {
@@ -358,20 +359,21 @@ export function MercIndentIssueDetail() {
     }
   };
 
-  // Helper: Format dimensions string
-  const formatDimensions = (item: MercIndentFullDetail['lineItems'][0]) => {
-    const parts: string[] = [];
-    if (item.material) parts.push(item.material);
-    if (item.shape) parts.push(item.shape);
-    if (item.diameterMm != null && Number(item.diameterMm) > 0) {
-      parts.push(`Ø ${item.diameterMm} mm`);
-    } else if (item.lengthMm != null || item.widthMm != null || item.heightMm != null) {
-      const l = item.lengthMm ?? '-';
-      const w = item.widthMm ?? '-';
-      const h = item.heightMm ?? '-';
-      parts.push(`${l} × ${w} × ${h} mm`);
+  // Helper: Dimensions display — build from actual dimension fields
+  const getDimensionDisplay = (item: MercLineItem | MercIndentFullDetail['lineItems'][0]): string => {
+    if (item.itemType === 'BROUGHT_OUT') {
+      return item.material ?? '—';
     }
-    return parts.length > 0 ? parts.join(' | ') : '—';
+    // RAW_MATERIAL — build from dimension fields
+    if (item.diameterMm && Number(item.diameterMm) > 0) {
+      return `Ø ${item.diameterMm} mm`;
+    }
+    const parts: string[] = [];
+    if (item.lengthMm && Number(item.lengthMm) > 0) parts.push(`L: ${item.lengthMm}`);
+    if (item.widthMm && Number(item.widthMm) > 0) parts.push(`W: ${item.widthMm}`);
+    if (item.heightMm && Number(item.heightMm) > 0) parts.push(`H: ${item.heightMm}`);
+    if (parts.length > 0) return parts.join(' × ') + ' mm';
+    return item.material ?? '—';
   };
 
   // Helper: Status badge
@@ -469,7 +471,7 @@ export function MercIndentIssueDetail() {
               <FileText className="w-3.5 h-3.5" /> PO Number
             </span>
             <p className="text-sm font-mono font-medium text-slate-700 dark:text-slate-200">
-              {indent.poNumber || '—'}
+              {indent.poNumber ?? '—'}
             </p>
           </div>
 
@@ -525,8 +527,83 @@ export function MercIndentIssueDetail() {
         </div>
       </div>
 
-      {/* Line Items List */}
-      <div className="space-y-4">
+      {/* Main Line Items Table (Fix 5: # | ITEM NAME | TYPE | MATERIAL | SHAPE | DIMENSIONS | VENDOR | QTY REQ | QTY ISSUED | STATUS | ACTION) */}
+      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1e33] shadow-xs">
+        <table className="w-full text-xs text-left">
+          <thead className="bg-slate-50 dark:bg-[#141829] text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+            <tr>
+              <th className="py-3 px-3">#</th>
+              <th className="py-3 px-3">ITEM NAME</th>
+              <th className="py-3 px-3">TYPE</th>
+              <th className="py-3 px-3">MATERIAL</th>
+              <th className="py-3 px-3">SHAPE</th>
+              <th className="py-3 px-3">DIMENSIONS</th>
+              <th className="py-3 px-3">VENDOR</th>
+              <th className="py-3 px-3 text-right">QTY REQ</th>
+              <th className="py-3 px-3 text-right">QTY ISSUED</th>
+              <th className="py-3 px-3 text-center">STATUS</th>
+              <th className="py-3 px-3 text-center">ACTION</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+            {lineItemsList.map((item, idx) => {
+              const isRawMat = item.itemType === 'RAW_MATERIAL';
+              const isFullyIssued = item.status === 'ISSUED';
+              return (
+                <tr key={`table-${item.id}`} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                  <td className="py-3 px-3 font-mono font-bold text-slate-600 dark:text-slate-400">{idx + 1}</td>
+                  <td className="py-3 px-3 font-semibold text-slate-900 dark:text-white">{item.name}</td>
+                  <td className="py-3 px-3">
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded font-semibold tracking-wide uppercase ${
+                        isRawMat
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                          : 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+                      }`}
+                    >
+                      {isRawMat ? 'RAW MATERIAL' : 'BOUGHT OUT'}
+                    </span>
+                  </td>
+                  <td className="py-3 px-3 text-slate-700 dark:text-slate-300 font-medium">{item.material ?? '—'}</td>
+                  <td className="py-3 px-3 text-slate-700 dark:text-slate-300 font-medium">{item.shape ?? '—'}</td>
+                  <td className="py-3 px-3 font-medium text-slate-700 dark:text-slate-300">{getDimensionDisplay(item)}</td>
+                  <td className="py-3 px-3 text-slate-700 dark:text-slate-300 font-medium">
+                    {item.vendorName ? (
+                      <span className="text-amber-600 dark:text-amber-400 font-semibold">{item.vendorName}</span>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <td className="py-3 px-3 text-right font-mono font-bold text-slate-900 dark:text-white">
+                    {item.quantityRequired} {item.unit || ''}
+                  </td>
+                  <td className="py-3 px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                    {item.quantityIssued} {item.unit || ''}
+                  </td>
+                  <td className="py-3 px-3 text-center">{renderStatusBadge(item.status)}</td>
+                  <td className="py-3 px-3 text-center">
+                    {isFullyIssued ? (
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium inline-flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Issued
+                      </span>
+                    ) : (
+                      <a
+                        href={`#line-item-${item.id}`}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition-colors"
+                      >
+                        Issue
+                      </a>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Line Items Cards & Issue Forms */}
+      <div className="space-y-4 pt-2">
         {lineItemsList.map((item, idx) => {
           if (!item) return null;
           const isFullyIssued = item.status === 'ISSUED';
@@ -562,6 +639,7 @@ export function MercIndentIssueDetail() {
           return (
             <div
               key={item.id}
+              id={`line-item-${item.id}`}
               className={`border rounded-xl transition-all shadow-xs overflow-hidden ${
                 isFullyIssued
                   ? 'border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/20 dark:bg-emerald-950/10'
@@ -593,15 +671,48 @@ export function MercIndentIssueDetail() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 text-xs">
+                <div className="flex flex-wrap items-center gap-4 text-xs">
+                  {item.material && (
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-semibold">
+                        Material
+                      </span>
+                      <span className="font-medium text-slate-700 dark:text-slate-300">
+                        {item.material}
+                      </span>
+                    </div>
+                  )}
+
+                  {item.shape && (
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-semibold">
+                        Shape
+                      </span>
+                      <span className="font-medium text-slate-700 dark:text-slate-300">
+                        {item.shape}
+                      </span>
+                    </div>
+                  )}
+
                   <div>
                     <span className="text-slate-400 block text-[10px] uppercase font-semibold">
                       Dimensions / Spec
                     </span>
                     <span className="font-medium text-slate-700 dark:text-slate-300">
-                      {formatDimensions(item)}
+                      {getDimensionDisplay(item)}
                     </span>
                   </div>
+
+                  {item.vendorName && (
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-semibold">
+                        Vendor
+                      </span>
+                      <span className="font-bold text-amber-600 dark:text-amber-400">
+                        {item.vendorName}
+                      </span>
+                    </div>
+                  )}
 
                   <div>
                     <span className="text-slate-400 block text-[10px] uppercase font-semibold">
@@ -627,6 +738,40 @@ export function MercIndentIssueDetail() {
 
               {/* Card Body: Inline Issue Section */}
               <div className="p-4">
+                {/* Item details info row (Fix 3) */}
+                <div className="item-details-row flex flex-wrap items-center gap-2 mb-3.5 text-xs">
+                  {item.material && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+                      <label className="text-slate-400 font-medium">Material:</label>{' '}
+                      <strong className="font-semibold">{item.material}</strong>
+                    </span>
+                  )}
+                  {item.shape && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+                      <label className="text-slate-400 font-medium">Shape:</label>{' '}
+                      <strong className="font-semibold">{item.shape}</strong>
+                    </span>
+                  )}
+                  {item.source && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+                      <label className="text-slate-400 font-medium">Source:</label>{' '}
+                      <strong className="font-semibold">{item.source}</strong>
+                    </span>
+                  )}
+                  {item.vendorName && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200 border border-amber-300 dark:border-amber-700/70 font-semibold shadow-xs">
+                      <label className="text-amber-600 dark:text-amber-400 font-medium">Vendor:</label>{' '}
+                      <strong className="font-bold text-amber-900 dark:text-amber-100">{item.vendorName}</strong>
+                    </span>
+                  )}
+                  {item.unit && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+                      <label className="text-slate-400 font-medium">Unit:</label>{' '}
+                      <strong className="font-semibold">{item.unit}</strong>
+                    </span>
+                  )}
+                </div>
+
                 {isFullyIssued ? (
                   /* Completed Item View */
                   <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-100/50 dark:bg-emerald-950/30 border border-emerald-300/50 dark:border-emerald-800/40 text-xs text-emerald-800 dark:text-emerald-300">

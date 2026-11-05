@@ -3,6 +3,7 @@ export interface MercIndentSummary {
   indentNumber: string;
   poNumber: string | null;
   customerName: string | null;
+  layoutNumber?: string | null;
   status: 'PENDING' | 'PARTIAL' | 'ISSUED';
   totalItems: number;
   issuedItems: number;
@@ -23,6 +24,8 @@ export interface MercLineItem {
   quantityRequired: number;
   quantityIssued: number;
   unit: string | null;
+  source: string | null;
+  vendorName: string | null;
   status: 'PENDING' | 'PARTIAL' | 'ISSUED';
   rmProductId?: string | null;
   rmBinId?: string | null;

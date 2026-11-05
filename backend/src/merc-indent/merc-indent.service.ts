@@ -86,6 +86,56 @@ export class MercIndentService {
     });
 
     if (existing) {
+      // If existing record was missing poNumber/customerName/layoutNumber or line item vendorName/source, backfill them
+      let updatedIndent = false;
+      if (!existing.poNumber && dto.poNumber) {
+        existing.poNumber = dto.poNumber;
+        updatedIndent = true;
+      }
+      if (!existing.customerName && dto.customerName) {
+        existing.customerName = dto.customerName;
+        updatedIndent = true;
+      }
+      if (!existing.layoutNumber && dto.layoutNumber) {
+        existing.layoutNumber = dto.layoutNumber;
+        updatedIndent = true;
+      }
+      if (updatedIndent) {
+        await this.mercIndentPendingRepo.save(existing);
+      }
+
+      if (Array.isArray(existing.lineItems) && Array.isArray(dto.lineItems)) {
+        for (const line of existing.lineItems) {
+          const incoming = dto.lineItems.find((d) => d.mercItemId === line.mercItemId);
+          if (incoming) {
+            let itemChanged = false;
+            if (!line.vendorName && incoming.vendorName) {
+              line.vendorName = incoming.vendorName;
+              itemChanged = true;
+            }
+            if (!line.source && incoming.source) {
+              line.source = incoming.source;
+              itemChanged = true;
+            }
+            if (!line.shape && incoming.shape) {
+              line.shape = incoming.shape;
+              itemChanged = true;
+            }
+            if (!line.material && incoming.material) {
+              line.material = incoming.material;
+              itemChanged = true;
+            }
+            if (incoming.name && incoming.name !== 'Unknown' && (!line.name || line.name === line.material || line.name === 'Unknown')) {
+              line.name = incoming.name;
+              itemChanged = true;
+            }
+            if (itemChanged) {
+              await this.mercIndentLineItemRepo.save(line);
+            }
+          }
+        }
+      }
+
       this.logger.log(
         `MERC indent pending already exists for indentId "${dto.indentId}" (ID: ${existing.id})`,
       );
@@ -130,6 +180,8 @@ export class MercIndentService {
           quantityRequired: Number(item.quantityRequired),
           quantityIssued: 0,
           unit: item.unit || null,
+          vendorName: item.vendorName ?? null,
+          source: item.source ?? null,
           status: 'PENDING',
         }),
       );
@@ -457,9 +509,9 @@ export class MercIndentService {
       id: record.id,
       indentId: record.indentId,
       indentNumber: record.indentNumber,
-      poNumber: record.poNumber,
-      customerName: record.customerName,
-      layoutNumber: record.layoutNumber,
+      poNumber: record.poNumber ?? null,
+      customerName: record.customerName ?? null,
+      layoutNumber: record.layoutNumber ?? null,
       status: record.status,
       mercCurrentState: record.mercCurrentState,
       createdAt: record.createdAt,
@@ -467,7 +519,26 @@ export class MercIndentService {
       totalItems: enrichedLineItems.length,
       issuedItems: enrichedLineItems.filter((i) => i.status === 'ISSUED').length,
       lineItems: (enrichedLineItems ?? []).map((item) => ({
-        ...item,
+        id: item.id,
+        mercItemId: item.mercItemId,
+        itemType: item.itemType,
+        name: item.name,
+        material: item.material ?? null,
+        shape: item.shape ?? null,
+        lengthMm: item.lengthMm != null ? Number(item.lengthMm) : null,
+        widthMm: item.widthMm != null ? Number(item.widthMm) : null,
+        heightMm: item.heightMm != null ? Number(item.heightMm) : null,
+        diameterMm: item.diameterMm != null ? Number(item.diameterMm) : null,
+        quantityRequired: Number(item.quantityRequired),
+        quantityIssued: Number(item.quantityIssued || 0),
+        unit: item.unit ?? null,
+        source: item.source ?? null,
+        vendorName: item.vendorName ?? null,
+        status: item.status,
+        rmProductId: item.rmProductId ?? null,
+        rmBinId: item.rmBinId ?? null,
+        rmProduct: item.rmProduct ?? null,
+        rmBin: item.rmBin ?? null,
         suggestedProducts: (item.suggestedProducts ?? []).map((p) => ({
           ...p,
           uom: p.uom || 'NOS',
@@ -993,6 +1064,17 @@ export class MercIndentService {
                 lineItems: item.lineItems,
               });
               newlyAdded++;
+            } else {
+              // Existing indent: backfill missing poNumber, vendorName, source, etc.
+              await this.receiveMercIndent({
+                indentId: item.indentId,
+                indentNumber: item.indentNumber,
+                poNumber: item.poNumber || undefined,
+                customerName: item.customerName || undefined,
+                layoutNumber: item.layoutNumber || undefined,
+                mercCurrentState: item.mercCurrentState || exists.mercCurrentState || 'DESIGN_COMPLETED',
+                lineItems: item.lineItems,
+              });
             }
           }
         }
