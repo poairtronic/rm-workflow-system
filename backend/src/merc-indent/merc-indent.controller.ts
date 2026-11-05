@@ -38,14 +38,25 @@ export class MercIndentController {
 
   @Get('merc-indents')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.STORES, UserRole.ADMIN)
+  @Roles(
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+    UserRole.ADMIN,
+  )
   async getAll() {
     return this.mercIndentService.getAll();
   }
 
   @Post('merc-indents/sync')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.STORES, UserRole.ADMIN)
+  @Roles(
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+  )
   async syncFromMerc() {
     return this.mercIndentService.syncFromMerc();
   }
@@ -66,21 +77,39 @@ export class MercIndentController {
 
   @Get('merc-indents/:id/full-detail')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.STORES, UserRole.ADMIN)
+  @Roles(
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+    UserRole.ADMIN,
+  )
   async getFullDetail(@Param('id') id: string) {
     return this.mercIndentService.getFullDetail(id);
   }
 
   @Get('merc-indents/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.STORES, UserRole.ADMIN)
+  @Roles(
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+    UserRole.ADMIN,
+  )
   async getOne(@Param('id') id: string) {
     return this.mercIndentService.getOne(id);
   }
 
   @Get('merc-indents/:id/items/:itemId')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.STORES, UserRole.ADMIN)
+  @Roles(
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+    UserRole.ADMIN,
+  )
   async getItemDetail(
     @Param('id') id: string,
     @Param('itemId') itemId: string,

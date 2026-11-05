@@ -1,5 +1,6 @@
 import {
   Injectable,
+  OnModuleInit,
   Logger,
   NotFoundException,
   BadRequestException,
@@ -47,7 +48,7 @@ export interface MercIndentItemDetailResponse {
 }
 
 @Injectable()
-export class MercIndentService {
+export class MercIndentService implements OnModuleInit {
   private readonly logger = new Logger(MercIndentService.name);
 
   constructor(
@@ -67,6 +68,95 @@ export class MercIndentService {
     @Optional()
     private readonly notificationsGateway?: NotificationsGateway,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.ensureSchema();
+  }
+
+  /**
+   * Automatically verifies and creates/migrates MERC Indent tables & columns
+   * on app bootstrap without requiring manual TypeORM CLI migration commands.
+   */
+  private async ensureSchema(): Promise<void> {
+    try {
+      await this.dataSource.query(`
+        CREATE TABLE IF NOT EXISTS "merc_indent_pending" (
+          "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          "indent_id" VARCHAR NOT NULL,
+          "indent_number" VARCHAR NOT NULL,
+          "po_number" VARCHAR,
+          "customer_name" VARCHAR,
+          "layout_number" VARCHAR,
+          "status" VARCHAR NOT NULL DEFAULT 'PENDING',
+          "merc_current_state" VARCHAR NOT NULL,
+          "created_at" TIMESTAMP DEFAULT now(),
+          "updated_at" TIMESTAMP DEFAULT now()
+        );
+      `);
+
+      await this.dataSource.query(`
+        ALTER TABLE "merc_indent_pending" ADD COLUMN IF NOT EXISTS "po_number" VARCHAR;
+        ALTER TABLE "merc_indent_pending" ADD COLUMN IF NOT EXISTS "customer_name" VARCHAR;
+        ALTER TABLE "merc_indent_pending" ADD COLUMN IF NOT EXISTS "layout_number" VARCHAR;
+        ALTER TABLE "merc_indent_pending" ADD COLUMN IF NOT EXISTS "merc_current_state" VARCHAR DEFAULT 'STORES_PENDING';
+      `);
+
+      await this.dataSource.query(`
+        CREATE TABLE IF NOT EXISTS "merc_indent_line_items" (
+          "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          "merc_indent_pending_id" UUID NOT NULL REFERENCES "merc_indent_pending"("id") ON DELETE CASCADE,
+          "merc_item_id" VARCHAR NOT NULL,
+          "item_type" VARCHAR NOT NULL,
+          "name" VARCHAR NOT NULL,
+          "material" VARCHAR,
+          "shape" VARCHAR,
+          "length_mm" DECIMAL,
+          "width_mm" DECIMAL,
+          "height_mm" DECIMAL,
+          "diameter_mm" DECIMAL,
+          "quantity_required" DECIMAL NOT NULL,
+          "quantity_issued" DECIMAL NOT NULL DEFAULT 0,
+          "unit" VARCHAR,
+          "vendor_name" VARCHAR(255),
+          "source" VARCHAR(100),
+          "status" VARCHAR NOT NULL DEFAULT 'PENDING',
+          "rm_product_id" UUID,
+          "rm_bin_id" UUID,
+          "issued_at" TIMESTAMP,
+          "issued_by_id" UUID REFERENCES "users"("id") ON DELETE SET NULL,
+          "created_at" TIMESTAMP DEFAULT now()
+        );
+      `);
+
+      await this.dataSource.query(`
+        ALTER TABLE "merc_indent_line_items" ADD COLUMN IF NOT EXISTS "material" VARCHAR;
+        ALTER TABLE "merc_indent_line_items" ADD COLUMN IF NOT EXISTS "shape" VARCHAR;
+        ALTER TABLE "merc_indent_line_items" ADD COLUMN IF NOT EXISTS "length_mm" DECIMAL;
+        ALTER TABLE "merc_indent_line_items" ADD COLUMN IF NOT EXISTS "width_mm" DECIMAL;
+        ALTER TABLE "merc_indent_line_items" ADD COLUMN IF NOT EXISTS "height_mm" DECIMAL;
+        ALTER TABLE "merc_indent_line_items" ADD COLUMN IF NOT EXISTS "diameter_mm" DECIMAL;
+        ALTER TABLE "merc_indent_line_items" ADD COLUMN IF NOT EXISTS "unit" VARCHAR;
+        ALTER TABLE "merc_indent_line_items" ADD COLUMN IF NOT EXISTS "vendor_name" VARCHAR(255);
+        ALTER TABLE "merc_indent_line_items" ADD COLUMN IF NOT EXISTS "source" VARCHAR(100);
+        ALTER TABLE "merc_indent_line_items" ADD COLUMN IF NOT EXISTS "rm_product_id" UUID;
+        ALTER TABLE "merc_indent_line_items" ADD COLUMN IF NOT EXISTS "rm_bin_id" UUID;
+        ALTER TABLE "merc_indent_line_items" ADD COLUMN IF NOT EXISTS "issued_at" TIMESTAMP;
+        ALTER TABLE "merc_indent_line_items" ADD COLUMN IF NOT EXISTS "issued_by_id" UUID;
+      `);
+
+      try {
+        await this.dataSource.query(`
+          ALTER TYPE "stock_transactions_transaction_type_enum" ADD VALUE IF NOT EXISTS 'MERC_INDENT_ISSUE';
+        `);
+      } catch {
+        // Ignored if type does not exist or value already added
+      }
+
+      this.logger.log('MERC Indent schema verified successfully.');
+    } catch (err: any) {
+      this.logger.warn(`Could not verify MERC Indent schema on init: ${err?.message}`);
+    }
+  }
 
   /**
    * Receives MERC indent payload and saves to merc_indent_pending and merc_indent_line_items.
@@ -300,27 +390,59 @@ export class MercIndentService {
    * For each, computes total line items vs issued line items.
    */
   async getAll(): Promise<any[]> {
-    const records = await this.mercIndentPendingRepo.find({
-      order: { createdAt: 'DESC' },
-      relations: { lineItems: true },
-    });
+    try {
+      const records = await this.mercIndentPendingRepo.find({
+        order: { createdAt: 'DESC' },
+        relations: { lineItems: true },
+      });
 
-    return records.map((r) => {
-      const items = r.lineItems || [];
-      const totalItems = items.length;
-      const issuedItems = items.filter((i) => i.status === 'ISSUED').length;
+      return records.map((r) => {
+        const items = r.lineItems || [];
+        const totalItems = items.length;
+        const issuedItems = items.filter((i) => i.status === 'ISSUED').length;
 
-      return {
-        id: r.id,
-        indentNumber: r.indentNumber,
-        poNumber: r.poNumber,
-        customerName: r.customerName,
-        status: r.status,
-        totalItems,
-        issuedItems,
-        createdAt: r.createdAt,
-      };
-    });
+        return {
+          id: r.id,
+          indentNumber: r.indentNumber,
+          poNumber: r.poNumber ?? null,
+          customerName: r.customerName ?? null,
+          layoutNumber: r.layoutNumber ?? null,
+          status: r.status,
+          totalItems,
+          issuedItems,
+          createdAt: r.createdAt,
+        };
+      });
+    } catch (err: any) {
+      this.logger.error(`Error in getAll merc-indents: ${err?.message}`, err?.stack);
+      try {
+        const rawPending = await this.dataSource.query(`
+          SELECT p.id, p.indent_number AS "indentNumber", p.po_number AS "poNumber",
+                 p.customer_name AS "customerName", p.layout_number AS "layoutNumber",
+                 p.status, p.created_at AS "createdAt",
+                 COUNT(li.id) AS "totalItems",
+                 COUNT(CASE WHEN li.status = 'ISSUED' THEN 1 END) AS "issuedItems"
+          FROM "merc_indent_pending" p
+          LEFT JOIN "merc_indent_line_items" li ON li.merc_indent_pending_id = p.id
+          GROUP BY p.id, p.indent_number, p.po_number, p.customer_name, p.layout_number, p.status, p.created_at
+          ORDER BY p.created_at DESC
+        `);
+        return rawPending.map((r: any) => ({
+          id: r.id,
+          indentNumber: r.indentNumber,
+          poNumber: r.poNumber ?? null,
+          customerName: r.customerName ?? null,
+          layoutNumber: r.layoutNumber ?? null,
+          status: r.status,
+          totalItems: Number(r.totalItems) || 0,
+          issuedItems: Number(r.issuedItems) || 0,
+          createdAt: r.createdAt,
+        }));
+      } catch (fallbackErr: any) {
+        this.logger.error(`Fallback failed in getAll: ${fallbackErr?.message}`);
+        return [];
+      }
+    }
   }
 
   /**
