@@ -27,3 +27,4 @@ export class AddVendorAndSourceToMercIndentLineItems1793200000000 implements Mig
     `);
   }
 }
+
