@@ -451,7 +451,14 @@ export const vendorSlaApi = {
     api.get<VendorComparisonResult[]>(`/api/vendors/compare/by-process/${processId}`),
 };
 
-import type { DeliveryChallanDto, DcReworkItemDto, DcLifecycleReportResponse } from '../types/delivery-challan.dto';
+import type {
+  DeliveryChallanDto,
+  DcReworkItemDto,
+  DcLifecycleReportResponse,
+  MercPoItemsResponse,
+  CreateSplDcPayload,
+  SplDcSummary,
+} from '../types/delivery-challan.dto';
 import type { ProcessDcReturnDto, CloseDcDto, QcInspectDcDto, ReworkReDispatchDto } from '../types/dc-return.dto';
 
 export const deliveryChallanApi = {
@@ -580,6 +587,31 @@ export const deliveryChallanApi = {
     return api.get<DcLifecycleReportResponse>(
       `/api/delivery-challans/lifecycle-report${queryString ? `?${queryString}` : ''}`
     );
+  },
+  getMercPos: (search?: string) => {
+    const qs = search ? `?search=${encodeURIComponent(search.trim())}` : '';
+    return api.get<
+      Array<{
+        id: string;
+        poNumber: string;
+        actualPoNumber: string | null;
+        layoutNumber: string | null;
+        indentNumber: string;
+        customerName: string | null;
+        lineItemCount: number;
+      }>
+    >(`/api/delivery-challans/merc-pos${qs}`);
+  },
+  getMercPoItems: (poNumber: string) =>
+    api.get<MercPoItemsResponse>(`/api/delivery-challans/merc-po/${encodeURIComponent(poNumber.trim())}`),
+  createSplDc: (payload: CreateSplDcPayload) =>
+    api.post<{ id: string; dcNumber: string }>('/api/delivery-challans/type-3', payload),
+  getSplDcs: (filters?: { status?: string; poNumber?: string }) => {
+    const query = new URLSearchParams();
+    if (filters?.status) query.append('status', filters.status);
+    if (filters?.poNumber) query.append('poNumber', filters.poNumber);
+    const qs = query.toString();
+    return api.get<SplDcSummary[]>(`/api/delivery-challans/type-3${qs ? `?${qs}` : ''}`);
   },
 };
 

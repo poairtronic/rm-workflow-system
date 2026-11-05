@@ -81,6 +81,16 @@ export function DeliveryChallanPrintView() {
   const challan = dc.challan || {};
   const references = dc.references || {};
   
+  const isSpl =
+    dc.dcType === 'SPL_PROCESS' ||
+    challan.type === 'SPL_PROCESS' ||
+    dc.type === 'SPL_PROCESS' ||
+    !!dc.poNumber ||
+    !!challan.poNumber ||
+    !!references.poNumber ||
+    (dc.lineItems && dc.lineItems.some((it: any) => it.poNumber || (it.partNumber && it.partNumber.includes('PO')) || it.poPartLabel)) ||
+    (dc.items && dc.items.some((it: any) => it.poNumber || (it.partNo && it.partNo.includes('PO')) || it.poPartLabel));
+
   // Flatten line items from groups or lineItems
   let displayItems: Array<{
     partNo: string;
@@ -90,7 +100,23 @@ export function DeliveryChallanPrintView() {
     uom: string;
   }> = [];
 
-  if (dc.groups && dc.groups.length > 0) {
+  if (isSpl) {
+    const rawList = dc.items && dc.items.length > 0 ? dc.items : (dc.lineItems || []);
+    displayItems = rawList.map((item: any) => {
+      let partNo = item.partNo || item.poPartLabel || item.partNumber || item.productCode || '—';
+      let particulars = item.particulars || item.poPartLabel || item.partName || item.productName || partNo;
+      if (particulars === 'DEFECTIVE MATERIAL' && partNo !== '—') {
+        particulars = partNo;
+      }
+      return {
+        partNo,
+        productName: particulars,
+        description: item.description || '',
+        qty: Number(item.quantity ?? item.quantityDispatched ?? 0),
+        uom: item.unit || item.uom || 'NOS',
+      };
+    });
+  } else if (dc.groups && dc.groups.length > 0) {
     dc.groups.forEach((g: any) => {
       (g.items || []).forEach((item: any) => {
         displayItems.push({
@@ -140,7 +166,7 @@ export function DeliveryChallanPrintView() {
     dc.items?.[0]?.processName ||
     '';
   const dcNumber = challan.challanNumber || dc.dcNumber || 'SDC/2627/0001';
-  const notes = challan.notes || dc.notes || 'HT AND RETURN';
+  const notes = challan.notes || dc.remarks || dc.notes || 'HT AND RETURN';
 
   // Format vendor address lines
   const formatVendorAddress = (address?: string) => {
@@ -327,12 +353,14 @@ export function DeliveryChallanPrintView() {
               </div>
               
               <div className="p-2 border-b border-black flex justify-between items-center text-[11px]">
-                <span className="text-slate-700">W. No. :</span>
-                <span className="font-medium text-slate-900">—</span>
+                <span className="text-slate-700">{isSpl ? 'PO No. :' : 'W. No. :'}</span>
+                <span className="font-medium text-slate-900">
+                  {isSpl ? (dc.poNumber || challan.poNumber || references.poNumber || (dc.lineItems && dc.lineItems[0]?.poNumber) || '—') : '—'}
+                </span>
               </div>
               
               <div className="p-2 text-center text-[11px] font-bold uppercase tracking-wider text-slate-800 bg-white flex-1 flex items-center justify-center">
-                {processName || (challan.type === 'GENERAL_INVENTORY_OUTWARD' || dc.type === 'GENERAL_INVENTORY_OUTWARD' ? 'STOCK CONVERSION' : '—')}
+                {processName || (isSpl ? 'SPECIAL PROCESS' : (challan.type === 'GENERAL_INVENTORY_OUTWARD' || dc.type === 'GENERAL_INVENTORY_OUTWARD' ? 'STOCK CONVERSION' : '—'))}
               </div>
             </div>
           </div>

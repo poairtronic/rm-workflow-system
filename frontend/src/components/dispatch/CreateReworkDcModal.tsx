@@ -211,9 +211,11 @@ export function CreateReworkDcModal({ isOpen, onClose, reworkItem, onSuccess }: 
                 <div>
                   <span className="text-slate-500 block">Challan Type:</span>
                   <span className="font-semibold text-slate-900">
-                    {reworkItem.dcType === 'PRODUCTION_PROCESS_OUTWARD'
-                      ? 'Type 1 (Process Outward)'
-                      : 'Type 2 (Stock Conversion)'}
+                    {reworkItem.dcType === 'SPL_PROCESS'
+                      ? 'Type 3: SPL (Process Outward)'
+                      : reworkItem.dcType === 'PRODUCTION_PROCESS_OUTWARD'
+                      ? 'Type 1: Process (Outward)'
+                      : 'Type 2: Stock Conversion'}
                   </span>
                 </div>
                 <div>
@@ -225,7 +227,13 @@ export function CreateReworkDcModal({ isOpen, onClose, reworkItem, onSuccess }: 
                 <div>
                   <span className="text-slate-500 block">SC # / PO #:</span>
                   <span className="font-mono font-semibold text-slate-700">
-                    {reworkItem.scNumber || 'N/A'} {reworkItem.poNumber ? `(${reworkItem.poNumber})` : ''}
+                    {reworkItem.scNumber && reworkItem.poNumber
+                      ? `${reworkItem.scNumber} (${reworkItem.poNumber})`
+                      : reworkItem.scNumber
+                      ? reworkItem.scNumber
+                      : reworkItem.poNumber
+                      ? reworkItem.poNumber
+                      : 'General / Stock'}
                   </span>
                 </div>
               </div>
@@ -275,12 +283,33 @@ export function CreateReworkDcModal({ isOpen, onClose, reworkItem, onSuccess }: 
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
                   <span className="text-slate-500 block">Source DC #:</span>
-                  <span className="font-mono font-bold text-slate-800">{reworkItem.sourceDcNumber}</span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="font-mono font-bold text-slate-800">{reworkItem.sourceDcNumber}</span>
+                    <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-sans font-semibold border ${
+                      reworkItem.dcType === 'SPL_PROCESS'
+                        ? 'bg-purple-100 text-purple-800 border-purple-200'
+                        : reworkItem.dcType === 'PRODUCTION_PROCESS_OUTWARD'
+                        ? 'bg-blue-50 text-blue-700 border-blue-200'
+                        : 'bg-green-50 text-green-700 border-green-200'
+                    }`}>
+                      {reworkItem.dcType === 'SPL_PROCESS'
+                        ? 'Type 3: SPL'
+                        : reworkItem.dcType === 'PRODUCTION_PROCESS_OUTWARD'
+                        ? 'Type 1: Process'
+                        : 'Type 2: Conversion'}
+                    </span>
+                  </div>
                 </div>
                 <div>
                   <span className="text-slate-500 block">SC # / PO #:</span>
-                  <span className="font-mono font-bold text-blue-700">
-                    {reworkItem.scNumber || 'N/A'} {reworkItem.poNumber ? `(${reworkItem.poNumber})` : ''}
+                  <span className="font-mono font-bold text-blue-700 mt-0.5 block">
+                    {reworkItem.scNumber && reworkItem.poNumber
+                      ? `${reworkItem.scNumber} (${reworkItem.poNumber})`
+                      : reworkItem.scNumber
+                      ? reworkItem.scNumber
+                      : reworkItem.poNumber
+                      ? reworkItem.poNumber
+                      : 'General / Stock'}
                   </span>
                 </div>
                 <div>

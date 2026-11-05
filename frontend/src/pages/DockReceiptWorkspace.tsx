@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, FormProvider } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { Search, PackageCheck, Loader2, Lock, AlertTriangle, ArrowLeft, X, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { Search, PackageCheck, Loader2, Lock, AlertTriangle, ArrowLeft, X, RotateCcw, CheckCircle2, Printer } from 'lucide-react';
 import { deliveryChallanApi } from '../services/api';
 import { vendorMasterApi } from '../services/vendorMaster.service';
 import type { DeliveryChallanDto } from '../types/delivery-challan.dto';
@@ -157,6 +157,7 @@ export function DockReceiptWorkspace() {
       };
 
       // Header matches (DC #, Vendor, Notes, Process, SC, PO)
+      if (matchField(dc.poNumber)) return true;
       if (matchField(dc.challanNumber)) return true;
       if (matchField(dc.dcNumber)) return true;
       if (matchField(dc.vendor?.name)) return true;
@@ -222,10 +223,14 @@ export function DockReceiptWorkspace() {
     setActiveDcView('RECONCILE');
     setClosureNotes('');
     setIsClosureConfirmed(false);
-    const isType1 = dc.type === 'PRODUCTION_PROCESS_OUTWARD';
+    const isProcessType =
+      dc.type === 'PRODUCTION_PROCESS_OUTWARD' ||
+      dc.type === 'SPL_PROCESS' ||
+      dc.dcType === 'SPL_PROCESS' ||
+      (dc.typeLabel && dc.typeLabel.includes('SPL'));
     methods.reset({
       items: (dc.items || []).map((item: any) => {
-        const initial = !isType1
+        const initial = !isProcessType
           ? Number(item.initialExpectedQty ?? item.expectedOutputQuantity ?? item.quantityDispatched ?? 0)
           : Number(item.initialExpectedQty ?? item.quantityDispatched ?? 0);
         const expected = Number(item.expectedReturnQty ?? initial);
@@ -250,7 +255,7 @@ export function DockReceiptWorkspace() {
           expectedReturnQty: expected,
           expectedOutputQuantity: expected,
           returnedProductId: item.outputProductId || item.productId,
-          destinationBinId: item.returnTargetBinId || item.outputBinId || item.binId || '',
+          destinationBinId: isProcessType ? undefined : (item.returnTargetBinId || item.outputBinId || item.binId || ''),
           receivedQuantity: remaining,
           actualReceivedQty: remaining,
         };
@@ -376,6 +381,8 @@ export function DockReceiptWorkspace() {
       accessor: (dc) =>
         dc.type === 'PRODUCTION_PROCESS_OUTWARD'
           ? 'Type 1 (Process)'
+          : dc.type === 'SPL_PROCESS' || (dc as any).dcType === 'SPL_PROCESS'
+          ? 'Type 3 (SPL)'
           : dc.type === 'GENERAL_INVENTORY_OUTWARD'
           ? 'Type 2 (General)'
           : (dc.type || '').replace(/_/g, ' '),
@@ -666,12 +673,23 @@ export function DockReceiptWorkspace() {
                 Vendor: {selectedDc.vendor?.name || selectedDc.vendorName || selectedDc.vendorId}
               </p>
             </div>
-            <button
-              onClick={() => setSelectedDc(null)}
-              className="text-sm font-medium text-primary hover:text-primary-secondary"
-            >
-              Cancel / Select Another
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => window.open(`/dispatch/delivery-challan/${selectedDc.id}/print`, '_blank')}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
+                title="Print Delivery Challan"
+              >
+                <Printer className="w-3.5 h-3.5 text-slate-600" />
+                <span>Print DC</span>
+              </button>
+              <button
+                onClick={() => setSelectedDc(null)}
+                className="text-sm font-medium text-primary hover:text-primary-secondary cursor-pointer"
+              >
+                Cancel / Select Another
+              </button>
+            </div>
           </div>
 
           {/* Status banner for CLOSED challans */}

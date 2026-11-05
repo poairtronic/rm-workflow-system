@@ -21,6 +21,35 @@ interface ReworkQueueTableProps {
   challans?: DeliveryChallanDto[];
 }
 
+export const getReworkQueueTypeInfo = (dcType?: string) => {
+  switch (dcType) {
+    case 'SPL_PROCESS':
+      return {
+        label: 'Type 3: SPL (Rework)',
+        shortLabel: 'Type 3',
+        tag: 'Type 3',
+        className: 'bg-purple-100 text-purple-800 border-purple-200',
+      };
+    case 'PRODUCTION_PROCESS_OUTWARD':
+    case 'TYPE_1_PROCESS':
+      return {
+        label: 'Type 1: Process (Rework)',
+        shortLabel: 'Type 1',
+        tag: 'Type 1',
+        className: 'bg-blue-50 text-blue-700 border-blue-200',
+      };
+    case 'GENERAL_INVENTORY_OUTWARD':
+    case 'TYPE_2_GENERAL':
+    default:
+      return {
+        label: 'Type 2: Conversion (Rework)',
+        shortLabel: 'Type 2',
+        tag: 'Type 2',
+        className: 'bg-green-50 text-green-700 border-green-200',
+      };
+  }
+};
+
 export function ReworkQueueTable({ onSelectDc, challans }: ReworkQueueTableProps = {}) {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
@@ -147,7 +176,7 @@ export function ReworkQueueTable({ onSelectDc, challans }: ReworkQueueTableProps
                 </tr>
               ) : (
                 filteredItems.map((item) => {
-                  const isType1 = item.dcType === 'PRODUCTION_PROCESS_OUTWARD';
+                  const typeInfo = getReworkQueueTypeInfo(item.dcType);
                   return (
                     <tr key={item.id} className="hover:bg-slate-50 transition-colors h-14">
                       {/* Source DC */}
@@ -157,20 +186,20 @@ export function ReworkQueueTable({ onSelectDc, challans }: ReworkQueueTableProps
 
                       {/* Type Badge */}
                       <td className="px-5 py-2">
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
-                          isType1 ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-blue-50 text-blue-700 border-blue-200'
-                        }`}>
-                          {isType1 ? 'Type 1 (WIP)' : 'Type 2 (Stock)'}
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${typeInfo.className}`}>
+                          {typeInfo.label}
                         </span>
                       </td>
 
                       {/* SC # / PO # */}
                       <td className="px-5 py-2 text-xs">
-                        {item.scNumber ? (
+                        {item.scNumber || item.poNumber ? (
                           <div className="flex flex-col">
-                            <span className="font-mono font-bold text-blue-700">{item.scNumber}</span>
+                            {item.scNumber && (
+                              <span className="font-mono font-bold text-blue-700">{item.scNumber}</span>
+                            )}
                             {item.poNumber && (
-                              <span className="text-[10px] text-slate-400 font-mono">{item.poNumber}</span>
+                              <span className="text-[10px] text-purple-700 font-mono font-semibold">{item.poNumber}</span>
                             )}
                           </div>
                         ) : (
@@ -180,9 +209,16 @@ export function ReworkQueueTable({ onSelectDc, challans }: ReworkQueueTableProps
 
                       {/* Item / Material */}
                       <td className="px-5 py-2 max-w-xs">
-                        <p className="font-semibold text-slate-900 text-xs truncate">{item.productName}</p>
-                        {item.partNumber && (
-                          <p className="text-[11px] text-slate-400 font-mono truncate">{item.partNumber}</p>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-sans font-bold border shrink-0 ${typeInfo.className}`}>
+                            {typeInfo.tag}
+                          </span>
+                          <p className="font-semibold text-slate-900 text-xs truncate" title={item.productName}>
+                            {item.productName}
+                          </p>
+                        </div>
+                        {item.partNumber && item.partNumber !== item.productName && (
+                          <p className="text-[11px] text-slate-400 font-mono truncate pl-1">{item.partNumber}</p>
                         )}
                       </td>
 
@@ -254,7 +290,7 @@ export function ReworkQueueTable({ onSelectDc, challans }: ReworkQueueTableProps
                               title="Click to view this Rework Delivery Challan"
                             >
                               <ExternalLink className="w-3 h-3 text-emerald-600" />
-                              <span>{item.reworkDcNumber || 'Dispatched'}</span>
+                              <span>Re-Dispatched: {item.reworkDcNumber || 'Dispatched'} ({typeInfo.shortLabel})</span>
                             </button>
 
                             {(item.reworkDcId || item.sourceDcId) && (

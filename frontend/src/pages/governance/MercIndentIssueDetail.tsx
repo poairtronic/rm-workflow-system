@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Package,
   CheckCircle2,
+  CheckCheck,
   AlertTriangle,
   RefreshCw,
   Sparkles,
@@ -27,6 +28,7 @@ import type {
   MercIndentFullDetail,
   SuggestedProduct,
   MercLineItem,
+  IssueMercItemPayload,
 } from '../../types/mercIndent.types';
 
 interface LineItemFormState {
@@ -42,6 +44,8 @@ interface LineItemFormState {
   newProductBinId: string;
   creatingProduct: boolean;
   issuing: boolean;
+  shortClosing?: boolean;
+  shortClose?: boolean;
   error?: string | null;
 }
 
@@ -160,6 +164,8 @@ export function MercIndentIssueDetail() {
           newProductBinId: '',
           creatingProduct: false,
           issuing: false,
+          shortClosing: false,
+          shortClose: false,
           error: null,
         };
       }
@@ -336,14 +342,19 @@ export function MercIndentIssueDetail() {
 
     updateItemState(item.id, { issuing: true, error: null });
     try {
-      const payload = {
+      const payload: IssueMercItemPayload = {
         productId: state.productId,
         binId: state.binId,
         quantityIssued: Number(state.quantityToIssue),
+        shortClose: !!state.shortClose,
       };
 
       await mercIndentService.issueMercItem(indent.id, item.id, payload);
-      toast.success(`Issued ${state.quantityToIssue} ${activeUom} for ${item.name}. MERC indent updated.`);
+      toast.success(
+        state.shortClose
+          ? `Issued ${state.quantityToIssue} ${activeUom} and marked ${item.name} as completed.`
+          : `Issued ${state.quantityToIssue} ${activeUom} for ${item.name}. MERC indent updated.`
+      );
 
       // Refresh both list and detail query cache
       await Promise.all([
@@ -356,6 +367,53 @@ export function MercIndentIssueDetail() {
       const msg = err?.response?.data?.message || err?.message || 'Failed to issue material';
       toast.error(msg);
       updateItemState(item.id, { issuing: false, error: msg });
+    }
+  };
+
+  // Handle short-closing a line item without further stock deduction
+  const handleShortCloseItem = async (item: MercIndentFullDetail['lineItems'][0]) => {
+    if (!indent || !item) return;
+    const confirmed = window.confirm(
+      `Mark "${item.name}" as fully issued (short-close at ${item.quantityIssued || 0} ${item.unit || 'units'})?\nNo additional stock will be deducted from inventory.`
+    );
+    if (!confirmed) return;
+
+    updateItemState(item.id, { shortClosing: true, error: null });
+    try {
+      await mercIndentService.shortCloseMercItem(indent.id, item.id);
+      toast.success(`"${item.name}" marked as fully issued.`);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['merc-indents'] }),
+        refetch(),
+      ]);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to short-close line item';
+      toast.error(msg);
+      updateItemState(item.id, { shortClosing: false, error: msg });
+    }
+  };
+
+  // Handle administrative closure of entire indent
+  const [closingIndent, setClosingIndent] = useState(false);
+  const handleCloseIndent = async () => {
+    if (!indent) return;
+    const confirmed = window.confirm(
+      `Administratively mark entire MERC indent "${indent.indentNumber}" as fully ISSUED?\nAll pending or partial line items will be marked as issued.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setClosingIndent(true);
+      await mercIndentService.closeMercIndent(indent.id);
+      toast.success(`MERC indent "${indent.indentNumber}" is now marked as ISSUED.`);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['merc-indents'] }),
+        refetch(),
+      ]);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to close indent');
+    } finally {
+      setClosingIndent(false);
     }
   };
 
@@ -451,7 +509,23 @@ export function MercIndentIssueDetail() {
       <PageHeader
         title={`MERC Indent — ${indent.indentNumber || 'Details'}`}
         subtitle="Inline material issuance and live inventory tracking for production indents"
-        actionSlot={renderStatusBadge(indent.status || 'PENDING')}
+        actionSlot={
+          <div className="flex items-center gap-2">
+            {renderStatusBadge(indent.status || 'PENDING')}
+            {indent.status !== 'ISSUED' && (
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={closingIndent}
+                onClick={handleCloseIndent}
+                className="text-xs border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 font-semibold"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                {closingIndent ? 'Closing...' : 'Close Indent (Mark ISSUED)'}
+              </Button>
+            )}
+          </div>
+        }
       />
 
       {/* Summary Card */}
@@ -587,12 +661,23 @@ export function MercIndentIssueDetail() {
                         <CheckCircle2 className="w-3.5 h-3.5" /> Issued
                       </span>
                     ) : (
-                      <a
-                        href={`#line-item-${item.id}`}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition-colors"
-                      >
-                        Issue
-                      </a>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <a
+                          href={`#line-item-${item.id}`}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition-colors"
+                        >
+                          Issue
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => handleShortCloseItem(item)}
+                          disabled={formStates[item.id]?.shortClosing}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 cursor-pointer transition-colors"
+                          title="Short Close (Mark as Issued without extra stock deduction)"
+                        >
+                          Short Close
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -996,6 +1081,18 @@ export function MercIndentIssueDetail() {
                               </span>
                             )}
                           </div>
+
+                          <label className="flex items-center gap-1.5 cursor-pointer pt-1 text-[11px] text-slate-600 dark:text-slate-300 font-medium">
+                            <input
+                              type="checkbox"
+                              checked={!!form.shortClose}
+                              onChange={(e) =>
+                                updateItemState(item.id, { shortClose: e.target.checked })
+                              }
+                              className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 dark:border-slate-700"
+                            />
+                            <span>Short-close with this issue</span>
+                          </label>
                         </div>
                       </div>
                     ) : (
@@ -1148,9 +1245,9 @@ export function MercIndentIssueDetail() {
                       </div>
                     )}
 
-                    {/* Full-width Green Issue Button */}
+                    {/* Action buttons: Issue and Short Close */}
                     {!form.isCreateMode && (
-                      <div className="pt-2">
+                      <div className="pt-2 flex flex-col sm:flex-row gap-2">
                         <Button
                           disabled={
                             form.issuing ||
@@ -1160,12 +1257,26 @@ export function MercIndentIssueDetail() {
                             isInsufficient
                           }
                           onClick={() => handleIssueItem(item)}
-                          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg flex items-center justify-center gap-2 text-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
+                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg flex items-center justify-center gap-2 text-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
                         >
                           <CheckCircle2 className="w-4 h-4" />
                           {form.issuing
                             ? 'Issuing Material...'
+                            : form.shortClose
+                            ? `Issue & Mark as Completed (${form.quantityToIssue} ${activeUom})`
                             : `Issue This Item (${form.quantityToIssue} ${activeUom})`}
+                        </Button>
+
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          disabled={form.shortClosing || form.issuing}
+                          onClick={() => handleShortCloseItem(item)}
+                          className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 font-semibold py-2.5 px-4 rounded-lg flex items-center justify-center gap-1.5 text-xs transition-all shadow-xs"
+                          title="Mark this item as fully issued without deducting additional inventory"
+                        >
+                          <CheckCheck className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                          {form.shortClosing ? 'Closing...' : 'Mark as Fully Issued (Short Close)'}
                         </Button>
                       </div>
                     )}

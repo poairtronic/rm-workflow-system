@@ -27,10 +27,12 @@ export class PdfGeneratorService {
    * Generates low-RAM PDF for Type 1 or Type 2 Delivery Challan
    */
   async generateDeliveryChallanPdf(challan: any): Promise<Buffer> {
+    const isSpl = challan.type === 'SPL_PROCESS';
     const isType2 =
-      challan.type?.includes('2') ||
-      challan.type === 'PRODUCTION_PROCESS_OUTWARD';
-    const typeLabel = isType2
+      !isSpl && (challan.type?.includes('2') || challan.type === 'PRODUCTION_PROCESS_OUTWARD');
+    const typeLabel = isSpl
+      ? 'SUPPLIER DC (SPECIAL PROCESS)'
+      : isType2
       ? 'TYPE 2 (SEMI-FINISHED / PROCESS OUTWARD)'
       : 'TYPE 1 (RAW MATERIAL OUTWARD)';
 
@@ -52,7 +54,7 @@ export class PdfGeneratorService {
       totalQty += qty;
       tableBody.push([
         { text: String(index + 1), alignment: 'center' },
-        { text: item.itemCode || item.componentCode || item.product?.code || 'N/A', bold: true },
+        { text: item.poPartLabel || item.partNo || item.partNumber || item.itemCode || item.componentCode || item.product?.code || 'N/A', bold: true },
         { text: item.description || item.product?.name || item.remarks || '-' },
         { text: item.uom || item.unit || 'PCS', alignment: 'center' },
         { text: qty.toLocaleString(), alignment: 'right' },

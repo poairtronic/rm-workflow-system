@@ -46,7 +46,8 @@ export function QcInspectionModal({ isOpen, onClose, dc, onSuccess }: QcInspecti
     staleTime: 60000,
   });
 
-  const isType1 = dc?.type === 'PRODUCTION_PROCESS_OUTWARD';
+  const isSpl = dc?.type === 'SPL_PROCESS' || (dc as any)?.dcType === 'SPL_PROCESS';
+  const isType1 = dc?.type === 'PRODUCTION_PROCESS_OUTWARD' || isSpl;
 
   // Initialize line items state when modal opens
   useEffect(() => {
@@ -169,8 +170,12 @@ export function QcInspectionModal({ isOpen, onClose, dc, onSuccess }: QcInspecti
                 <h2 className="text-lg font-bold text-slate-900">
                   Quality Check (QC) Gate — {dc.challanNumber || dc.dcNumber}
                 </h2>
-                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                  {isType1 ? 'Type 1 (Process)' : 'Type 2 (Stock Conversion)'}
+                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                  isSpl ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                  isType1 ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                  'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                }`}>
+                  {isSpl ? 'Type 3: SPL (Process)' : isType1 ? 'Type 1 (Process)' : 'Type 2 (Stock Conversion)'}
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -189,11 +194,20 @@ export function QcInspectionModal({ isOpen, onClose, dc, onSuccess }: QcInspecti
 
         {/* Informational Guidance Banner */}
         <div className={`px-6 py-3 border-b text-xs flex items-start gap-2.5 ${
-          isType1 ? 'bg-purple-50/70 border-purple-200 text-purple-900' : 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
+          isSpl ? 'bg-purple-50/70 border-purple-200 text-purple-900' :
+          isType1 ? 'bg-blue-50/70 border-blue-200 text-blue-900' :
+          'bg-emerald-50/70 border-emerald-200 text-emerald-900'
         }`}>
-          {isType1 ? (
+          {isSpl ? (
             <>
               <ShieldAlert className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-semibold">Type 3 SPL Outward (WIP Flow):</span> Passing QC verifies vendor workmanship under MERC PO ({dc.poNumber || 'PO'}). Material remains in production/MERC WIP — zero warehouse stock-in movement will be executed.
+              </div>
+            </>
+          ) : isType1 ? (
+            <>
+              <ShieldAlert className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
               <div>
                 <span className="font-semibold">Type 1 Process Outward (WIP Flow):</span> Passing QC verifies vendor workmanship under the Sales Order Component ({dc.scCode || 'SC'}). Material remains in production WIP — zero warehouse stock-in movement will be executed.
               </div>
@@ -243,8 +257,15 @@ export function QcInspectionModal({ isOpen, onClose, dc, onSuccess }: QcInspecti
                       <span className="text-xs font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded">
                         #{idx + 1}
                       </span>
+                      <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-sans font-bold border shrink-0 ${
+                        isSpl ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                        isType1 ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                        'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      }`}>
+                        {isSpl ? 'Type 3: SPL' : isType1 ? 'Type 1: Process' : 'Type 2: Conversion'}
+                      </span>
                       <h3 className="font-semibold text-slate-900 text-sm">
-                        {item.product?.name || item.partName || 'Line Item Material'}
+                        {item.poPartLabel || item.product?.name || item.partName || 'Line Item Material'}
                       </h3>
                       {item.sc?.scNumber && (
                         <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-mono font-medium border border-blue-200">
@@ -253,7 +274,7 @@ export function QcInspectionModal({ isOpen, onClose, dc, onSuccess }: QcInspecti
                       )}
                     </div>
                     <p className="text-xs text-slate-500 mt-1">
-                      Part #: {item.partNumber || item.product?.code || 'N/A'} | UOM: {item.uom || item.product?.uom || 'PCS'}
+                      Part #: {item.poPartLabel || item.partNumber || item.product?.code || 'N/A'} | UOM: {item.uom || item.product?.uom || 'PCS'}
                     </p>
                   </div>
 

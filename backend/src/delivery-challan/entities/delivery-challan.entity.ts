@@ -21,6 +21,7 @@ import { DcReworkItem } from './dc-rework-item.entity.js';
 export enum DeliveryChallanType {
   PRODUCTION_PROCESS_OUTWARD = 'PRODUCTION_PROCESS_OUTWARD',
   GENERAL_INVENTORY_OUTWARD = 'GENERAL_INVENTORY_OUTWARD',
+  SPL_PROCESS = 'SPL_PROCESS',
 }
 
 export enum DeliveryChallanStatus {
@@ -36,6 +37,7 @@ export enum DeliveryChallanStatus {
 @Index('IDX_dc_vendor_id', ['vendorId'])
 @Index('IDX_dc_sc_id', ['scId'])
 @Index('IDX_dc_status', ['status'])
+@Index('idx_delivery_challans_po_number', ['poNumber'])
 export class DeliveryChallan {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -101,6 +103,18 @@ export class DeliveryChallan {
 
   @Column({ name: 'verification_remarks', type: 'text', nullable: true })
   verificationRemarks?: string | null;
+
+  @Column({ name: 'po_number', type: 'varchar', nullable: true })
+  poNumber?: string | null;
+
+  @Column({ name: 'layout_number', type: 'varchar', nullable: true })
+  layoutNumber?: string | null;
+
+  @Column({ name: 'merc_indent_id', type: 'varchar', nullable: true })
+  mercIndentId?: string | null;
+
+  @Column({ name: 'merc_indent_number', type: 'varchar', nullable: true })
+  mercIndentNumber?: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

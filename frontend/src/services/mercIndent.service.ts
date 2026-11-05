@@ -77,6 +77,28 @@ export const mercIndentService = {
     return api.post(`/api/merc-indents/${id}/items/${itemId}/issue`, payload);
   },
 
+  shortCloseMercItem: async (
+    id: string,
+    itemId: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    lineItem: any;
+    indentStatus: string;
+  }> => {
+    return api.post(`/api/merc-indents/${id}/items/${itemId}/short-close`);
+  },
+
+  closeMercIndent: async (
+    id: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    indent: any;
+  }> => {
+    return api.post(`/api/merc-indents/${id}/close`);
+  },
+
   createAndStockProduct: async (
     payload: CreateMercProductPayload,
   ): Promise<{

@@ -135,6 +135,27 @@ export class MercIndentController {
   ) {
     return this.mercIndentService.issueMercItem(id, itemId, dto, req.user);
   }
+
+  @Post('merc-indents/:id/items/:itemId/short-close')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  async shortCloseMercItem(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Req() req: any,
+  ) {
+    return this.mercIndentService.shortCloseMercItem(id, itemId, req.user);
+  }
+
+  @Post('merc-indents/:id/close')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  async closeMercIndent(
+    @Param('id') id: string,
+    @Req() req: any,
+  ) {
+    return this.mercIndentService.closeMercIndent(id, req.user);
+  }
 }
 
 export default MercIndentController;

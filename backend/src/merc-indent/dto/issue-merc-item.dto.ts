@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsUUID, Min } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsUUID, Min } from 'class-validator';
 
 export class IssueMercItemDto {
   @IsUUID()
@@ -12,6 +12,10 @@ export class IssueMercItemDto {
   @IsNumber()
   @Min(0.001)
   quantityIssued!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  shortClose?: boolean;
 }
 
 export default IssueMercItemDto;

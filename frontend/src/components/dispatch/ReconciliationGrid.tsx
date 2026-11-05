@@ -22,7 +22,8 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
     staleTime: 60000,
   });
 
-  const isType1 = dc.type === 'PRODUCTION_PROCESS_OUTWARD';
+  const isSpl = dc.type === 'SPL_PROCESS' || dc.dcType === 'SPL_PROCESS' || (dc.typeLabel && dc.typeLabel.includes('SPL'));
+  const isType1 = dc.type === 'PRODUCTION_PROCESS_OUTWARD' || isSpl;
   const isClosed = isReadOnly || dc.status === 'CLOSED' || dc.status === 'RETURNED';
 
   // Watch all items to compute real-time variances
@@ -55,7 +56,7 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
           <div className="flex items-center gap-2 text-xs bg-slate-50 border border-slate-200 text-slate-700 px-3 py-1.5 rounded-lg">
             <Info className="w-4 h-4 text-slate-500 shrink-0" />
             <span>
-              <strong>Type 1 Process DC</strong>: Return product is fixed to process target and expected quantity matches process dispatch.
+              <strong>{isSpl ? 'Type 3 SPL Process DC' : 'Type 1 Process DC'}</strong>: Return product is fixed to process target and expected quantity matches process dispatch.
             </span>
           </div>
         )}
@@ -136,13 +137,22 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
                 <tr key={field.id} className="h-16 hover:bg-[#F8FAFC]">
                   {/* Dispatched Product */}
                   <td className="px-4 py-3">
-                    <p className="font-medium text-slate-900">
-                      {originalItem?.partNumber || dispProduct?.code || originalItem?.product?.code || originalItem?.productId}
+                    <div className="flex items-center gap-1.5">
+                      <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-sans font-bold border shrink-0 ${
+                        isSpl ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                        isType1 ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                        'bg-green-50 text-green-700 border-green-200'
+                      }`}>
+                        {isSpl ? 'Type 3: SPL' : isType1 ? 'Type 1: Process' : 'Type 2: Conversion'}
+                      </span>
+                      <p className="font-semibold text-slate-900 text-xs truncate max-w-[200px]">
+                        {originalItem?.poPartLabel || originalItem?.partNumber || dispProduct?.code || originalItem?.product?.code || originalItem?.productId}
+                      </p>
+                    </div>
+                    <p className="text-xs text-slate-500 pl-0.5 truncate max-w-[220px]">
+                      {originalItem?.poPartLabel || originalItem?.partName || dispProduct?.name || originalItem?.product?.name || 'Dispatched Item'}
                     </p>
-                    <p className="text-xs text-slate-500">
-                      {originalItem?.partName || dispProduct?.name || originalItem?.product?.name || 'Dispatched Item'}
-                    </p>
-                    <span className="inline-block text-[10px] text-slate-400 font-mono mt-0.5">
+                    <span className="inline-block text-[10px] text-slate-400 font-mono mt-0.5 pl-0.5">
                       {activeReworkAtVendor > 0
                         ? `Rework: ${activeReworkAtVendor} ${dispProduct?.uom || 'NOS'} (Orig: ${Number(originalItem?.quantityDispatched || 0)})`
                         : `Disp: ${Number(originalItem?.quantityDispatched || 0)} ${dispProduct?.uom || 'NOS'}`}

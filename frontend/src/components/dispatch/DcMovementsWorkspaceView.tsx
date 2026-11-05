@@ -22,10 +22,39 @@ import { ExportDropdown } from '../common/ExportDropdown';
 import type { ExportColumn } from '../../utils/exportUtils';
 import type { DcComprehensiveLifecycleItemDto } from '../../types/delivery-challan.dto';
 
+export const getMovementTypeBadge = (typeLabel?: string, challanType?: string, isRework?: boolean) => {
+  const isSpl = challanType === 'SPL_PROCESS' || (typeLabel && typeLabel.includes('SPL'));
+  const isT1 = challanType === 'PRODUCTION_PROCESS_OUTWARD' || (typeLabel && (typeLabel.includes('Type 1') || typeLabel.includes('Process') && !isSpl));
+  const rework = Boolean(isRework) || Boolean(typeLabel && typeLabel.includes('Rework'));
+
+  if (isSpl) {
+    return {
+      label: rework ? 'Type 3: SPL (Rework)' : 'Type 3: SPL',
+      shortLabel: rework ? 'Type 3 (Rework)' : 'Type 3: SPL',
+      tag: 'Type 3',
+      className: 'bg-purple-100 text-purple-800 border-purple-200',
+    };
+  }
+  if (isT1) {
+    return {
+      label: rework ? 'Type 1: Process (Rework)' : 'Type 1: Process',
+      shortLabel: rework ? 'Type 1 (Rework)' : 'Type 1: Process',
+      tag: 'Type 1',
+      className: 'bg-blue-50 text-blue-700 border-blue-200',
+    };
+  }
+  return {
+    label: rework ? 'Type 2: Conversion (Rework)' : 'Type 2: Conversion',
+    shortLabel: rework ? 'Type 2 (Rework)' : 'Type 2: Conversion',
+    tag: 'Type 2',
+    className: 'bg-green-50 text-green-700 border-green-200',
+  };
+};
+
 export function DcMovementsWorkspaceView() {
   const [activeTab, setActiveTab] = useState<'REPORT' | 'LEDGER'>('REPORT');
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'ALL' | 'PRODUCTION_PROCESS_OUTWARD' | 'GENERAL_INVENTORY_OUTWARD'>('ALL');
+  const [typeFilter, setTypeFilter] = useState<'ALL' | 'PRODUCTION_PROCESS_OUTWARD' | 'GENERAL_INVENTORY_OUTWARD' | 'SPL_PROCESS'>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [directionFilter, setDirectionFilter] = useState<'ALL' | 'OUTWARD' | 'INWARD'>('ALL');
   const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
@@ -189,18 +218,38 @@ export function DcMovementsWorkspaceView() {
     {
       key: 'challanNumber',
       header: 'DC Number & Type',
-      width: '180px',
-      render: (row) => (
-        <div className="flex flex-col space-y-1">
-          <span className="font-mono text-xs font-bold text-primary tracking-tight">{row.challanNumber}</span>
-          <span className="text-[11px] text-slate-500 font-medium">{row.typeLabel}</span>
-          {row.scNumber && row.scNumber !== '—' && (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-blue-50 text-blue-700 border border-blue-200 w-fit">
-              SC: {row.scNumber}
+      width: '190px',
+      render: (row) => {
+        const typeBadge = getMovementTypeBadge(row.typeLabel, row.type, (row as any).isRework);
+        const sourceDcNum = (row as any).sourceDcNumber;
+        return (
+          <div className="flex flex-col space-y-1 items-start">
+            <span className="font-mono text-xs font-bold text-primary tracking-tight">{row.challanNumber}</span>
+            <span
+              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-sans font-semibold border ${typeBadge.className}`}
+            >
+              {typeBadge.label}
             </span>
-          )}
-        </div>
-      ),
+            {sourceDcNum && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                <RotateCcw className="w-2.5 h-2.5 text-amber-600" />
+                Rework of: {sourceDcNum}
+              </span>
+            )}
+            {row.scNumber && row.scNumber !== '—' && (
+              <span
+                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold w-fit ${
+                  row.scNumber.startsWith('PO:')
+                    ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                    : 'bg-blue-50 text-blue-700 border border-blue-200'
+                }`}
+              >
+                {row.scNumber.startsWith('PO:') ? row.scNumber : `SC: ${row.scNumber}`}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'vendorName',
@@ -221,25 +270,34 @@ export function DcMovementsWorkspaceView() {
     {
       key: 'material',
       header: 'Material / Part No.',
-      width: '200px',
-      render: (row) => (
-        <div className="flex flex-col space-y-0.5 min-w-0">
-          <span
-            className="font-mono text-xs font-bold text-slate-800 truncate max-w-[180px]"
-            title={row.partNumber !== '—' ? row.partNumber : row.productCode || row.productName}
-          >
-            {row.partNumber !== '—' ? row.partNumber : row.productCode || row.productName}
-          </span>
-          <span className="text-[11px] text-slate-600 truncate max-w-[180px]" title={row.partName || row.productName}>
-            {row.partName || row.productName}
-          </span>
-          {row.processName && (
-            <span className="inline-flex items-center text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded w-fit font-medium">
-              Proc: {row.processName}
+      width: '210px',
+      render: (row) => {
+        const typeBadge = getMovementTypeBadge(row.typeLabel, row.type, (row as any).isRework);
+        const partLabel = row.partNumber !== '—' ? row.partNumber : row.productCode || row.productName;
+        return (
+          <div className="flex flex-col space-y-0.5 min-w-0">
+            <div className="flex items-center gap-1.5 max-w-[200px]">
+              <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-sans font-bold border shrink-0 ${typeBadge.className}`}>
+                {typeBadge.tag}
+              </span>
+              <span
+                className="font-mono text-xs font-bold text-slate-800 truncate"
+                title={partLabel}
+              >
+                {partLabel}
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-600 truncate max-w-[200px]" title={row.partName || row.productName}>
+              {row.partName || row.productName}
             </span>
-          )}
-        </div>
-      ),
+            {row.processName && (
+              <span className="inline-flex items-center text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded w-fit font-medium">
+                Proc: {row.processName}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'dates',
@@ -478,14 +536,30 @@ export function DcMovementsWorkspaceView() {
     },
     {
       key: 'challanNumber',
-      header: 'DC Number',
-      width: '180px',
-      render: (row) => (
-        <div className="flex flex-col">
-          <span className="font-mono text-xs font-bold text-primary">{row.challanNumber}</span>
-          <span className="text-[10px] text-slate-400">{row.challanTypeLabel}</span>
-        </div>
-      ),
+      header: 'DC Number & Type',
+      width: '190px',
+      render: (row) => {
+        const typeBadge = getMovementTypeBadge(row.challanTypeLabel, row.challanType, row.isRework);
+        return (
+          <div className="flex flex-col items-start space-y-0.5">
+            <span className="font-mono text-xs font-bold text-primary">{row.challanNumber}</span>
+            <span
+              className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-sans font-semibold border ${typeBadge.className}`}
+            >
+              {typeBadge.label}
+            </span>
+            {row.sourceDcNumber && (
+              <span className="inline-flex items-center gap-1 text-[9px] font-mono font-medium text-amber-800 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                <RotateCcw className="w-2.5 h-2.5 text-amber-600" />
+                Rework of: {row.sourceDcNumber}
+              </span>
+            )}
+            {row.poNumber && (
+              <span className="text-[10px] text-purple-700 font-mono font-semibold">PO: {row.poNumber}</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'direction',
@@ -521,17 +595,26 @@ export function DcMovementsWorkspaceView() {
     {
       key: 'partNumber',
       header: 'SC / Part No.',
-      width: '180px',
-      render: (row) => (
-        <div className="flex flex-col min-w-0">
-          <span className="font-mono text-xs font-semibold text-slate-700 truncate max-w-[160px]">
-            {row.partNumber !== '—' ? row.partNumber : row.scNumber}
-          </span>
-          {row.partName && row.partName !== row.productName && (
-            <span className="text-[10px] text-slate-500 truncate max-w-[160px] font-medium">{row.partName}</span>
-          )}
-        </div>
-      ),
+      width: '190px',
+      render: (row) => {
+        const typeBadge = getMovementTypeBadge(row.challanTypeLabel, row.challanType, row.isRework);
+        const partLabel = row.partNumber !== '—' ? row.partNumber : row.scNumber;
+        return (
+          <div className="flex flex-col min-w-0 space-y-0.5">
+            <div className="flex items-center gap-1.5 max-w-[180px]">
+              <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-sans font-bold border shrink-0 ${typeBadge.className}`}>
+                {typeBadge.tag}
+              </span>
+              <span className="font-mono text-xs font-semibold text-slate-700 truncate" title={partLabel}>
+                {partLabel}
+              </span>
+            </div>
+            {row.partName && row.partName !== row.productName && (
+              <span className="text-[10px] text-slate-500 truncate max-w-[180px] font-medium">{row.partName}</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'quantity',
@@ -849,6 +932,15 @@ export function DcMovementsWorkspaceView() {
                 }`}
               >
                 Type 2 (Stock)
+              </button>
+              <button
+                type="button"
+                onClick={() => setTypeFilter('SPL_PROCESS')}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                  typeFilter === 'SPL_PROCESS' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Type 3: SPL
               </button>
             </div>
 

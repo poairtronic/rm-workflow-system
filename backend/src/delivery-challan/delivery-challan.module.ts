@@ -13,6 +13,8 @@ import { UploadedFile } from '../files/entities/uploaded-file.entity.js';
 import { Attachment } from '../attachments/entities/attachment.entity.js';
 import { PdfGeneratorService } from '../reports/pdf/pdf-generator.service.js';
 import { FilesModule } from '../files/files.module.js';
+import { MercIndentPending } from '../merc-indent/entities/merc-indent-pending.entity.js';
+import { MercIndentLineItem } from '../merc-indent/entities/merc-indent-line-item.entity.js';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { FilesModule } from '../files/files.module.js';
       DcReworkItem,
       UploadedFile,
       Attachment,
+      MercIndentPending,
+      MercIndentLineItem,
     ]),
     AuthModule,
     NotificationsModule,

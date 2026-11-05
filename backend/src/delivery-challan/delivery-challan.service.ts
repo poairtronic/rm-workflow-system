@@ -24,6 +24,9 @@ import { PrintableDeliveryChallanDto, PrintableCompanyInfo } from './dto/printab
 import { UploadedFile } from '../files/entities/uploaded-file.entity.js';
 import { Attachment } from '../attachments/entities/attachment.entity.js';
 import { PdfGeneratorService } from '../reports/pdf/pdf-generator.service.js';
+import { MercIndentPending } from '../merc-indent/entities/merc-indent-pending.entity.js';
+import { MercIndentLineItem } from '../merc-indent/entities/merc-indent-line-item.entity.js';
+import { CreateSplDcDto } from './dto/create-spl-dc.dto.js';
 
 @Injectable()
 export class DeliveryChallanService {
@@ -47,6 +50,12 @@ export class DeliveryChallanService {
     @Optional() @InjectRepository(Attachment)
     private readonly attachmentRepo?: Repository<Attachment>,
     @Optional() private readonly pdfGeneratorService?: PdfGeneratorService,
+    @Optional()
+    @InjectRepository(MercIndentPending)
+    private readonly mercIndentPendingRepo?: Repository<MercIndentPending>,
+    @Optional()
+    @InjectRepository(MercIndentLineItem)
+    private readonly mercIndentLineItemRepo?: Repository<MercIndentLineItem>,
   ) {}
 
   /**
@@ -591,6 +600,305 @@ export class DeliveryChallanService {
     }
   }
 
+
+  private getPendingRepo(): Repository<MercIndentPending> {
+    return this.mercIndentPendingRepo || this.dataSource.getRepository(MercIndentPending);
+  }
+
+  private getLineItemRepo(): Repository<MercIndentLineItem> {
+    return this.mercIndentLineItemRepo || this.dataSource.getRepository(MercIndentLineItem);
+  }
+
+  async getMercPos(search?: string) {
+    const pendingRepo = this.getPendingRepo();
+    const qb = pendingRepo
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.lineItems', 'lineItems')
+      .orderBy('p.createdAt', 'DESC');
+
+    if (search && search.trim()) {
+      const s = search.trim();
+      qb.where(
+        '(LOWER(p.po_number) LIKE LOWER(:s) OR LOWER(p.layout_number) LIKE LOWER(:s) OR LOWER(p.indent_number) LIKE LOWER(:s) OR LOWER(p.customer_name) LIKE LOWER(:s))',
+        { s: `%${s}%` },
+      );
+    }
+
+    const records = await qb.take(50).getMany();
+
+    return records
+      .filter((r) => Boolean((r.poNumber && r.poNumber.trim()) || (r.layoutNumber && r.layoutNumber.trim())))
+      .map((r) => ({
+        id: r.id,
+        poNumber: r.poNumber || r.layoutNumber || r.indentNumber,
+        actualPoNumber: r.poNumber,
+        layoutNumber: r.layoutNumber,
+        indentNumber: r.indentNumber,
+        customerName: r.customerName,
+        lineItemCount: r.lineItems?.length ?? 0,
+      }));
+  }
+
+  async getMercPoItems(poNumber: string) {
+    const trimmedPo = poNumber?.trim();
+    if (!trimmedPo) {
+      throw new BadRequestException('PO number is required');
+    }
+
+    // 1. Find merc_indent_pending by exact match or partial match on po_number, layout_number, or indent_number
+    const pendingRepo = this.getPendingRepo();
+    const indent = await pendingRepo
+      .createQueryBuilder('p')
+      .where(
+        '(LOWER(TRIM(p.po_number)) = LOWER(:po) OR LOWER(TRIM(p.layout_number)) = LOWER(:po) OR LOWER(p.po_number) LIKE LOWER(:likePo) OR LOWER(p.layout_number) LIKE LOWER(:likePo) OR LOWER(p.indent_number) LIKE LOWER(:likePo))',
+        { po: trimmedPo, likePo: `%${trimmedPo}%` },
+      )
+      .getOne();
+
+    if (!indent) {
+      throw new NotFoundException('PO not found in MERC indents');
+    }
+
+    // 2. Fetch all merc_indent_line_items for this indent ordered by created_at ASC
+    const lineItemRepo = this.getLineItemRepo();
+    const lineItems = await lineItemRepo.find({
+      where: { mercIndentPendingId: indent.id },
+      order: { createdAt: 'ASC' },
+    });
+
+    // 4. Fetch all products with stock > 0 for "+ Add Item" option
+    const stockProducts: Array<{ id: string; name: string; total_stock: string | number }> =
+      await this.dataSource.query(`
+        SELECT DISTINCT p.id, p.name, SUM(sb.current_quantity) as total_stock
+        FROM products p
+        JOIN stock_balances sb ON sb.product_id = p.id
+        WHERE sb.current_quantity > 0
+        GROUP BY p.id, p.name
+        ORDER BY p.name ASC
+      `);
+
+    // 5. Return
+    return {
+      poNumber: indent.poNumber,
+      indentNumber: indent.indentNumber,
+      customerName: indent.customerName,
+      layoutNumber: indent.layoutNumber,
+      mercIndentId: indent.id,
+      lineItems: lineItems.map((item) => ({
+        mercItemId: item.mercItemId,
+        itemType: item.itemType,
+        name: item.name,
+        material: item.material ?? null,
+        shape: item.shape ?? null,
+        lengthMm: item.lengthMm != null ? Number(item.lengthMm) : null,
+        widthMm: item.widthMm != null ? Number(item.widthMm) : null,
+        heightMm: item.heightMm != null ? Number(item.heightMm) : null,
+        diameterMm: item.diameterMm != null ? Number(item.diameterMm) : null,
+        quantityRequired: Number(item.quantityRequired),
+        unit: item.unit ?? null,
+        vendorName: item.vendorName ?? null,
+        source: item.source ?? null,
+        poPartLabel: `${indent.poNumber || poNumber} - ${item.name}`,
+      })),
+      availableStockProducts: (stockProducts || []).map((p) => ({
+        productId: p.id,
+        productName: p.name,
+        totalStock: Number(p.total_stock),
+      })),
+    };
+  }
+
+  async createSplDc(dto: CreateSplDcDto, userId: string) {
+    if (!dto.dispatchGroups || dto.dispatchGroups.length === 0) {
+      throw new BadRequestException('At least one dispatch group is required');
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // 1. Validate vendor exists
+      const vendorRepo = queryRunner.manager.getRepository(Vendor);
+      const vendor = await vendorRepo.findOne({ where: { id: dto.vendorId } });
+      if (!vendor) {
+        throw new NotFoundException(`Vendor with ID ${dto.vendorId} not found`);
+      }
+
+      // 2. Generate DC number using SAME sequence as Type 1 and Type 2
+      const now = new Date();
+      const challanNumber = await this.generateNextChallanNumber(queryRunner, now);
+
+      // 3. Create delivery_challans record
+      const challan = queryRunner.manager.create(DeliveryChallan, {
+        challanNumber,
+        type: DeliveryChallanType.SPL_PROCESS,
+        vendorId: dto.vendorId,
+        status: DeliveryChallanStatus.OPEN,
+        poNumber: dto.poNumber,
+        layoutNumber: dto.layoutNumber ?? null,
+        mercIndentId: dto.mercIndentId ?? null,
+        mercIndentNumber: dto.mercIndentNumber ?? null,
+        dispatchDate: now,
+        expectedReturnDate: dto.expectedReturnDate ? new Date(dto.expectedReturnDate) : null,
+        notes: dto.remarks ?? null,
+        createdById: userId,
+      });
+
+      const savedDc = await queryRunner.manager.save(DeliveryChallan, challan);
+
+      // 4. For each dispatchGroup, for each item
+      let itemCount = 0;
+      const itemsToSave: DeliveryChallanItem[] = [];
+
+      for (const group of dto.dispatchGroups) {
+        for (const item of group.items) {
+          itemCount++;
+          const challanItem = queryRunner.manager.create(DeliveryChallanItem, {
+            challanId: savedDc.id,
+            poPartLabel: item.poPartLabel,
+            partNumber: item.partNo,
+            partName: item.poPartLabel || item.partNo || null,
+            quantityDispatched: Number(item.dispatchedQty),
+            initialExpectedQty: Number(item.dispatchedQty),
+            expectedReturnQty: Number(item.dispatchedQty),
+            quantityReturned: 0,
+            qcPendingQty: 0,
+            qcPassedQty: 0,
+            qcRejectedQty: 0,
+            actualReceivedQty: 0,
+            batchNumber: item.batchNo ?? null,
+            description: item.description ?? null,
+            isExtraItem: item.isExtraItem ?? false,
+            mercItemId: item.mercItemId ?? null,
+            processName: group.processName,
+            productId: item.productId ?? null,
+          });
+          itemsToSave.push(challanItem);
+        }
+      }
+
+      if (itemsToSave.length > 0) {
+        await queryRunner.manager.save(DeliveryChallanItem, itemsToSave);
+      }
+
+      // 5. Stock movement for extra items added to Type 3 DC
+      // Regular PO items are not deducted (already issued from MERC store).
+      // Only extra items added from stock must be deducted with "STOCK OUT FOR TYPE 3 DC <DC_NUMBER>"
+      const stockBalanceRepo = queryRunner.manager.getRepository(StockBalance);
+
+      for (const group of dto.dispatchGroups) {
+        for (const item of group.items) {
+          if (item.isExtraItem && item.productId) {
+            const qtyToDeduct = Number(item.dispatchedQty || 0);
+            if (qtyToDeduct > 0) {
+              const balances = await stockBalanceRepo
+                .createQueryBuilder('sb')
+                .setLock('pessimistic_write')
+                .where('sb.product_id = :productId', { productId: item.productId })
+                .andWhere('sb.current_quantity > 0')
+                .orderBy('sb.current_quantity', 'DESC')
+                .getMany();
+
+              let remainingToDeduct = qtyToDeduct;
+              for (const bal of balances) {
+                if (remainingToDeduct <= 0) break;
+                const currentBalQty = Number(bal.currentQuantity || 0);
+                const deductFromThis = Math.min(currentBalQty, remainingToDeduct);
+                bal.currentQuantity = currentBalQty - deductFromThis;
+                await queryRunner.manager.save(bal);
+
+                remainingToDeduct -= deductFromThis;
+
+                const stockTx = queryRunner.manager.create(StockTransaction, {
+                  productId: item.productId,
+                  sourceBinId: bal.binId,
+                  transactionType: TransactionType.STOCK_OUT,
+                  quantity: deductFromThis,
+                  referenceType: 'DELIVERY_CHALLAN_TYPE_3',
+                  referenceId: savedDc.id,
+                  createdById: userId,
+                  reason: `STOCK OUT FOR TYPE 3 DC ${challanNumber}`,
+                  remarks: `STOCK OUT FOR TYPE 3 DC ${challanNumber}`,
+                });
+                await queryRunner.manager.save(stockTx);
+              }
+            }
+          }
+        }
+      }
+
+      await queryRunner.commitTransaction();
+
+      // 6. Return: { id, dcNumber, status: 'OPEN', poNumber, itemCount }
+      return {
+        id: savedDc.id,
+        dcNumber: savedDc.challanNumber,
+        status: 'OPEN',
+        poNumber: savedDc.poNumber,
+        itemCount,
+      };
+    } catch (err: any) {
+      if (queryRunner.isTransactionActive !== false) {
+        await queryRunner.rollbackTransaction();
+      }
+      this.logger.error(`Error creating SPL DC: ${err?.message || err}`);
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async listSplDcs(filters?: { status?: string; vendorId?: string; poNumber?: string }) {
+    const qb = this.challanRepo
+      .createQueryBuilder('dc')
+      .leftJoinAndSelect('dc.vendor', 'vendor')
+      .leftJoinAndSelect('dc.items', 'items')
+      .where('dc.type = :splType', { splType: DeliveryChallanType.SPL_PROCESS })
+      .orderBy('dc.createdAt', 'DESC');
+
+    if (filters?.status) {
+      qb.andWhere('dc.status = :status', { status: filters.status });
+    }
+    if (filters?.vendorId) {
+      qb.andWhere('dc.vendorId = :vendorId', { vendorId: filters.vendorId });
+    }
+    if (filters?.poNumber) {
+      qb.andWhere('LOWER(dc.poNumber) LIKE LOWER(:poNumber)', { poNumber: `%${filters.poNumber.trim()}%` });
+    }
+
+    const challans = await qb.getMany();
+
+    return challans.map((dc) => {
+      const items = dc.items || [];
+      const sentQty = items.reduce((acc, it) => acc + Number(it.quantityDispatched || 0), 0);
+      const passedQty = items.reduce((acc, it) => acc + Number(it.qcPassedQty || 0), 0);
+      const returnedQty = items.reduce(
+        (acc, it) => acc + Number(it.quantityReturned || it.actualReceivedQty || 0),
+        0,
+      );
+      const vendorQty = Math.max(0, sentQty - returnedQty);
+
+      return {
+        id: dc.id,
+        dcNumber: dc.challanNumber,
+        status: dc.status,
+        poNumber: dc.poNumber ?? null,
+        layoutNumber: dc.layoutNumber ?? null,
+        mercIndentNumber: dc.mercIndentNumber ?? null,
+        vendorName: dc.vendor?.name ?? null,
+        vendorAddress: dc.vendor?.address ?? null,
+        expectedReturnDate: dc.expectedReturnDate ?? null,
+        remarks: dc.notes ?? null,
+        createdAt: dc.createdAt,
+        itemCount: items.length,
+        sentQty,
+        passedQty,
+        vendorQty,
+      };
+    });
+  }
+
   async findAll(filters?: { scId?: string; processId?: string; vendorId?: string; type?: DeliveryChallanType; isOverdue?: boolean; status?: DeliveryChallanStatus }) {
     const baseWhere: any = {};
     if (filters?.vendorId) baseWhere.vendorId = filters.vendorId;
@@ -698,6 +1006,160 @@ export class DeliveryChallanService {
     if (!challan) {
       throw new NotFoundException(`Delivery Challan with ID ${id} not found`);
     }
+    // Handle Special Process (Type 3) DC Printout
+    if (challan.type === DeliveryChallanType.SPL_PROCESS || challan.type === 'SPL_PROCESS') {
+      const vendor = challan.vendor;
+      const items = (challan.items || []).map((item, index) => {
+        const partNo = item.poPartLabel ?? item.partNumber ?? '';
+        const particulars = item.poPartLabel ?? item.description ?? '';
+        const dispatchedQty = Number(item.quantityDispatched ?? 0);
+
+        return {
+          slNo: index + 1,
+          // KEY DIFFERENCE: Part No prints as "PO123 - BASE PLATE"
+          partNo,
+          partNumber: partNo,
+          // Particulars/Product name also uses poPartLabel
+          particulars,
+          productName: particulars,
+          description: item.description ?? '',
+          quantity: dispatchedQty,
+          quantityDispatched: dispatchedQty,
+          unit: 'NOS',
+          uom: 'NOS',
+          batchNo: item.batchNumber ?? null,
+          batchNumber: item.batchNumber ?? null,
+        };
+      });
+
+      const lineItems = (challan.items || []).map((item) => {
+        const partNo = item.poPartLabel ?? item.partNumber ?? '';
+        const particulars = item.poPartLabel ?? item.description ?? '';
+        const dispatchedQty = Number(item.quantityDispatched ?? 0);
+
+        return {
+          id: item.id,
+          productId: item.productId || '',
+          productCode: partNo,
+          productName: particulars,
+          partNumber: partNo,
+          partName: particulars,
+          binId: item.binId || '',
+          binCode: item.bin?.code ?? '',
+          binName: item.bin?.name ?? '',
+          quantityDispatched: dispatchedQty,
+          quantityReturned: Number(item.quantityReturned ?? 0),
+          quantityOutstanding: Math.max(0, dispatchedQty - Number(item.quantityReturned ?? 0)),
+          uom: 'NOS',
+          poNumber: challan.poNumber || undefined,
+          processName: item.processName || challan.processName || 'SPECIAL PROCESS',
+          batchNumber: item.batchNumber || undefined,
+          description: item.description ?? null,
+        };
+      });
+
+      const resolvedProcessType =
+        challan.items?.[0]?.processName || challan.processName || 'SPECIAL PROCESS';
+
+      const companyObj = {
+        name: 'VELAN METROLOGY INDIA PRIVATE LIMITED',
+        address: 'NO 146/87 A&B, Jayaram Nagar Main Road, Vanagaram, Chennai - 600095',
+        phone: '9600703283',
+        email: 'velanmetrology@gmail.com',
+        gstin: '33AAICV7596H1ZR',
+        state: 'Tamil Nadu',
+        stateCode: '33',
+        website: null,
+      };
+
+      const vendorObj = {
+        id: vendor?.id ?? challan.vendorId,
+        code: vendor?.code ?? '',
+        name: vendor?.name ?? '',
+        address: vendor?.address ?? null,
+        contactPerson: vendor?.contactPerson ?? null,
+        phone: vendor?.phone ?? null,
+        email: vendor?.email ?? null,
+        category: vendor?.category ?? null,
+      };
+
+      const auditObj = {
+        createdById: challan.createdById ?? null,
+        createdByName: (challan.createdBy as any)?.name ?? null,
+        createdAt: challan.createdAt,
+        verifiedById: challan.verifiedById ?? null,
+        verifiedByName: (challan.verifiedBy as any)?.name ?? null,
+        verificationRemarks: challan.verificationRemarks ?? null,
+        authorizedSignatory: '___________________________',
+        termsAndConditions:
+          'All materials dispatched under this challan remain the property of ' +
+          companyObj.name +
+          ' until formally returned and verified. The vendor is responsible for safe custody of all goods. ' +
+          'Any damage, loss, or discrepancy must be reported within 24 hours of receipt.',
+      };
+
+      return {
+        // Step 2 specific fields
+        dcNumber: challan.challanNumber,
+        dcType: 'SPL_PROCESS',
+        dcTypeLabel: 'SUPPLIER DC',
+        date: challan.createdAt,
+        vendor: {
+          name: vendor?.name || '',
+          address: vendor?.address || '',
+          contactPerson: vendor?.contactPerson ?? null,
+          phone: vendor?.phone ?? null,
+        },
+        poNumber: challan.poNumber,
+        layoutNumber: challan.layoutNumber ?? null,
+        mercIndentNumber: challan.mercIndentNumber ?? null,
+        processType: resolvedProcessType,
+        remarks: challan.notes ?? '',
+        items,
+        companyName: companyObj.name,
+        companyAddress: companyObj.address,
+        companyPhone: companyObj.phone,
+        companyEmail: companyObj.email,
+        companyGstin: companyObj.gstin,
+        companyState: `${companyObj.stateCode} / ${companyObj.state}`,
+
+        // Additional compatibility properties for Frontend Print View & PrintableDeliveryChallanDto
+        company: companyObj,
+        challan: {
+          id: challan.id,
+          challanNumber: challan.challanNumber,
+          type: challan.type,
+          status: challan.status,
+          dispatchDate: challan.dispatchDate ?? challan.createdAt,
+          expectedReturnDate: challan.expectedReturnDate ?? null,
+          actualReturnDate: challan.actualReturnDate ?? null,
+          notes: challan.notes ?? null,
+          processName: resolvedProcessType,
+        },
+        references: {
+          sc: null,
+          pos: challan.poNumber
+            ? [
+                {
+                  poId: '',
+                  poNumber: challan.poNumber,
+                  externalReference: null,
+                  referenceDate: null,
+                },
+              ]
+            : [],
+          process: null,
+          processName: resolvedProcessType,
+        },
+        lineItems,
+        groups: [],
+        audit: auditObj,
+        generatedAt: new Date().toISOString(),
+        isRework: false,
+        hasReworkItems: false,
+        originalItemsCount: items.length,
+      } as any;
+    }
 
     // Check for associated re-dispatched rework items
     const activeReworks = await this.reworkRepo.find({
@@ -746,6 +1208,8 @@ export class DeliveryChallanService {
       targetReworkItems.forEach((rw) => {
         const rwSc = rw.sc as any;
         const rwPo = rw.po || rwSc?.purchaseOrder;
+
+
         if (rwPo) {
           posSet.set(rwPo.id, {
             poId: rwPo.id,
@@ -845,21 +1309,49 @@ export class DeliveryChallanService {
     if (isReworkMode) {
       lineItems = targetReworkItems.map((rw) => {
         const reworkQty = Number(rw.rejectedQty || 0);
-        const resolvedPartNo = rw.partNumber || rw.product?.code || rw.scNumber || '—';
-        const resolvedPartName = rw.productName || rw.product?.name || resolvedPartNo;
-        const resolvedUom = rw.uom || 'NOS';
-        const rwSc = rw.sc as any;
-        const rwPo = rw.po || rwSc?.purchaseOrder;
-        const resolvedScNo = rw.scNumber || rwSc?.scNumber || (challan.sc as any)?.scNumber || null;
-        const resolvedPoNo = rw.poNumber || rwPo?.poNumber || (challan.sc as any)?.purchaseOrder?.poNumber || null;
-
-        // Match with challan item if present for description, batch, bin
         const matchingItem = challan.items?.find(
           (it: any) =>
             (rw.productId && it.productId === rw.productId) ||
             (rw.partNumber && it.partNumber === rw.partNumber) ||
             (rw.scId && it.scId === rw.scId),
         );
+
+        const isSpl =
+          challan.type === DeliveryChallanType.SPL_PROCESS ||
+          rw.dcType === DeliveryChallanType.SPL_PROCESS ||
+          !!challan.poNumber ||
+          !!rw.poNumber;
+
+        const resolvedPoNo =
+          rw.poNumber ||
+          challan.poNumber ||
+          (rw.po as any)?.poNumber ||
+          (rw.sc as any)?.purchaseOrder?.poNumber ||
+          (challan.sc as any)?.purchaseOrder?.poNumber ||
+          null;
+
+        let resolvedPartNo =
+          matchingItem?.poPartLabel ||
+          rw.partNumber ||
+          rw.product?.code ||
+          rw.scNumber ||
+          '—';
+        if (isSpl && resolvedPoNo && !resolvedPartNo.includes(resolvedPoNo)) {
+          resolvedPartNo = `${resolvedPoNo} - ${resolvedPartNo}`;
+        }
+
+        let resolvedPartName =
+          matchingItem?.poPartLabel ||
+          (rw.productName && rw.productName !== 'Defective Material' ? rw.productName : null) ||
+          matchingItem?.partName ||
+          rw.product?.name ||
+          resolvedPartNo;
+        if (isSpl && resolvedPoNo && !resolvedPartName.includes(resolvedPoNo)) {
+          resolvedPartName = `${resolvedPoNo} - ${resolvedPartName}`;
+        }
+
+        const resolvedUom = rw.uom || 'NOS';
+        const resolvedScNo = rw.scNumber || (rw.sc as any)?.scNumber || (challan.sc as any)?.scNumber || null;
 
         return {
           id: rw.id,
@@ -975,6 +1467,9 @@ export class DeliveryChallanService {
         actualReturnDate: challan.actualReturnDate ?? null,
         notes: challan.notes ?? null,
         processName: challan.processName ?? (isReworkMode ? 'REWORK PROCESSING' : null),
+        poNumber: challan.poNumber || (isReworkMode ? (targetReworkItems[0]?.poNumber || (targetReworkItems[0] as any)?.po?.poNumber) : null) || null,
+        layoutNumber: challan.layoutNumber || null,
+        mercIndentNumber: challan.mercIndentNumber || null,
       },
       vendor: vendorInfo,
       references,
@@ -1092,7 +1587,10 @@ export class DeliveryChallanService {
 
         // For Type 2: allow revising the expected return quantity (e.g. from 700 to 650)
         // For Type 1: Dispatched baseline is the fixed target; do not reject when batch return qty is passed
-        if (challan.type !== DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD) {
+        if (
+          challan.type !== DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD &&
+          challan.type !== DeliveryChallanType.SPL_PROCESS
+        ) {
           const newExpected = dtoItem.expectedReturnQty ?? dtoItem.expectedOutputQuantity;
           if (newExpected !== undefined && newExpected !== null && Number(newExpected) > 0) {
             const parsedExpected = Number(newExpected);
@@ -1255,7 +1753,10 @@ export class DeliveryChallanService {
         challanItem.quantityReturned = Number(challanItem.qcPassedQty) + Number(challanItem.qcRejectedQty);
 
         // 2. Type 1 vs Type 2 Logic on Pass
-        if (challan.type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD) {
+        if (
+          challan.type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD ||
+          challan.type === DeliveryChallanType.SPL_PROCESS
+        ) {
           // ─── TYPE 1: PROCESS RETURN ───────────────────────────────────────
           // Zero warehouse stock movement. Update DcMovement running ledger.
           if (passedQty > 0) {
@@ -1330,6 +1831,9 @@ export class DeliveryChallanService {
         if (rejectedQty > 0) {
           const sc = challanItem.sc || challan.sc;
           const po = (sc as any)?.purchaseOrder;
+          const resolvedPoNumber = challan.poNumber || po?.poNumber || null;
+          const resolvedPartLabel = challanItem.poPartLabel || (resolvedPoNumber ? `${resolvedPoNumber} - ${challanItem.partNumber || challanItem.partName || challanItem.product?.name || 'Material'}` : challanItem.partNumber || challanItem.product?.code || 'Defective Material');
+          const resolvedPartName = challanItem.poPartLabel || challanItem.partName || challanItem.product?.name || resolvedPartLabel;
 
           const reworkItem = reworkRepo.create({
             sourceDcId: challan.id,
@@ -1338,10 +1842,10 @@ export class DeliveryChallanService {
             scId: challanItem.scId || challan.scId || null,
             scNumber: sc?.scNumber || null,
             poId: po?.id || null,
-            poNumber: po?.poNumber || null,
+            poNumber: resolvedPoNumber,
             productId: challanItem.productId || challanItem.product?.id || null,
-            productName: challanItem.product?.name || challanItem.partName || 'Defective Material',
-            partNumber: challanItem.partNumber || challanItem.product?.code || null,
+            productName: resolvedPartName,
+            partNumber: resolvedPartLabel,
             uom: challanItem.product?.uom || 'PCS',
             originalVendorId: challan.vendorId,
             originalVendorName: challan.vendor?.name || 'Original Vendor',
@@ -1482,8 +1986,13 @@ export class DeliveryChallanService {
       const isSameVendor = targetVendorId === item.originalVendorId;
       const dispatchDate = new Date();
 
-      const isType1 = item.dcType === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD;
-      const dcType = isType1 ? DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD : DeliveryChallanType.GENERAL_INVENTORY_OUTWARD;
+      const isSpl = item.dcType === DeliveryChallanType.SPL_PROCESS || item.sourceDc?.type === DeliveryChallanType.SPL_PROCESS;
+      const isType1 = item.dcType === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD || item.sourceDc?.type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD;
+      const dcType = isSpl
+        ? DeliveryChallanType.SPL_PROCESS
+        : isType1
+        ? DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD
+        : DeliveryChallanType.GENERAL_INVENTORY_OUTWARD;
 
       let savedDc: DeliveryChallan;
 
@@ -1561,6 +2070,10 @@ export class DeliveryChallanService {
           type: dcType,
           vendorId: targetVendorId,
           scId: item.scId || null,
+          poNumber: item.poNumber || item.sourceDc?.poNumber || null,
+          layoutNumber: item.sourceDc?.layoutNumber || null,
+          mercIndentNumber: item.sourceDc?.mercIndentNumber || null,
+          mercIndentId: item.sourceDc?.mercIndentId || null,
           processName: 'REWORK PROCESSING',
           dispatchDate,
           expectedReturnDate: dto.targetReturnDate ? new Date(dto.targetReturnDate) : null,
@@ -1574,6 +2087,7 @@ export class DeliveryChallanService {
           challanId: savedDc.id,
           productId: item.productId,
           scId: item.scId || null,
+          poPartLabel: item.partNumber || (item.poNumber ? `${item.poNumber} - ${item.productName}` : null),
           partNumber: item.partNumber || item.product?.code || null,
           partName: item.productName,
           description: dto.description || `Rework re-dispatch for ${item.rejectedQty} ${item.uom}`,
@@ -1765,6 +2279,20 @@ export class DeliveryChallanService {
 
     const challans = await qb.getMany();
 
+    // Map all target rework items so rework DCs can identify their source DC and enriched type
+    const allReworks = await this.reworkRepo.find();
+    const reworkByTargetMap = new Map<string, DcReworkItem>();
+    const reworkBySourceMap = new Map<string, DcReworkItem[]>();
+    for (const rw of allReworks) {
+      if (rw.reworkDcNumber) reworkByTargetMap.set(rw.reworkDcNumber, rw);
+      if (rw.reworkDcId) reworkByTargetMap.set(rw.reworkDcId, rw);
+      if (rw.sourceDcNumber) {
+        const list = reworkBySourceMap.get(rw.sourceDcNumber) || [];
+        list.push(rw);
+        reworkBySourceMap.set(rw.sourceDcNumber, list);
+      }
+    }
+
     const reportRows: any[] = [];
     let totalDispatchedUnits = 0;
     let totalReceivedUnits = 0;
@@ -1775,7 +2303,15 @@ export class DeliveryChallanService {
     let totalReceiptsCount = 0;
 
     for (const challan of challans) {
-      const isType1 = challan.type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD;
+      const matchingTargetRework = reworkByTargetMap.get(challan.challanNumber) || reworkByTargetMap.get(challan.id);
+      const isRework = challan.processName === 'REWORK PROCESSING' || Boolean(matchingTargetRework) || (challan.notes && challan.notes.toLowerCase().includes('rework'));
+      const sourceDcNumber = matchingTargetRework?.sourceDcNumber || null;
+
+      const isSpl = challan.type === DeliveryChallanType.SPL_PROCESS || matchingTargetRework?.dcType === DeliveryChallanType.SPL_PROCESS;
+      const isType1 = challan.type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD || (!isSpl && matchingTargetRework?.dcType === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD);
+      const baseType = isSpl ? 'Type 3: SPL' : (isType1 ? 'Type 1: Process' : 'Type 2: Conversion');
+      const typeLabel = isRework ? `${baseType} (Rework)` : baseType;
+
       const vendorName = challan.vendor?.name || 'Unknown Vendor';
       const vendorCode = challan.vendor?.code || '';
 
@@ -1844,10 +2380,13 @@ export class DeliveryChallanService {
         totalReworkUnits += rejectedQty;
 
         // Find relevant rework items for this material
-        const matchingReworks = (challan.reworkItems || []).filter(
+        const matchingReworks = (challan.reworkItems || reworkBySourceMap.get(challan.challanNumber) || []).filter(
           (rw) =>
-            (rw.productId && rw.productId === item.productId) ||
-            (rw.partNumber && rw.partNumber === item.partNumber) ||
+            (rw.productId && item.productId && rw.productId === item.productId) ||
+            (rw.partNumber && (rw.partNumber === item.partNumber || rw.partNumber === item.poPartLabel)) ||
+            (rw.productName && (rw.productName === item.partName || rw.productName === item.poPartLabel)) ||
+            (item.poPartLabel && rw.partNumber && (item.poPartLabel.includes(rw.partNumber) || rw.partNumber.includes(item.poPartLabel))) ||
+            (!item.productId && !rw.productId && (rw.partNumber === item.partNumber || rw.productName === item.partName || (rw.partNumber && item.poPartLabel && item.poPartLabel.includes(rw.partNumber)))) ||
             items.length === 1
         );
 
@@ -1862,11 +2401,15 @@ export class DeliveryChallanService {
             ? new Date(rw.reworkDc.actualReturnDate).toISOString().split('T')[0]
             : null;
 
+          const rwType = rw.dcType === DeliveryChallanType.SPL_PROCESS
+            ? 'Type 3: SPL'
+            : (rw.dcType === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD ? 'Type 1: Process' : 'Type 2: Conversion');
+
           let summary = '';
           if (rw.reworkStatus === ReworkItemStatus.RE_DISPATCHED) {
             summary = isSame
-              ? `Rework (${rw.rejectedQty} ${rw.uom}) sent to Same Vendor under DC ${rw.sourceDcNumber}${rwDispDate ? ` on ${rwDispDate}` : ''}${rwRetDate ? `, received on ${rwRetDate}` : ' (pending return)'}`
-              : `Rework (${rw.rejectedQty} ${rw.uom}) sent to New Vendor (${rwVendor}) under New DC ${rwDcNum}${rwDispDate ? ` on ${rwDispDate}` : ''}${rwRetDate ? `, received on ${rwRetDate}` : ' (pending return)'}`;
+              ? `Sent for Rework (${rw.rejectedQty} ${rw.uom}) under DC ${rw.sourceDcNumber} (${rwType}) to Same Vendor${rwDispDate ? ` on ${rwDispDate}` : ''}${rwRetDate ? `, received on ${rwRetDate}` : ' (pending return)'}`
+              : `Sent for Rework (${rw.rejectedQty} ${rw.uom}) under New DC ${rwDcNum} (${rwType}) to ${rwVendor}${rwDispDate ? ` on ${rwDispDate}` : ''}${rwRetDate ? `, received on ${rwRetDate}` : ' (pending return)'}`;
           } else {
             summary = `Defect: ${rw.rejectedQty} ${rw.uom} rejected in QC (${rw.qcRemarks || 'Pending Rework'})`;
           }
@@ -1879,6 +2422,8 @@ export class DeliveryChallanService {
             isSameVendor: isSame,
             vendorName: rwVendor,
             reworkDcNumber: rwDcNum,
+            dcType: rw.dcType,
+            dcTypeLabel: rwType,
             dispatchDate: rwDispDate,
             actualReturnDate: rwRetDate,
             qcRemarks: rw.qcRemarks,
@@ -1897,11 +2442,13 @@ export class DeliveryChallanService {
           challanId: challan.id,
           challanNumber: challan.challanNumber,
           type: challan.type,
-          typeLabel: isType1 ? 'Type 1 (Process)' : 'Type 2 (Stock Conversion)',
+          typeLabel,
+          isRework,
+          sourceDcNumber,
           vendorId: challan.vendorId,
           vendorName,
           vendorCode,
-          partNumber: item.partNumber || item.product?.code || '—',
+          partNumber: item.poPartLabel || item.partNumber || item.product?.code || '—',
           partName: item.partName || item.product?.name || '—',
           productName: isType1 ? (item.partName || item.product?.name || '—') : (outProd?.name || item.product?.name || '—'),
           productCode: isType1 ? (item.product?.code || '') : (outProd?.code || item.product?.code || ''),
@@ -1985,11 +2532,10 @@ export class DeliveryChallanService {
 
     // 2. Fetch Type 2 DC items from delivery_challan_items table
     const type2Items = await this.dataSource.getRepository(DeliveryChallanItem).find({
-      where: {
-        challan: {
-          type: DeliveryChallanType.GENERAL_INVENTORY_OUTWARD,
-        },
-      },
+      where: [
+        { challan: { type: DeliveryChallanType.GENERAL_INVENTORY_OUTWARD } },
+        { challan: { type: DeliveryChallanType.SPL_PROCESS } },
+      ],
       relations: {
         challan: {
           vendor: true,
@@ -2003,6 +2549,14 @@ export class DeliveryChallanService {
       order: { createdAt: 'DESC' },
     });
 
+    // Map all rework items
+    const allReworks = await this.reworkRepo.find();
+    const reworkByTargetMap = new Map<string, DcReworkItem>();
+    for (const rw of allReworks) {
+      if (rw.reworkDcNumber) reworkByTargetMap.set(rw.reworkDcNumber, rw);
+      if (rw.reworkDcId) reworkByTargetMap.set(rw.reworkDcId, rw);
+    }
+
     const results: any[] = [];
 
     // Map Type 1 items
@@ -2013,6 +2567,11 @@ export class DeliveryChallanService {
       const vendor = challan?.vendor;
       const item = m.challanItem;
 
+      const matchingTargetRework = reworkByTargetMap.get(challan?.challanNumber) || reworkByTargetMap.get(challan?.id);
+      const isRework = challan?.processName === 'REWORK PROCESSING' || Boolean(matchingTargetRework) || (challan?.notes && challan.notes.toLowerCase().includes('rework'));
+      const challanTypeLabel = isRework ? 'Type 1: Process (Rework)' : 'Type 1: Process';
+      const sourceDcNumber = matchingTargetRework?.sourceDcNumber || null;
+
       const initExpected = Number(item?.initialExpectedQty ?? item?.quantityDispatched ?? dispQty);
       const revExpected = Number(item?.expectedReturnQty ?? initExpected);
       const variation = Math.max(0, initExpected - revExpected);
@@ -2022,9 +2581,12 @@ export class DeliveryChallanService {
       const matchingRework = (challan?.reworkItems || []).find(
         (rw) => rw.productId === m.dispatchedProductId
       );
+      const rwType = matchingRework?.dcType === DeliveryChallanType.SPL_PROCESS
+        ? 'Type 3: SPL'
+        : (matchingRework?.dcType === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD ? 'Type 1: Process' : 'Type 2: Conversion');
       const reworkSummary = matchingRework
         ? (matchingRework.reworkStatus === ReworkItemStatus.RE_DISPATCHED
-          ? `Rework (${matchingRework.rejectedQty} ${matchingRework.uom}) under ${matchingRework.reworkDcNumber || challan?.challanNumber}`
+          ? `Sent for Rework (${matchingRework.rejectedQty} ${matchingRework.uom}) under ${matchingRework.reworkDcNumber || challan?.challanNumber} (${rwType})`
           : `Defect: ${matchingRework.rejectedQty} ${matchingRework.uom} rejected in QC`)
         : 'No defects';
 
@@ -2035,7 +2597,9 @@ export class DeliveryChallanService {
         challanId: m.challanId,
         challanNumber: challan?.challanNumber || '—',
         challanType: DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD,
-        challanTypeLabel: 'Type 1 (Process)',
+        challanTypeLabel,
+        isRework,
+        sourceDcNumber,
         direction: 'OUTWARD',
         date: m.createdAt,
         dispatchDate: challan?.dispatchDate || m.createdAt,
@@ -2078,7 +2642,9 @@ export class DeliveryChallanService {
           challanId: m.challanId,
           challanNumber: challan?.challanNumber || '—',
           challanType: DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD,
-          challanTypeLabel: 'Type 1 (Process)',
+          challanTypeLabel,
+          isRework,
+          sourceDcNumber,
           direction: 'INWARD',
           date: m.updatedAt || m.createdAt,
           dispatchDate: challan?.dispatchDate || m.createdAt,
@@ -2122,6 +2688,14 @@ export class DeliveryChallanService {
       const challan = item.challan;
       const vendor = challan?.vendor;
 
+      const matchingTargetRework = reworkByTargetMap.get(challan?.challanNumber) || reworkByTargetMap.get(challan?.id);
+      const isRework = challan?.processName === 'REWORK PROCESSING' || Boolean(matchingTargetRework) || (challan?.notes && challan.notes.toLowerCase().includes('rework'));
+      const isSpl = challan?.type === DeliveryChallanType.SPL_PROCESS || matchingTargetRework?.dcType === DeliveryChallanType.SPL_PROCESS;
+      const isType1Challan = challan?.type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD || (!isSpl && matchingTargetRework?.dcType === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD);
+      const baseType = isSpl ? 'Type 3: SPL' : (isType1Challan ? 'Type 1: Process' : 'Type 2: Conversion');
+      const challanTypeLabel = isRework ? `${baseType} (Rework)` : baseType;
+      const sourceDcNumber = matchingTargetRework?.sourceDcNumber || null;
+
       const initExpected = Number(item.initialExpectedQty ?? item.expectedOutputQuantity ?? item.quantityDispatched ?? 0);
       const revExpected = Number(item.expectedReturnQty ?? initExpected);
       const variation = Math.max(0, initExpected - revExpected);
@@ -2129,22 +2703,32 @@ export class DeliveryChallanService {
       const unrecBalance = Math.max(0, revExpected - actReceived);
 
       const matchingRework = (challan?.reworkItems || []).find(
-        (rw) => rw.productId === item.productId || rw.partNumber === item.partNumber
+        (rw) =>
+          (rw.productId && item.productId && rw.productId === item.productId) ||
+          (rw.partNumber && (rw.partNumber === item.partNumber || rw.partNumber === item.poPartLabel)) ||
+          (rw.productName && (rw.productName === item.partName || rw.productName === item.poPartLabel)) ||
+          (item.poPartLabel && rw.partNumber && (item.poPartLabel.includes(rw.partNumber) || rw.partNumber.includes(item.poPartLabel))) ||
+          (!item.productId && !rw.productId && (rw.partNumber === item.partNumber || rw.productName === item.partName || (rw.partNumber && item.poPartLabel && item.poPartLabel.includes(rw.partNumber))))
       );
+      const rwType = matchingRework?.dcType === DeliveryChallanType.SPL_PROCESS
+        ? 'Type 3: SPL'
+        : (matchingRework?.dcType === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD ? 'Type 1: Process' : 'Type 2: Conversion');
       const reworkSummary = matchingRework
         ? (matchingRework.reworkStatus === ReworkItemStatus.RE_DISPATCHED
-          ? `Rework (${matchingRework.rejectedQty} ${matchingRework.uom}) under ${matchingRework.reworkDcNumber || challan?.challanNumber}`
+          ? `Sent for Rework (${matchingRework.rejectedQty} ${matchingRework.uom}) under ${matchingRework.reworkDcNumber || challan?.challanNumber} (${rwType})`
           : `Defect: ${matchingRework.rejectedQty} ${matchingRework.uom} rejected in QC`)
         : 'No defects';
 
       // Outward entry (always exists)
       results.push({
-        id: `t2-out-${item.id}`,
+        id: `${isSpl ? 'spl' : 't2'}-out-${item.id}`,
         movementId: item.id,
         challanId: item.challanId,
         challanNumber: challan?.challanNumber || '—',
-        challanType: DeliveryChallanType.GENERAL_INVENTORY_OUTWARD,
-        challanTypeLabel: 'Type 2 (Stock Conversion)',
+        challanType: challan?.type || DeliveryChallanType.GENERAL_INVENTORY_OUTWARD,
+        challanTypeLabel,
+        isRework,
+        sourceDcNumber,
         direction: 'OUTWARD',
         date: item.createdAt || challan?.dispatchDate || challan?.createdAt,
         dispatchDate: challan?.dispatchDate || item.createdAt,
@@ -2164,10 +2748,10 @@ export class DeliveryChallanService {
         vendorId: vendor?.id || challan?.vendorId,
         vendorName: vendor?.name || '—',
         vendorCode: vendor?.code || '',
-        scNumber: '—',
-        processName: 'Stock Conversion',
-        partNumber: item.partNumber || 'DC2-001',
-        partName: item.partName || item.product?.name || '—',
+        scNumber: challan?.poNumber ? `PO: ${challan.poNumber}` : '—',
+        processName: item.processName || (isSpl ? 'Special Process' : 'Stock Conversion'),
+        partNumber: item.poPartLabel || item.partNumber || (isSpl ? 'SPL-PART' : 'DC2-001'),
+        partName: item.poPartLabel || item.partName || item.product?.name || item.description || '—',
         productId: item.productId,
         productCode: item.product?.code || '',
         productName: item.product?.name || '—',
@@ -2183,12 +2767,14 @@ export class DeliveryChallanService {
       if (retQty > 0) {
         const retProd = item.outputProduct || item.product;
         results.push({
-          id: `t2-in-${item.id}`,
+          id: `${isSpl ? 'spl' : 't2'}-in-${item.id}`,
           movementId: item.id,
           challanId: item.challanId,
           challanNumber: challan?.challanNumber || '—',
-          challanType: DeliveryChallanType.GENERAL_INVENTORY_OUTWARD,
-          challanTypeLabel: 'Type 2 (Stock Conversion)',
+          challanType: challan?.type || DeliveryChallanType.GENERAL_INVENTORY_OUTWARD,
+          challanTypeLabel,
+          isRework,
+          sourceDcNumber,
           direction: 'INWARD',
           date: challan?.actualReturnDate || item.updatedAt || item.createdAt,
           dispatchDate: challan?.dispatchDate || item.createdAt,
@@ -2208,10 +2794,10 @@ export class DeliveryChallanService {
           vendorId: vendor?.id || challan?.vendorId,
           vendorName: vendor?.name || '—',
           vendorCode: vendor?.code || '',
-          scNumber: '—',
-          processName: 'Stock Conversion',
-          partNumber: item.partNumber || 'DC2-001',
-          partName: item.partName || retProd?.name || '—',
+          scNumber: challan?.poNumber ? `PO: ${challan.poNumber}` : '—',
+          processName: item.processName || (isSpl ? 'Special Process' : 'Stock Conversion'),
+          partNumber: item.poPartLabel || item.partNumber || (isSpl ? 'SPL-PART' : 'DC2-001'),
+          partName: item.poPartLabel || item.partName || retProd?.name || item.description || '—',
           productId: retProd?.id || item.productId,
           productCode: retProd?.code || '',
           productName: retProd?.name || '—',

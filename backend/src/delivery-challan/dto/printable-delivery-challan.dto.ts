@@ -31,6 +31,9 @@ export interface PrintableChallanMeta {
   actualReturnDate: Date | null;
   notes: string | null;
   processName?: string | null;
+  poNumber?: string | null;
+  layoutNumber?: string | null;
+  mercIndentNumber?: string | null;
 }
 
 // ─── Vendor Details ───────────────────────────────────────────────────────────

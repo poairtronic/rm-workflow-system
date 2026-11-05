@@ -74,6 +74,7 @@ export interface IssueMercItemPayload {
   productId: string;
   binId: string;
   quantityIssued: number;
+  shortClose?: boolean;
 }
 
 export interface CreateMercProductPayload {

@@ -58,6 +58,15 @@ export class DeliveryChallanItem {
   @Column({ name: 'batch_number', type: 'varchar', length: 100, nullable: true })
   batchNumber?: string | null;
 
+  @Column({ name: 'po_part_label', type: 'varchar', nullable: true })
+  poPartLabel?: string | null;
+
+  @Column({ name: 'is_extra_item', type: 'boolean', default: false })
+  isExtraItem!: boolean;
+
+  @Column({ name: 'merc_item_id', type: 'varchar', nullable: true })
+  mercItemId?: string | null;
+
   @Column({ name: 'challan_id', type: 'uuid' })
   challanId: string;
 

@@ -1,6 +1,7 @@
 export type DcType =
   | 'PRODUCTION_PROCESS_OUTWARD'
   | 'GENERAL_INVENTORY_OUTWARD'
+  | 'SPL_PROCESS'
   | 'PRODUCTION_OUTWARD'
   | 'RETURN_INWARD'
   | 'SCRAP_DISPATCH'
@@ -27,6 +28,10 @@ export interface CreateDeliveryChallanDto {
   type: DcType;
   scId?: string;
   scCode?: string;
+  poNumber?: string;
+  layoutNumber?: string;
+  mercIndentId?: string;
+  mercIndentNumber?: string;
   processId?: string;
   vendorId?: string;
   dispatchDate?: string;
@@ -85,6 +90,9 @@ export interface DeliveryChallanLineItemDto extends CreateDeliveryChallanItemDto
   process?: any;
   partNumber?: string | null;
   partName?: string | null;
+  poPartLabel?: string | null;
+  isExtraItem?: boolean;
+  mercItemId?: string | null;
 }
 
 export interface DeliveryChallanDto {
@@ -95,6 +103,10 @@ export interface DeliveryChallanDto {
   type: DcType;
   scId?: string;
   scCode?: string;
+  poNumber?: string;
+  layoutNumber?: string;
+  mercIndentId?: string;
+  mercIndentNumber?: string;
   processId?: string;
   vendorId?: string;
   vendorName?: string;
@@ -192,5 +204,81 @@ export interface DcLifecycleReportResponse {
     totalReceiptsCount: number;
     onTimeReceiptCount: number;
   };
+}
+
+export interface MercPoLineItem {
+  mercItemId: string;
+  itemType: 'RAW_MATERIAL' | 'BROUGHT_OUT';
+  name: string;
+  material: string | null;
+  shape: string | null;
+  lengthMm: number | null;
+  widthMm: number | null;
+  heightMm: number | null;
+  diameterMm: number | null;
+  quantityRequired: number;
+  unit: string | null;
+  vendorName: string | null;
+  source: string | null;
+  poPartLabel: string; // "PO123 - BASE PLATE"
+}
+
+export interface AvailableStockProduct {
+  productId: string;
+  productName: string;
+  totalStock: number;
+}
+
+export interface MercPoItemsResponse {
+  poNumber: string;
+  indentNumber: string;
+  customerName: string | null;
+  layoutNumber: string | null;
+  mercIndentId: string;
+  lineItems: MercPoLineItem[];
+  availableStockProducts: AvailableStockProduct[];
+}
+
+export interface SplDcItem {
+  poPartLabel: string;
+  mercItemId?: string;
+  partNo: string;
+  dispatchedQty: number;
+  batchNo?: string;
+  description?: string;
+  isExtraItem?: boolean;
+  productId?: string;
+  itemType?: 'RAW_MATERIAL' | 'BROUGHT_OUT';
+}
+
+export interface SplDispatchGroup {
+  processName: string;
+  targetProcess?: string;
+  items: SplDcItem[];
+}
+
+export interface CreateSplDcPayload {
+  vendorId: string;
+  poNumber: string;
+  layoutNumber?: string;
+  mercIndentId?: string;
+  mercIndentNumber?: string;
+  expectedReturnDate?: string;
+  remarks?: string;
+  dispatchGroups: SplDispatchGroup[];
+}
+
+export interface SplDcSummary {
+  id: string;
+  dcNumber: string;
+  dcType: string;
+  status: string;
+  poNumber: string;
+  layoutNumber?: string;
+  vendorName: string;
+  itemCount: number;
+  totalQuantity: number;
+  createdAt: string;
+  expectedReturnDate?: string;
 }
 

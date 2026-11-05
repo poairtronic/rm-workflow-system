@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   PackageCheck,
   RotateCcw,
+  Printer,
 } from 'lucide-react';
 import { deliveryChallanApi } from '../../services/api';
 import type { DeliveryChallanDto } from '../../types/delivery-challan.dto';
@@ -29,6 +30,45 @@ interface ActiveCustodyBoardProps {
   defaultTab?: CustodyBoardTab;
 }
 
+export const getDcTypeLabel = (dcType?: string, isRework?: boolean) => {
+  switch (dcType) {
+    case 'TYPE_1_PROCESS':
+    case 'PRODUCTION_PROCESS_OUTWARD':
+      return {
+        label: isRework ? 'Type 1: Process (Rework)' : 'Type 1: Process',
+        shortLabel: isRework ? 'Type 1 (Rework)' : 'Type 1: Process',
+        tag: 'Type 1',
+        color: 'blue',
+        className: 'text-blue-700 bg-blue-50 border-blue-200',
+      };
+    case 'TYPE_2_GENERAL':
+    case 'GENERAL_INVENTORY_OUTWARD':
+      return {
+        label: isRework ? 'Type 2: Conversion (Rework)' : 'Type 2: Conversion',
+        shortLabel: isRework ? 'Type 2 (Rework)' : 'Type 2: Conversion',
+        tag: 'Type 2',
+        color: 'green',
+        className: 'text-green-700 bg-green-50 border-green-200',
+      };
+    case 'SPL_PROCESS':
+      return {
+        label: isRework ? 'Type 3: SPL (Rework)' : 'Type 3: SPL',
+        shortLabel: isRework ? 'Type 3 (Rework)' : 'Type 3: SPL',
+        tag: 'Type 3',
+        color: 'purple',
+        className: 'text-purple-700 bg-purple-100 border-purple-200',
+      };
+    default:
+      return {
+        label: isRework ? `${dcType || 'Standard'} (Rework)` : (dcType || 'Standard'),
+        shortLabel: isRework ? `${dcType || 'Standard'} (Rework)` : (dcType || 'Standard'),
+        tag: dcType || 'Standard',
+        color: 'grey',
+        className: 'text-slate-600 bg-slate-50 border-slate-200',
+      };
+  }
+};
+
 export function getDcItemStats(dc: DeliveryChallanDto) {
   const items = dc.items || [];
   let totalDispatched = 0;
@@ -37,9 +77,9 @@ export function getDcItemStats(dc: DeliveryChallanDto) {
   let totalQcRejected = 0;
 
   for (const item of items) {
-    const isType1 = dc.type === 'PRODUCTION_PROCESS_OUTWARD';
+    const isProcessType = dc.type === 'PRODUCTION_PROCESS_OUTWARD' || dc.type === 'SPL_PROCESS';
     const target =
-      !isType1
+      !isProcessType
         ? Number(item.expectedReturnQty ?? item.expectedOutputQuantity ?? item.quantityDispatched ?? item.quantity ?? 0)
         : Number(item.quantityDispatched ?? item.quantity ?? 0);
     totalDispatched += target;
@@ -134,6 +174,15 @@ export function ActiveCustodyBoard({
     return (reworkItems as any[]).filter(
       (r) => r.reworkStatus !== 'RE_DISPATCHED'
     ).length;
+  }, [reworkItems]);
+
+  const reworkTargetMap = useMemo(() => {
+    const map = new Map<string, any>();
+    (reworkItems as any[]).forEach((r) => {
+      if (r.reworkDcNumber) map.set(r.reworkDcNumber, r);
+      if (r.reworkDcId) map.set(r.reworkDcId, r);
+    });
+    return map;
   }, [reworkItems]);
 
   // Compute stats and categorization for all challans
@@ -447,7 +496,16 @@ export function ActiveCustodyBoard({
                 const SlaIcon = sla.icon;
                 const isClosed =
                   dc.status === 'CLOSED' || dc.status === 'RETURNED';
-                const isType1 = dc.type === 'PRODUCTION_PROCESS_OUTWARD';
+
+                const dcNum = (dc.dcNumber || dc.challanNumber || '') as string;
+                const matchingTargetRw = dcNum ? reworkTargetMap.get(dcNum) : (dc.id ? reworkTargetMap.get(dc.id) : null);
+                const isRework = Boolean(matchingTargetRw) ||
+                  (dc as any).processName === 'REWORK PROCESSING' ||
+                  Boolean((dc as any).isRework) ||
+                  Boolean((dc.notes || '').toLowerCase().includes('rework'));
+                const sourceDcNumber = matchingTargetRw?.sourceDcNumber || (dc as any).sourceDcNumber || null;
+                const effectiveType = matchingTargetRw?.dcType || (dc as any).dcType || dc.type || '';
+                const typeInfo = getDcTypeLabel(effectiveType, isRework);
 
                 return (
                   <tr
@@ -456,13 +514,21 @@ export function ActiveCustodyBoard({
                   >
                     {/* DC Number & Type */}
                     <td className="px-6 py-3 font-medium text-slate-900 font-mono text-xs">
-                      <div className="flex flex-col">
+                      <div className="flex flex-col items-start">
                         <span className="font-bold text-slate-900">
-                          {dc.dcNumber || dc.challanNumber}
+                          {dcNum}
                         </span>
-                        <span className="text-[10px] text-slate-500 font-sans mt-0.5">
-                          {isType1 ? 'Type 1: Process' : 'Type 2: Conversion'}
+                        <span
+                          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-sans font-semibold border mt-0.5 w-fit ${typeInfo.className}`}
+                        >
+                          {typeInfo.label}
                         </span>
+                        {sourceDcNumber && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200 mt-0.5 w-fit">
+                            <RotateCcw className="w-2.5 h-2.5 text-amber-600" />
+                            Rework of: {sourceDcNumber}
+                          </span>
+                        )}
                       </div>
                     </td>
 
@@ -473,11 +539,39 @@ export function ActiveCustodyBoard({
 
                     {/* Vendor */}
                     <td className="px-6 py-3 text-slate-700 font-medium">
-                      {(dc as any).vendor?.name ||
-                        dc.vendorName ||
-                        dc.destinationEntity ||
-                        dc.vendorId ||
-                        'N/A'}
+                      <div className="flex flex-col gap-1 items-start">
+                        <span>
+                          {(dc as any).vendor?.name ||
+                            dc.vendorName ||
+                            dc.destinationEntity ||
+                            dc.vendorId ||
+                            'N/A'}
+                        </span>
+                        {((dc as any).type === 'SPL_PROCESS' || (dc as any).dcType === 'SPL_PROCESS' || matchingTargetRw?.dcType === 'SPL_PROCESS') && (dc as any).poNumber && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-800 border border-purple-200 font-mono">
+                            PO: {(dc as any).poNumber}
+                          </span>
+                        )}
+                        {/* Sent for rework indicator */}
+                        {(() => {
+                          const sentReworks = (dc.reworkItems || []).filter(
+                            (r: any) => r.reworkStatus === 'RE_DISPATCHED' && r.reworkDcNumber && r.reworkDcNumber !== dcNum
+                          );
+                          if (sentReworks.length === 0) return null;
+                          return sentReworks.map((r: any, rIdx: number) => {
+                            const rwTypeInfo = getDcTypeLabel(r.dcType || effectiveType);
+                            return (
+                              <span
+                                key={rIdx}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-800 border border-purple-200 font-mono"
+                              >
+                                <RotateCcw className="w-3 h-3 text-purple-600" />
+                                Sent for Rework: {r.reworkDcNumber} ({rwTypeInfo.shortLabel})
+                              </span>
+                            );
+                          });
+                        })()}
+                      </div>
                     </td>
 
                     {/* Custody Split Matrix Badge (10 -> 5 -> 2/3 Rule) */}
@@ -525,7 +619,7 @@ export function ActiveCustodyBoard({
                     {/* Items & Materials */}
                     <td className="px-6 py-3 text-slate-600 max-w-xs">
                       {dc.items && dc.items.length > 0 ? (
-                        <div className="flex flex-col gap-0.5">
+                        <div className="flex flex-col gap-1">
                           {dc.items.slice(0, 2).map((item: any, idx: number) => {
                             const itemDispatched = Number(item.quantityDispatched ?? item.quantity ?? 0);
                             const itemPassed = Number(item.qcPassedQty || 0);
@@ -543,27 +637,28 @@ export function ActiveCustodyBoard({
                             const itemQc = Number(item.qcPendingQty || 0);
                             const itemVendor = Math.max(0, itemDispatched - (itemPassed + itemSettledRejected + itemQc));
                             const hasActivity = itemPassed > 0 || itemRejected > 0 || itemQc > 0;
+                            const itemTitle = item.poPartLabel || item.partNumber || item.product?.code || item.product?.name || item.partName || 'Material';
 
                             return (
                               <div key={idx} className="flex flex-col gap-0.5">
                                 <div className="flex items-center gap-1.5 text-xs truncate">
-                                  <span className="font-semibold text-slate-800">
-                                    {item.product?.code ||
-                                      item.product?.name ||
-                                      item.partName ||
-                                      'Material'}
+                                  <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-sans font-bold border shrink-0 ${typeInfo.className}`}>
+                                    {typeInfo.shortLabel}
                                   </span>
-                                  <span className="text-slate-500 text-[11px]">
+                                  <span className="font-semibold text-slate-800 truncate" title={itemTitle}>
+                                    {itemTitle}
+                                  </span>
+                                  <span className="text-slate-500 text-[11px] shrink-0">
                                     ({itemDispatched} {item.product?.uom || 'qty'})
                                   </span>
                                   {item.sc?.scNumber && (
-                                    <span className="text-[10px] bg-blue-50 text-blue-700 px-1 py-0.2 rounded border border-blue-200 font-mono font-medium">
+                                    <span className="text-[10px] bg-blue-50 text-blue-700 px-1 py-0.2 rounded border border-blue-200 font-mono font-medium shrink-0">
                                       {item.sc.scNumber}
                                     </span>
                                   )}
                                 </div>
                                 {hasActivity && (
-                                  <div className="flex items-center gap-1.5 text-[10px] font-mono tabular-nums text-slate-500">
+                                  <div className="flex items-center gap-1.5 text-[10px] font-mono tabular-nums text-slate-500 pl-1">
                                     <span className="text-emerald-700 font-medium">P: {itemPassed}</span>
                                     {itemRejected > 0 && (
                                       <span className="text-rose-700 font-medium">R: {itemRejected}</span>
@@ -580,16 +675,13 @@ export function ActiveCustodyBoard({
                             );
                           })}
                           {dc.items.length > 2 && (
-                            <span className="text-[10px] text-slate-400 italic">
-                              +{dc.items.length - 2} more item
-                              {dc.items.length - 2 > 1 ? 's' : ''}
+                            <span className="text-[10px] text-slate-400 font-medium pl-1">
+                              +{dc.items.length - 2} more item{dc.items.length - 2 > 1 ? 's' : ''}
                             </span>
                           )}
                         </div>
                       ) : (
-                        <span className="text-xs text-slate-400 italic">
-                          No line items
-                        </span>
+                        <span className="text-xs text-slate-400 italic">No materials assigned</span>
                       )}
                     </td>
 
@@ -621,36 +713,52 @@ export function ActiveCustodyBoard({
 
                     {/* Action */}
                     <td className="px-6 py-3 text-right">
-                      {stats.totalQcPending > 0 ? (
+                      <div className="flex items-center justify-end gap-2">
+                        {/* Print DC Button */}
                         <button
                           type="button"
-                          onClick={() =>
-                            onInspectQc ? onInspectQc(dc) : onSelect(dc)
-                          }
-                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-xs font-semibold rounded-md hover:bg-purple-700 transition-colors shadow-sm ring-1 ring-purple-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(`/dispatch/delivery-challan/${dc.id}/print`, '_blank');
+                          }}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-slate-600 hover:text-blue-700 hover:bg-blue-50 rounded-md border border-slate-200 transition-colors shadow-2xs text-xs font-medium cursor-pointer"
+                          title="Print Supplier Delivery Challan"
                         >
-                          <ShieldCheck className="w-3.5 h-3.5" />
-                          Inspect QC
+                          <Printer className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Print</span>
                         </button>
-                      ) : isClosed ? (
-                        <button
-                          type="button"
-                          onClick={() => onSelect(dc)}
-                          className="inline-flex items-center justify-center gap-1 px-3 py-1.5 bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-200 hover:text-slate-900 transition-colors shadow-sm"
-                        >
-                          <Eye className="w-3 h-3 text-slate-500" />
-                          View DC
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => onSelect(dc)}
-                          className="inline-flex items-center justify-center gap-1 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-50 hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-slate-200 shadow-sm"
-                        >
-                          Process Return
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
-                      )}
+
+                        {stats.totalQcPending > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onInspectQc ? onInspectQc(dc) : onSelect(dc)
+                            }
+                            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-xs font-semibold rounded-md hover:bg-purple-700 transition-colors shadow-sm ring-1 ring-purple-700 cursor-pointer"
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            Inspect QC
+                          </button>
+                        ) : isClosed ? (
+                          <button
+                            type="button"
+                            onClick={() => onSelect(dc)}
+                            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-200 hover:text-slate-900 transition-colors shadow-sm cursor-pointer"
+                          >
+                            <Eye className="w-3 h-3 text-slate-500" />
+                            View DC
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => onSelect(dc)}
+                            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-50 hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-slate-200 shadow-sm cursor-pointer"
+                          >
+                            Process Return
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

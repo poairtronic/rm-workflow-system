@@ -54,6 +54,9 @@ export const Type1DispatchWorkspace = lazy(() =>
 export const Type2DispatchWorkspace = lazy(() =>
   import('./pages/Type2DispatchWorkspace').then((m) => ({ default: m.Type2DispatchWorkspace })),
 );
+export const DcTypeSpl = lazy(() =>
+  import('./pages/dispatch/DcTypeSpl').then((m) => ({ default: m.DcTypeSpl })),
+);
 export const DockReceiptWorkspace = lazy(() =>
   import('./pages/DockReceiptWorkspace').then((m) => ({ default: m.DockReceiptWorkspace })),
 );
@@ -189,6 +192,7 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   // DELIVERY CHALLAN
   { name: 'DC Type 1 (Process)', path: '/dispatch/delivery-challan/type-1', icon: Box, roles: ['STORES', 'ADMIN'], component: Type1DispatchWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN', moduleKey: 'dc_type1' },
   { name: 'DC Type 2 (General)', path: '/dispatch/delivery-challan/type-2', icon: Box, roles: ['STORES', 'ADMIN'], component: Type2DispatchWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN', moduleKey: 'dc_type2' },
+  { name: 'DC Type 3 (SPL)', path: '/dispatch/delivery-challan/type-spl', icon: Box, roles: ['STORES', 'ADMIN'], component: DcTypeSpl, isSidebar: true, group: 'DELIVERY CHALLAN', moduleKey: 'dc_type1' },
   { name: 'DC Returns', path: '/dispatch/returns', icon: PackageCheck, roles: ['STORES', 'ADMIN'], component: DockReceiptWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN', moduleKey: 'dc_returns' },
   { name: 'DC Movements', path: '/dispatch/movements', icon: Truck, roles: ['STORES', 'ADMIN', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER'], component: DcMovementsWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN', moduleKey: 'dc_movements' },
 

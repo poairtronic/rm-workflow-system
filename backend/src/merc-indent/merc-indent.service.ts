@@ -905,7 +905,7 @@ export class MercIndentService implements OnModuleInit {
           ? itemLength * quantityRequired
           : quantityRequired;
 
-      newItemStatus = newQuantityIssued >= totalRequired ? 'ISSUED' : 'PARTIAL';
+      newItemStatus = (dto.shortClose || newQuantityIssued >= totalRequired) ? 'ISSUED' : 'PARTIAL';
 
       lineItem.quantityIssued = newQuantityIssued;
       lineItem.status = newItemStatus;
@@ -1226,6 +1226,149 @@ export class MercIndentService implements OnModuleInit {
       totalFetched,
       newlyAdded,
       message: `Synchronized from MERC: ${totalFetched} found, ${newlyAdded} newly added.`,
+    };
+  }
+
+  /**
+   * Short-close a MERC line item without further inventory movements.
+   * Marks line item as ISSUED and updates indent status accordingly.
+   */
+  async shortCloseMercItem(indentId: string, itemId: string, user: any) {
+    const actorId = user?.sub || user?.id;
+    const actorName = user?.name || user?.username || 'Stores Admin';
+
+    const pendingRecord = await this.mercIndentPendingRepo.findOne({
+      where: { id: indentId },
+    });
+    if (!pendingRecord) {
+      throw new NotFoundException(`MERC indent record with ID ${indentId} not found`);
+    }
+
+    const lineItem = await this.mercIndentLineItemRepo.findOne({
+      where: { id: itemId, mercIndentPendingId: pendingRecord.id },
+    });
+    if (!lineItem) {
+      throw new NotFoundException(`MERC line item ${itemId} not found for this indent`);
+    }
+
+    lineItem.status = 'ISSUED';
+    lineItem.issuedAt = new Date();
+    lineItem.issuedById = actorId;
+    await this.mercIndentLineItemRepo.save(lineItem);
+
+    // Recalculate indent status
+    const allItems = await this.mercIndentLineItemRepo.find({
+      where: { mercIndentPendingId: pendingRecord.id },
+    });
+    const allIssued = allItems.every((item) => item.status === 'ISSUED');
+    const anyIssued = allItems.some((item) => (Number(item.quantityIssued) || 0) > 0);
+    const newIndentStatus = allIssued ? 'ISSUED' : (anyIssued ? 'PARTIAL' : 'PENDING');
+
+    pendingRecord.status = newIndentStatus;
+    await this.mercIndentPendingRepo.save(pendingRecord);
+
+    // Socket.IO notification
+    if (this.notificationsGateway) {
+      try {
+        const socketPayload = {
+          type: 'MERC_INDENT',
+          indentId: pendingRecord.id,
+          indentNumber: pendingRecord.indentNumber,
+          message: `MERC line item "${lineItem.name}" marked as fully issued (short-closed).`,
+        };
+        if (this.notificationsGateway.server) {
+          this.notificationsGateway.server.emit('notification', socketPayload);
+        }
+      } catch (err: any) {
+        this.logger.warn(`Socket.IO emit error: ${err?.message}`);
+      }
+    }
+
+    // MERC Webhook callback
+    try {
+      const mercUrl = (process.env.MERC_API_URL || '').replace(/\/+$/, '');
+      const mercSecret = process.env.MERC_INTERNAL_SECRET || process.env.RM_INTERNAL_SECRET || '';
+      if (mercUrl && mercSecret) {
+        await fetch(`${mercUrl}/api/internal/rm/item-issued`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-internal-secret': mercSecret,
+          },
+          body: JSON.stringify({
+            indentId: pendingRecord.indentId,
+            indentNumber: pendingRecord.indentNumber,
+            mercItemId: lineItem.mercItemId,
+            itemType: lineItem.itemType,
+            quantityIssued: lineItem.quantityIssued,
+            issuedAt: new Date().toISOString(),
+            issuedByName: actorName,
+            newItemStatus: 'ISSUED',
+            newIndentStatus,
+          }),
+        });
+      }
+    } catch (webhookErr) {
+      this.logger.warn(`Failed to notify MERC of short-close: ${webhookErr}`);
+    }
+
+    return {
+      success: true,
+      message: `Line item "${lineItem.name}" marked as fully issued`,
+      lineItem,
+      indentStatus: newIndentStatus,
+    };
+  }
+
+  /**
+   * Administratively close an entire MERC indent and mark all pending/partial line items as ISSUED.
+   */
+  async closeMercIndent(indentId: string, user: any) {
+    const actorId = user?.sub || user?.id;
+
+    const pendingRecord = await this.mercIndentPendingRepo.findOne({
+      where: { id: indentId },
+    });
+    if (!pendingRecord) {
+      throw new NotFoundException(`MERC indent record with ID ${indentId} not found`);
+    }
+
+    const allItems = await this.mercIndentLineItemRepo.find({
+      where: { mercIndentPendingId: pendingRecord.id },
+    });
+
+    for (const item of allItems) {
+      if (item.status !== 'ISSUED') {
+        item.status = 'ISSUED';
+        item.issuedAt = new Date();
+        item.issuedById = actorId;
+        await this.mercIndentLineItemRepo.save(item);
+      }
+    }
+
+    pendingRecord.status = 'ISSUED';
+    await this.mercIndentPendingRepo.save(pendingRecord);
+
+    if (this.notificationsGateway) {
+      try {
+        const socketPayload = {
+          type: 'MERC_INDENT',
+          indentId: pendingRecord.id,
+          indentNumber: pendingRecord.indentNumber,
+          message: `MERC indent ${pendingRecord.indentNumber} administratively closed/issued`,
+        };
+        if (this.notificationsGateway.server) {
+          this.notificationsGateway.server.emit('notification', socketPayload);
+        }
+      } catch (err: any) {
+        this.logger.warn(`Socket.IO emit error: ${err?.message}`);
+      }
+    }
+
+    return {
+      success: true,
+      message: `MERC indent ${pendingRecord.indentNumber} marked as ISSUED`,
+      indent: pendingRecord,
     };
   }
 }

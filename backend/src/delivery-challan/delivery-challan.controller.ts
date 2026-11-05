@@ -7,6 +7,7 @@ import { CreateDeliveryChallanDto } from './dto/create-delivery-challan.dto.js';
 import { ReturnDeliveryChallanDto } from './dto/return-delivery-challan.dto.js';
 import { QcInspectDeliveryChallanDto } from './dto/qc-inspect-delivery-challan.dto.js';
 import { ReworkReDispatchDto } from './dto/rework-re-dispatch.dto.js';
+import { CreateSplDcDto } from './dto/create-spl-dc.dto.js';
 import { DeliveryChallanType, DeliveryChallanStatus } from './entities/delivery-challan.entity.js';
 import { UserRole } from '../auth/enums/role.enum.js';
 
@@ -26,6 +27,35 @@ export class DeliveryChallanController {
   async createType2(@Body() dto: CreateDeliveryChallanDto, @Request() req: any) {
     const userId = req.user.userId;
     return this.deliveryChallanService.createType2Challan(dto, userId);
+  }
+
+  @Get('merc-pos')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.PRODUCTION, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER, UserRole.DESIGNER)
+  async getMercPos(@Query('search') search?: string) {
+    return this.deliveryChallanService.getMercPos(search);
+  }
+
+  @Get('merc-po/:poNumber')
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  async getMercPoItems(@Param('poNumber') poNumber: string) {
+    return this.deliveryChallanService.getMercPoItems(poNumber);
+  }
+
+  @Post('type-3')
+  @Roles(UserRole.STORES, UserRole.ADMIN)
+  async createType3(@Body() dto: CreateSplDcDto, @Request() req: any) {
+    const userId = req.user.userId;
+    return this.deliveryChallanService.createSplDc(dto, userId);
+  }
+
+  @Get('type-3')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.PRODUCTION)
+  async listType3(
+    @Query('status') status?: string,
+    @Query('vendorId') vendorId?: string,
+    @Query('poNumber') poNumber?: string,
+  ) {
+    return this.deliveryChallanService.listSplDcs({ status, vendorId, poNumber });
   }
   @Get('custody/vendor/:vendorId')
   @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER, UserRole.DESIGNER, UserRole.PRODUCTION)
