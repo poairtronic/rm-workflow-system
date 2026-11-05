@@ -106,17 +106,61 @@ export class EcrIssuesService {
   ) {}
 
   /**
+   * Helper to verify defect report existence and lifecycle status directly from ECR system.
+   */
+  private async getEcrReportStatus(
+    reportNumber: string,
+    ecrId?: string,
+  ): Promise<{ exists: boolean; status?: string; componentsIssued?: boolean } | null> {
+    try {
+      const ecrDbUrl =
+        process.env.ECR_DATABASE_URL ||
+        'postgresql://neondb_owner:npg_pJA2XQNTY9Db@ep-winter-water-at1ihqar-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require';
+      const pg = await import('pg');
+      const Client = pg.default ? (pg.default.Client || pg.default) : (pg.Client || pg);
+      const client = new (Client as any)({ connectionString: ecrDbUrl });
+      await client.connect();
+      const res = await client.query(
+        `SELECT id, "reportNumber", status, "componentsIssued"
+         FROM defect_reports
+         WHERE "reportNumber" = $1 OR id::text = $2`,
+        [reportNumber, ecrId || reportNumber],
+      );
+      await client.end();
+
+      if (!res.rows || res.rows.length === 0) {
+        return { exists: false };
+      }
+
+      const r = res.rows[0];
+      return {
+        exists: true,
+        status: r.status,
+        componentsIssued: !!r.componentsIssued || r.status === 'COMPONENTS_ISSUED',
+      };
+    } catch (err: any) {
+      this.logger.warn(`[ECR-Validation] Error checking ECR report status: ${err.message}`);
+      return null;
+    }
+  }
+
+  /**
    * Receives ECR material pending approval notification, records pending issue idempotently,
    * creates in-app notification records for Stores personnel, and emits real-time Socket.IO event.
+   *
+   * STRICT LIFECYCLE ENFORCEMENT:
+   * 1. Rejects any report that does not exist in ECR.
+   * 2. Skips reports at creation time (PENDING_ACCOUNTS_REVIEW, PENDING_SM_REVIEW).
+   * 3. Only ingests when the report has moved to STORES (status is 'APPROVED').
    */
   async receivePending(dto: ReceiveEcrPendingDto): Promise<{ id: string; reportNumber: string; status: string }> {
-    // 1. Idempotency check: if ecrId already exists, return existing record
+    // 1. Idempotency check: if ecrId or reportNumber already exists, return existing record
     const existing = await this.ecrPendingRepo.findOne({
-      where: { ecrId: dto.ecrId },
+      where: [{ ecrId: dto.ecrId }, { reportNumber: dto.reportNumber }],
     });
 
     if (existing) {
-      this.logger.log(`ECR pending issue already exists for ecrId "${dto.ecrId}" (ID: ${existing.id})`);
+      this.logger.log(`ECR pending issue already exists for ecrId "${dto.ecrId}" or reportNumber "${dto.reportNumber}" (ID: ${existing.id})`);
       return {
         id: existing.id,
         reportNumber: existing.reportNumber,
@@ -124,7 +168,42 @@ export class EcrIssuesService {
       };
     }
 
-    // 2. Insert new record into ecr_material_pending with status = 'PENDING'
+    // 2. Lifecycle verification: Check existence and status in ECR system
+    const ecrCheck = await this.getEcrReportStatus(dto.reportNumber, dto.ecrId);
+    if (ecrCheck) {
+      if (!ecrCheck.exists) {
+        this.logger.warn(
+          `[ECR-Lifecycle] Report "${dto.reportNumber}" (ecrId: ${dto.ecrId}) does not exist in ECR. Rejecting inbound webhook.`,
+        );
+        throw new BadRequestException(
+          `Report "${dto.reportNumber}" does not exist in ECR system. Only valid ECR defect reports can be ingested.`,
+        );
+      }
+
+      if (ecrCheck.status !== 'APPROVED') {
+        this.logger.log(
+          `[ECR-Lifecycle] Report "${dto.reportNumber}" is currently in status "${ecrCheck.status}". Stores processing only begins when report is APPROVED and moved to Stores. Skipping ingestion.`,
+        );
+        return {
+          id: '',
+          reportNumber: dto.reportNumber,
+          status: 'SKIPPED_NOT_MOVED_TO_STORES',
+        };
+      }
+
+      if (ecrCheck.componentsIssued) {
+        this.logger.log(
+          `[ECR-Lifecycle] Report "${dto.reportNumber}" already has components issued in ECR. Skipping ingestion.`,
+        );
+        return {
+          id: '',
+          reportNumber: dto.reportNumber,
+          status: 'SKIPPED_ALREADY_ISSUED',
+        };
+      }
+    }
+
+    // 3. Insert new record into ecr_material_pending with status = 'PENDING'
     const newRecord = this.ecrPendingRepo.create({
       ecrId: dto.ecrId,
       reportNumber: dto.reportNumber,
