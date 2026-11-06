@@ -474,7 +474,7 @@ export function TopBar({ onOpenScanner, onToggleMobileMenu }: TopBarProps = {}) 
   };
 
   return (
-    <header className="fixed top-0 right-0 md:left-[260px] left-0 h-16 bg-white/90 dark:bg-[#0d0f1b]/90 backdrop-blur-md border-b border-slate-200 dark:border-[#1a1e33] z-20 flex items-center px-3 sm:px-4 md:px-6 justify-between transition-colors duration-150">
+    <header className="fixed top-0 right-0 md:left-[260px] left-0 h-16 app-topbar-fixed bg-white/90 dark:bg-[#0d0f1b]/90 backdrop-blur-md border-b border-slate-200 dark:border-[#1a1e33] z-20 flex items-center px-3 sm:px-4 md:px-6 justify-between transition-colors duration-150">
       {/* Mobile Hamburger & Logo */}
       <div className="flex items-center gap-2 md:hidden">
         <button

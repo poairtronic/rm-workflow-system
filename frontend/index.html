@@ -19,6 +19,13 @@
           }
           var d = localStorage.getItem('rm_data_density') || 'Compact';
           document.documentElement.classList.add(d === 'Comfortable' ? 'density-comfortable' : 'density-compact');
+          var sw = localStorage.getItem('vsmart_sidebar_width');
+          if (sw) {
+            var w = parseInt(sw, 10);
+            if (!isNaN(w) && w >= 180 && w <= 600) {
+              document.documentElement.style.setProperty('--sidebar-width', w + 'px');
+            }
+          }
         } catch (e) {}
       })();
     </script>

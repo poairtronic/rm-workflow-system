@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { APP_CONFIG } from '../../app/config';
@@ -11,6 +11,10 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ROUTE_CONFIG, isPathAllowedForUser } from '../../routeConfig';
 
+const MIN_SIDEBAR_WIDTH = 200;
+const DEFAULT_SIDEBAR_WIDTH = 260;
+const MAX_SIDEBAR_WIDTH = 480;
+
 interface SidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
@@ -20,6 +24,111 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const { currentUser, logout } = useAuth();
   const location = useLocation();
   const queryClient = useQueryClient();
+
+  // Resizable sidebar state with persistent local storage
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    if (typeof window === 'undefined') return DEFAULT_SIDEBAR_WIDTH;
+    try {
+      const saved = localStorage.getItem('vsmart_sidebar_width');
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= MIN_SIDEBAR_WIDTH && parsed <= MAX_SIDEBAR_WIDTH) {
+          return parsed;
+        }
+      }
+    } catch {}
+    return DEFAULT_SIDEBAR_WIDTH;
+  });
+
+  const [isDragging, setIsDragging] = useState(false);
+  const isDraggingRef = useRef(false);
+
+  // Synchronize CSS custom property on documentElement
+  useEffect(() => {
+    document.documentElement.style.setProperty('--sidebar-width', `${sidebarWidth}px`);
+  }, [sidebarWidth]);
+
+  // Pointer drag event handlers for mouse and touch
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    isDraggingRef.current = true;
+    setIsDragging(true);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current) return;
+    const maxAllowed = Math.min(MAX_SIDEBAR_WIDTH, Math.floor(window.innerWidth * 0.5));
+    const newWidth = Math.max(MIN_SIDEBAR_WIDTH, Math.min(maxAllowed, Math.round(e.clientX)));
+    setSidebarWidth(newWidth);
+    document.documentElement.style.setProperty('--sidebar-width', `${newWidth}px`);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
+    setIsDragging(false);
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {}
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    const maxAllowed = Math.min(MAX_SIDEBAR_WIDTH, Math.floor(window.innerWidth * 0.5));
+    const finalWidth = Math.max(MIN_SIDEBAR_WIDTH, Math.min(maxAllowed, Math.round(e.clientX)));
+    try {
+      localStorage.setItem('vsmart_sidebar_width', finalWidth.toString());
+    } catch {}
+  };
+
+  const handleResetWidth = () => {
+    setSidebarWidth(DEFAULT_SIDEBAR_WIDTH);
+    document.documentElement.style.setProperty('--sidebar-width', `${DEFAULT_SIDEBAR_WIDTH}px`);
+    try {
+      localStorage.setItem('vsmart_sidebar_width', DEFAULT_SIDEBAR_WIDTH.toString());
+    } catch {}
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const maxAllowed = Math.min(MAX_SIDEBAR_WIDTH, Math.floor(window.innerWidth * 0.5));
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const next = Math.max(MIN_SIDEBAR_WIDTH, sidebarWidth - 10);
+      setSidebarWidth(next);
+      document.documentElement.style.setProperty('--sidebar-width', `${next}px`);
+      try { localStorage.setItem('vsmart_sidebar_width', next.toString()); } catch {}
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      const next = Math.min(maxAllowed, sidebarWidth + 10);
+      setSidebarWidth(next);
+      document.documentElement.style.setProperty('--sidebar-width', `${next}px`);
+      try { localStorage.setItem('vsmart_sidebar_width', next.toString()); } catch {}
+    } else if (e.key === 'Home' || e.key === 'Enter') {
+      e.preventDefault();
+      handleResetWidth();
+    }
+  };
+
+  // Window drag fallback cleanup
+  useEffect(() => {
+    if (!isDragging) return;
+    const onGlobalPointerUp = () => {
+      isDraggingRef.current = false;
+      setIsDragging(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    window.addEventListener('pointerup', onGlobalPointerUp);
+    window.addEventListener('pointercancel', onGlobalPointerUp);
+    return () => {
+      window.removeEventListener('pointerup', onGlobalPointerUp);
+      window.removeEventListener('pointercancel', onGlobalPointerUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isDragging]);
 
   // Fetch pending count from GET /api/ecr-issues
   const { data: ecrIssues = [] } = useQuery<EcrIssuePending[]>({
@@ -116,7 +225,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
       {/* Responsive Sidebar / Mobile Slide-Over Drawer */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 w-[280px] md:w-[260px] bg-white dark:bg-[#0d0f1b] border-r border-slate-200 dark:border-[#1a1e33] z-50 md:z-30 flex flex-col transition-transform duration-200 ease-in-out ${
+        className={`fixed top-0 bottom-0 left-0 w-[280px] md:w-[260px] app-sidebar-fixed bg-white dark:bg-[#0d0f1b] border-r border-slate-200 dark:border-[#1a1e33] z-50 md:z-30 flex flex-col transition-transform duration-200 ease-in-out ${
           isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'
         }`}
       >
@@ -208,7 +317,50 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             </button>
           </div>
         )}
+        {/* Drag Resize Handle (Desktop Only) */}
+        <div
+          role="separator"
+          tabIndex={0}
+          aria-orientation="vertical"
+          aria-label="Resize Sidebar Navigation"
+          aria-valuenow={sidebarWidth}
+          aria-valuemin={MIN_SIDEBAR_WIDTH}
+          aria-valuemax={MAX_SIDEBAR_WIDTH}
+          title="Drag to resize sidebar width • Double-click to reset"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onDoubleClick={handleResetWidth}
+          onKeyDown={handleKeyDown}
+          className="hidden md:flex absolute top-0 bottom-0 -right-1.5 w-3 cursor-col-resize z-50 items-center justify-center group select-none touch-none focus:outline-none"
+        >
+          {/* Subtle line indicator */}
+          <div
+            className={`absolute top-0 bottom-0 right-[5px] w-[2px] transition-colors duration-150 ${
+              isDragging
+                ? 'bg-indigo-600 dark:bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]'
+                : 'bg-transparent group-hover:bg-indigo-500/50 group-focus-visible:bg-indigo-500'
+            }`}
+          />
+          {/* Subtle grip handle pill on hover/drag */}
+          <div
+            className={`w-1.5 h-7 rounded-full transition-all duration-150 flex items-center justify-center ${
+              isDragging
+                ? 'bg-indigo-600 dark:bg-indigo-400 shadow-md scale-110'
+                : 'bg-slate-300 dark:bg-slate-600 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'
+            }`}
+          />
+        </div>
       </aside>
+
+      {/* Invisible global overlay while dragging to prevent text selection / iframe interception */}
+      {isDragging && (
+        <div
+          className="fixed inset-0 z-[9999] cursor-col-resize select-none bg-transparent"
+          aria-hidden="true"
+        />
+      )}
     </>
   );
 }

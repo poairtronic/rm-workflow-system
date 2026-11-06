@@ -10,6 +10,24 @@
   --font-sans: 'Inter', sans-serif;
 }
 
+/* Dynamic Resizable Sidebar Layout Rules */
+:root {
+  --sidebar-width: 260px;
+}
+
+@media (min-width: 768px) {
+  .app-sidebar-fixed {
+    width: var(--sidebar-width) !important;
+  }
+  .app-topbar-fixed {
+    left: var(--sidebar-width) !important;
+  }
+  .app-main-content {
+    margin-left: var(--sidebar-width) !important;
+    max-width: calc(100vw - var(--sidebar-width)) !important;
+  }
+}
+
 @layer base {
   *, ::before, ::after {
     box-sizing: border-box;
