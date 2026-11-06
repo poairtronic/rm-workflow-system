@@ -279,7 +279,7 @@ import type { ProductionProcessDto, CreateProductionProcessDto, UpdateProduction
 export const authApi = {
   login: async (data: any) => {
     const res = await api.post<{ accessToken: string; refreshToken: string; user: any }>('/api/auth/login', {
-      email: data.employeeId,
+      email: data.employeeId || data.username || data.email,
       password: data.password,
     });
     return { token: res.accessToken, refreshToken: res.refreshToken, user: res.user };

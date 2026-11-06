@@ -6,16 +6,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <title>V-SMART | Enterprise Material & DC Governance</title>
     <script>
       (function() {
         try {
-          var t = localStorage.getItem('rm_theme_preference') || 'Modern Dark';
-          if (t === 'Modern Dark' || !localStorage.getItem('rm_theme_preference')) {
+          var t = localStorage.getItem('vsmart-theme');
+          if (t !== 'light' && t !== 'dark') {
+            var rm = localStorage.getItem('rm_theme_preference');
+            if (rm === 'Enterprise Light') t = 'light';
+            else if (rm === 'Modern Dark') t = 'dark';
+            else t = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+          }
+          document.documentElement.setAttribute('data-theme', t);
+          if (t === 'dark') {
             document.documentElement.classList.add('dark', 'theme-modern-dark');
-          } else if (t === 'Enterprise Slate') {
-            document.documentElement.classList.add('theme-enterprise-slate');
+          } else {
+            document.documentElement.classList.remove('dark', 'theme-modern-dark');
           }
           var d = localStorage.getItem('rm_data_density') || 'Compact';
           document.documentElement.classList.add(d === 'Comfortable' ? 'density-comfortable' : 'density-compact');

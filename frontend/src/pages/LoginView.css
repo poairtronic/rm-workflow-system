@@ -1,0 +1,501 @@
+/* ==========================================================================
+   V-SMART Login Page Styles (matching login.reference.html specification)
+   ========================================================================== */
+
+:root {
+  --photo: url("/images/login-bg.jpg");
+  --head: "Barlow Semi Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+}
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b0f13;
+  --panel: #12181e;
+  --card: #171e26;
+  --line: #26313a;
+  --field: #0e1318;
+  --text: #e6eaee;
+  --muted: #8b97a3;
+  --faint: #66727e;
+  --accent: #5b83ff;
+  --accent-h: #7595ff;
+  --on-accent: #ffffff;
+  --tile: rgba(255, 255, 255, 0.045);
+  --tile-line: rgba(255, 255, 255, 0.12);
+  --veil: 14, 19, 26;
+  --ph-op: 0.30;
+  --ph-filter: grayscale(0.7) contrast(1.05) brightness(0.95);
+  --glow: rgba(91, 131, 255, 0.14);
+  --shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.8);
+  --err-bg: rgba(239, 107, 107, 0.09);
+  --err-line: rgba(239, 107, 107, 0.45);
+  --err: #f5a3a3;
+  --amber: #e0a43a;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f3f5f9;
+  --panel: #e8edf4;
+  --card: #ffffff;
+  --line: #d7dfea;
+  --field: #f5f7fb;
+  --text: #101828;
+  --muted: #566274;
+  --faint: #6b7686;
+  --accent: #2f5bea;
+  --accent-h: #2449c8;
+  --on-accent: #ffffff;
+  --tile: rgba(255, 255, 255, 0.7);
+  --tile-line: rgba(16, 24, 40, 0.10);
+  --veil: 232, 237, 244;
+  --ph-op: 0.30;
+  --ph-filter: grayscale(0.55) contrast(1.05) brightness(1.08);
+  --glow: rgba(47, 91, 234, 0.10);
+  --shadow: 0 24px 50px -28px rgba(16, 24, 40, 0.28);
+  --err-bg: rgba(220, 38, 38, 0.07);
+  --err-line: rgba(220, 38, 38, 0.4);
+  --err: #b42318;
+  --amber: #a15c07;
+}
+
+/* Scoped Login Container */
+.vsmart-login-page {
+  font-family: var(--body);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.5;
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  transition: background 0.25s, color 0.25s;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+.vsmart-login-page * {
+  box-sizing: border-box;
+}
+
+/* ---------- Left: brand + photo watermark ---------- */
+.vsmart-login-page .brand {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  padding: 44px 56px 32px;
+  border-right: 1px solid var(--line);
+  background: radial-gradient(ellipse at 30% 75%, var(--glow), transparent 60%), var(--panel);
+}
+
+.vsmart-login-page .brand::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: var(--photo) center/cover no-repeat;
+  opacity: var(--ph-op);
+  filter: var(--ph-filter);
+  -webkit-mask-image: linear-gradient(90deg, #000 55%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 55%, transparent 100%);
+}
+
+.vsmart-login-page .brand::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(var(--veil), 0.62) 0%, rgba(var(--veil), 0.18) 35%, rgba(var(--veil), 0.55) 75%, rgba(var(--veil), 0.88) 100%);
+}
+
+.vsmart-login-page .logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.vsmart-login-page .logo-mark {
+  width: 46px;
+  height: 46px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--on-accent);
+  display: grid;
+  place-items: center;
+  font: 700 22px/1 var(--head);
+  user-select: none;
+}
+
+.vsmart-login-page .logo b {
+  display: block;
+  font: 700 22px/1.1 var(--head);
+  letter-spacing: 0.5px;
+}
+
+.vsmart-login-page .logo span {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  display: block;
+}
+
+.vsmart-login-page .hero {
+  margin: auto 0;
+  padding: 26px 0;
+}
+
+.vsmart-login-page .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+  padding: 6px 14px;
+  border: 1px solid var(--tile-line);
+  border-radius: 999px;
+  background: var(--tile);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.vsmart-login-page .hero h1 {
+  font: 600 clamp(32px, 3.5vw, 50px)/1.06 var(--head);
+  letter-spacing: -0.5px;
+  max-width: 16ch;
+  margin-top: 20px;
+  color: var(--text);
+}
+
+.vsmart-login-page .hero p {
+  margin-top: 14px;
+  color: var(--muted);
+  max-width: 52ch;
+}
+
+.vsmart-login-page .feats {
+  list-style: none;
+  padding: 0;
+  margin-top: 26px;
+  display: grid;
+  gap: 10px;
+  max-width: 560px;
+}
+
+.vsmart-login-page .feat {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid var(--tile-line);
+  border-radius: 10px;
+  background: var(--tile);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.vsmart-login-page .ico {
+  flex: 0 0 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  background: rgba(91, 131, 255, 0.12);
+}
+
+.vsmart-login-page .feat:nth-child(3) .ico {
+  color: #2fa57a;
+  background: rgba(63, 191, 138, 0.14);
+}
+
+.vsmart-login-page .ico svg {
+  width: 20px;
+  height: 20px;
+}
+
+.vsmart-login-page .feat b {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.vsmart-login-page .feat small {
+  display: block;
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.vsmart-login-page .bfoot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 16px;
+  border-top: 1px solid var(--tile-line);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---------- Right: sign in ---------- */
+.vsmart-login-page .side {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 22px 28px 22px;
+  min-width: 0;
+  background: radial-gradient(circle at 50% 45%, var(--glow), transparent 62%), var(--bg);
+}
+
+.vsmart-login-page .themebtn {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  align-self: flex-end;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--muted);
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.vsmart-login-page .themebtn:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+
+.vsmart-login-page .themebtn svg {
+  width: 18px;
+  height: 18px;
+}
+
+:root[data-theme="dark"] .vsmart-login-page .i-moon,
+:root[data-theme="light"] .vsmart-login-page .i-sun {
+  display: none;
+}
+
+.vsmart-login-page .card {
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 32px 34px 28px;
+  box-shadow: var(--shadow);
+}
+
+.vsmart-login-page .card h2 {
+  font: 600 30px/1.1 var(--head);
+  color: var(--text);
+}
+
+.vsmart-login-page .card .sub {
+  color: var(--muted);
+  margin: 6px 0 22px;
+  font-size: 14px;
+}
+
+.vsmart-login-page label {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.vsmart-login-page .f {
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.vsmart-login-page .lr {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.vsmart-login-page input {
+  width: 100%;
+  height: 46px;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+  padding: 0 14px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.vsmart-login-page input::placeholder {
+  color: var(--faint);
+}
+
+.vsmart-login-page input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* Prevent default yellow/blue autofill in WebKit browsers */
+.vsmart-login-page input:-webkit-autofill,
+.vsmart-login-page input:-webkit-autofill:hover,
+.vsmart-login-page input:-webkit-autofill:focus,
+.vsmart-login-page input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--text) !important;
+  box-shadow: 0 0 0 100px var(--field) inset !important;
+  -webkit-box-shadow: 0 0 0 100px var(--field) inset !important;
+  caret-color: var(--text) !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.vsmart-login-page .pw input {
+  padding-right: 70px;
+}
+
+.vsmart-login-page .eye {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 13px;
+  color: var(--muted);
+  border-radius: 5px;
+}
+
+.vsmart-login-page .eye:hover {
+  color: var(--text);
+}
+
+.vsmart-login-page .caps {
+  display: none;
+  color: var(--amber);
+  font-size: 12.5px;
+  margin-top: 6px;
+}
+
+.vsmart-login-page .caps.on {
+  display: block;
+}
+
+.vsmart-login-page .link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.vsmart-login-page .link:hover {
+  color: var(--accent-h);
+  text-decoration: underline;
+}
+
+.vsmart-login-page .go {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  width: 100%;
+  height: 48px;
+  margin-top: 6px;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.vsmart-login-page .go:hover {
+  background: var(--accent-h);
+}
+
+.vsmart-login-page .go[disabled] {
+  opacity: 0.65;
+  cursor: progress;
+}
+
+.vsmart-login-page .themebtn:focus-visible,
+.vsmart-login-page .link:focus-visible,
+.vsmart-login-page .eye:focus-visible,
+.vsmart-login-page .go:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.vsmart-login-page .err {
+  display: none;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--err-line);
+  background: var(--err-bg);
+  color: var(--err);
+  border-radius: 8px;
+  font-size: 13.5px;
+}
+
+.vsmart-login-page .err.on {
+  display: block;
+}
+
+.vsmart-login-page .help {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.vsmart-login-page .foot {
+  text-align: center;
+  font-size: 12px;
+  color: var(--faint);
+  margin-top: 18px;
+}
+
+/* Responsive: below 900px, collapse to single column logo + form */
+@media (max-width: 900px) {
+  .vsmart-login-page {
+    grid-template-columns: 1fr;
+  }
+  .vsmart-login-page .brand {
+    padding: 20px 24px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .vsmart-login-page .hero,
+  .vsmart-login-page .bfoot {
+    display: none;
+  }
+  .vsmart-login-page .side {
+    padding-top: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vsmart-login-page,
+  .vsmart-login-page * {
+    transition: none !important;
+  }
+}
+
