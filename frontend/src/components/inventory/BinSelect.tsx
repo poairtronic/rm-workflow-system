@@ -14,6 +14,7 @@ interface BinSelectProps {
 
 export function BinSelect({ value, onChange, error, className, disabled, placeholder = 'Select Bin...', rackId }: BinSelectProps) {
   const [bins, setBins] = useState<Bin[]>([]);
+  const [selectedBin, setSelectedBin] = useState<Bin | undefined>();
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchBins = useCallback(async (searchTerm?: string) => {
@@ -32,6 +33,24 @@ export function BinSelect({ value, onChange, error, className, disabled, placeho
     fetchBins();
   }, [fetchBins]);
 
+  useEffect(() => {
+    if (!value) {
+      setSelectedBin(undefined);
+      return;
+    }
+    const found = bins.find((b) => b.id === value);
+    if (found) {
+      setSelectedBin(found);
+    } else if (!selectedBin || selectedBin.id !== value) {
+      masterDataService
+        .getBinById(value)
+        .then((b) => {
+          if (b) setSelectedBin(b);
+        })
+        .catch(() => {});
+    }
+  }, [value, bins]);
+
   const options = bins.map((b) => ({
     id: b.id,
     primary: b.name,
@@ -39,12 +58,29 @@ export function BinSelect({ value, onChange, error, className, disabled, placeho
     data: b,
   }));
 
+  if (selectedBin && selectedBin.id === value && !options.some((o) => o.id === selectedBin.id)) {
+    options.unshift({
+      id: selectedBin.id,
+      primary: selectedBin.name,
+      secondary: `${selectedBin.code}${selectedBin.rack?.name ? ` (Rack: ${selectedBin.rack.name})` : ''}`,
+      data: selectedBin,
+    });
+  }
+
   return (
     <SearchSelect
       value={value}
-      onChange={(id) => {
-        const bin = bins.find((b) => b.id === id);
-        if (bin) onChange(id, bin);
+      onChange={(id, opt) => {
+        const bin =
+          (opt as any)?.data ||
+          bins.find((b) => b.id === id) ||
+          (selectedBin?.id === id ? selectedBin : undefined);
+        if (bin) {
+          setSelectedBin(bin);
+          onChange(id, bin);
+        } else {
+          onChange(id);
+        }
       }}
       options={options}
       onSearch={fetchBins}

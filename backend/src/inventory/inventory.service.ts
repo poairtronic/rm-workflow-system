@@ -103,8 +103,7 @@ export class InventoryService {
       .leftJoinAndSelect('bin.rack', 'rack')
       .leftJoinAndSelect('rack.location', 'location')
       .leftJoinAndSelect('location.warehouse', 'warehouse')
-      .where('sb.current_quantity != 0')
-      .andWhere('sb.product_id IS NOT NULL')
+      .where('sb.product_id IS NOT NULL')
       .andWhere('sb.bin_id IS NOT NULL');
 
     if (productId) {

@@ -43,6 +43,7 @@ export function SearchSelect({
 }: SearchSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [cachedOption, setCachedOption] = useState<SearchSelectOption | null>(null);
   const debouncedSearch = useDebouncedValue(searchTerm, 300);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -159,6 +160,20 @@ export function SearchSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
+  // Sync cachedOption whenever value matches an item in options, or clear if value is empty
+  useEffect(() => {
+    if (!value) {
+      setCachedOption(null);
+      return;
+    }
+    const found = options.find((opt) => opt.id === value);
+    if (found) {
+      setCachedOption(found);
+    }
+  }, [value, options]);
+
+  const selectedOption = options.find((opt) => opt.id === value) || (cachedOption?.id === value ? cachedOption : undefined);
+
   // Filter options: instant for local options, debounced for async onSearch
   const effectiveSearch = onSearch ? debouncedSearch : searchTerm;
   const filteredOptions = onSearch
@@ -170,7 +185,19 @@ export function SearchSelect({
         return searchTerms.every((term) => target.includes(term));
       });
 
-  const selectedOption = options.find((opt) => opt.id === value);
+  // Ensure currently selected option is in the options list if not searching and not already present
+  const displayedOptions = React.useMemo(() => {
+    if (!effectiveSearch.trim() && selectedOption && !filteredOptions.some((o) => o.id === selectedOption.id)) {
+      return [selectedOption, ...filteredOptions];
+    }
+    return filteredOptions;
+  }, [filteredOptions, selectedOption, effectiveSearch]);
+
+  const handleSelectOption = (opt: SearchSelectOption) => {
+    setCachedOption(opt);
+    onChange(opt.id, opt);
+    setIsOpen(false);
+  };
 
   // Update input text when selection changes or menu closes
   useEffect(() => {
@@ -203,7 +230,7 @@ export function SearchSelect({
       case 'ArrowDown':
         e.preventDefault();
         setActiveIndex((prev) =>
-          prev < filteredOptions.length - 1 ? prev + 1 : prev
+          prev < displayedOptions.length - 1 ? prev + 1 : prev
         );
         break;
       case 'ArrowUp':
@@ -212,10 +239,9 @@ export function SearchSelect({
         break;
       case 'Enter':
         e.preventDefault();
-        if (activeIndex >= 0 && activeIndex < filteredOptions.length) {
-          const opt = filteredOptions[activeIndex];
-          onChange(opt.id, opt);
-          setIsOpen(false);
+        if (activeIndex >= 0 && activeIndex < displayedOptions.length) {
+          const opt = displayedOptions[activeIndex];
+          handleSelectOption(opt);
         } else if (showCreateOption && onCreateOption) {
           onCreateOption(trimmedSearch);
           setIsOpen(false);
@@ -357,13 +383,13 @@ export function SearchSelect({
                 </li>
               )}
 
-              {!isLoading && filteredOptions.length === 0 ? (
+              {!isLoading && displayedOptions.length === 0 ? (
                 <li className="relative cursor-default select-none py-4 text-center text-xs text-slate-500 dark:text-slate-400">
                   No matching options found
                 </li>
               ) : (
                 !isLoading &&
-                filteredOptions.map((option, index) => {
+                displayedOptions.map((option, index) => {
                   const isSelected = value === option.id;
                   const isActive = activeIndex === index;
                   return (
@@ -371,10 +397,7 @@ export function SearchSelect({
                       key={option.id}
                       role="option"
                       aria-selected={isSelected}
-                      onClick={() => {
-                        onChange(option.id, option);
-                        setIsOpen(false);
-                      }}
+                      onClick={() => handleSelectOption(option)}
                       onMouseEnter={() => setActiveIndex(index)}
                       className={cn(
                         'relative cursor-pointer select-none py-2 px-3 rounded-lg transition-colors text-sm',

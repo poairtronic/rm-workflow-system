@@ -14,6 +14,7 @@ interface ProductSelectProps {
 
 export function ProductSelect({ value, onChange, error, className, disabled, placeholder = 'Select Product...', initialProduct }: ProductSelectProps) {
   const [products, setProducts] = useState<Product[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<Product | { id: string; name: string; code?: string } | undefined>(initialProduct);
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchProducts = useCallback(async (searchTerm?: string) => {
@@ -32,6 +33,24 @@ export function ProductSelect({ value, onChange, error, className, disabled, pla
     fetchProducts();
   }, [fetchProducts]);
 
+  useEffect(() => {
+    if (!value) {
+      setSelectedProduct(undefined);
+      return;
+    }
+    const found = products.find((p) => p.id === value);
+    if (found) {
+      setSelectedProduct(found);
+    } else if (!selectedProduct || selectedProduct.id !== value) {
+      masterDataService
+        .getProductById(value)
+        .then((p) => {
+          if (p) setSelectedProduct(p);
+        })
+        .catch(() => {});
+    }
+  }, [value, products]);
+
   const options = products.map((p) => ({
     id: p.id,
     primary: p.name,
@@ -39,21 +58,36 @@ export function ProductSelect({ value, onChange, error, className, disabled, pla
     data: p,
   }));
 
-  if (initialProduct && value === initialProduct.id && !options.find(o => o.id === initialProduct.id)) {
+  const activeProduct =
+    selectedProduct?.id === value
+      ? selectedProduct
+      : initialProduct?.id === value
+        ? initialProduct
+        : undefined;
+
+  if (activeProduct && !options.some((o) => o.id === activeProduct.id)) {
     options.unshift({
-      id: initialProduct.id,
-      primary: initialProduct.name,
-      secondary: initialProduct.code,
-      data: initialProduct as any,
+      id: activeProduct.id,
+      primary: activeProduct.name,
+      secondary: activeProduct.code,
+      data: activeProduct as any,
     });
   }
 
   return (
     <SearchSelect
       value={value}
-      onChange={(id) => {
-        const product = products.find((p) => p.id === id);
-        if (product) onChange(id, product);
+      onChange={(id, opt) => {
+        const product =
+          (opt as any)?.data ||
+          products.find((p) => p.id === id) ||
+          (selectedProduct?.id === id ? (selectedProduct as Product) : undefined);
+        if (product) {
+          setSelectedProduct(product);
+          onChange(id, product);
+        } else {
+          onChange(id);
+        }
       }}
       options={options}
       onSearch={fetchProducts}
