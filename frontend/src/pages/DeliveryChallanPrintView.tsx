@@ -200,7 +200,7 @@ export function DeliveryChallanPrintView() {
   const totalPages = pages.length;
 
   return (
-    <div className="relative min-h-screen bg-slate-200/80 py-8 print:py-0 print:bg-white text-black font-sans flex flex-col items-center gap-8 print:gap-0">
+    <div className="relative min-h-screen bg-slate-200/80 py-8 print:py-0 print:bg-white text-black font-sans flex flex-col items-center gap-8 print:gap-0 print:block print:min-h-0 print:h-auto print:overflow-visible">
       {/* Print Specific CSS to enforce full A4, 0 margin, and clean multi-page breaks */}
       <style>{`
         @page {
@@ -208,28 +208,54 @@ export function DeliveryChallanPrintView() {
           margin: 0mm;
         }
         @media print {
+          *, *:before, *:after {
+            box-sizing: border-box !important;
+          }
           html, body {
             width: 210mm !important;
+            height: auto !important;
+            min-height: auto !important;
+            max-height: none !important;
             margin: 0 !important;
             padding: 0 !important;
+            overflow: visible !important;
+            overflow-x: visible !important;
+            overflow-y: visible !important;
             background: #ffffff !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
+          #root {
+            height: auto !important;
+            min-height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            overflow-x: visible !important;
+            overflow-y: visible !important;
+            display: block !important;
+            position: static !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
           .dc-sheet-wrapper {
             width: 210mm !important;
-            height: 297mm !important;
-            max-height: 297mm !important;
+            height: 296mm !important;
+            min-height: 296mm !important;
+            max-height: 296mm !important;
             padding: 10mm 12mm !important;
-            margin: 0 !important;
+            margin: 0 auto !important;
             box-shadow: none !important;
             border: none !important;
             box-sizing: border-box !important;
             overflow: hidden !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
+            page-break-before: auto !important;
             page-break-after: always !important;
             break-after: page !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
           }
           .dc-sheet-wrapper:last-child {
             page-break-after: auto !important;

@@ -625,3 +625,37 @@ html.density-comfortable table td {
   padding-bottom: 0.875rem !important;
   font-size: 0.875rem !important;
 }
+
+/* ==========================================================================
+   GLOBAL PRINT RULES (Unlocks multi-page pagination in Chromium / Edge / Safari)
+   ========================================================================== */
+@media print {
+  html,
+  body {
+    width: 210mm !important;
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #root {
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    display: block !important;
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
