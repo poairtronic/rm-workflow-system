@@ -169,23 +169,40 @@ export function DeliveryChallanPrintView() {
   const notes = challan.notes || dc.remarks || dc.notes || 'HT AND RETURN';
 
   // Format vendor address lines
-  const formatVendorAddress = (address?: string) => {
-    if (!address) {
-      return ['H-06,', 'INDUSTRIAL ESTATE', 'AMBATTUR', 'CHENNAI'];
+  const formatVendorAddress = (rawAddress?: string) => {
+    if (!rawAddress || !rawAddress.trim()) {
+      return [];
     }
-    if (address.includes('\n')) {
-      return address.split('\n').map(l => l.trim()).filter(Boolean);
+    const clean = rawAddress.trim();
+    if (clean.toUpperCase() === 'N/A') {
+      return [];
     }
-    if (address.includes(',')) {
-      return address.split(',').map(l => l.trim()).filter(Boolean);
+    if (clean.includes('\n')) {
+      return clean.split('\n').map(l => l.trim()).filter(Boolean);
     }
-    if (address.includes('/')) {
-      return address.split('/').map(l => l.trim()).filter(Boolean);
+    if (clean.includes(',')) {
+      return clean.split(',').map(l => l.trim()).filter(Boolean);
     }
-    return [address];
+    if (clean.includes('/')) {
+      return clean.split('/').map(l => l.trim()).filter(Boolean);
+    }
+    return [clean];
   };
 
-  const addressLines = formatVendorAddress(vendor.address);
+  const addressLines = formatVendorAddress(vendor.address || challan.vendorAddress || dc.vendorAddress);
+
+  // Format vendor contact person and phone cleanly (never print hardcoded fallbacks)
+  const contactParts: string[] = [];
+  const contactPerson = (vendor.contactPerson || vendor.contact_person || challan.vendorContactPerson || '').trim();
+  const phone = (vendor.phone || challan.vendorPhone || dc.vendorPhone || '').trim();
+
+  if (contactPerson && contactPerson.toUpperCase() !== 'N/A') {
+    contactParts.push(contactPerson);
+  }
+  if (phone && phone.toUpperCase() !== 'N/A') {
+    contactParts.push(phone);
+  }
+  const vendorContactText = contactParts.join(' / ');
 
   // Chunk items into pages (10 items per page ensures clean A4 print with zero overlapping)
   const ITEMS_PER_PAGE = 10;
@@ -380,16 +397,24 @@ export function DeliveryChallanPrintView() {
                 <div className="p-3 border-r border-black flex flex-col justify-between leading-snug">
                   <div>
                     <span className="font-bold underline uppercase block mb-1">Supplier Informations:</span>
-                    <p className="font-extrabold text-slate-900 uppercase">{vendor.name || 'FLAMETECH (MADRAS) PVT.LTD'}</p>
-                    <div className="text-slate-800 text-[11px] mt-0.5 uppercase space-y-0.5">
-                      {addressLines.map((line, idx) => (
-                        <div key={idx}>{line}</div>
-                      ))}
+                    <p className="font-extrabold text-slate-900 uppercase">
+                      {vendor.name || challan.vendorName || dc.vendorName || ''}
+                    </p>
+                    {addressLines.length > 0 && (
+                      <div className="text-slate-800 text-[11px] mt-0.5 uppercase space-y-0.5">
+                        {addressLines.map((line, idx) => (
+                          <div key={idx}>{line}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {vendorContactText ? (
+                    <div className="mt-3 text-[11px] font-semibold text-slate-900">
+                      Contact : {vendorContactText}
                     </div>
-                  </div>
-                  <div className="mt-3 text-[11px] font-semibold text-slate-900">
-                    Contact : {vendor.contactPerson ? `${vendor.contactPerson} ` : ''}{vendor.phone ? `/ ${vendor.phone}` : 'FLAMETECH / 9840092294'}
-                  </div>
+                  ) : (
+                    <div className="mt-3 min-h-[16px]"></div>
+                  )}
                 </div>
 
                 {/* Right Box: DC No & Dates */}
