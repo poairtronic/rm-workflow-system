@@ -200,20 +200,16 @@ export function ProductsMasterWorkspace() {
     return `RM-${String(nextVal).padStart(4, '0')}`;
   }, [products]);
 
-  // Auto-generate or re-sync barcode with product code
+  // Auto-generate or re-sync barcode with product code / name
   const handleRegenerateBarcode = async (targetCode?: string) => {
-    const activeCode = (targetCode || code || '').trim().toUpperCase();
-    try {
-      const serverBarcode = await masterDataService.getNextBarcode(activeCode);
-      if (serverBarcode) {
-        setBarcode(serverBarcode);
-        return;
-      }
-    } catch {}
-    if (activeCode) {
-      setBarcode(activeCode.startsWith('PRD-') ? activeCode : `PRD-${activeCode}`);
+    const activeName = (name || '').trim();
+    const activeCode = (targetCode || code || '').trim();
+    const source = activeCode || (activeName ? (activeName.toUpperCase().startsWith('PRD-') ? activeName : `PRD-${activeName}`) : '');
+    if (source) {
+      const candidate = source.toUpperCase().startsWith('PRD-') ? source : `PRD-${source}`;
+      setBarcode(candidate);
     } else {
-      setBarcode('PRD-000001');
+      setBarcode('');
     }
   };
 
@@ -221,54 +217,28 @@ export function ProductsMasterWorkspace() {
   const openCreateModal = async () => {
     setEditingProduct(null);
     setName('');
+    setCode('');
+    setBarcode('');
     setCategoryId(categories.length > 0 ? categories[0].id : '');
     setIsCustomCategory(false);
     setCustomCategory('');
     setFamilyId('');
     setIsCustomFamily(false);
     setCustomFamily('');
-    setUom('KG');
+    setUom('NOS');
     setMsl(0);
     setIsActive(true);
     setFormErrors({});
     setIsModalOpen(true);
-
-    // Initial instant fallback so user immediately sees next sequential code & barcode
-    const initialCode = computeNextProductCode();
-    setCode(initialCode);
-    const initialBarcode = initialCode ? (initialCode.startsWith('PRD-') ? initialCode : `PRD-${initialCode}`) : 'PRD-000001';
-    setBarcode(initialBarcode);
-
-    // Query server for authoritative next unique code & barcode
-    try {
-      const serverCode = await masterDataService.getNextProductCode();
-      if (serverCode) {
-        setCode(serverCode);
-        try {
-          const serverBarcode = await masterDataService.getNextBarcode(serverCode);
-          setBarcode(serverBarcode || (serverCode.startsWith('PRD-') ? serverCode : `PRD-${serverCode}`));
-        } catch {
-          setBarcode(serverCode.startsWith('PRD-') ? serverCode : `PRD-${serverCode}`);
-        }
-      }
-    } catch (err) {
-      console.warn('Could not fetch next product code from server, using local sequence', err);
-    }
   };
 
   const handleRegenerateCode = async () => {
-    let nextCode = '';
-    try {
-      const serverCode = await masterDataService.getNextProductCode();
-      if (serverCode) {
-        nextCode = serverCode;
-      }
-    } catch {}
-    if (!nextCode) {
-      nextCode = computeNextProductCode();
+    const activeName = (name || '').trim();
+    if (activeName) {
+      const candidate = activeName.toUpperCase().startsWith('PRD-') ? activeName : `PRD-${activeName}`;
+      setCode(candidate);
+      setBarcode(candidate);
     }
-    setCode(nextCode);
-    await handleRegenerateBarcode(nextCode);
   };
 
   // Open Edit Modal
@@ -1049,8 +1019,8 @@ export function ProductsMasterWorkspace() {
                     error={formErrors.code}
                     hint={
                       editingProduct
-                        ? 'Unique identifier (e.g. RM-0001).'
-                        : 'Auto-generated next sequence (e.g. RM-0451). Editable if custom code required.'
+                        ? 'Unique identifier, same as product name (e.g. PRD-EXTENSION 25MM).'
+                        : 'Auto-synced with product name (e.g. PRD-EXTENSION 25MM). Editable if needed.'
                     }
                   >
                     <div className="relative">
@@ -1058,27 +1028,25 @@ export function ProductsMasterWorkspace() {
                         id="product-code"
                         value={code}
                         onChange={(e) => {
-                          const upper = e.target.value.toUpperCase();
-                          setCode(upper);
-                          if (!editingProduct && (!barcode || barcode.startsWith('PRD-'))) {
-                            setBarcode(upper ? (upper.startsWith('PRD-') ? upper : `PRD-${upper}`) : '');
+                          const val = e.target.value;
+                          setCode(val);
+                          if (!editingProduct) {
+                            setBarcode(val);
                           }
                         }}
-                        placeholder={editingProduct ? 'e.g. RM-0001' : 'Auto-generated (e.g. RM-0451)'}
+                        placeholder={editingProduct ? 'e.g. PRD-EXTENSION 25MM' : 'Auto-generated from product name'}
                         error={!!formErrors.code}
                         className="font-mono uppercase font-semibold pr-9"
                         required
                       />
-                      {!editingProduct && (
-                        <button
-                          type="button"
-                          onClick={handleRegenerateCode}
-                          title="Recalculate next product code"
-                          className="absolute right-2 top-2 p-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-md transition-colors"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={handleRegenerateCode}
+                        title="Re-sync product code from product name"
+                        className="absolute right-2 top-2 p-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-md transition-colors"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </FormField>
 
@@ -1088,13 +1056,26 @@ export function ProductsMasterWorkspace() {
                     id="product-name"
                     required
                     error={formErrors.name}
-                    hint="Descriptive name of the material."
+                    hint="Descriptive name of the material / product."
                   >
                     <TextInput
                       id="product-name"
                       value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. EN31 Round Bar Ø100mm"
+                      onChange={(e) => {
+                        const newName = e.target.value;
+                        setName(newName);
+                        if (!editingProduct) {
+                          const trimmed = newName.trim();
+                          const candidate = trimmed
+                            ? trimmed.toUpperCase().startsWith('PRD-')
+                              ? trimmed
+                              : `PRD-${trimmed}`
+                            : '';
+                          setCode(candidate);
+                          setBarcode(candidate);
+                        }
+                      }}
+                      placeholder="e.g. EXTENSION - 25 mm"
                       error={!!formErrors.name}
                       required
                     />
@@ -1106,23 +1087,23 @@ export function ProductsMasterWorkspace() {
                     id="product-barcode"
                     hint={
                       editingProduct
-                        ? 'Unique barcode. Clear to auto-regenerate.'
-                        : 'Auto-generated unique Code 128 barcode. Scannable via laser/camera.'
+                        ? 'Unique barcode, same as product name (e.g. PRD-EXTENSION 25MM).'
+                        : 'Auto-synced with product name (e.g. PRD-EXTENSION 25MM). Scannable via laser/camera.'
                     }
                   >
                     <div className="relative">
                       <TextInput
                         id="product-barcode"
                         value={barcode}
-                        onChange={(e) => setBarcode(e.target.value.trim().toUpperCase())}
-                        placeholder={editingProduct ? 'PRD-XXXXXX' : 'Auto-generated barcode'}
+                        onChange={(e) => setBarcode(e.target.value.trim())}
+                        placeholder={editingProduct ? 'e.g. PRD-EXTENSION 25MM' : 'Auto-generated from product name'}
                         className="font-mono uppercase pr-16"
                       />
                       <div className="absolute right-2 top-2 flex items-center space-x-1">
                         <button
                           type="button"
                           onClick={() => handleRegenerateBarcode()}
-                          title="Auto-generate / re-sync barcode from code"
+                          title="Auto-generate / re-sync barcode from name/code"
                           className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
                         >
                           <RefreshCw className="w-3.5 h-3.5" />

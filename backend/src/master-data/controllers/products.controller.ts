@@ -72,8 +72,8 @@ export class ProductsController {
     UserRole.SENIOR_MANAGER,
     UserRole.GENERAL_MANAGER,
   )
-  async getNextProductCode() {
-    const nextCode = await this.masterDataService.generateUniqueProductCode();
+  async getNextProductCode(@Query('name') name?: string) {
+    const nextCode = await this.masterDataService.generateUniqueProductCode(name);
     return { nextCode };
   }
 
@@ -87,8 +87,8 @@ export class ProductsController {
     UserRole.SENIOR_MANAGER,
     UserRole.GENERAL_MANAGER,
   )
-  async getNextBarcode(@Query('code') code?: string) {
-    const nextBarcode = await this.masterDataService.generateUniqueBarcode(code);
+  async getNextBarcode(@Query('code') code?: string, @Query('name') name?: string) {
+    const nextBarcode = await this.masterDataService.generateUniqueBarcode(code || name);
     return { nextBarcode };
   }
 

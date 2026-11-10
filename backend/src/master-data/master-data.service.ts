@@ -434,7 +434,21 @@ export class MasterDataService implements OnModuleInit {
     return candidateBarcode;
   }
 
-  async generateUniqueProductCode(): Promise<string> {
+  async generateUniqueProductCode(name?: string): Promise<string> {
+    if (name && name.trim()) {
+      const trimmed = name.trim();
+      const candidate = trimmed.toUpperCase().startsWith('PRD-') ? trimmed : `PRD-${trimmed}`;
+      try {
+        const existing = await this.productRepo
+          .createQueryBuilder('p')
+          .where('UPPER(p.code) = :code', { code: candidate.toUpperCase() })
+          .getOne();
+        if (!existing) {
+          return candidate;
+        }
+      } catch {}
+    }
+
     let existingCodes: { code?: string }[] = [];
     try {
       const qb = this.productRepo.createQueryBuilder('p');
@@ -482,19 +496,24 @@ export class MasterDataService implements OnModuleInit {
   }
 
   async createProduct(dto: CreateProductDto) {
-    let normalizedCode = (dto.code || '').trim().toUpperCase();
+    let normalizedCode = (dto.code || '').trim();
     if (!normalizedCode) {
-      normalizedCode = await this.generateUniqueProductCode();
-    } else {
-      const existingCode = await this.productRepo
-        .createQueryBuilder('p')
-        .where('UPPER(p.code) = :code', { code: normalizedCode })
-        .getOne();
-      if (existingCode) {
-        throw new ConflictException(
-          `Product with code "${normalizedCode}" already exists.`,
-        );
+      if (dto.name && dto.name.trim()) {
+        const trimmed = dto.name.trim();
+        normalizedCode = trimmed.toUpperCase().startsWith('PRD-') ? trimmed : `PRD-${trimmed}`;
+      } else {
+        normalizedCode = await this.generateUniqueProductCode(dto.name);
       }
+    }
+
+    const existingCode = await this.productRepo
+      .createQueryBuilder('p')
+      .where('UPPER(p.code) = :code', { code: normalizedCode.toUpperCase() })
+      .getOne();
+    if (existingCode) {
+      throw new ConflictException(
+        `Product with code "${normalizedCode}" already exists.`,
+      );
     }
 
     let barcodeToUse: string;
@@ -510,7 +529,7 @@ export class MasterDataService implements OnModuleInit {
       }
       barcodeToUse = trimmedBarcode;
     } else {
-      barcodeToUse = await this.generateUniqueBarcode(normalizedCode);
+      barcodeToUse = normalizedCode;
     }
 
     const resolvedFamilyId = await this.resolveOrCreateFamily(dto);
@@ -766,13 +785,13 @@ export class MasterDataService implements OnModuleInit {
     const product = await this.findProductById(id);
 
     if (dto.code !== undefined) {
-      const normalizedCode = dto.code.trim().toUpperCase();
+      const normalizedCode = dto.code.trim();
       if (!normalizedCode) {
         throw new BadRequestException('Product code cannot be empty.');
       }
       const existingCode = await this.productRepo
         .createQueryBuilder('p')
-        .where('UPPER(p.code) = :code', { code: normalizedCode })
+        .where('UPPER(p.code) = :code', { code: normalizedCode.toUpperCase() })
         .andWhere('p.id != :id', { id })
         .getOne();
       if (existingCode) {
@@ -798,7 +817,7 @@ export class MasterDataService implements OnModuleInit {
         }
         product.barcode = trimmedBarcode;
       } else {
-        product.barcode = await this.generateUniqueBarcode();
+        product.barcode = product.code || (product.name ? (product.name.toUpperCase().startsWith('PRD-') ? product.name.trim() : `PRD-${product.name.trim()}`) : await this.generateUniqueBarcode());
       }
     }
 

@@ -206,20 +206,24 @@ export const masterDataService = {
   }): Promise<Product> => {
     return api.post<Product>('/api/products', data);
   },
-  getNextProductCode: async (): Promise<string> => {
+  getNextProductCode: async (name?: string): Promise<string> => {
     try {
-      const res = await api.get<{ nextCode: string }>('/api/products/next-code');
+      const res = await api.get<{ nextCode: string }>(
+        `/api/products/next-code${name ? `?name=${encodeURIComponent(name)}` : ''}`,
+      );
       return res?.nextCode || '';
     } catch (err) {
       console.warn('Failed to fetch next product code from server', err);
       return '';
     }
   },
-  getNextBarcode: async (code?: string): Promise<string> => {
+  getNextBarcode: async (code?: string, name?: string): Promise<string> => {
     try {
-      const res = await api.get<{ nextBarcode: string }>(
-        `/api/products/next-barcode${code ? `?code=${encodeURIComponent(code)}` : ''}`,
-      );
+      const params = new URLSearchParams();
+      if (code) params.set('code', code);
+      if (name) params.set('name', name);
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      const res = await api.get<{ nextBarcode: string }>(`/api/products/next-barcode${qs}`);
       return res?.nextBarcode || '';
     } catch (err) {
       console.warn('Failed to fetch next barcode from server', err);
