@@ -184,21 +184,28 @@ export function RmCreationWorkspace() {
           setRejectionNotice(rejectedSc.remarks);
         }
 
-        const loadedCards = (data.scs || []).map((sc: any) => ({
-          id: sc.scId || crypto.randomUUID(),
-          scNumber: sc.scNumber || '',
-          productName: sc.productName || '',
-          targetQuantity: Number(sc.targetQuantity) || 1,
-          items: (sc.items || []).map((item: any, iIdx: number) => ({
-            id: item.id || crypto.randomUUID(),
-            productId: item.productId || '',
-            partNumber: item.partNumber || getNextPartNumber([], basePartNumberSeq, iIdx),
-            partName: item.partName || item.remarks || '',
-            spec: item.spec || '',
-            quantity: Number(item.quantity) || 1,
-            remarks: item.remarks || item.partName || '',
-          })),
-        }));
+        const loadedCards = (data.scs || []).map((sc: any) => {
+          const targetQty = Number(sc.targetQuantity) || 1;
+          return {
+            id: sc.scId || crypto.randomUUID(),
+            scNumber: sc.scNumber || '',
+            productName: sc.productName || '',
+            targetQuantity: targetQty,
+            items: (sc.items || []).map((item: any, iIdx: number) => {
+              const totalQty = Number(item.quantity) || 1;
+              const perUnitQty = targetQty > 0 ? Number((totalQty / targetQty).toFixed(3)) : totalQty;
+              return {
+                id: item.id || crypto.randomUUID(),
+                productId: item.productId || '',
+                partNumber: item.partNumber || getNextPartNumber([], basePartNumberSeq, iIdx),
+                partName: item.partName || item.remarks || '',
+                spec: item.spec || '',
+                quantity: perUnitQty,
+                remarks: item.remarks || item.partName || '',
+              };
+            }),
+          };
+        });
         
         if (loadedCards.length > 0) {
           setScCards(loadedCards);
@@ -447,19 +454,26 @@ export function RmCreationWorkspace() {
     try {
       const payload = {
         poNumber: poNumber.trim(),
-        scs: scCards.map((card) => ({
-          scNumber: card.scNumber.trim(),
-          productName: card.productName.trim(),
-          targetQuantity: Number(card.targetQuantity) || 1,
-          items: card.items.map((item, itemIdx) => ({
-            productId: item.productId,
-            partNumber: item.partNumber?.trim() || getNextPartNumber(scCards, basePartNumberSeq, itemIdx),
-            partName: item.partName?.trim() || item.remarks?.trim() || undefined,
-            spec: item.spec.trim(),
-            quantity: Number(item.quantity),
-            remarks: item.remarks?.trim() || item.partName?.trim() || undefined,
-          })),
-        })),
+        scs: scCards.map((card) => {
+          const targetQty = Number(card.targetQuantity) || 1;
+          return {
+            scNumber: card.scNumber.trim(),
+            productName: card.productName.trim(),
+            targetQuantity: targetQty,
+            items: card.items.map((item, itemIdx) => {
+              const perUnit = Number(item.quantity || 0);
+              const totalQty = Math.round(perUnit * targetQty * 1000) / 1000;
+              return {
+                productId: item.productId,
+                partNumber: item.partNumber?.trim() || getNextPartNumber(scCards, basePartNumberSeq, itemIdx),
+                partName: item.partName?.trim() || item.remarks?.trim() || undefined,
+                spec: item.spec.trim(),
+                quantity: totalQty,
+                remarks: item.remarks?.trim() || item.partName?.trim() || undefined,
+              };
+            }),
+          };
+        }),
       };
 
       if (existingPoId) {
@@ -828,11 +842,11 @@ export function RmCreationWorkspace() {
               <div className="rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
                 <table className="w-full table-fixed text-left text-sm border-collapse">
                   <colgroup>
-                    <col className="w-[32%]" />
-                    <col className="w-[20%]" />
+                    <col className="w-[30%]" />
+                    <col className="w-[19%]" />
                     <col className="w-[14%]" />
-                    <col className="w-[18%]" />
-                    <col className="w-[11%]" />
+                    <col className="w-[17%]" />
+                    <col className="w-[15%]" />
                     <col className="w-[5%]" />
                   </colgroup>
                   <thead>
@@ -841,7 +855,7 @@ export function RmCreationWorkspace() {
                       <th className="py-2.5 px-2.5">Part Name *</th>
                       <th className="py-2.5 px-2.5">Part No. (Auto) *</th>
                       <th className="py-2.5 px-2.5">Spec / Grade *</th>
-                      <th className="py-2.5 px-2.5">Required Qty *</th>
+                      <th className="py-2.5 px-2.5">Qty / Unit *</th>
                       <th className="py-2.5 px-1.5 text-center">Action</th>
                     </tr>
                   </thead>
@@ -890,6 +904,9 @@ export function RmCreationWorkspace() {
                             const p = products.find((prod) => prod.id === item.productId);
                             const uom = p?.uom?.toUpperCase() || 'NOS';
                             const avail = item.productId ? (productBalances[item.productId] ?? null) : null;
+                            const targetQty = Number(card.targetQuantity) || 1;
+                            const perUnit = Number(item.quantity) || 0;
+                            const totalReq = Math.round(perUnit * targetQty * 1000) / 1000;
                             return (
                               <div>
                                 <input
@@ -899,7 +916,17 @@ export function RmCreationWorkspace() {
                                   value={item.quantity}
                                   onChange={(e) => handleUpdateItem(card.id, item.id, 'quantity', Number(e.target.value))}
                                   className="w-full px-2 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 tabular-nums text-sm font-semibold text-slate-900 shadow-2xs"
+                                  placeholder="Qty / unit"
                                 />
+                                <div className="mt-1 px-1.5 py-0.5 rounded bg-indigo-50/70 border border-indigo-100 text-[11px] text-indigo-900 font-semibold flex items-center justify-between" title={`Total required: ${perUnit} × ${targetQty} = ${totalReq} ${uom}`}>
+                                  <span className="text-slate-500">Total:</span>
+                                  <span className="text-indigo-700 font-bold">{totalReq} {uom}</span>
+                                </div>
+                                {targetQty > 1 && perUnit > 0 && (
+                                  <div className="text-[10px] text-slate-400 mt-0.5 px-1 truncate">
+                                    ({perUnit} × {targetQty} target)
+                                  </div>
+                                )}
                                 {item.productId && (
                                   <div className="flex items-center space-x-1 mt-1 text-[11px] font-semibold text-slate-500 truncate" title={`In Warehouse: ${avail !== null ? avail : 'Checking...'} ${uom}`}>
                                     <span>Stock:</span>
