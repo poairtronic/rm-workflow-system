@@ -130,29 +130,33 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     };
   }, [isDragging]);
 
-  // Fetch pending count from GET /api/ecr-issues
+  // Fetch pending count from GET /api/ecr-issues (only if user has access to ECR Material Issue)
+  const isEcrAllowed = Boolean(currentUser && isPathAllowedForUser('/governance/ecr-issues', currentUser));
   const { data: ecrIssues = [] } = useQuery<EcrIssuePending[]>({
     queryKey: ['ecr-issues'],
     queryFn: () => ecrIssuesService.getEcrIssues(),
-    enabled: !!currentUser,
+    enabled: isEcrAllowed,
     staleTime: 30000,
+    retry: false,
   });
 
   const pendingEcrCount = useMemo(() => {
-    return (ecrIssues || []).filter((i) => i.status === 'PENDING').length;
-  }, [ecrIssues]);
+    return isEcrAllowed ? (ecrIssues || []).filter((i) => i.status === 'PENDING').length : 0;
+  }, [ecrIssues, isEcrAllowed]);
 
-  // Fetch pending count from GET /api/merc-indents
+  // Fetch pending count from GET /api/merc-indents (only if user has access to MERC Indents)
+  const isMercAllowed = Boolean(currentUser && isPathAllowedForUser('/governance/merc-indents', currentUser));
   const { data: mercIndents = [] } = useQuery<MercIndentSummary[]>({
     queryKey: ['merc-indents'],
     queryFn: () => mercIndentService.getMercIndents(),
-    enabled: !!currentUser,
+    enabled: isMercAllowed,
     staleTime: 30000,
+    retry: false,
   });
 
   const pendingMercCount = useMemo(() => {
-    return (mercIndents || []).filter((i) => i.status === 'PENDING' || i.status === 'PARTIAL').length;
-  }, [mercIndents]);
+    return isMercAllowed ? (mercIndents || []).filter((i) => i.status === 'PENDING' || i.status === 'PARTIAL').length : 0;
+  }, [mercIndents, isMercAllowed]);
 
   // Update badge when socket event arrives
   useEffect(() => {
@@ -168,10 +172,10 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     });
 
     socket.on('notification', (payload: any) => {
-      if (payload?.type === 'ECR_ISSUE') {
+      if (payload?.type === 'ECR_ISSUE' && isEcrAllowed) {
         queryClient.invalidateQueries({ queryKey: ['ecr-issues'] });
       }
-      if (payload?.type === 'MERC_INDENT') {
+      if (payload?.type === 'MERC_INDENT' && isMercAllowed) {
         queryClient.invalidateQueries({ queryKey: ['merc-indents'] });
       }
     });
@@ -179,7 +183,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     return () => {
       socket.disconnect();
     };
-  }, [currentUser, queryClient]);
+  }, [currentUser, queryClient, isEcrAllowed, isMercAllowed]);
 
   // Close mobile drawer on route change
   useEffect(() => {

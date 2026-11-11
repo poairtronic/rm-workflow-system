@@ -213,6 +213,15 @@ describe('EcrIssuesService', () => {
   });
 
   describe('receivePending', () => {
+    beforeEach(() => {
+      vi.spyOn(service, 'getEcrReportStatus').mockResolvedValue({
+        exists: true,
+        status: 'APPROVED',
+        componentsIssued: false,
+        items: [],
+      });
+    });
+
     it('should be idempotent and return existing record if ecrId already exists', async () => {
       mockEcrRepo.findOne.mockResolvedValueOnce({
         id: 'existing-uuid',
@@ -222,7 +231,12 @@ describe('EcrIssuesService', () => {
 
       const result = await service.receivePending(sampleDto);
 
-      expect(mockEcrRepo.findOne).toHaveBeenCalledWith({ where: { ecrId: sampleDto.ecrId } });
+      expect(mockEcrRepo.findOne).toHaveBeenCalledWith({
+        where: [
+          { ecrId: sampleDto.ecrId },
+          { reportNumber: sampleDto.reportNumber },
+        ],
+      });
       expect(mockEcrRepo.save).not.toHaveBeenCalled();
       expect(mockNotificationRepo.save).not.toHaveBeenCalled();
       expect(result).toEqual({

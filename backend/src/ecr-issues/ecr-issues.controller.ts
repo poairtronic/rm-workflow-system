@@ -37,28 +37,52 @@ export class EcrIssuesController {
 
   @Get('ecr-issues')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.STORES, UserRole.ADMIN)
+  @Roles(
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+    UserRole.ADMIN,
+  )
   async getAll() {
     return this.ecrIssuesService.getAll();
   }
 
   @Post('ecr-issues/sync')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.STORES, UserRole.ADMIN)
+  @Roles(
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+    UserRole.ADMIN,
+  )
   async syncFromEcr() {
     return this.ecrIssuesService.syncFromEcr();
   }
 
   @Get('ecr-issues/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.STORES, UserRole.ADMIN)
+  @Roles(
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+    UserRole.ADMIN,
+  )
   async getOne(@Param('id') id: string) {
     return this.ecrIssuesService.getOne(id);
   }
 
   @Post('ecr-issues/:id/issue')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.STORES, UserRole.ADMIN)
+  @Roles(
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+    UserRole.ADMIN,
+  )
   @UsePipes(
     new ValidationPipe({
       whitelist: true,
