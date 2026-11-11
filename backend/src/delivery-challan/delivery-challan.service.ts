@@ -1,7 +1,7 @@
 import { Injectable, Logger, BadRequestException, NotFoundException, Optional } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, QueryRunner, LessThan, In, EntityManager } from 'typeorm';
+import { Repository, DataSource, QueryRunner, LessThan, In, EntityManager, Like } from 'typeorm';
 import { DeliveryChallan, DeliveryChallanType, DeliveryChallanStatus } from './entities/delivery-challan.entity.js';
 import { DeliveryChallanItem } from './entities/delivery-challan-item.entity.js';
 import { DcMovement, DcMovementStatus } from './entities/dc-movement.entity.js';
@@ -2890,6 +2890,163 @@ export class DeliveryChallanService {
     } catch (err: any) {
       this.logger.error(`Delivery Challan return date check failed: ${err?.message || err}`);
       return { reachedCount: 0, overdueCount: 0 };
+    }
+  }
+
+  /**
+   * Deletes a Delivery Challan and its items.
+   * If stock was deducted upon dispatch (Type 2 or Type 3 extra items), restores the stock balance.
+   */
+  async deleteDeliveryChallan(id: string, userId: string): Promise<{ success: boolean; message: string }> {
+    const dc = await this.challanRepo.findOne({
+      where: { id },
+      relations: {
+        items: true,
+      },
+    });
+
+    if (!dc) {
+      throw new NotFoundException(`Delivery Challan not found`);
+    }
+
+    if (dc.status === DeliveryChallanStatus.CLOSED) {
+      throw new BadRequestException(`Cannot delete Delivery Challan #${dc.challanNumber} because it is already CLOSED.`);
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // 1. Revert stock transactions if any exist for this DC
+      const stockTxRepo = queryRunner.manager.getRepository(StockTransaction);
+      const stockBalanceRepo = queryRunner.manager.getRepository(StockBalance);
+
+      const relatedTxs = await stockTxRepo.find({
+        where: [
+          { referenceId: id },
+          { remarks: Like(`%${dc.challanNumber}%`) },
+        ],
+      });
+
+      for (const tx of relatedTxs) {
+        if (tx.productId && tx.sourceBinId && tx.transactionType === TransactionType.DC_DISPATCH) {
+          const balance = await stockBalanceRepo.findOne({
+            where: { productId: tx.productId, binId: tx.sourceBinId },
+          });
+          if (balance) {
+            balance.currentQuantity = Number(balance.currentQuantity) + Number(tx.quantity);
+            await stockBalanceRepo.save(balance);
+          }
+        }
+        await stockTxRepo.remove(tx);
+      }
+
+      // 2. Remove child records and challan
+      await queryRunner.manager.delete(DcMovement, { challanId: id });
+      await queryRunner.manager.delete(DcQcInspection, { challanId: id });
+      await queryRunner.manager.delete(DcReworkItem, { sourceDcId: id });
+      await queryRunner.manager.delete(DeliveryChallanItem, { challanId: id });
+      await queryRunner.manager.delete(DeliveryChallan, { id });
+
+      await queryRunner.commitTransaction();
+
+      this.logger.log(`Delivery Challan #${dc.challanNumber} (${id}) deleted by user ${userId}`);
+      return { success: true, message: `Delivery Challan #${dc.challanNumber} deleted successfully` };
+    } catch (err: any) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(`Failed to delete Delivery Challan #${dc.challanNumber}: ${err.message}`, err.stack);
+      throw new BadRequestException(`Failed to delete Delivery Challan: ${err.message}`);
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  /**
+   * Deletes a single Delivery Challan line item.
+   * If stock was deducted for this specific item, restores the stock balance.
+   * If this was the only item in the DC, deletes the DC as well.
+   */
+  async deleteDeliveryChallanItem(
+    challanId: string,
+    itemId: string,
+    userId: string,
+  ): Promise<{ success: boolean; message: string; challanDeleted?: boolean }> {
+    const dc = await this.challanRepo.findOne({
+      where: { id: challanId },
+      relations: {
+        items: true,
+      },
+    });
+
+    if (!dc) {
+      throw new NotFoundException(`Delivery Challan not found`);
+    }
+
+    if (dc.status === DeliveryChallanStatus.CLOSED) {
+      throw new BadRequestException(`Cannot delete items from Delivery Challan #${dc.challanNumber} because it is already CLOSED.`);
+    }
+
+    const item = dc.items?.find((i) => i.id === itemId);
+    if (!item) {
+      throw new NotFoundException(`Item not found on Delivery Challan #${dc.challanNumber}`);
+    }
+
+    // If this is the only item in the DC, delete the entire DC
+    if (!dc.items || dc.items.length <= 1) {
+      await this.deleteDeliveryChallan(challanId, userId);
+      return {
+        success: true,
+        message: `Delivery Challan #${dc.challanNumber} and its only item were deleted.`,
+        challanDeleted: true,
+      };
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // Revert stock if applicable for this item
+      if (item.productId && item.binId && (dc.type === DeliveryChallanType.GENERAL_INVENTORY_OUTWARD || item.isExtraItem)) {
+        const stockBalanceRepo = queryRunner.manager.getRepository(StockBalance);
+        const balance = await stockBalanceRepo.findOne({
+          where: { productId: item.productId, binId: item.binId },
+        });
+        if (balance) {
+          balance.currentQuantity = Number(balance.currentQuantity) + Number(item.quantityDispatched);
+          await stockBalanceRepo.save(balance);
+        }
+
+        const stockTxRepo = queryRunner.manager.getRepository(StockTransaction);
+        const relatedTx = await stockTxRepo.findOne({
+          where: [
+            { referenceId: challanId, productId: item.productId, sourceBinId: item.binId },
+          ],
+        });
+        if (relatedTx) {
+          await stockTxRepo.remove(relatedTx);
+        }
+      }
+
+      await queryRunner.manager.delete(DcMovement, { challanItemId: itemId });
+      await queryRunner.manager.delete(DcQcInspection, { challanItemId: itemId });
+      await queryRunner.manager.delete(DeliveryChallanItem, { id: itemId });
+
+      await queryRunner.commitTransaction();
+
+      this.logger.log(`Item ${itemId} on DC #${dc.challanNumber} deleted by user ${userId}`);
+      return {
+        success: true,
+        message: `Item deleted from Delivery Challan #${dc.challanNumber}`,
+        challanDeleted: false,
+      };
+    } catch (err: any) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(`Failed to delete item from DC #${dc.challanNumber}: ${err.message}`, err.stack);
+      throw new BadRequestException(`Failed to delete item: ${err.message}`);
+    } finally {
+      await queryRunner.release();
     }
   }
 }

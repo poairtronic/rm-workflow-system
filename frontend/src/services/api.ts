@@ -557,6 +557,11 @@ export const deliveryChallanApi = {
     );
   },
   close: (id: string, data: CloseDcDto) => api.patch<DeliveryChallanDto>(`/api/delivery-challans/${id}/close`, data),
+  delete: (id: string) => api.delete<{ success: boolean; message: string }>(`/api/delivery-challans/${id}`),
+  deleteItem: (challanId: string, itemId: string) =>
+    api.delete<{ success: boolean; message: string; challanDeleted?: boolean }>(
+      `/api/delivery-challans/${challanId}/items/${itemId}`,
+    ),
   getPrintable: (id: string, reworkId?: string, view?: string) => {
     const params = new URLSearchParams();
     if (reworkId) params.append('reworkId', reworkId);

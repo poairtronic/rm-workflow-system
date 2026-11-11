@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, FormProvider } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { Search, PackageCheck, Loader2, Lock, AlertTriangle, ArrowLeft, X, RotateCcw, CheckCircle2, Printer } from 'lucide-react';
+import { Search, PackageCheck, Loader2, Lock, AlertTriangle, ArrowLeft, X, RotateCcw, CheckCircle2, Printer, Trash2 } from 'lucide-react';
 import { deliveryChallanApi } from '../services/api';
 import { vendorMasterApi } from '../services/vendorMaster.service';
 import type { DeliveryChallanDto } from '../types/delivery-challan.dto';
@@ -41,6 +41,8 @@ export function DockReceiptWorkspace() {
   const [isClosureConfirmed, setIsClosureConfirmed] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
+  const [dcToDelete, setDcToDelete] = useState<DeliveryChallanDto | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{ itemId: string; itemLabel: string } | null>(null);
 
   const handleInspectQc = (dc: DeliveryChallanDto) => {
     setSelectedQcDc(dc);
@@ -327,6 +329,44 @@ export function DockReceiptWorkspace() {
     }
   });
 
+  const deleteDcMutation = useMutation({
+    mutationFn: (dcId: string) => deliveryChallanApi.delete(dcId),
+    onSuccess: (_, dcId) => {
+      queryClient.invalidateQueries({ queryKey: ['delivery-challans'] });
+      queryClient.invalidateQueries({ queryKey: ['rework-items'] });
+      toast.success(`Delivery Challan ${dcToDelete?.challanNumber || dcToDelete?.dcNumber || ''} deleted successfully.`);
+      setDcToDelete(null);
+      if (selectedDc?.id === dcId) {
+        setSelectedDc(null);
+      }
+    },
+    onError: (error: any) => {
+      toast.error(extractErrorMessage(error, 'Failed to delete Delivery Challan.'));
+    },
+  });
+
+  const deleteItemMutation = useMutation({
+    mutationFn: ({ challanId, itemId }: { challanId: string; itemId: string }) =>
+      deliveryChallanApi.deleteItem(challanId, itemId),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ['delivery-challans'] });
+      queryClient.invalidateQueries({ queryKey: ['rework-items'] });
+      toast.success(res?.message || 'Item deleted successfully.');
+      setItemToDelete(null);
+      if (res?.challanDeleted) {
+        setSelectedDc(null);
+      } else if (selectedDc) {
+        const remainingItems = (selectedDc.items || []).filter((i: any) => i.id !== itemToDelete?.itemId);
+        const updatedDc = { ...selectedDc, items: remainingItems };
+        setSelectedDc(updatedDc);
+        handleSelectDc(updatedDc);
+      }
+    },
+    onError: (error: any) => {
+      toast.error(extractErrorMessage(error, 'Failed to delete item from Delivery Challan.'));
+    },
+  });
+
   const onProcessReturn = (data: ProcessDcReturnDto) => {
     if (processReturnMutation.isPending) return;
     processReturnMutation.mutate(data);
@@ -566,6 +606,7 @@ export function DockReceiptWorkspace() {
           challans={filteredChallans}
           onSelect={handleSelectDc}
           onInspectQc={handleInspectQc}
+          onDeleteDc={setDcToDelete}
         />
       ) : activeDcView === 'CLOSURE' ? (
         <div className="max-w-4xl mx-auto space-y-6">
@@ -709,7 +750,11 @@ export function DockReceiptWorkspace() {
 
           <FormProvider {...methods}>
             <form id="reconciliation-form" onSubmit={methods.handleSubmit(onProcessReturn)}>
-              <ReconciliationGrid dc={selectedDc} isReadOnly={isClosed} />
+              <ReconciliationGrid
+                dc={selectedDc}
+                isReadOnly={isClosed}
+                onDeleteItem={(itemId, itemLabel) => setItemToDelete({ itemId, itemLabel })}
+              />
             </form>
           </FormProvider>
 
@@ -765,6 +810,108 @@ export function DockReceiptWorkspace() {
           queryClient.invalidateQueries({ queryKey: ['rework-items'] });
         }}
       />
+
+      {/* Delete DC Confirmation Modal */}
+      {dcToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-200">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Delete Delivery Challan</h3>
+                <p className="text-xs text-slate-500 font-mono">{dcToDelete.challanNumber || dcToDelete.dcNumber}</p>
+              </div>
+            </div>
+
+            <div className="bg-red-50/70 border border-red-200 rounded-lg p-3 text-xs text-red-800 space-y-1">
+              <p className="font-semibold">Are you sure you want to delete this Delivery Challan?</p>
+              <p className="text-red-700">
+                Vendor: <strong>{dcToDelete.vendor?.name || dcToDelete.vendorName || 'N/A'}</strong>
+              </p>
+              <p className="text-red-700">
+                Total Items: <strong>{dcToDelete.items?.length || 0}</strong>
+              </p>
+              <p className="text-[11px] text-red-600 mt-1">
+                This will permanently delete the challan and its items from the custody board. Any inventory stock deducted for this dispatch will be automatically restored.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDcToDelete(null)}
+                disabled={deleteDcMutation.isPending}
+                className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteDcMutation.mutate(dcToDelete.id)}
+                disabled={deleteDcMutation.isPending}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50"
+              >
+                {deleteDcMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                <span>{deleteDcMutation.isPending ? 'Deleting...' : 'Delete Challan'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Item Confirmation Modal */}
+      {itemToDelete && selectedDc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-200">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Delete Item from Challan</h3>
+                <p className="text-xs text-slate-500 font-mono">{selectedDc.challanNumber || selectedDc.dcNumber}</p>
+              </div>
+            </div>
+
+            <div className="bg-red-50/70 border border-red-200 rounded-lg p-3 text-xs text-red-800 space-y-1">
+              <p className="font-semibold">Are you sure you want to delete this item?</p>
+              <p className="text-red-700">
+                Item: <strong>{itemToDelete.itemLabel}</strong>
+              </p>
+              <p className="text-[11px] text-red-600 mt-1">
+                This item will be removed from the Delivery Challan. If this is the only item, the entire challan will be deleted.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setItemToDelete(null)}
+                disabled={deleteItemMutation.isPending}
+                className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  deleteItemMutation.mutate({
+                    challanId: selectedDc.id,
+                    itemId: itemToDelete.itemId,
+                  })
+                }
+                disabled={deleteItemMutation.isPending}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50"
+              >
+                {deleteItemMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                <span>{deleteItemMutation.isPending ? 'Deleting...' : 'Delete Item'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

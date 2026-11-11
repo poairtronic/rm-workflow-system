@@ -1,10 +1,18 @@
 import { useFieldArray, useFormContext, useWatch } from 'react-hook-form';
-import { FileDigit, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
+import { FileDigit, AlertTriangle, CheckCircle2, Info, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api, unwrapList } from '../../services/api';
 import { masterDataService } from '../../services/masterDataService';
 
-export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: boolean }) {
+export function ReconciliationGrid({
+  dc,
+  isReadOnly,
+  onDeleteItem,
+}: {
+  dc: any;
+  isReadOnly?: boolean;
+  onDeleteItem?: (itemId: string, itemLabel: string) => void;
+}) {
   const { register, control, setValue } = useFormContext<any>();
   const { fields } = useFieldArray({ control, name: 'items' });
 
@@ -80,6 +88,7 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
               )}
               <th className="px-4 py-3 text-right">Actual Received (to QC)</th>
               <th className="px-4 py-3 text-right">Remaining at Vendor</th>
+              {!isReadOnly && onDeleteItem && <th className="px-4 py-3 text-center">Action</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -333,6 +342,28 @@ export function ReconciliationGrid({ dc, isReadOnly }: { dc: any; isReadOnly?: b
                       </span>
                     )}
                   </td>
+
+                  {/* Delete Item Action */}
+                  {!isReadOnly && onDeleteItem && (
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const label =
+                            originalItem?.partNumber ||
+                            originalItem?.partName ||
+                            dispProduct?.name ||
+                            `Item #${index + 1}`;
+                          onDeleteItem(originalItem?.id || (field as any).itemId, label);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md border border-red-200 transition-colors shadow-2xs text-xs font-medium cursor-pointer"
+                        title="Delete this item from Delivery Challan"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                        <span>Delete</span>
+                      </button>
+                    </td>
+                  )}
                 </tr>
               );
             })}

@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Body, Param, Query, UseGuards, Request, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Body, Param, Query, UseGuards, Request, ParseUUIDPipe } from '@nestjs/common';
 import { DeliveryChallanService } from './delivery-challan.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
@@ -221,5 +221,26 @@ export class DeliveryChallanController {
   ) {
     const userId = req.user.userId;
     return this.deliveryChallanService.closeChallan(id, userId);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER)
+  async deleteChallan(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Request() req: any,
+  ) {
+    const userId = req.user.userId;
+    return this.deliveryChallanService.deleteDeliveryChallan(id, userId);
+  }
+
+  @Delete(':id/items/:itemId')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER)
+  async deleteChallanItem(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @Request() req: any,
+  ) {
+    const userId = req.user.userId;
+    return this.deliveryChallanService.deleteDeliveryChallanItem(id, itemId, userId);
   }
 }

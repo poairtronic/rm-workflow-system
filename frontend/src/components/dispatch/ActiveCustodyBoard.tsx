@@ -10,6 +10,7 @@ import {
   PackageCheck,
   RotateCcw,
   Printer,
+  Trash2,
 } from 'lucide-react';
 import { deliveryChallanApi } from '../../services/api';
 import type { DeliveryChallanDto } from '../../types/delivery-challan.dto';
@@ -27,6 +28,7 @@ interface ActiveCustodyBoardProps {
   challans: DeliveryChallanDto[];
   onSelect: (dc: DeliveryChallanDto) => void;
   onInspectQc?: (dc: DeliveryChallanDto) => void;
+  onDeleteDc?: (dc: DeliveryChallanDto) => void;
   defaultTab?: CustodyBoardTab;
 }
 
@@ -160,6 +162,7 @@ export function ActiveCustodyBoard({
   challans,
   onSelect,
   onInspectQc,
+  onDeleteDc,
   defaultTab = 'ALL',
 }: ActiveCustodyBoardProps) {
   const [statusFilter, setStatusFilter] = useState<CustodyBoardTab>(defaultTab);
@@ -757,6 +760,21 @@ export function ActiveCustodyBoard({
                           >
                             Process Return
                             <ArrowRight className="w-3 h-3" />
+                          </button>
+                        )}
+
+                        {onDeleteDc && !isClosed && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteDc(dc);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md border border-red-200 transition-colors shadow-2xs text-xs font-medium cursor-pointer"
+                            title="Delete Delivery Challan"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                            <span>Delete</span>
                           </button>
                         )}
                       </div>
