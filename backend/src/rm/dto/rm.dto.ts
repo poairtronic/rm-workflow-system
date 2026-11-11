@@ -30,18 +30,22 @@ export class CreateRmItemDto {
   materialType?: string = 'ROUND_BAR';
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(100)
-  grade!: string;
+  grade?: string;
 
   @IsNumber()
   @Min(0.001)
   quantity!: number;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(100)
-  size!: string;
+  size?: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
 
   @IsOptional()
   @IsNumber()

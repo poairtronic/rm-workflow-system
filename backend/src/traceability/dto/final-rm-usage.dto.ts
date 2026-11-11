@@ -1,8 +1,9 @@
 export interface RmUsageItemBreakdown {
   rmItemId: string;
   material: string;
-  grade: string;
-  size: string;
+  grade?: string;
+  size?: string;
+  description?: string;
   uom: string;
   originalRequested: number;
   initialIssued: number;

@@ -23,6 +23,22 @@ export class MaterialIssueItemDto {
   @IsUUID('4')
   binId?: string;
 
+  @IsOptional()
+  @Transform(({ value }) => (!value || value === '' ? undefined : value))
+  @ValidateIf((o) => !!o.issuedProductId)
+  @IsUUID('4')
+  issuedProductId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  issuedProductName?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0.001)
+  newRequiredQuantity?: number;
+
   @IsNumber()
   @Min(0.001)
   quantityIssued!: number;

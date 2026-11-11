@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import { PackageSearch, FileText, PackagePlus, AlertCircle } from 'lucide-react';
+import { PackageSearch, PackagePlus, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { workflowService } from '../services/workflowService';
 import { extractErrorMessage } from '../utils/extractErrorMessage';
 import { IssueMaterialModal } from '../components/modals/IssueMaterialModal';
-import { ReviewMappingWorkspace } from './ReviewMappingWorkspace';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { getCanonicalStage } from '../utils/canonicalStages';
 
@@ -24,11 +23,36 @@ interface DraftItem {
     remainingQuantity?: number;
     isFullyIssued?: boolean;
     isPartiallyIssued?: boolean;
+    items?: {
+      id: string;
+      material: string;
+      grade?: string;
+      size?: string;
+      quantity: number;
+      partNumber?: string;
+      partName?: string;
+      description?: string;
+      originalMaterial?: string;
+      originalGrade?: string;
+      originalQuantity?: number;
+      mappedProductId?: string;
+    }[];
+    issuedItems?: {
+      rmItemId: string;
+      issuedProductId?: string;
+      issuedProductName: string;
+      requestedMaterial?: string;
+      originalMaterial?: string;
+      originalGrade?: string;
+      originalQuantity?: number;
+      quantityIssued: number;
+      issueNumber?: string;
+      issuedAt?: string;
+    }[];
   }[];
   updatedAt: string;
 }
 
-// Phase 2 & 3: Direct issue workspace with smart bin auto-filtering and PO completion
 export function StoresRmIssueWorkspace() {
   const [queues, setQueues] = useState<DraftItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,15 +62,6 @@ export function StoresRmIssueWorkspace() {
 
   // Active issue selection
   const [selectedScForIssue, setSelectedScForIssue] = useState<{ id: string; num: string } | null>(null);
-
-  // Active review mapping selection
-  const [selectedScForReview, setSelectedScForReview] = useState<{
-    scId: string;
-    scNumber: string;
-    poNumber: string;
-    productName: string;
-    rmId?: string;
-  } | null>(null);
 
   // Reject modal state
   const [rejectTarget, setRejectTarget] = useState<{ rmId: string; scNumber: string } | null>(null);
@@ -61,7 +76,7 @@ export function StoresRmIssueWorkspace() {
     setLoading(true);
     try {
       const res = await workflowService.getStoresQueue();
-      const data = res as unknown as DraftItem[]; // api returns T which is any[]
+      const data = res as unknown as DraftItem[];
       setQueues(data);
       if (data.length > 0 && !selectedPoId) {
         setSelectedPoId(data[0].poId);
@@ -129,29 +144,6 @@ export function StoresRmIssueWorkspace() {
     ? !isSelectedPoCompleted && selectedPo.scs.some((s) => checkIsScPartiallyIssued(s) || ((s.totalIssued || 0) > 0))
     : false;
 
-  if (selectedScForReview) {
-    return (
-      <ReviewMappingWorkspace
-        scId={selectedScForReview.scId}
-        scNumber={selectedScForReview.scNumber}
-        poNumber={selectedScForReview.poNumber}
-        productName={selectedScForReview.productName}
-        rmId={selectedScForReview.rmId}
-        onBack={() => {
-          setSelectedScForReview(null);
-          loadQueue();
-        }}
-        onSuccess={() => {
-          loadQueue();
-        }}
-        onProceedToIssue={(scId, scNumber) => {
-          setSelectedScForReview(null);
-          setSelectedScForIssue({ id: scId, num: scNumber });
-        }}
-      />
-    );
-  }
-
   if (selectedScForIssue) {
     return (
       <IssueMaterialModal
@@ -173,7 +165,7 @@ export function StoresRmIssueWorkspace() {
     <div className="w-full h-[calc(100vh-8rem)] flex flex-col space-y-6">
       <PageHeader
         title="RM Issue Queue"
-        subtitle="Review RM mappings and issue material to production."
+        subtitle="Review requested materials, substitute items if needed, and issue directly to production."
       />
 
       {error && (
@@ -184,17 +176,15 @@ export function StoresRmIssueWorkspace() {
       )}
 
       {loading ? (
-        <div className="flex justify-center py-12">
+        <div className="flex-1 flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
         </div>
       ) : queues.length === 0 ? (
-        <div className="text-center py-16 bg-white border border-slate-200 rounded-xl shadow-sm">
-          <div className="w-16 h-16 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-4">
-            <PackageSearch className="w-8 h-8" />
-          </div>
-          <h3 className="text-lg font-medium text-slate-900 mb-2">Queue is Empty</h3>
-          <p className="text-slate-500 max-w-md mx-auto mb-6">
-            There are no submitted RM requests waiting for review or issue.
+        <div className="flex-1 flex flex-col items-center justify-center bg-white border border-slate-200 rounded-xl p-8 text-center shadow-sm">
+          <PackageSearch className="w-12 h-12 text-slate-400 mb-3" />
+          <h3 className="text-lg font-bold text-slate-900 mb-1">No Material Requisitions Pending Issue</h3>
+          <p className="text-sm text-slate-500 max-w-sm">
+            All submitted raw material requisitions have been fulfilled or no new requisitions are submitted.
           </p>
         </div>
       ) : (
@@ -213,7 +203,7 @@ export function StoresRmIssueWorkspace() {
                   <button
                     key={po.poId}
                     onClick={() => setSelectedPoId(po.poId)}
-                    className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                    className={`w-full text-left p-3 rounded-lg border transition-colors cursor-pointer ${
                       selectedPoId === po.poId
                         ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-500'
                         : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-200'
@@ -261,7 +251,7 @@ export function StoresRmIssueWorkspace() {
                       </span>
                     ) : isSelectedPoPartial ? (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-purple-100 text-purple-800 rounded-full border border-purple-300">
-                        Stores Issued Partially ({poCompletedCount}/{selectedPo.scs.length} SCs Completed)
+                        Stores Issued Partially
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-amber-100 text-amber-800 rounded-full border border-amber-300">
@@ -297,22 +287,100 @@ export function StoresRmIssueWorkspace() {
                           )}
                         </div>
                       </div>
-                      
-                      <div className="text-sm text-slate-600 mb-6 flex items-center justify-between">
-                        <span>{sc.itemCount} Material Item(s) requested.</span>
-                        {isScPartial && (
-                          <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-md border border-purple-200">
-                            Remaining: {sc.remainingQuantity ?? (sc.totalRequired! - sc.totalIssued!)} units to issue
-                          </span>
-                        )}
-                      </div>
+
+                      {/* Line Items Details: Original Requested vs Actual Issued */}
+                      {sc.items && sc.items.length > 0 ? (
+                        <div className="mb-4 overflow-x-auto rounded-lg border border-slate-200 bg-slate-50/30">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-100/80 text-slate-600 font-bold uppercase tracking-wider border-b border-slate-200">
+                              <tr>
+                                <th className="py-2.5 px-3">Original Requested Product</th>
+                                <th className="py-2.5 px-3">Spec / Grade</th>
+                                <th className="py-2.5 px-3">Description</th>
+                                <th className="py-2.5 px-3 text-right">Target Req</th>
+                                <th className="py-2.5 px-3">Actual Issued Product</th>
+                                <th className="py-2.5 px-3 text-right">Issued Qty</th>
+                                <th className="py-2.5 px-3 text-right">Remaining</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200/70 bg-white font-medium">
+                              {sc.items.map((it) => {
+                                const itemIssues = (sc.issuedItems || []).filter((iss) => iss.rmItemId === it.id);
+                                const totalItemIssued = Math.round(
+                                  itemIssues.reduce((sum, iss) => sum + Number(iss.quantityIssued || 0), 0) * 1000
+                                ) / 1000;
+                                const itemRemaining = Math.max(0, Math.round((Number(it.quantity) - totalItemIssued) * 1000) / 1000);
+
+                                return (
+                                  <tr key={it.id} className="hover:bg-slate-50/60 transition-colors">
+                                    <td className="py-2.5 px-3">
+                                      <span className="font-bold text-slate-900">{it.originalMaterial || it.material}</span>
+                                      {it.partNumber && (
+                                        <span className="ml-1.5 text-[10px] text-indigo-600 font-mono font-bold">({it.partNumber})</span>
+                                      )}
+                                    </td>
+                                    <td className="py-2.5 px-3 text-slate-600">{it.originalGrade || it.grade || '—'}</td>
+                                    <td className="py-2.5 px-3 text-slate-500 max-w-xs truncate" title={it.description || ''}>
+                                      {it.description || '—'}
+                                    </td>
+                                    <td className="py-2.5 px-3 text-right font-bold text-slate-800 tabular-nums">
+                                      {it.quantity}
+                                    </td>
+                                    <td className="py-2.5 px-3">
+                                      {itemIssues.length > 0 ? (
+                                        <div className="space-y-1">
+                                          {itemIssues.map((iss, issIdx) => {
+                                            const itemSubstituted =
+                                              iss.issuedProductName &&
+                                              iss.issuedProductName !== (it.originalMaterial || it.material);
+                                            return (
+                                              <div key={issIdx} className="flex items-center gap-1.5">
+                                                <span className="font-semibold text-slate-900">{iss.issuedProductName}</span>
+                                                {itemSubstituted && (
+                                                  <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded border border-amber-300">
+                                                    Substituted
+                                                  </span>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      ) : (
+                                        <span className="text-slate-400 italic">Not issued yet</span>
+                                      )}
+                                    </td>
+                                    <td className="py-2.5 px-3 text-right font-bold text-indigo-600 tabular-nums">
+                                      {totalItemIssued > 0 ? totalItemIssued : '0'}
+                                    </td>
+                                    <td className="py-2.5 px-3 text-right font-bold tabular-nums">
+                                      <span className={itemRemaining > 0 ? 'text-purple-700' : 'text-emerald-700'}>
+                                        {itemRemaining}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-slate-600 mb-6 flex items-center justify-between">
+                          <span>{sc.itemCount} Material Item(s) requested.</span>
+                          {isScPartial && (
+                            <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-md border border-purple-200">
+                              Remaining: {sc.remainingQuantity ?? (sc.totalRequired! - sc.totalIssued!)} units to issue
+                            </span>
+                          )}
+                        </div>
+                      )}
                       
                       <div className="flex justify-end space-x-3 border-t border-slate-100 pt-4">
                         {sc.status === 'REJECTED' ? (
                           <span className="text-xs text-red-600 font-medium italic">Requisition Rejected by Stores</span>
                         ) : isScFullyIssued ? (
                           <span className="inline-flex items-center text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
-                            ✓ Material Fully Issued
+                            <CheckCircle2 className="w-4 h-4 mr-1 text-emerald-600" />
+                            <span>Material Fully Issued</span>
                           </span>
                         ) : (
                           <div className="flex items-center space-x-3">
@@ -324,20 +392,6 @@ export function StoresRmIssueWorkspace() {
                                 Reject
                               </button>
                             )}
-                            <button 
-                              onClick={() => setSelectedScForReview({
-                                scId: sc.scId,
-                                scNumber: sc.scNumber,
-                                poNumber: selectedPo.poNumber,
-                                productName: sc.productName,
-                                rmId: sc.rmId,
-                              })}
-                              className="flex items-center space-x-1.5 px-3 py-2 text-sm text-slate-600 hover:text-slate-800 hover:bg-slate-100 font-medium rounded-lg transition-colors cursor-pointer"
-                              title="View or modify inventory mapping"
-                            >
-                              <FileText className="w-4 h-4" />
-                              <span>Mapping</span>
-                            </button>
                             <button 
                               onClick={() => handleOpenIssueModal(sc.scId, sc.scNumber)}
                               className={`flex items-center space-x-2 px-4 py-2 text-white font-medium rounded-lg transition-colors shadow-sm cursor-pointer ${
@@ -364,40 +418,28 @@ export function StoresRmIssueWorkspace() {
         </div>
       )}
 
-      {/* Reject Requisition Modal Dialog */}
+      {/* Reject Reason Modal */}
       {rejectTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">Reject RM Requisition</h3>
-              <button
-                type="button"
-                onClick={() => setRejectTarget(null)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                ✕
-              </button>
-            </div>
-            <p className="text-xs text-slate-600">
-              Are you sure you want to reject the Raw Material Requisition for SC <strong>{rejectTarget.scNumber}</strong>? Production will be informed with your reason.
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl border border-slate-200 p-6 space-y-4">
+            <h3 className="text-lg font-bold text-slate-900">Reject RM Requisition</h3>
+            <p className="text-xs text-slate-500">
+              Please enter the reason for rejecting requisition for SC <strong>{rejectTarget.scNumber}</strong>. The Designer will be notified.
             </p>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                Reason for Rejection *
-              </label>
-              <textarea
-                rows={3}
-                value={rejectRemarks}
-                onChange={(e) => setRejectRemarks(e.target.value)}
-                placeholder="e.g. Stock unavailable, Material grade mismatch, Needs supervisor approval"
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none"
-              />
-            </div>
-            <div className="flex justify-end space-x-2 pt-2">
+            <textarea
+              value={rejectRemarks}
+              onChange={(e) => setRejectRemarks(e.target.value)}
+              placeholder="e.g. Requested material grade is obsolete or unavailable..."
+              className="w-full h-24 p-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+            <div className="flex justify-end space-x-3">
               <button
                 type="button"
-                onClick={() => setRejectTarget(null)}
-                className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
+                onClick={() => {
+                  setRejectTarget(null);
+                  setRejectRemarks('');
+                }}
+                className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Cancel
               </button>
@@ -405,9 +447,9 @@ export function StoresRmIssueWorkspace() {
                 type="button"
                 onClick={handleRejectRequisition}
                 disabled={submittingReject || !rejectRemarks.trim()}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold shadow-xs disabled:opacity-50"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold shadow-xs disabled:opacity-50"
               >
-                {submittingReject ? 'Rejecting...' : 'Confirm Rejection'}
+                {submittingReject ? 'Rejecting...' : 'Confirm Reject'}
               </button>
             </div>
           </div>

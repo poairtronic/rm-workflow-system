@@ -52,6 +52,13 @@ export class MaterialIssueItem {
   @Column({ type: 'text', nullable: true })
   remarks?: string;
 
+  @Index()
+  @Column({ name: 'issued_product_id', nullable: true })
+  issuedProductId?: string;
+
+  @Column({ name: 'issued_product_name', length: 255, nullable: true })
+  issuedProductName?: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 }

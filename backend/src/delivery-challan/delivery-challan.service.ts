@@ -228,6 +228,17 @@ export class DeliveryChallanService {
         let partName = itemDto.partName?.trim() || null;
         const targetRmItemId = itemDto.rmItemId || itemDto.productId || null;
 
+        let sc: SalesOrderComponent | null = null;
+        if (targetScId) {
+          sc = await queryRunner.manager.findOne(SalesOrderComponent, {
+            where: { id: targetScId },
+          });
+          if (sc) {
+            // Per requirement: Part No must ALWAYS display the corresponding SC Name
+            partNumber = sc.scNumber;
+          }
+        }
+
         if (targetScId && targetRmItemId) {
           const rmItem = await queryRunner.manager.findOne(RmItem, {
             where: [
@@ -237,39 +248,22 @@ export class DeliveryChallanService {
             ],
           });
           if (rmItem) {
-            const sc = await queryRunner.manager.findOne(SalesOrderComponent, {
-              where: { id: targetScId },
-            });
-            const isScNumber = sc && partNumber === sc.scNumber;
-            const isScProduct = sc && partName === sc.productName;
-
-            if (!partNumber || (isScNumber && rmItem.partNumber)) {
-              partNumber = rmItem.partNumber || (sc ? sc.scNumber : null);
-            }
-            if (!partName || isScProduct) {
-              partName = rmItem.partName || rmItem.material || null;
-            }
+            // Per requirement: Product must ALWAYS display the actual Part Name from RM Requisition
+            partName = rmItem.partName || rmItem.material || partName;
           }
         }
 
-        if ((!partNumber || !partName) && itemDto.productId) {
+        if (!partName && itemDto.productId) {
           const prod = await queryRunner.manager.findOne(Product, {
             where: { id: itemDto.productId },
           });
           if (prod) {
-            if (!partNumber) partNumber = prod.code || null;
-            if (!partName) partName = prod.name || null;
+            partName = prod.name || null;
           }
         }
 
-        if ((!partNumber || !partName) && targetScId) {
-          const sc = await queryRunner.manager.findOne(SalesOrderComponent, {
-            where: { id: targetScId },
-          });
-          if (sc) {
-            if (!partNumber) partNumber = sc.scNumber;
-            if (!partName) partName = sc.productName;
-          }
+        if (!partName && sc) {
+          partName = sc.productName;
         }
 
         // Create DC item
@@ -1245,8 +1239,10 @@ export class DeliveryChallanService {
       lineItems = enrichedItems.map((item: any) => {
         const dispatched = Number(item.quantityDispatched ?? 0);
         const returned = Number(item.quantityReturned ?? 0);
-        const resolvedPartNo = item.poPartLabel || item.partNumber || item.product?.code || '—';
-        const resolvedPartName = item.poPartLabel || item.partName || item.product?.name || item.productId;
+        const scNumber = item.sc?.scNumber ?? sc?.scNumber;
+        // Per requirement: Part No must be SC Name, Product must be actual Part Name
+        const resolvedPartNo = item.poPartLabel || scNumber || item.partNumber || item.product?.code || '—';
+        const resolvedPartName = item.poPartLabel || item.partName || item.productName || item.product?.name || item.productId || '—';
         return {
           id: item.id,
           productId: item.productId,
@@ -1261,7 +1257,7 @@ export class DeliveryChallanService {
           quantityReturned: returned,
           quantityOutstanding: Math.max(0, dispatched - returned),
           uom: item.product?.uom || (item.product?.name?.toUpperCase().includes('BAR') || item.product?.name?.toUpperCase().includes('ROD') ? 'MM' : 'NOS'),
-          scNumber: item.sc?.scNumber ?? sc?.scNumber,
+          scNumber: scNumber,
           poNumber: item.sc?.purchaseOrder?.poNumber ?? (sc as any)?.purchaseOrder?.poNumber,
           processName: item.processName ?? challan.processName ?? item.process?.name ?? productionProcess?.name,
           batchNumber: item.batchNumber,

@@ -56,8 +56,8 @@ export class RmItem {
   @Column({ name: 'material_type', length: 50, default: 'ROUND_BAR' })
   materialType!: string;
 
-  @Column({ length: 100 })
-  grade!: string;
+  @Column({ length: 100, nullable: true })
+  grade?: string;
 
   @Column({
     type: 'numeric',
@@ -66,8 +66,29 @@ export class RmItem {
   })
   quantity!: number;
 
-  @Column({ length: 100 })
-  size!: string;
+  @Column({ length: 100, nullable: true })
+  size?: string;
+
+  @Column({ type: 'text', nullable: true })
+  description?: string;
+
+  @Column({ name: 'original_material', length: 100, nullable: true })
+  originalMaterial?: string;
+
+  @Column({ name: 'original_grade', length: 100, nullable: true })
+  originalGrade?: string;
+
+  @Column({ name: 'original_size', length: 100, nullable: true })
+  originalSize?: string;
+
+  @Column({
+    name: 'original_quantity',
+    type: 'numeric',
+    precision: 12,
+    scale: 3,
+    nullable: true,
+  })
+  originalQuantity?: number;
 
   /* Optional Flexible Dimensional Fields */
   @Column({

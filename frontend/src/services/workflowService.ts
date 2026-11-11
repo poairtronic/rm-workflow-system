@@ -170,7 +170,21 @@ export const workflowService = {
     api.post<any>(`/api/rm/${id}/reject`, { remarks }),
 
   // Material Issue (Stores)
-  createIssue: (scId: string, items: { rmItemId: string; binId?: string; quantityIssued: number; heatNumber?: string; batchNumber?: string }[], remarks?: string, additionalRequestId?: string) =>
+  createIssue: (
+    scId: string,
+    items: {
+      rmItemId: string;
+      binId?: string;
+      quantityIssued: number;
+      heatNumber?: string;
+      batchNumber?: string;
+      issuedProductId?: string;
+      issuedProductName?: string;
+      newRequiredQuantity?: number;
+    }[],
+    remarks?: string,
+    additionalRequestId?: string
+  ) =>
     api.post<MaterialIssue>('/api/material-issues', { scId, items, remarks, additionalRequestId }),
   getIssueList: (scId?: string) => api.get<MaterialIssue[]>(`/api/material-issues${scId ? `?scId=${scId}` : ''}`),
 

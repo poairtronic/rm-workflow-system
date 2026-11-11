@@ -17,6 +17,7 @@ interface RMItemForm {
   partName: string;
   partNumber: string;
   spec: string;
+  description?: string;
   quantity: number;
   remarks: string;
 }
@@ -53,6 +54,7 @@ const createDefaultItem = (existingCards: SCCardForm[] = [], baseSeq = 0, extraO
   partName: '',
   partNumber: getNextPartNumber(existingCards, baseSeq, extraOffset),
   spec: '',
+  description: '',
   quantity: 1,
   remarks: '',
 });
@@ -200,6 +202,7 @@ export function RmCreationWorkspace() {
                 partNumber: item.partNumber || getNextPartNumber([], basePartNumberSeq, iIdx),
                 partName: item.partName || item.remarks || '',
                 spec: item.spec || '',
+                description: item.description || '',
                 quantity: perUnitQty,
                 remarks: item.remarks || item.partName || '',
               };
@@ -420,10 +423,6 @@ export function RmCreationWorkspace() {
             cardError = 'All items must have a quantity greater than 0.';
             break;
           }
-          if (!item.spec.trim()) {
-            cardError = 'All items must have a spec/grade specification.';
-            break;
-          }
           if (!item.partName?.trim() && !item.remarks?.trim()) {
             cardError = 'All items must have a Part Name specified.';
             break;
@@ -467,7 +466,8 @@ export function RmCreationWorkspace() {
                 productId: item.productId,
                 partNumber: item.partNumber?.trim() || getNextPartNumber(scCards, basePartNumberSeq, itemIdx),
                 partName: item.partName?.trim() || item.remarks?.trim() || undefined,
-                spec: item.spec.trim(),
+                spec: item.spec?.trim() || '',
+                description: item.description?.trim() || undefined,
                 quantity: totalQty,
                 remarks: item.remarks?.trim() || item.partName?.trim() || undefined,
               };
@@ -842,11 +842,12 @@ export function RmCreationWorkspace() {
               <div className="rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
                 <table className="w-full table-fixed text-left text-sm border-collapse">
                   <colgroup>
-                    <col className="w-[30%]" />
-                    <col className="w-[19%]" />
-                    <col className="w-[14%]" />
-                    <col className="w-[17%]" />
+                    <col className="w-[24%]" />
                     <col className="w-[15%]" />
+                    <col className="w-[11%]" />
+                    <col className="w-[13%]" />
+                    <col className="w-[18%]" />
+                    <col className="w-[14%]" />
                     <col className="w-[5%]" />
                   </colgroup>
                   <thead>
@@ -854,7 +855,8 @@ export function RmCreationWorkspace() {
                       <th className="py-2.5 px-2.5">RM Product Master *</th>
                       <th className="py-2.5 px-2.5">Part Name *</th>
                       <th className="py-2.5 px-2.5">Part No. (Auto) *</th>
-                      <th className="py-2.5 px-2.5">Spec / Grade *</th>
+                      <th className="py-2.5 px-2.5">Spec / Grade (Optional)</th>
+                      <th className="py-2.5 px-2.5">Description (Optional)</th>
                       <th className="py-2.5 px-2.5">Qty / Unit *</th>
                       <th className="py-2.5 px-1.5 text-center">Action</th>
                     </tr>
@@ -895,7 +897,16 @@ export function RmCreationWorkspace() {
                             type="text"
                             value={item.spec}
                             onChange={(e) => handleUpdateItem(card.id, item.id, 'spec', e.target.value)}
-                            placeholder="e.g. EN8 / SS316 / DIA 25mm"
+                            placeholder="e.g. EN8 / 45 DIA (Optional)"
+                            className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white text-slate-800 placeholder:text-slate-400 shadow-2xs"
+                          />
+                        </td>
+                        <td className="py-2.5 px-2.5 align-top min-w-0">
+                          <input
+                            type="text"
+                            value={item.description || ''}
+                            onChange={(e) => handleUpdateItem(card.id, item.id, 'description', e.target.value)}
+                            placeholder="e.g. Machining / Cutting note (Optional)"
                             className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white text-slate-800 placeholder:text-slate-400 shadow-2xs"
                           />
                         </td>

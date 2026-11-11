@@ -18,9 +18,13 @@ export class DraftRmItemDto {
   productId!: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(100)
-  spec!: string;
+  spec?: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
 
   @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0.001)

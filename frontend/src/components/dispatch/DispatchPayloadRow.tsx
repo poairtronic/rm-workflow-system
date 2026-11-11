@@ -206,9 +206,9 @@ export function DispatchPayloadRow({
 
     const foundItem = scRmItems.find((it: any) => it.id === selectedKey);
     if (foundItem) {
-      const pNum = selectedSc?.scNumber ? String(selectedSc.scNumber).trim() : (foundItem.partNumber || foundItem.part_number || '').replace(/-[0-9]+.*$/, '');
+      const scName = selectedSc?.scNumber ? String(selectedSc.scNumber).trim() : '';
       const pName = foundItem.partName || foundItem.part_name || foundItem.material || '';
-      setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, pNum, { shouldValidate: true });
+      setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, scName, { shouldValidate: true });
       setValue(`scBlocks.${blockIndex}.items.${index}.partName`, pName, { shouldValidate: true });
       setValue(`scBlocks.${blockIndex}.items.${index}.productId`, foundItem.mappedProductId || foundItem.mapped_product_id || '', { shouldValidate: true });
       if (foundItem.quantity) {
@@ -245,10 +245,10 @@ export function DispatchPayloadRow({
       } else {
         const found = scRmItems.find((it: any) => it.id === scItemId);
         if (found) {
-          const pNum = selectedSc?.scNumber ? String(selectedSc.scNumber).trim() : (found.partNumber || found.part_number || '').replace(/-[0-9]+.*$/, '');
+          const scName = selectedSc?.scNumber ? String(selectedSc.scNumber).trim() : '';
           const pName = found.partName || found.part_name || found.material || '';
           const pId = found.mappedProductId || found.mapped_product_id || '';
-          setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, pNum, { shouldValidate: true });
+          setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, scName, { shouldValidate: true });
           setValue(`scBlocks.${blockIndex}.items.${index}.partName`, pName, { shouldValidate: true });
           setValue(`scBlocks.${blockIndex}.items.${index}.productId`, pId, { shouldValidate: true });
         }
@@ -338,13 +338,9 @@ export function DispatchPayloadRow({
 
   const watchedPartNumber = watch(`scBlocks.${blockIndex}.items.${index}.partNumber`);
   const watchedPartName = watch(`scBlocks.${blockIndex}.items.${index}.partName`);
-  const activeScItem = isType1 && scItemId && scItemId !== 'sc_assembly'
-    ? scRmItems.find((it: any) => it.id === scItemId)
-    : null;
-  const partNumberVal =
-    watchedPartNumber ||
-    (activeScItem?.partNumber || activeScItem?.part_number) ||
-    (!isType1 ? defaultPartNo : (scItemId === 'sc_assembly' ? selectedSc?.scNumber || '' : ''));
+  const partNumberVal = isType1
+    ? (selectedSc?.scNumber || watchedPartNumber || '')
+    : (watchedPartNumber || defaultPartNo);
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-4 shadow-xs space-y-3.5 sm:space-y-4 hover:border-slate-300 transition-all">
@@ -479,21 +475,21 @@ export function DispatchPayloadRow({
             }
             const activeIt = scRmItems.find((it: any) => it.id === scItemId);
             if (!activeIt) return null;
-            const pNum = activeIt.partNumber || activeIt.part_number || selectedSc?.scNumber;
-            const pName = activeIt.partName || activeIt.part_name || activeIt.material;
+            const scName = selectedSc?.scNumber || '';
+            const actualPartName = activeIt.partName || activeIt.part_name || activeIt.material || '';
             return (
               <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-100 text-[11px] text-blue-950">
-                {pNum && (
+                {scName && (
                   <span className="font-mono font-bold bg-blue-200/70 text-blue-800 px-2 py-0.5 rounded text-[10px]">
-                    {pNum}
+                    Part No: {scName}
                   </span>
                 )}
-                {pName && (
+                {actualPartName && (
                   <span className="font-semibold text-slate-800">
-                    {pName}
+                    Product: {actualPartName}
                   </span>
                 )}
-                {activeIt.material && (
+                {activeIt.material && activeIt.material !== actualPartName && (
                   <>
                     <span className="text-blue-300">•</span>
                     <span className="text-slate-700">Material: <strong className="font-medium text-slate-900">{activeIt.material}</strong></span>

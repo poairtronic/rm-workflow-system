@@ -382,8 +382,9 @@ export class TraceabilityService {
       return {
         rmItemId: rmItem.id,
         material: rmItem.material,
-        grade: rmItem.grade,
-        size: rmItem.size,
+        grade: rmItem.grade || undefined,
+        size: rmItem.size || undefined,
+        description: rmItem.description || undefined,
         uom: rmItem.weightUnit || 'KG',
         originalRequested,
         initialIssued,

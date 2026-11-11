@@ -85,9 +85,14 @@ export class RmService {
       scId: rm.scId || rm.salesOrderComponent?.id,
       material: dto.material.trim(),
       materialType: dto.materialType || 'ROUND_BAR',
-      grade: dto.grade.trim(),
+      grade: dto.grade ? dto.grade.trim() : undefined,
       quantity: QuantityCalculator.roundDecimal(dto.quantity),
-      size: dto.size.trim(),
+      size: dto.size ? dto.size.trim() : undefined,
+      description: dto.description?.trim(),
+      originalMaterial: dto.material.trim(),
+      originalGrade: dto.grade ? dto.grade.trim() : undefined,
+      originalSize: dto.size ? dto.size.trim() : undefined,
+      originalQuantity: QuantityCalculator.roundDecimal(dto.quantity),
       length: dto.length,
       width: dto.width,
       thickness: dto.thickness,
@@ -521,8 +526,13 @@ export class RmService {
             material: product.name,
             mappedProductId: product.id,
             materialType: 'ROUND_BAR',
-            grade: itemDto.spec.trim(),
-            size: itemDto.spec.trim(),
+            grade: itemDto.spec ? itemDto.spec.trim() : '',
+            size: itemDto.spec ? itemDto.spec.trim() : '',
+            description: itemDto.description ? itemDto.description.trim() : undefined,
+            originalMaterial: product.name,
+            originalGrade: itemDto.spec ? itemDto.spec.trim() : '',
+            originalSize: itemDto.spec ? itemDto.spec.trim() : '',
+            originalQuantity: QuantityCalculator.roundDecimal(itemDto.quantity),
             quantity: QuantityCalculator.roundDecimal(itemDto.quantity),
             partNumber: itemDto.partNumber?.trim() || undefined,
             partName: itemDto.partName?.trim() || itemDto.remarks?.trim() || undefined,
@@ -596,12 +606,16 @@ export class RmService {
          items: (rm.items || []).map(i => ({
            id: i.id,
            productId: i.mappedProductId,
-           spec: i.grade,
+           spec: i.grade || '',
            quantity: i.quantity,
            material: i.material,
            partNumber: i.partNumber || '',
            partName: i.partName || i.remarks || '',
-           remarks: i.remarks || i.partName || ''
+           remarks: i.remarks || i.partName || '',
+           description: i.description || '',
+           originalMaterial: i.originalMaterial || i.material,
+           originalGrade: i.originalGrade || i.grade || '',
+           originalQuantity: Number(i.originalQuantity || i.quantity) || 0
          }))
        }))
     };
@@ -720,8 +734,13 @@ export class RmService {
             material: product.name,
             mappedProductId: product.id,
             materialType: 'ROUND_BAR',
-            grade: itemDto.spec.trim(),
-            size: itemDto.spec.trim(),
+            grade: itemDto.spec ? itemDto.spec.trim() : '',
+            size: itemDto.spec ? itemDto.spec.trim() : '',
+            description: itemDto.description ? itemDto.description.trim() : undefined,
+            originalMaterial: product.name,
+            originalGrade: itemDto.spec ? itemDto.spec.trim() : '',
+            originalSize: itemDto.spec ? itemDto.spec.trim() : '',
+            originalQuantity: QuantityCalculator.roundDecimal(itemDto.quantity),
             quantity: QuantityCalculator.roundDecimal(itemDto.quantity),
             partNumber: itemDto.partNumber?.trim() || undefined,
             partName: itemDto.partName?.trim() || itemDto.remarks?.trim() || undefined,
@@ -935,6 +954,7 @@ export class RmService {
       .filter((id): id is string => !!id);
 
     const issuedMap = new Map<string, number>();
+    const issuedItemsMap = new Map<string, any[]>();
     if (scIds.length > 0) {
       const issueSums: { scId: string; totalIssued: string }[] = await this.dataSource.query(
         `SELECT mi.sc_id as "scId", COALESCE(SUM(mii.quantity_issued), 0) as "totalIssued"
@@ -946,6 +966,41 @@ export class RmService {
       );
       for (const row of issueSums) {
         issuedMap.set(row.scId, Number(row.totalIssued) || 0);
+      }
+
+      const issueRows: any[] = await this.dataSource.query(
+        `SELECT mi.sc_id as "scId", mii.rm_item_id as "rmItemId", mii.quantity_issued as "quantityIssued",
+                COALESCE(mii.issued_product_name, p.name, ri.material) as "issuedProductName",
+                COALESCE(mii.issued_product_id, ri.mapped_product_id) as "issuedProductId",
+                ri.material as "requestedMaterial",
+                ri.original_material as "originalMaterial",
+                ri.original_grade as "originalGrade",
+                ri.original_quantity as "originalQuantity",
+                mi.issue_number as "issueNumber", mi.created_at as "issuedAt"
+         FROM material_issue_items mii
+         JOIN material_issues mi ON mi.id = mii.material_issue_id
+         LEFT JOIN rm_items ri ON ri.id = mii.rm_item_id
+         LEFT JOIN products p ON p.id = mii.issued_product_id
+         WHERE mi.sc_id = ANY($1) AND mi.issue_type = 'INITIAL_ISSUE'
+         ORDER BY mi.created_at ASC`,
+        [scIds],
+      );
+      for (const row of issueRows) {
+        if (!issuedItemsMap.has(row.scId)) {
+          issuedItemsMap.set(row.scId, []);
+        }
+        issuedItemsMap.get(row.scId)!.push({
+          rmItemId: row.rmItemId,
+          issuedProductId: row.issuedProductId,
+          issuedProductName: row.issuedProductName,
+          requestedMaterial: row.requestedMaterial,
+          originalMaterial: row.originalMaterial || row.requestedMaterial,
+          originalGrade: row.originalGrade || '',
+          originalQuantity: Number(row.originalQuantity) || 0,
+          quantityIssued: Number(row.quantityIssued) || 0,
+          issueNumber: row.issueNumber,
+          issuedAt: row.issuedAt,
+        });
       }
     }
 
@@ -987,6 +1042,21 @@ export class RmService {
         remainingQuantity,
         isFullyIssued,
         isPartiallyIssued,
+        items: (req.items || []).map((it) => ({
+          id: it.id,
+          material: it.material,
+          grade: it.grade || '',
+          size: it.size || '',
+          quantity: Number(it.quantity) || 0,
+          partNumber: it.partNumber || '',
+          partName: it.partName || '',
+          description: it.description || '',
+          originalMaterial: it.originalMaterial || it.material,
+          originalGrade: it.originalGrade || it.grade || '',
+          originalQuantity: Number(it.originalQuantity || it.quantity) || 0,
+          mappedProductId: it.mappedProductId,
+        })),
+        issuedItems: issuedItemsMap.get(scId) || [],
       });
 
       if (req.updatedAt > group.updatedAt) group.updatedAt = req.updatedAt;

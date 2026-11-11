@@ -120,39 +120,45 @@ export function DeliveryChallanPrintView() {
   } else if (dc.groups && dc.groups.length > 0) {
     dc.groups.forEach((g: any) => {
       (g.items || []).forEach((item: any) => {
-        let rawPart = String(item.partNumber || item.productCode || item.productName || '—').trim();
-        let partNo = rawPart !== '—' && !rawPart.startsWith('PO') && !rawPart.startsWith('PRD') ? rawPart.replace(/-[0-9]+.*$/, '') : rawPart;
+        // Requirement: Part No = SC Name, Product = Actual Part Name
+        const scName = (g.scNumber || item.scNumber || dc.references?.sc?.scNumber || '').trim();
+        const partNo = scName || (item.partNumber && !item.partNumber.startsWith('PRD') ? item.partNumber : '') || item.productCode || '—';
+        const actualPartName = item.partName || item.productName || item.productCode || '—';
         displayItems.push({
           partNo,
-          productName: item.partName || item.productName || item.productCode || '—',
+          productName: actualPartName,
           description: item.description || '',
           qty: Number(item.quantityDispatched ?? 0),
-          uom: item.uom || (item.productName?.toUpperCase().includes('BAR') || item.productName?.toUpperCase().includes('ROD') ? 'MM' : 'NOS'),
+          uom: item.uom || (actualPartName?.toUpperCase().includes('BAR') || actualPartName?.toUpperCase().includes('ROD') ? 'MM' : 'NOS'),
         });
       });
     });
   } else if (dc.lineItems && dc.lineItems.length > 0) {
     dc.lineItems.forEach((item: any) => {
-      let rawPart = String(item.partNumber || item.productCode || item.productName || '—').trim();
-      let partNo = rawPart !== '—' && !rawPart.startsWith('PO') && !rawPart.startsWith('PRD') ? rawPart.replace(/-[0-9]+.*$/, '') : rawPart;
+      // Requirement: Part No = SC Name, Product = Actual Part Name
+      const scName = (item.scNumber || dc.references?.sc?.scNumber || '').trim();
+      const partNo = scName || (item.partNumber && !item.partNumber.startsWith('PRD') ? item.partNumber : '') || item.productCode || '—';
+      const actualPartName = item.partName || item.productName || item.productCode || '—';
       displayItems.push({
         partNo,
-        productName: item.partName || item.productName || item.productCode || '—',
+        productName: actualPartName,
         description: item.description || '',
         qty: Number(item.quantityDispatched ?? item.quantity ?? 0),
-        uom: item.uom || (item.productName?.toUpperCase().includes('BAR') || item.productName?.toUpperCase().includes('ROD') ? 'MM' : 'NOS'),
+        uom: item.uom || (actualPartName?.toUpperCase().includes('BAR') || actualPartName?.toUpperCase().includes('ROD') ? 'MM' : 'NOS'),
       });
     });
   } else if (dc.items && dc.items.length > 0) {
     dc.items.forEach((item: any) => {
-      let rawPart = String(item.partNumber || item.materialCode || item.productCode || item.productName || '—').trim();
-      let partNo = rawPart !== '—' && !rawPart.startsWith('PO') && !rawPart.startsWith('PRD') ? rawPart.replace(/-[0-9]+.*$/, '') : rawPart;
+      // Requirement: Part No = SC Name, Product = Actual Part Name
+      const scName = (item.scNumber || dc.references?.sc?.scNumber || '').trim();
+      const partNo = scName || (item.partNumber && !item.partNumber.startsWith('PRD') ? item.partNumber : '') || item.materialCode || item.productCode || '—';
+      const actualPartName = item.partName || item.productName || item.materialCode || '—';
       displayItems.push({
         partNo,
-        productName: item.partName || item.productName || item.materialCode || '—',
+        productName: actualPartName,
         description: item.description || '',
         qty: Number(item.quantityDispatched ?? item.quantity ?? 0),
-        uom: item.uom || (item.productName?.toUpperCase().includes('BAR') || item.productName?.toUpperCase().includes('ROD') ? 'MM' : 'NOS'),
+        uom: item.uom || (actualPartName?.toUpperCase().includes('BAR') || actualPartName?.toUpperCase().includes('ROD') ? 'MM' : 'NOS'),
       });
     });
   }

@@ -805,8 +805,12 @@ export class ProductionService {
       return {
         rmItemId: rmItem.id,
         material: rmItem.material,
-        grade: rmItem.grade,
-        size: rmItem.size,
+        grade: rmItem.grade || '',
+        size: rmItem.size || '',
+        description: rmItem.description || '',
+        originalMaterial: rmItem.originalMaterial || rmItem.material,
+        originalGrade: rmItem.originalGrade || rmItem.grade || '',
+        originalQuantity: Number(rmItem.originalQuantity || rmItem.quantity) || 0,
         required,
         issued,
         unissued,
@@ -838,8 +842,8 @@ export class ProductionService {
       issuedBy: iss.issuedBy ? (iss.issuedBy.name || iss.issuedBy.email) : 'Stores',
       createdAt: iss.createdAt,
       items: (iss.items || []).map((it) => {
-        const prodName = it.rmItem?.mappedProduct?.name || it.rmItem?.material || 'Material';
-        const prodId = it.rmItem?.mappedProductId || it.rmItem?.mappedProduct?.id;
+        const prodName = it.issuedProductName || it.rmItem?.mappedProduct?.name || it.rmItem?.material || 'Material';
+        const prodId = it.issuedProductId || it.rmItem?.mappedProductId || it.rmItem?.mappedProduct?.id;
         return {
           id: it.id,
           rmItemId: it.rmItemId,

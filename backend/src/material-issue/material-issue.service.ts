@@ -17,6 +17,7 @@ import { RmItem } from '../rm/entities/rm-item.entity.js';
 import { RmRequest, RmRequestStatus } from '../rm/entities/rm-request.entity.js';
 import { Bin } from '../inventory/entities/bin.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
+import { Product } from '../inventory/entities/product.entity.js';
 import {
   StockTransaction,
   TransactionType,
@@ -183,12 +184,39 @@ export class MaterialIssueService {
             `RM Request must be SUBMITTED or REVIEWED before Material Issue. Current status: ${rmItem.rmRequest.status}`,
           );
         }
-        if (!rmItem.mappedProductId) {
+        const effectiveProductId = itemDto.issuedProductId || rmItem.mappedProductId;
+        if (!effectiveProductId) {
           throw new BadRequestException(
-            `RM Item "${rmItem.id}" has no mapped Product. Stores Review must explicitly map it first.`,
+            `RM Item "${rmItem.id}" has no mapped Product. Please select a product from catalog to issue.`,
           );
         }
-        affectedProductIds.add(rmItem.mappedProductId);
+
+        let effectiveProductName = itemDto.issuedProductName;
+        if (!effectiveProductName) {
+          const prod = await queryRunner.manager.findOne(Product, {
+            where: { id: effectiveProductId },
+          });
+          effectiveProductName = prod ? prod.name : rmItem.material;
+        }
+
+        // Maintain original requested fields before any substitution updates
+        const isSubstituted =
+          effectiveProductId !== rmItem.mappedProductId ||
+          (itemDto.newRequiredQuantity !== undefined && Number(itemDto.newRequiredQuantity) > 0);
+
+        if (isSubstituted) {
+          if (!rmItem.originalMaterial) rmItem.originalMaterial = rmItem.material;
+          if (!rmItem.originalGrade) rmItem.originalGrade = rmItem.grade;
+          if (!rmItem.originalQuantity) rmItem.originalQuantity = rmItem.quantity;
+          rmItem.mappedProductId = effectiveProductId;
+          rmItem.material = effectiveProductName;
+          if (itemDto.newRequiredQuantity !== undefined && Number(itemDto.newRequiredQuantity) > 0) {
+            rmItem.quantity = QuantityCalculator.roundDecimal(itemDto.newRequiredQuantity);
+          }
+          await queryRunner.manager.save(RmItem, rmItem);
+        }
+
+        affectedProductIds.add(effectiveProductId);
 
         const requestedQty = QuantityCalculator.roundDecimal(
           itemDto.quantityIssued,
@@ -203,12 +231,13 @@ export class MaterialIssueService {
             [rmItem.id],
           );
           const alreadyIssued = Number(sumRes[0].total) || 0;
+          const targetItemQty = Number(rmItem.quantity);
           const remainingAllowed = QuantityCalculator.roundDecimal(
-            Number(rmItem.quantity) - alreadyIssued,
+            targetItemQty - alreadyIssued,
           );
           if (requestedQty > remainingAllowed) {
             throw new BadRequestException(
-              `Cannot over-issue RM Item "${rmItem.id}". Total required: ${rmItem.quantity}, already issued: ${alreadyIssued}, remaining allowed: ${remainingAllowed}, attempted: ${requestedQty}`,
+              `Cannot over-issue RM Item "${rmItem.id}". Total required: ${targetItemQty}, already issued: ${alreadyIssued}, remaining allowed: ${remainingAllowed}, attempted: ${requestedQty}`,
             );
           }
         }
@@ -220,7 +249,7 @@ export class MaterialIssueService {
           binsToIssueFrom.push({ binId: itemDto.binId, qty: remainingToFulfill });
         } else {
           const balances = await queryRunner.manager.find(StockBalance, {
-            where: { productId: rmItem.mappedProductId },
+            where: { productId: effectiveProductId },
             order: { currentQuantity: 'DESC' },
           });
 
@@ -235,7 +264,7 @@ export class MaterialIssueService {
           }
 
           if (remainingToFulfill > 0) {
-            throw new BadRequestException(`Insufficient total stock for RM Item "${rmItem.material}". Missing: ${remainingToFulfill}`);
+            throw new BadRequestException(`Insufficient total stock for RM Item "${effectiveProductName}". Missing: ${remainingToFulfill}`);
           }
         }
 
@@ -253,7 +282,7 @@ export class MaterialIssueService {
             `UPDATE stock_balances 
              SET current_quantity = current_quantity - $1, updated_at = NOW() 
              WHERE bin_id = $2 AND product_id = $3 AND current_quantity >= $1`,
-            [allocQty, alloc.binId, rmItem.mappedProductId],
+            [allocQty, alloc.binId, effectiveProductId],
           );
 
           if (updateResult[1] === 0) {
@@ -265,12 +294,12 @@ export class MaterialIssueService {
           // Log immutable StockTransaction
           const tx = queryRunner.manager.create(StockTransaction, {
             transactionType: TransactionType.STORES_ISSUE,
-            productId: rmItem.mappedProductId,
+            productId: effectiveProductId,
             sourceBinId: alloc.binId,
             quantity: allocQty,
             referenceType: 'MATERIAL_ISSUE',
             referenceId: savedIssue.id,
-            remarks: itemDto.remarks || `Material issue for SC ${sc.scNumber}`,
+            remarks: itemDto.remarks || `Material issue for SC ${sc.scNumber} (Actual issued: ${effectiveProductName})`,
             createdById: actorId,
           });
           const savedTx = await queryRunner.manager.save(StockTransaction, tx);
@@ -278,7 +307,7 @@ export class MaterialIssueService {
           // Update last_transaction_id on stock balance
           await queryRunner.manager.query(
             `UPDATE stock_balances SET last_transaction_id = $1 WHERE bin_id = $2 AND product_id = $3`,
-            [savedTx.id, alloc.binId, rmItem.mappedProductId],
+            [savedTx.id, alloc.binId, effectiveProductId],
           );
 
           const issueItem = queryRunner.manager.create(MaterialIssueItem, {
@@ -288,6 +317,8 @@ export class MaterialIssueService {
             heatNumber: itemDto.heatNumber,
             batchNumber: itemDto.batchNumber || itemDto.lotBatchNumber,
             remarks: itemDto.remarks,
+            issuedProductId: effectiveProductId,
+            issuedProductName: effectiveProductName,
           });
           issueItems.push(
             await queryRunner.manager.save(MaterialIssueItem, issueItem),

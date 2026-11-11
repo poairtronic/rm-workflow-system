@@ -406,7 +406,7 @@ export function RmRequisitionWorkspace() {
                       <tr>
                         <th className="p-3">Material</th>
                         <th className="p-3">Spec / Grade</th>
-                        <th className="p-3">Dimensions / Size</th>
+                        <th className="p-3">Description</th>
                         <th className="p-3 text-right">Required Qty</th>
                       </tr>
                     </thead>
@@ -414,8 +414,8 @@ export function RmRequisitionWorkspace() {
                       {inspectSc.items.map((item, i) => (
                         <tr key={item.id || i} className="hover:bg-slate-50/50">
                           <td className="p-3 font-semibold text-slate-900">{item.material || 'RM Material'}</td>
-                          <td className="p-3 text-slate-700">{item.grade || 'Standard'}</td>
-                          <td className="p-3 text-slate-500">{item.size || 'N/A'}</td>
+                          <td className="p-3 text-slate-700">{item.grade || '—'}</td>
+                          <td className="p-3 text-slate-500 max-w-xs truncate" title={item.description}>{item.description || '—'}</td>
                           <td className="p-3 text-right font-bold text-indigo-600 tabular-nums">
                             {item.quantity}
                           </td>
