@@ -123,4 +123,81 @@ describe('RolesGuard - RBAC Security Matrix', () => {
     const context = createMockContext({ role: UserRole.DESIGNER });
     expect(rolesGuard.canActivate(context)).toBe(false);
   });
+
+  describe('Custom Module Access Control Overrides', () => {
+    let mockDataSource: any;
+
+    beforeEach(() => {
+      mockDataSource = {
+        query: vi.fn(),
+      };
+      rolesGuard = new RolesGuard(reflector, mockDataSource);
+    });
+
+    it('allows user with FULL_ACCESS on users_master to POST /api/users even if role is STORES', async () => {
+      vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue([UserRole.ADMIN]);
+      mockDataSource.query.mockResolvedValue([
+        { module_key: 'users_master', access_type: 'FULL_ACCESS' },
+      ]);
+
+      const context: any = {
+        getHandler: () => ({}),
+        getClass: () => ({}),
+        switchToHttp: () => ({
+          getRequest: () => ({
+            user: { userId: 'u-stores-1', role: UserRole.STORES },
+            method: 'POST',
+            originalUrl: '/api/users',
+          }),
+        }),
+      };
+
+      const result = await rolesGuard.canActivate(context);
+      expect(result).toBe(true);
+    });
+
+    it('rejects user with VIEW only on users_master from POST /api/users', async () => {
+      vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue([UserRole.ADMIN]);
+      mockDataSource.query.mockResolvedValue([
+        { module_key: 'users_master', access_type: 'VIEW' },
+      ]);
+
+      const context: any = {
+        getHandler: () => ({}),
+        getClass: () => ({}),
+        switchToHttp: () => ({
+          getRequest: () => ({
+            user: { userId: 'u-stores-1', role: UserRole.STORES },
+            method: 'POST',
+            originalUrl: '/api/users',
+          }),
+        }),
+      };
+
+      const result = await rolesGuard.canActivate(context);
+      expect(result).toBe(false);
+    });
+
+    it('allows user with VIEW on users_master to GET /api/users', async () => {
+      vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue([UserRole.ADMIN]);
+      mockDataSource.query.mockResolvedValue([
+        { module_key: 'users_master', access_type: 'VIEW' },
+      ]);
+
+      const context: any = {
+        getHandler: () => ({}),
+        getClass: () => ({}),
+        switchToHttp: () => ({
+          getRequest: () => ({
+            user: { userId: 'u-stores-1', role: UserRole.STORES },
+            method: 'GET',
+            originalUrl: '/api/users',
+          }),
+        }),
+      };
+
+      const result = await rolesGuard.canActivate(context);
+      expect(result).toBe(true);
+    });
+  });
 });

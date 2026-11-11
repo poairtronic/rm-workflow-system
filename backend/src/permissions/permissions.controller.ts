@@ -55,9 +55,15 @@ export class PermissionsController {
     const currentUserId = req.user?.sub || req.user?.userId;
     const currentRole = req.user?.role;
 
-    // Only Admin can view other users' permissions; any user can view their own
+    // Only Admin or users with Users Master FULL_ACCESS can view other users' permissions; any user can view their own
     if (currentRole !== UserRole.ADMIN && currentUserId !== targetUserId) {
-      throw new ForbiddenException('Cannot inspect other users permissions');
+      const perms = await this.permissionsService.getUserPermissions(currentUserId);
+      const canManageUsers =
+        perms?.permissionsMap?.['users_master'] === 'FULL_ACCESS' ||
+        perms?.permissionsMap?.['users'] === 'FULL_ACCESS';
+      if (!canManageUsers) {
+        throw new ForbiddenException('Cannot inspect other users permissions');
+      }
     }
 
     return this.permissionsService.getUserPermissions(targetUserId);

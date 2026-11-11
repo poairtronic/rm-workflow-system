@@ -9,6 +9,9 @@ import { AuthService } from './auth.service.js';
 import { UserRole } from './enums/role.enum.js';
 import { User } from '../users/entities/user.entity.js';
 import { RefreshToken } from './entities/refresh-token.entity.js';
+import { PasswordResetToken } from './entities/password-reset-token.entity.js';
+import { EmailQueueService } from '../email/email-queue.service.js';
+import { ConfigService } from '@nestjs/config';
 
 describe('AuthService', () => {
   let authService: AuthService;
@@ -23,6 +26,24 @@ describe('AuthService', () => {
     save: vi.fn((entity) => Promise.resolve({ id: 'mock-token-uuid', ...entity })),
     findOne: vi.fn(),
     update: vi.fn(),
+  };
+
+  const mockPasswordResetRepo = {
+    create: vi.fn((dto) => ({ id: 'mock-reset-uuid', ...dto })),
+    save: vi.fn((entity) => Promise.resolve({ id: 'mock-reset-uuid', ...entity })),
+    findOne: vi.fn(),
+    update: vi.fn(),
+  };
+
+  const mockEmailQueueService = {
+    queuePasswordResetEmail: vi.fn(),
+  };
+
+  const mockConfigService = {
+    get: vi.fn((key: string) => {
+      if (key === 'FRONTEND_URL') return 'http://localhost:5173';
+      return 'test';
+    }),
   };
 
   beforeEach(async () => {
@@ -48,6 +69,18 @@ describe('AuthService', () => {
         {
           provide: getRepositoryToken(RefreshToken),
           useValue: mockRefreshTokenRepo,
+        },
+        {
+          provide: getRepositoryToken(PasswordResetToken),
+          useValue: mockPasswordResetRepo,
+        },
+        {
+          provide: EmailQueueService,
+          useValue: mockEmailQueueService,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
         },
       ],
     }).compile();
