@@ -173,11 +173,11 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   { name: 'Material Consumption', path: '/production/consumption', icon: PlaySquare, roles: ['ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'PRODUCTION', 'STORES'], component: ProductionConsumptionWorkspace, isSidebar: true, group: 'RM WORKFLOW', moduleKey: 'consumption' },
 
   // BACKWARDS-COMPATIBLE ALIASES FOR LEGACY ROUTES (hidden from sidebar)
-  { name: 'Extra Requests (Legacy)', path: '/stores/extra-requests', roles: ['STORES', 'ADMIN'], component: StoresRequestReturnVerifyWorkspace, isSidebar: false },
-  { name: 'Return Verify (Legacy)', path: '/stores/return-verify', roles: ['STORES', 'ADMIN'], component: StoresRequestReturnVerifyWorkspace, isSidebar: false },
-  { name: 'RM Receive & Verify (Legacy)', path: '/production/rm-verify', roles: ['PRODUCTION', 'STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER'], component: ProductionRmVerifyWorkspace, isSidebar: false },
-  { name: 'Stores RM Receipt (Legacy)', path: '/stores/rm-receipt', roles: ['PRODUCTION', 'STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER'], component: ProductionRmVerifyWorkspace, isSidebar: false },
-  { name: 'My RM (Legacy)', path: '/production/rm', roles: ['PRODUCTION', 'STORES', 'ADMIN'], component: ProductionRmVerifyWorkspace, isSidebar: false },
+  { name: 'Extra Requests (Legacy)', path: '/stores/extra-requests', roles: ['STORES', 'ADMIN', 'PRODUCTION'], component: StoresRequestReturnVerifyWorkspace, isSidebar: false, moduleKey: 'request_return_verify' },
+  { name: 'Return Verify (Legacy)', path: '/stores/return-verify', roles: ['STORES', 'ADMIN', 'PRODUCTION'], component: StoresRequestReturnVerifyWorkspace, isSidebar: false, moduleKey: 'request_return_verify' },
+  { name: 'RM Receive & Verify (Legacy)', path: '/production/rm-verify', roles: ['PRODUCTION', 'STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER'], component: ProductionRmVerifyWorkspace, isSidebar: false, moduleKey: 'production_rm_verify' },
+  { name: 'Stores RM Receipt (Legacy)', path: '/stores/rm-receipt', roles: ['PRODUCTION', 'STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER'], component: ProductionRmVerifyWorkspace, isSidebar: false, moduleKey: 'production_rm_verify' },
+  { name: 'My RM (Legacy)', path: '/production/rm', roles: ['PRODUCTION', 'STORES', 'ADMIN'], component: ProductionRmVerifyWorkspace, isSidebar: false, moduleKey: 'production_rm_verify' },
 
   // INVENTORY
   { name: 'Stock Overview', path: '/inventory/stock', icon: Box, roles: ['STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'DESIGNER'], component: InventoryStockWorkspace, isSidebar: true, group: 'INVENTORY', moduleKey: 'stock_overview' },
@@ -206,7 +206,7 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   { name: 'Rework', path: '/governance/rework', icon: Wrench, roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: ReworkWorkspace, isSidebar: true, group: 'INTEGRATION', moduleKey: 'rework_qc' },
   { name: 'ECR Material Issue', path: '/governance/ecr-issues', icon: Layers, roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: EcrMaterialIssue, isSidebar: true, group: 'INTEGRATION', moduleKey: 'ecr_issues' },
   { name: 'MERC Indent Issue', path: '/governance/merc-indents', icon: ClipboardList, roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: MercIndentIssue, isSidebar: true, group: 'INTEGRATION', moduleKey: 'merc_indents' },
-  { name: 'MERC Indent Issue Detail', path: '/governance/merc-indents/:id', roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: MercIndentIssueDetail, isSidebar: false, group: 'INTEGRATION' },
+  { name: 'MERC Indent Issue Detail', path: '/governance/merc-indents/:id', roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN', 'DESIGNER'], component: MercIndentIssueDetail, isSidebar: false, group: 'INTEGRATION', moduleKey: 'merc_indents' },
   
   // MASTERS
   { name: 'Users', path: '/masters/users', icon: Users, roles: ['ADMIN'], component: UserMasterWorkspace, isSidebar: true, group: 'MASTERS', moduleKey: 'users_master' },
@@ -225,13 +225,13 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   { name: 'Email & Communication', path: '/communication', icon: Mail, roles: ['ADMIN', 'GENERAL_MANAGER', 'SENIOR_MANAGER'], component: EmailCommunicationWorkspace, isSidebar: true, group: 'SYSTEM SETTINGS', moduleKey: 'communication' },
 
   // SYSTEM SETTINGS ALIASES (Hidden from sidebar)
-  { name: 'System Config Alias', path: '/settings/configuration', roles: ['ADMIN', 'GENERAL_MANAGER'], component: SystemConfigurationWorkspace, isSidebar: false },
-  { name: 'System Config Alias 2', path: '/settings/system', roles: ['ADMIN', 'GENERAL_MANAGER'], component: SystemConfigurationWorkspace, isSidebar: false },
-  { name: 'Communication Alias', path: '/settings/communication', roles: ['ADMIN', 'GENERAL_MANAGER', 'SENIOR_MANAGER'], component: EmailCommunicationWorkspace, isSidebar: false },
-  { name: 'Audit Logs Alias', path: '/settings/audit-logs', roles: ['ADMIN', 'GENERAL_MANAGER', 'SENIOR_MANAGER', 'STORES', 'PRODUCTION', 'DESIGNER'], component: AuditLogsWorkspace, isSidebar: false },
+  { name: 'System Config Alias', path: '/settings/configuration', roles: ['ADMIN', 'GENERAL_MANAGER'], component: SystemConfigurationWorkspace, isSidebar: false, moduleKey: 'system_config' },
+  { name: 'System Config Alias 2', path: '/settings/system', roles: ['ADMIN', 'GENERAL_MANAGER'], component: SystemConfigurationWorkspace, isSidebar: false, moduleKey: 'system_config' },
+  { name: 'Communication Alias', path: '/settings/communication', roles: ['ADMIN', 'GENERAL_MANAGER', 'SENIOR_MANAGER'], component: EmailCommunicationWorkspace, isSidebar: false, moduleKey: 'communication' },
+  { name: 'Audit Logs Alias', path: '/settings/audit-logs', roles: ['ADMIN', 'GENERAL_MANAGER', 'SENIOR_MANAGER', 'STORES', 'PRODUCTION', 'DESIGNER'], component: AuditLogsWorkspace, isSidebar: false, moduleKey: 'audit_logs' },
 
   // PRINTABLE (Not in Sidebar)
-  { name: 'DC Print', path: '/dispatch/delivery-challan/:id/print', roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN'], component: DeliveryChallanPrintView, isSidebar: false, isPrintable: true },
+  { name: 'DC Print', path: '/dispatch/delivery-challan/:id/print', roles: ['STORES', 'PRODUCTION', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'ADMIN', 'DESIGNER'], component: DeliveryChallanPrintView, isSidebar: false, isPrintable: true, group: 'DELIVERY CHALLAN', moduleKey: 'dc_returns' },
 
   // DEV TOOLS (Gated to development environment only)
   ...(Boolean(import.meta.env?.DEV)
@@ -256,23 +256,63 @@ export function getRoleDefaultPath(role?: string): string {
   }
 }
 
+export function matchPathPattern(pattern: string, path: string): boolean {
+  if (pattern === path) return true;
+  const regexPattern = '^' + pattern
+    .replace(/:[a-zA-Z0-9_]+/g, '[^/]+')
+    .replace(/\*/g, '.*') + '$';
+  return new RegExp(regexPattern).test(path);
+}
+
 export function isPathAllowedForUser(
   path?: string,
   user?: { role?: string; effectiveModules?: string[]; permissionsMap?: Record<string, 'FULL_ACCESS' | 'VIEW' | 'DENY'> } | null,
+  allowedRoles?: UserRole[],
+  moduleKey?: string,
 ): boolean {
   if (!path || !user || !user.role) return false;
   if (path === '/' || path === '/login' || path === '/unauthorized') return false;
 
   if (user.role === 'ADMIN') return true;
 
-  const matchedRoute = ROUTE_CONFIG.find((r) => r.path === path);
-  if (!matchedRoute) {
-    return false;
+  const cleanPath = path.split('?')[0].split('#')[0];
+  const matchedRoute = ROUTE_CONFIG.find((r) => matchPathPattern(r.path, cleanPath));
+
+  const effectiveModuleKey = moduleKey || matchedRoute?.moduleKey;
+  const effectiveRoles = allowedRoles || matchedRoute?.roles || [];
+
+  // 1. Delivery Challan Print & DC Sub-routes (/dispatch/delivery-challan/:id/print)
+  if (matchPathPattern('/dispatch/delivery-challan/:id/print', cleanPath)) {
+    const dcModuleKeys = ['dc_type1', 'dc_type2', 'dc_returns', 'dc_movements', 'delivery_challan'];
+    if (user.permissionsMap) {
+      const anyDcGranted = dcModuleKeys.some(
+        (key) => user.permissionsMap?.[key] === 'FULL_ACCESS' || user.permissionsMap?.[key] === 'VIEW'
+      );
+      if (anyDcGranted) return true;
+
+      const configuredDcKeys = dcModuleKeys.filter((key) => user.permissionsMap?.[key]);
+      const allDcDenied = configuredDcKeys.length > 0 && configuredDcKeys.every((key) => user.permissionsMap?.[key] === 'DENY');
+      if (allDcDenied) return false;
+    }
+
+    if (user.effectiveModules && user.effectiveModules.some((m) => dcModuleKeys.includes(m))) {
+      return true;
+    }
+
+    return effectiveRoles.includes(user.role as UserRole);
   }
 
-  // 1. Explicit Permissions Map overrides (VIEW, FULL_ACCESS, DENY)
-  if (matchedRoute.moduleKey && user.permissionsMap) {
-    const tier = user.permissionsMap[matchedRoute.moduleKey];
+  // 2. MERC Indent Issue Detail (/governance/merc-indents/:id)
+  if (matchPathPattern('/governance/merc-indents/:id', cleanPath)) {
+    if (user.permissionsMap?.['merc_indents'] === 'DENY') return false;
+    if (user.permissionsMap?.['merc_indents'] === 'FULL_ACCESS' || user.permissionsMap?.['merc_indents'] === 'VIEW') return true;
+    if (user.effectiveModules?.includes('merc_indents')) return true;
+    return effectiveRoles.includes(user.role as UserRole);
+  }
+
+  // 3. Explicit Permissions Map overrides (VIEW, FULL_ACCESS, DENY)
+  if (effectiveModuleKey && user.permissionsMap) {
+    const tier = user.permissionsMap[effectiveModuleKey];
     if (tier === 'DENY') {
       return false; // Denied / hidden from user
     }
@@ -281,24 +321,25 @@ export function isPathAllowedForUser(
     }
   }
 
-  const roleAllowed = matchedRoute.roles.includes(user.role as UserRole);
+  const roleAllowed = effectiveRoles.includes(user.role as UserRole);
 
-  if (matchedRoute.moduleKey && user.effectiveModules && user.effectiveModules.length > 0) {
+  // 4. Check effective modules & module aliases
+  if (effectiveModuleKey && user.effectiveModules && user.effectiveModules.length > 0) {
     if (
-      (matchedRoute.moduleKey === 'production_rm_verify' || matchedRoute.moduleKey === 'rm_receipt') &&
+      (effectiveModuleKey === 'production_rm_verify' || effectiveModuleKey === 'rm_receipt') &&
       (user.effectiveModules.includes('production_rm') ||
         user.effectiveModules.includes('rm_issue') ||
         user.effectiveModules.includes('production_rm_verify') ||
         roleAllowed)
     ) return true;
-    if (matchedRoute.moduleKey === 'request_return_verify' && (
+    if (effectiveModuleKey === 'request_return_verify' && (
       user.effectiveModules.includes('extra_requests') || 
       user.effectiveModules.includes('return_verify') || 
       user.effectiveModules.includes('request_return_verify') || 
       user.effectiveModules.includes('rm_issue') ||
       roleAllowed
     )) return true;
-    if (matchedRoute.moduleKey === 'production_request_return' && (
+    if (effectiveModuleKey === 'production_request_return' && (
       user.effectiveModules.includes('production_rm') || 
       user.effectiveModules.includes('production_consumption') || 
       user.effectiveModules.includes('consumption') || 
@@ -308,15 +349,69 @@ export function isPathAllowedForUser(
       user.effectiveModules.includes('rm_issue') ||
       roleAllowed
     )) return true;
-    if ((matchedRoute.moduleKey === 'consumption' || matchedRoute.moduleKey === 'production_consumption') && (
+    if ((effectiveModuleKey === 'consumption' || effectiveModuleKey === 'production_consumption') && (
       user.effectiveModules.includes('consumption') || 
       user.effectiveModules.includes('production_consumption') ||
       roleAllowed
     )) return true;
 
-    if (user.effectiveModules.includes(matchedRoute.moduleKey)) return true;
+    if (user.effectiveModules.includes(effectiveModuleKey)) return true;
+
+    // Module aliases check
+    const moduleAliases: Record<string, string[]> = {
+      users_master: ['users', 'users_master'],
+      users: ['users', 'users_master'],
+      products_master: ['products', 'products_master'],
+      products: ['products', 'products_master'],
+      warehouses_master: ['warehouses', 'warehouses_master'],
+      warehouses: ['warehouses', 'warehouses_master'],
+      vendors_master: ['vendors', 'vendors_master'],
+      vendors: ['vendors', 'vendors_master'],
+      process_master: ['processes', 'process_master'],
+      processes: ['processes', 'process_master'],
+      rework_qc: ['quality_rework', 'rework_qc'],
+      quality_rework: ['quality_rework', 'rework_qc'],
+      system_config: ['settings', 'system_config'],
+      rm_requisitions: ['my_requisitions', 'rm_requisitions'],
+      my_requisitions: ['my_requisitions', 'rm_requisitions'],
+    };
+
+    const aliases = moduleAliases[effectiveModuleKey];
+    if (aliases && aliases.some((a) => user.effectiveModules?.includes(a))) {
+      return true;
+    }
+
     if (roleAllowed) return true;
     return false;
+  }
+
+  // 5. Check module aliases in permissionsMap
+  if (effectiveModuleKey && user.permissionsMap) {
+    const moduleAliases: Record<string, string[]> = {
+      users_master: ['users', 'users_master'],
+      users: ['users', 'users_master'],
+      products_master: ['products', 'products_master'],
+      products: ['products', 'products_master'],
+      warehouses_master: ['warehouses', 'warehouses_master'],
+      warehouses: ['warehouses', 'warehouses_master'],
+      vendors_master: ['vendors', 'vendors_master'],
+      vendors: ['vendors', 'vendors_master'],
+      process_master: ['processes', 'process_master'],
+      processes: ['processes', 'process_master'],
+      rework_qc: ['quality_rework', 'rework_qc'],
+      quality_rework: ['quality_rework', 'rework_qc'],
+      system_config: ['settings', 'system_config'],
+      rm_requisitions: ['my_requisitions', 'rm_requisitions'],
+      my_requisitions: ['my_requisitions', 'rm_requisitions'],
+    };
+    const aliases = moduleAliases[effectiveModuleKey];
+    if (aliases) {
+      for (const a of aliases) {
+        const tier = user.permissionsMap[a];
+        if (tier === 'FULL_ACCESS' || tier === 'VIEW') return true;
+        if (tier === 'DENY') return false;
+      }
+    }
   }
 
   return roleAllowed;

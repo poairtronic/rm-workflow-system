@@ -1245,8 +1245,8 @@ export class DeliveryChallanService {
       lineItems = enrichedItems.map((item: any) => {
         const dispatched = Number(item.quantityDispatched ?? 0);
         const returned = Number(item.quantityReturned ?? 0);
-        const resolvedPartNo = item.partNumber || item.product?.code || '—';
-        const resolvedPartName = item.partName || item.product?.name || item.productId;
+        const resolvedPartNo = item.poPartLabel || item.partNumber || item.product?.code || '—';
+        const resolvedPartName = item.poPartLabel || item.partName || item.product?.name || item.productId;
         return {
           id: item.id,
           productId: item.productId,

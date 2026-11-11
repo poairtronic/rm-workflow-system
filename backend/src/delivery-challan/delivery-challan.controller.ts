@@ -162,7 +162,6 @@ export class DeliveryChallanController {
   }
 
   @Get(':id/printable')
-  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.PRODUCTION, UserRole.GENERAL_MANAGER, UserRole.DESIGNER)
   async getPrintable(
     @Param('id', ParseUUIDPipe) id: string,
     @Query('reworkId') reworkId?: string,

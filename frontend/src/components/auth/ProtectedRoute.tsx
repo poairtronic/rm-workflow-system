@@ -36,12 +36,19 @@ export function ProtectedRoute({ allowedRoles, moduleKey, children }: ProtectedR
     return children ? <>{children}</> : <Outlet />;
   }
 
+  // Layout wrapper route (no specific allowedRoles and no moduleKey passed):
+  // Authenticated users are allowed through to child routes
+  if (!allowedRoles && !moduleKey) {
+    return children ? <>{children}</> : <Outlet />;
+  }
+
   // Check canonical route permission logic
-  if (!isPathAllowedForUser(location.pathname, currentUser)) {
+  if (!isPathAllowedForUser(location.pathname, currentUser, allowedRoles, moduleKey)) {
     // If not matching canonical path directly (e.g. dynamic param routes or wrappers), test fallback props
     const roleMatches = allowedRoles && allowedRoles.includes(currentUser.role as UserRole);
     const moduleMatches = moduleKey && currentUser.effectiveModules && currentUser.effectiveModules.includes(moduleKey);
-    if (!roleMatches && !moduleMatches) {
+    const permMatches = moduleKey && currentUser.permissionsMap && (currentUser.permissionsMap[moduleKey] === 'FULL_ACCESS' || currentUser.permissionsMap[moduleKey] === 'VIEW');
+    if (!roleMatches && !moduleMatches && !permMatches) {
       return <Navigate to="/unauthorized" replace />;
     }
   }
