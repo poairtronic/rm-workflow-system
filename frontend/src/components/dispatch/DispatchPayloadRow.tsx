@@ -206,7 +206,7 @@ export function DispatchPayloadRow({
 
     const foundItem = scRmItems.find((it: any) => it.id === selectedKey);
     if (foundItem) {
-      const pNum = foundItem.partNumber || foundItem.part_number || selectedSc?.scNumber || '';
+      const pNum = selectedSc?.scNumber ? String(selectedSc.scNumber).trim() : (foundItem.partNumber || foundItem.part_number || '').replace(/-[0-9]+.*$/, '');
       const pName = foundItem.partName || foundItem.part_name || foundItem.material || '';
       setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, pNum, { shouldValidate: true });
       setValue(`scBlocks.${blockIndex}.items.${index}.partName`, pName, { shouldValidate: true });
@@ -245,7 +245,7 @@ export function DispatchPayloadRow({
       } else {
         const found = scRmItems.find((it: any) => it.id === scItemId);
         if (found) {
-          const pNum = found.partNumber || found.part_number || selectedSc?.scNumber || '';
+          const pNum = selectedSc?.scNumber ? String(selectedSc.scNumber).trim() : (found.partNumber || found.part_number || '').replace(/-[0-9]+.*$/, '');
           const pName = found.partName || found.part_name || found.material || '';
           const pId = found.mappedProductId || found.mapped_product_id || '';
           setValue(`scBlocks.${blockIndex}.items.${index}.partNumber`, pNum, { shouldValidate: true });
@@ -400,12 +400,12 @@ export function DispatchPayloadRow({
                   {scRmItems.length > 0 && (
                     <optgroup label={`SC Products / Materials (${scRmItems.length})`}>
                       {scRmItems.map((it: any) => {
-                        const pNum = it.partNumber || it.part_number;
-                        const pName = it.partName || it.part_name;
+                        const pNum = selectedSc?.scNumber || (it.partNumber || it.part_number || '').replace(/-[0-9]+.*$/, '');
+                        const pName = it.partName || it.part_name || it.material || '';
                         const labelParts = [
                           pNum ? `[${pNum}]` : '',
-                          pName ? `${pName} —` : '',
-                          it.material || 'Material',
+                          pName ? `${pName}` : '',
+                          it.material && it.material !== pName ? `— ${it.material}` : '',
                           it.grade ? `(${it.grade})` : '',
                           `• Qty: ${Number(it.quantity)}`,
                         ].filter(Boolean).join(' ');

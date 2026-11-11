@@ -7,6 +7,7 @@ import { workflowService, type SC } from '../services/workflowService';
 import { ScListTable } from '../components/traceability/ScListTable';
 import { TraceabilitySearch } from '../components/traceability/TraceabilitySearch';
 import { ScContextBanner } from '../components/traceability/ScContextBanner';
+import { ScChildItemMatrix } from '../components/traceability/ScChildItemMatrix';
 import { LifecycleTimeline } from '../components/traceability/LifecycleTimeline';
 import { ZeroLossReconciliation } from '../components/traceability/ZeroLossReconciliation';
 import { DcMovementsLedger } from '../components/traceability/DcMovementsLedger';
@@ -133,20 +134,35 @@ export function TraceabilityWorkspace() {
           )}
 
           {/* Hydrated View */}
-          {data && !isLoading && !isError && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
-              <ScContextBanner masterData={data.masterData} />
+          {data && !isLoading && !isError && (() => {
+            const childItems =
+              (data as any)?.childItems ||
+              (data as any)?.rmRequests?.[0]?.items ||
+              (data as any)?.sc?.rmItems ||
+              [];
 
-              {/* Zero-Loss Mass Balance Reconciliation Audit */}
-              <ZeroLossReconciliation metrics={data.reconciliation} />
+            return (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+                <ScContextBanner masterData={data.masterData} />
 
-              {/* Subcontracting DC Movements WIP Ledger */}
-              <DcMovementsLedger movements={(data as any)?.dcMovements || []} />
+                {/* Zero-Loss Mass Balance Reconciliation Audit */}
+                <ZeroLossReconciliation metrics={data.reconciliation} />
 
-              {/* 360° Lifecycle Audit Trail */}
-              <LifecycleTimeline events={data.events} />
-            </div>
-          )}
+                {/* Child Item / Material Matrix */}
+                <ScChildItemMatrix
+                  items={childItems}
+                  scNumber={data.masterData?.scCode || (data as any)?.sc?.scNumber}
+                  targetQuantity={Number((data as any)?.sc?.targetQuantity) || 1}
+                />
+
+                {/* Subcontracting DC Movements WIP Ledger */}
+                <DcMovementsLedger movements={(data as any)?.dcMovements || []} />
+
+                {/* 360° Lifecycle Audit Trail */}
+                <LifecycleTimeline events={data.events} />
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

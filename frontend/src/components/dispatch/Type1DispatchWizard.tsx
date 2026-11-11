@@ -133,7 +133,7 @@ export function Type1DispatchWizard() {
             resolvedRmItemId = item.scItemId;
             const matchedRmItem = scRmItems.find((it: any) => it.id === item.scItemId);
             if (matchedRmItem) {
-              resolvedPartNumber = matchedRmItem.partNumber || matchedRmItem.part_number || targetSc?.scNumber || resolvedPartNumber;
+              resolvedPartNumber = targetSc?.scNumber ? String(targetSc.scNumber).trim() : (matchedRmItem.partNumber || matchedRmItem.part_number || resolvedPartNumber || '').replace(/-[0-9]+.*$/, '');
               resolvedPartName = matchedRmItem.partName || matchedRmItem.part_name || matchedRmItem.material || resolvedPartName;
               resolvedProductId = matchedRmItem.mappedProductId || matchedRmItem.mapped_product_id || resolvedProductId;
             }

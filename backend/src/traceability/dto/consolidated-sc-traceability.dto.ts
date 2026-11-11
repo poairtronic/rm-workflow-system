@@ -51,6 +51,8 @@ export class ConsolidatedPoDto {
 
 export class ConsolidatedRmItemDto {
   id!: string;
+  partNumber?: string;
+  partName?: string;
   material!: string;
   materialType!: string;
   grade?: string;
@@ -317,6 +319,7 @@ export class ConsolidatedScTraceabilityDto {
   sc!: ConsolidatedScMetaDto;
   po!: ConsolidatedPoDto;
   rmRequests!: ConsolidatedRmRequestDto[];
+  childItems?: ConsolidatedRmItemDto[];
   issues!: ConsolidatedIssueDto[];
   receipts!: ConsolidatedReceiptDto[];
   consumption!: ConsolidatedConsumptionDto[];

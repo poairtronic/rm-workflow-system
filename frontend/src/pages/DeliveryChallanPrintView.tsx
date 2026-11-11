@@ -103,7 +103,8 @@ export function DeliveryChallanPrintView() {
   if (isSpl) {
     const rawList = dc.items && dc.items.length > 0 ? dc.items : (dc.lineItems || []);
     displayItems = rawList.map((item: any) => {
-      let partNo = item.partNo || item.poPartLabel || item.partNumber || item.productCode || '—';
+      let rawPart = String(item.partNo || item.poPartLabel || item.partNumber || item.productCode || '—').trim();
+      let partNo = rawPart !== '—' && !rawPart.startsWith('PO') && !rawPart.startsWith('PRD') ? rawPart.replace(/-[0-9]+.*$/, '') : rawPart;
       let particulars = item.particulars || item.poPartLabel || item.partName || item.productName || partNo;
       if (particulars === 'DEFECTIVE MATERIAL' && partNo !== '—') {
         particulars = partNo;
@@ -119,8 +120,10 @@ export function DeliveryChallanPrintView() {
   } else if (dc.groups && dc.groups.length > 0) {
     dc.groups.forEach((g: any) => {
       (g.items || []).forEach((item: any) => {
+        let rawPart = String(item.partNumber || item.productCode || item.productName || '—').trim();
+        let partNo = rawPart !== '—' && !rawPart.startsWith('PO') && !rawPart.startsWith('PRD') ? rawPart.replace(/-[0-9]+.*$/, '') : rawPart;
         displayItems.push({
-          partNo: item.partNumber || item.productCode || item.productName || '—',
+          partNo,
           productName: item.partName || item.productName || item.productCode || '—',
           description: item.description || '',
           qty: Number(item.quantityDispatched ?? 0),
@@ -130,8 +133,10 @@ export function DeliveryChallanPrintView() {
     });
   } else if (dc.lineItems && dc.lineItems.length > 0) {
     dc.lineItems.forEach((item: any) => {
+      let rawPart = String(item.partNumber || item.productCode || item.productName || '—').trim();
+      let partNo = rawPart !== '—' && !rawPart.startsWith('PO') && !rawPart.startsWith('PRD') ? rawPart.replace(/-[0-9]+.*$/, '') : rawPart;
       displayItems.push({
-        partNo: item.partNumber || item.productCode || item.productName || '—',
+        partNo,
         productName: item.partName || item.productName || item.productCode || '—',
         description: item.description || '',
         qty: Number(item.quantityDispatched ?? item.quantity ?? 0),
@@ -140,8 +145,10 @@ export function DeliveryChallanPrintView() {
     });
   } else if (dc.items && dc.items.length > 0) {
     dc.items.forEach((item: any) => {
+      let rawPart = String(item.partNumber || item.materialCode || item.productCode || item.productName || '—').trim();
+      let partNo = rawPart !== '—' && !rawPart.startsWith('PO') && !rawPart.startsWith('PRD') ? rawPart.replace(/-[0-9]+.*$/, '') : rawPart;
       displayItems.push({
-        partNo: item.partNumber || item.materialCode || item.productCode || item.productName || '—',
+        partNo,
         productName: item.partName || item.productName || item.materialCode || '—',
         description: item.description || '',
         qty: Number(item.quantityDispatched ?? item.quantity ?? 0),

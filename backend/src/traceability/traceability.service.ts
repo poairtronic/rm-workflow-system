@@ -43,6 +43,7 @@ import {
   ConsolidatedScMetaDto,
   ConsolidatedPoDto,
   ConsolidatedRmRequestDto,
+  ConsolidatedRmItemDto,
   ConsolidatedIssueDto,
   ConsolidatedReceiptDto,
   ConsolidatedConsumptionDto,
@@ -992,14 +993,32 @@ export class TraceabilityService {
       reviewedBy: req.reviewedBy ? { id: req.reviewedBy.id, name: req.reviewedBy.name } : undefined,
       items: (req.items || []).map((item) => ({
         id: item.id,
+        partNumber: item.partNumber || scMeta.scNumber,
+        partName: item.partName || item.material || 'Component Part',
         material: item.material,
         materialType: item.materialType,
         grade: item.grade,
         size: item.size,
         quantity: Number(item.quantity) || 0,
-        weightUnit: item.weightUnit || 'KG',
+        weightUnit: item.weightUnit || 'NOS',
         remarks: item.remarks,
       })),
+    }));
+
+    const rawChildSource = (sc.rmItems && sc.rmItems.length > 0)
+      ? sc.rmItems
+      : rmRequests.flatMap((r) => r.items || []);
+    const childItems: ConsolidatedRmItemDto[] = rawChildSource.map((item) => ({
+      id: item.id,
+      partNumber: item.partNumber || scMeta.scNumber,
+      partName: item.partName || item.material || 'Component Part',
+      material: item.material,
+      materialType: item.materialType || 'ROUND_BAR',
+      grade: item.grade || 'STANDARD',
+      size: item.size || 'N/A',
+      quantity: Number(item.quantity) || 0,
+      weightUnit: item.weightUnit || 'NOS',
+      remarks: item.remarks,
     }));
 
     const issuesDto: ConsolidatedIssueDto[] = issues.map((iss) => ({
@@ -1570,6 +1589,7 @@ export class TraceabilityService {
       sc: scMeta,
       po: poMeta,
       rmRequests: rmRequestsDto,
+      childItems,
       issues: issuesDto,
       receipts: receiptsDto,
       consumption: consumptionDto,

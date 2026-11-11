@@ -36,10 +36,25 @@ export interface ReconciliationMetrics {
   uom?: string;
 }
 
+export interface ScChildItemDto {
+  id: string;
+  partNumber?: string;
+  partName: string;
+  material: string;
+  materialType?: string;
+  grade?: string;
+  size?: string;
+  quantity: number;
+  weightUnit?: string;
+  remarks?: string;
+}
+
 export interface ConsolidatedTraceabilityDto {
   masterData: ScMasterData;
   events: TraceabilityEvent[];
   reconciliation: ReconciliationMetrics;
+  childItems?: ScChildItemDto[];
+  rmRequests?: any[];
   reworkItems?: any[];
   dcMovements?: any[];
   deliveryChallans?: any[];

@@ -74,7 +74,8 @@ export class ScService {
       .leftJoinAndSelect('sc.purchaseOrder', 'po')
       .leftJoinAndSelect('po.customer', 'customer')
       .leftJoinAndSelect('sc.rmRequest', 'rm')
-      .leftJoinAndSelect('rm.items', 'items');
+      .leftJoinAndSelect('rm.items', 'items')
+      .leftJoinAndSelect('sc.rmItems', 'rmItems');
 
     if (query?.poId) {
       qb.andWhere('sc.poId = :poId', { poId: query.poId });
