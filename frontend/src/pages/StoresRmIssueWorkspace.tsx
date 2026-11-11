@@ -297,7 +297,7 @@ export function StoresRmIssueWorkspace() {
                                 <th className="py-2.5 px-3">Original Requested Product</th>
                                 <th className="py-2.5 px-3">Spec / Grade</th>
                                 <th className="py-2.5 px-3">Description</th>
-                                <th className="py-2.5 px-3 text-right">Target Req</th>
+                                <th className="py-2.5 px-3 text-right">Required Qty</th>
                                 <th className="py-2.5 px-3">Actual Issued Product</th>
                                 <th className="py-2.5 px-3 text-right">Issued Qty</th>
                                 <th className="py-2.5 px-3 text-right">Remaining</th>

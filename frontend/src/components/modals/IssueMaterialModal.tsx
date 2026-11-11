@@ -287,6 +287,7 @@ export function IssueMaterialModal({
       const it = next[itemIdx];
       it.customRequiredQty = newReqVal > 0 ? newReqVal : undefined;
       const effectiveReq = newReqVal > 0 ? newReqVal : it.required;
+      it.required = effectiveReq;
       const remaining = Math.max(0, Math.round((effectiveReq - it.issued) * 1000) / 1000);
       it.remaining = remaining;
 
@@ -552,8 +553,10 @@ export function IssueMaterialModal({
                       {/* Right: Quantity Metrics & Toggle */}
                       <div className="flex items-center gap-6 text-sm">
                         <div className="text-right">
-                          <span className="text-xs text-slate-500 block">Design Req</span>
-                          <span className="font-bold text-slate-800">{item.originalQuantity}</span>
+                          <span className="text-xs text-slate-500 block">Required Qty</span>
+                          <span className="font-bold text-slate-800">
+                            {item.customRequiredQty !== undefined ? item.customRequiredQty : item.required}
+                          </span>
                         </div>
                         <div className="text-right">
                           <span className="text-xs text-slate-500 block">Issued</span>
@@ -645,7 +648,7 @@ export function IssueMaterialModal({
 
                             <div>
                               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                Substituted Target Required Qty (Optional)
+                                Required Quantity
                               </label>
                               <input
                                 type="number"
@@ -653,11 +656,11 @@ export function IssueMaterialModal({
                                 min="0.001"
                                 value={item.customRequiredQty ?? item.required}
                                 onChange={(e) => handleUpdateCustomRequired(itemIdx, Number(e.target.value))}
-                                placeholder={`Default: ${item.required}`}
+                                placeholder={`e.g. ${item.required}`}
                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white font-semibold tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-500"
                               />
                               <p className="text-[11px] text-slate-500 mt-1">
-                                Adjust target quantity if the substituted material has different unit requirements.
+                                Specify the required quantity for this material.
                               </p>
                             </div>
                           </div>
