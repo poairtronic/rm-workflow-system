@@ -309,7 +309,7 @@ export function ReconciliationGrid({
                           {...register(`items.${index}.receivedQuantity` as const, {
                             required: 'Required',
                             valueAsNumber: true,
-                            min: 0.001,
+                            min: 0,
                             max: { value: remainingTarget, message: 'Exceeds remaining' },
                             onChange: (e) => {
                               const val = Number(e.target.value);
@@ -317,12 +317,20 @@ export function ReconciliationGrid({
                             },
                           })}
                           className={`w-28 h-10 px-3 rounded-lg border text-sm text-right tabular-nums font-bold focus:outline-none focus:ring-2 ${
-                            actualReceivedQty > remainingTarget || actualReceivedQty < 0.001
+                            actualReceivedQty > remainingTarget || actualReceivedQty < 0
                               ? 'border-red-300 focus:ring-red-500 bg-red-50/20'
+                              : actualReceivedQty === 0
+                              ? 'border-amber-300 focus:ring-amber-500 bg-amber-50/30 text-amber-950 shadow-xs'
                               : 'border-emerald-300 focus:ring-emerald-500 bg-emerald-50/30 text-emerald-950 shadow-xs'
                           }`}
                         />
-                        <span className="text-[10px] font-semibold text-emerald-700 mt-0.5">Physical Qty (to QC)</span>
+                        <span
+                          className={`text-[10px] font-semibold mt-0.5 ${
+                            actualReceivedQty === 0 ? 'text-amber-700' : 'text-emerald-700'
+                          }`}
+                        >
+                          {actualReceivedQty === 0 ? '0 Received (Pending at Vendor)' : 'Physical Qty (to QC)'}
+                        </span>
                       </div>
                     )}
                   </td>

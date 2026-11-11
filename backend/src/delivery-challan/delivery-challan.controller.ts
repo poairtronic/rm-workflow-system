@@ -177,7 +177,13 @@ export class DeliveryChallanController {
 
   @Post(':id/return')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.STORES, UserRole.ADMIN)
+  @Roles(
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+    UserRole.ADMIN,
+  )
   async returnChallan(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReturnDeliveryChallanDto,
@@ -189,7 +195,13 @@ export class DeliveryChallanController {
 
   @Patch(':id/dock-return')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.STORES, UserRole.ADMIN)
+  @Roles(
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+    UserRole.ADMIN,
+  )
   async dockReturn(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReturnDeliveryChallanDto,
@@ -201,7 +213,13 @@ export class DeliveryChallanController {
 
   @Post(':id/qc-inspect')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.STORES, UserRole.ADMIN)
+  @Roles(
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+    UserRole.ADMIN,
+  )
   async qcInspect(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: QcInspectDeliveryChallanDto,
@@ -213,7 +231,13 @@ export class DeliveryChallanController {
 
   @Patch(':id/close')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.STORES, UserRole.ADMIN)
+  @Roles(
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+    UserRole.ADMIN,
+  )
   async closeChallan(
     @Param('id', ParseUUIDPipe) id: string,
     @Request() req: any,

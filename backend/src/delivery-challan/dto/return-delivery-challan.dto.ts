@@ -17,25 +17,25 @@ export class ReturnDeliveryChallanItemDto {
   @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 3 })
-  @Min(0.001)
+  @Min(0)
   quantityToReturn?: number;
 
   @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 3 })
-  @Min(0.001)
+  @Min(0)
   receivedQty?: number;
 
   @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 3 })
-  @Min(0.001)
+  @Min(0)
   expectedReturnQty?: number;
 
   @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 3 })
-  @Min(0.001)
+  @Min(0)
   expectedOutputQuantity?: number;
 
   @IsOptional()

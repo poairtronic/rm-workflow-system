@@ -1484,8 +1484,8 @@ export class DeliveryChallanService {
         }
 
         const qtyReceived = Number(dtoItem.receivedQty ?? dtoItem.quantityToReturn ?? 0);
-        if (qtyReceived <= 0) {
-          throw new BadRequestException(`Received quantity must be greater than zero for item ${dtoItem.itemId}`);
+        if (qtyReceived < 0) {
+          throw new BadRequestException(`Received quantity cannot be negative for item ${dtoItem.itemId}`);
         }
 
         const isType1 = challan.type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD;
@@ -1552,8 +1552,10 @@ export class DeliveryChallanService {
           );
         }
 
-        // Increment QC pending queue
-        challanItem.qcPendingQty = Number(challanItem.qcPendingQty || 0) + qtyReceived;
+        // Increment QC pending queue (only if material was physically inwarded > 0)
+        if (qtyReceived > 0) {
+          challanItem.qcPendingQty = Number(challanItem.qcPendingQty || 0) + qtyReceived;
+        }
 
         // Store editable actualReceivedQty and returnTargetBinId
         if (dtoItem.actualReceivedQty !== undefined && dtoItem.actualReceivedQty !== null) {

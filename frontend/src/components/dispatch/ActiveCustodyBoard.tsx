@@ -136,10 +136,19 @@ export function getDcPrimaryCategory(
     return 'QUALITY_CHECK';
   }
 
-  // 3. Open:
+  // 3. Partial: DC status is PARTIALLY_RETURNED OR has partial activity with remaining balance still at vendor
+  if (
+    dc.status === 'PARTIALLY_RETURNED' ||
+    (stats.pendingVendorQty > 0 && (stats.totalQcPassed > 0 || stats.totalQcRejected > 0))
+  ) {
+    return 'PARTIALLY_RETURNED';
+  }
+
+  // 4. Open:
   // - New DC not yet processed (nothing passed, rejected, or in QC)
   // - OR Rework DC re-dispatched to vendor awaiting receipt (outstanding balance is the active rework batch)
   const isFreshDispatched =
+    dc.status !== 'PARTIALLY_RETURNED' &&
     stats.totalQcPassed === 0 &&
     stats.totalQcRejected === 0 &&
     stats.totalQcPending === 0;
@@ -154,7 +163,7 @@ export function getDcPrimaryCategory(
     return 'OPEN';
   }
 
-  // 4. Partial: Partially received and passed, with remaining balance still at vendor
+  // 5. Partial fallback: Partially received and passed, with remaining balance still at vendor
   return 'PARTIALLY_RETURNED';
 }
 
@@ -235,6 +244,10 @@ export function ActiveCustodyBoard({
 
       const stats = challanStatsMap.get(dc.id) || getDcItemStats(dc);
       const cat = getDcPrimaryCategory(dc, stats);
+
+      if (statusFilter === 'PARTIALLY_RETURNED') {
+        return cat === 'PARTIALLY_RETURNED' || dc.status === 'PARTIALLY_RETURNED';
+      }
 
       return cat === statusFilter;
     });

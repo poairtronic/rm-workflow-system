@@ -268,24 +268,22 @@ export function DockReceiptWorkspace() {
   const processReturnMutation = useMutation({
     mutationFn: (data: ProcessDcReturnDto) => {
       if (!selectedDc) throw new Error('No DC selected');
-      const itemsToReturn = data.items
-        .filter((i: any) => Number(i.receivedQuantity) > 0)
-        .map((i: any) => ({
-          itemId: i.itemId,
-          expectedReturnQty: i.expectedReturnQty !== undefined && i.expectedReturnQty !== null ? Number(i.expectedReturnQty) : undefined,
-          expectedOutputQuantity: i.expectedReturnQty !== undefined && i.expectedReturnQty !== null ? Number(i.expectedReturnQty) : undefined,
-          quantityToReturn: Number(i.receivedQuantity),
-          receivedQuantity: Number(i.receivedQuantity),
-          returnedProductId: i.returnedProductId || undefined,
-          destinationBinId: i.destinationBinId || undefined,
-          targetBinId: i.destinationBinId || undefined,
-          actualReceivedQty: i.actualReceivedQty !== undefined ? Number(i.actualReceivedQty) : Number(i.receivedQuantity),
-          actualInwardQty: i.actualReceivedQty !== undefined ? Number(i.actualReceivedQty) : Number(i.receivedQuantity),
-        }));
+      const itemsToReturn = (data.items || []).map((i: any) => ({
+        itemId: i.itemId,
+        expectedReturnQty: i.expectedReturnQty !== undefined && i.expectedReturnQty !== null ? Number(i.expectedReturnQty) : undefined,
+        expectedOutputQuantity: i.expectedReturnQty !== undefined && i.expectedReturnQty !== null ? Number(i.expectedReturnQty) : undefined,
+        quantityToReturn: Number(i.receivedQuantity ?? 0),
+        receivedQuantity: Number(i.receivedQuantity ?? 0),
+        returnedProductId: i.returnedProductId || undefined,
+        destinationBinId: i.destinationBinId || undefined,
+        targetBinId: i.destinationBinId || undefined,
+        actualReceivedQty: i.actualReceivedQty !== undefined ? Number(i.actualReceivedQty) : Number(i.receivedQuantity ?? 0),
+        actualInwardQty: i.actualReceivedQty !== undefined ? Number(i.actualReceivedQty) : Number(i.receivedQuantity ?? 0),
+      }));
 
       if (itemsToReturn.length === 0) {
-        toast.error('No items with remaining quantity to return.');
-        throw new Error('No items to return');
+        toast.error('No items found in delivery challan.');
+        throw new Error('No items in delivery challan');
       }
 
       const payload = {
@@ -298,7 +296,13 @@ export function DockReceiptWorkspace() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['delivery-challans'] });
       queryClient.invalidateQueries({ queryKey: ['rework-items'] });
-      toast.success('Dock receipt logged! Material sent to Quality Check (QC Pending).');
+      const currentItems = methods.getValues('items') || [];
+      const anyInwarded = currentItems.some((i: any) => Number(i.receivedQuantity ?? 0) > 0);
+      if (anyInwarded) {
+        toast.success('Dock receipt logged! Material sent to Quality Check (QC Pending).');
+      } else {
+        toast.success('Return recorded with 0 inward. Challan moved to Partially Open (Pending at Vendor).');
+      }
       setSelectedDc(null);
     },
     onError: (error: any) => {
@@ -790,7 +794,9 @@ export function DockReceiptWorkspace() {
                 className="inline-flex items-center gap-2 px-6 h-10 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {processReturnMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                Log Return & Send to Quality Check
+                {(methods.watch('items') || []).some((i: any) => Number(i.receivedQuantity ?? 0) > 0)
+                  ? 'Log Return & Send to Quality Check'
+                  : 'Log 0 Inward & Move to Partially Open'}
               </button>
             </div>
           )}

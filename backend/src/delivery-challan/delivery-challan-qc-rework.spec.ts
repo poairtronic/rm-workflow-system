@@ -219,6 +219,45 @@ describe('Phase 23 — DC Quality Check Gate, Rework Module & Split Accounting (
       expect(managerTxRepo.save).not.toHaveBeenCalled();
     });
 
+    it('supports entering 0 received quantity when material is not received from vendor, moving DC to PARTIALLY_RETURNED without adding to QC', async () => {
+      const mockDc: any = {
+        id: 'dc-zero',
+        challanNumber: 'SDC/2627/0002',
+        type: DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD,
+        status: DeliveryChallanStatus.DISPATCHED,
+        vendorId: 'vendor-1',
+      };
+
+      const mockItem: any = {
+        id: 'item-zero',
+        challanId: 'dc-zero',
+        quantityDispatched: 5,
+        qcPendingQty: 0,
+        qcPassedQty: 0,
+        qcRejectedQty: 0,
+        actualReceivedQty: null,
+      };
+
+      managerChallanRepo.findOne.mockResolvedValue(mockDc);
+      mockQueryRunner.manager.find.mockResolvedValue([mockItem]);
+
+      const result = await service.processChallanReturn(
+        'dc-zero',
+        {
+          actualReceiptDate: new Date().toISOString(),
+          verificationRemarks: 'Vendor sent 0 units this cycle',
+          items: [{ itemId: 'item-zero', quantityToReturn: 0, actualReceivedQty: 0 }],
+        },
+        'user-storekeeper-1'
+      );
+
+      // Verify that qcPendingQty is NOT incremented (remains 0)
+      expect(mockItem.qcPendingQty).toBe(0);
+      expect(mockItem.actualReceivedQty).toBe(0);
+      // Verify parent DC status is moved to PARTIALLY_RETURNED (partially open)
+      expect(result.status).toBe(DeliveryChallanStatus.PARTIALLY_RETURNED);
+    });
+
     it('rejects dock return if quantity exceeds remaining balance at vendor', async () => {
       const mockDc: any = {
         id: 'dc-1',
