@@ -414,7 +414,15 @@ export function ScListTable({ scs, isLoading, onSelectSc, selectedScId }: ScList
                                   <tbody className="divide-y divide-slate-100">
                                     {rawItems.map((it: any, i: number) => {
                                       const itName = it.partName || it.material || 'Child Component';
-                                      const isSet = (itName + ' ' + (it.remarks || '')).toLowerCase().includes('set');
+                                      const textLower = (itName + ' ' + (it.remarks || '') + ' ' + (it.weightUnit || '')).toLowerCase();
+                                      const isSet =
+                                        textLower.includes('set') ||
+                                        textLower.includes('disc') ||
+                                        textLower.includes('pair') ||
+                                        textLower.includes('spg') ||
+                                        textLower.includes('srg') ||
+                                        textLower.startsWith('sp ') ||
+                                        textLower.startsWith('sr ');
                                       return (
                                         <tr key={it.id || i} className="hover:bg-slate-50/50">
                                           <td className="py-2 px-3 text-center font-mono text-slate-400">{i + 1}</td>

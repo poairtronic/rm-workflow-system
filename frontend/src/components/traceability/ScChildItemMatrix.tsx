@@ -13,11 +13,19 @@ export function ScChildItemMatrix({
   scNumber = '',
   targetQuantity = 1,
 }: ScChildItemMatrixProps) {
-  // Check if any items involve sets or pairs
+  // Check if any items involve sets or pairs (including SPG/SRG/Discs)
   const hasSets = useMemo(() => {
     return items.some((it) => {
-      const text = `${it.partName || ''} ${it.material || ''} ${it.remarks || ''}`.toLowerCase();
-      return text.includes('set') || text.includes('disc') || text.includes('pair');
+      const text = `${it.partName || ''} ${it.material || ''} ${it.remarks || ''} ${it.weightUnit || ''}`.toLowerCase();
+      return (
+        text.includes('set') ||
+        text.includes('disc') ||
+        text.includes('pair') ||
+        text.includes('spg') ||
+        text.includes('srg') ||
+        text.startsWith('sp ') ||
+        text.startsWith('sr ')
+      );
     });
   }, [items]);
 
@@ -75,8 +83,15 @@ export function ScChildItemMatrix({
           </thead>
           <tbody className="divide-y divide-slate-100">
             {items.map((item, idx) => {
-              const nameLower = `${item.partName || ''} ${item.material || ''} ${item.remarks || ''}`.toLowerCase();
-              const isSetItem = nameLower.includes('set') || nameLower.includes('disc');
+              const nameLower = `${item.partName || ''} ${item.material || ''} ${item.remarks || ''} ${item.weightUnit || ''}`.toLowerCase();
+              const isSetItem =
+                nameLower.includes('set') ||
+                nameLower.includes('disc') ||
+                nameLower.includes('pair') ||
+                nameLower.includes('spg') ||
+                nameLower.includes('srg') ||
+                nameLower.startsWith('sp ') ||
+                nameLower.startsWith('sr ');
               const qtyNum = Number(item.quantity) || 0;
               const uom = (item.weightUnit || 'NOS').toUpperCase();
 

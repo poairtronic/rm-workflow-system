@@ -20,6 +20,7 @@ interface RMItemForm {
   description?: string;
   quantity: number;
   remarks: string;
+  isSet?: boolean;
 }
 
 interface SCCardForm {
@@ -57,6 +58,7 @@ const createDefaultItem = (existingCards: SCCardForm[] = [], baseSeq = 0, extraO
   description: '',
   quantity: 1,
   remarks: '',
+  isSet: false,
 });
 
 export function RmCreationWorkspace() {
@@ -384,6 +386,9 @@ export function RmCreationWorkspace() {
                   if (!updated.partNumber?.trim()) {
                     updated.partNumber = getNextPartNumber(scCards, basePartNumberSeq);
                   }
+                  if (/set|disc|pair|spg|srg|^sp\s|^sr\s/i.test(value)) {
+                    updated.isSet = true;
+                  }
                 }
                 return updated;
               }
@@ -461,7 +466,8 @@ export function RmCreationWorkspace() {
             targetQuantity: targetQty,
             items: card.items.map((item, itemIdx) => {
               const perUnit = Number(item.quantity || 0);
-              const totalQty = Math.round(perUnit * targetQty * 1000) / 1000;
+              const multiplier = item.isSet ? 2 : 1;
+              const totalQty = Math.round(perUnit * multiplier * targetQty * 1000) / 1000;
               return {
                 productId: item.productId,
                 partNumber: item.partNumber?.trim() || getNextPartNumber(scCards, basePartNumberSeq, itemIdx),
@@ -917,7 +923,8 @@ export function RmCreationWorkspace() {
                             const avail = item.productId ? (productBalances[item.productId] ?? null) : null;
                             const targetQty = Number(card.targetQuantity) || 1;
                             const perUnit = Number(item.quantity) || 0;
-                            const totalReq = Math.round(perUnit * targetQty * 1000) / 1000;
+                            const multiplier = item.isSet ? 2 : 1;
+                            const totalReq = Math.round(perUnit * multiplier * targetQty * 1000) / 1000;
                             return (
                               <div>
                                 <input
@@ -927,15 +934,31 @@ export function RmCreationWorkspace() {
                                   value={item.quantity}
                                   onChange={(e) => handleUpdateItem(card.id, item.id, 'quantity', Number(e.target.value))}
                                   className="w-full px-2 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 tabular-nums text-sm font-semibold text-slate-900 shadow-2xs"
-                                  placeholder="Qty / unit"
+                                  placeholder={item.isSet ? 'Sets' : 'Qty / unit'}
                                 />
-                                <div className="mt-1 px-1.5 py-0.5 rounded bg-indigo-50/70 border border-indigo-100 text-[11px] text-indigo-900 font-semibold flex items-center justify-between" title={`Total required: ${perUnit} × ${targetQty} = ${totalReq} ${uom}`}>
+                                <div className="mt-1 flex items-center justify-between">
+                                  <label className="inline-flex items-center gap-1 text-[10px] text-amber-700 font-bold cursor-pointer select-none bg-amber-50 px-1 py-0.5 rounded border border-amber-200" title="1 SET equals 2 NOS">
+                                    <input
+                                      type="checkbox"
+                                      checked={!!item.isSet}
+                                      onChange={(e) => handleUpdateItem(card.id, item.id, 'isSet', e.target.checked)}
+                                      className="rounded text-amber-600 focus:ring-amber-500 w-3 h-3 cursor-pointer"
+                                    />
+                                    <span>SET (×2)</span>
+                                  </label>
+                                </div>
+                                <div className="mt-1 px-1.5 py-0.5 rounded bg-indigo-50/70 border border-indigo-100 text-[11px] text-indigo-900 font-semibold flex items-center justify-between" title={`Total required: ${perUnit} ${item.isSet ? 'SET (' + perUnit*2 + ' NOS)' : ''} × ${targetQty} = ${totalReq} ${uom}`}>
                                   <span className="text-slate-500">Total:</span>
                                   <span className="text-indigo-700 font-bold">{totalReq} {uom}</span>
                                 </div>
+                                {item.isSet && (
+                                  <div className="text-[10px] text-amber-600 font-semibold mt-0.5 px-0.5">
+                                    1 SET = 2 NOS ({perUnit * 2} NOS)
+                                  </div>
+                                )}
                                 {targetQty > 1 && perUnit > 0 && (
                                   <div className="text-[10px] text-slate-400 mt-0.5 px-1 truncate">
-                                    ({perUnit} × {targetQty} target)
+                                    ({perUnit * multiplier} × {targetQty} target)
                                   </div>
                                 )}
                                 {item.productId && (
