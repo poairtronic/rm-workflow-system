@@ -39,67 +39,67 @@ export function RmProductionOverviewTab({ data }: RmProductionOverviewTabProps) 
   ];
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-3 sm:space-y-4 animate-in fade-in duration-300">
       {/* 4 Quick Stat Metric Tiles */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
-        <div className="p-3.5 sm:p-4 bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-[#1e233d] shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1.5 sm:mb-2">
-            <span className="text-[10px] sm:text-xs font-semibold uppercase truncate">Total SC Orders</span>
-            <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-500 shrink-0 ml-1" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+        <div className="py-2 px-3 sm:py-2.5 sm:px-3.5 bg-white dark:bg-[#121526] rounded-xl border border-slate-200 dark:border-[#1e233d] shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase truncate">Total SC Orders</span>
+            <FileText className="w-3.5 h-3.5 text-indigo-500 shrink-0 ml-1" />
           </div>
-          <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">{data.totalScs}</p>
-          <p className="text-[10px] sm:text-xs text-slate-500 dark:text-[#8896ab] mt-0.5 sm:mt-1 truncate">Components tracked</p>
+          <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate">{data.totalScs}</p>
+          <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-[#8896ab] mt-0.5 truncate">Components tracked</p>
         </div>
 
-        <div className="p-3.5 sm:p-4 bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-[#1e233d] shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1.5 sm:mb-2">
-            <span className="text-[10px] sm:text-xs font-semibold uppercase truncate">Active In-Prod</span>
-            <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 shrink-0 ml-1" />
+        <div className="py-2 px-3 sm:py-2.5 sm:px-3.5 bg-white dark:bg-[#121526] rounded-xl border border-slate-200 dark:border-[#1e233d] shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase truncate">Active In-Prod</span>
+            <PlayCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 ml-1" />
           </div>
-          <p className="text-xl sm:text-2xl font-bold text-amber-600 dark:text-amber-400 truncate">
+          <p className="text-base sm:text-lg font-bold text-amber-600 dark:text-amber-400 truncate">
             {data.scStatusMap['IN_PRODUCTION'] || 0}
           </p>
-          <p className="text-[10px] sm:text-xs text-slate-500 dark:text-[#8896ab] mt-0.5 sm:mt-1 truncate">Machining / processing</p>
+          <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-[#8896ab] mt-0.5 truncate">Machining / processing</p>
         </div>
 
-        <div className="p-3.5 sm:p-4 bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-[#1e233d] shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1.5 sm:mb-2">
-            <span className="text-[10px] sm:text-xs font-semibold uppercase truncate">Completed SCs</span>
-            <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500 shrink-0 ml-1" />
+        <div className="py-2 px-3 sm:py-2.5 sm:px-3.5 bg-white dark:bg-[#121526] rounded-xl border border-slate-200 dark:border-[#1e233d] shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase truncate">Completed SCs</span>
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 ml-1" />
           </div>
-          <p className="text-xl sm:text-2xl font-bold text-emerald-600 dark:text-emerald-400 truncate">
+          <p className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 truncate">
             {data.scStatusMap['COMPLETED'] || 0}
           </p>
-          <p className="text-[10px] sm:text-xs text-slate-500 dark:text-[#8896ab] mt-0.5 sm:mt-1 truncate">Ready for dispatch</p>
+          <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-[#8896ab] mt-0.5 truncate">Ready for dispatch</p>
         </div>
 
-        <div className="p-3.5 sm:p-4 bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-[#1e233d] shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1.5 sm:mb-2">
-            <span className="text-[10px] sm:text-xs font-semibold uppercase truncate">Material Consumed</span>
-            <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500 shrink-0 ml-1" />
+        <div className="py-2 px-3 sm:py-2.5 sm:px-3.5 bg-white dark:bg-[#121526] rounded-xl border border-slate-200 dark:border-[#1e233d] shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase truncate">Material Consumed</span>
+            <Clock className="w-3.5 h-3.5 text-blue-500 shrink-0 ml-1" />
           </div>
-          <p className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400 truncate">
+          <p className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400 truncate">
             {Number(data.totalConsumedQty).toLocaleString()}
           </p>
-          <p className="text-[10px] sm:text-xs text-slate-500 dark:text-[#8896ab] mt-0.5 sm:mt-1 truncate">{data.totalConsumptions} batches logged</p>
+          <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-[#8896ab] mt-0.5 truncate">{data.totalConsumptions} batches logged</p>
         </div>
       </div>
 
       {/* Visual Charts: Pie Chart & Funnel Bar Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         {/* SC Status Distribution Pie Chart */}
-        <div className="p-4 sm:p-5 bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-[#1e233d] shadow-xs flex flex-col w-full max-w-full min-w-0 overflow-hidden">
-          <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+        <div className="p-3 sm:p-4 bg-white dark:bg-[#121526] rounded-xl border border-slate-200 dark:border-[#1e233d] shadow-2xs flex flex-col w-full max-w-full min-w-0 overflow-hidden">
+          <div className="flex items-center justify-between mb-2 sm:mb-2.5 gap-2">
             <div className="min-w-0">
               <h4 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white truncate">Sales Order Status Distribution</h4>
-              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-[#8896ab] truncate">Live operational lifecycle stages of components</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-[#8896ab] truncate">Live operational lifecycle stages of components</p>
             </div>
-            <span className="text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-[#1e233d] text-slate-700 dark:text-slate-300 shrink-0">
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-[#1e233d] text-slate-700 dark:text-slate-300 shrink-0">
               Donut
             </span>
           </div>
 
-          <div className="h-64 sm:h-72 w-full max-w-full min-w-0 overflow-hidden">
+          <div className="h-48 sm:h-52 w-full max-w-full min-w-0 overflow-hidden">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -107,9 +107,9 @@ export function RmProductionOverviewTab({ data }: RmProductionOverviewTabProps) 
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
-                  cy="42%"
-                  innerRadius={52}
-                  outerRadius={82}
+                  cy="46%"
+                  innerRadius={40}
+                  outerRadius={65}
                   paddingAngle={3}
                   className="cursor-pointer focus:outline-none"
                 >
@@ -125,7 +125,7 @@ export function RmProductionOverviewTab({ data }: RmProductionOverviewTabProps) 
                 <Legend
                   verticalAlign="bottom"
                   iconType="circle"
-                  wrapperStyle={{ fontSize: '10px', paddingTop: '6px' }}
+                  wrapperStyle={{ fontSize: '10px', paddingTop: '4px' }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -133,30 +133,30 @@ export function RmProductionOverviewTab({ data }: RmProductionOverviewTabProps) 
         </div>
 
         {/* Workflow Stage Volume Bar Chart */}
-        <div className="p-4 sm:p-5 bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-[#1e233d] shadow-xs flex flex-col w-full max-w-full min-w-0 overflow-hidden">
-          <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+        <div className="p-3 sm:p-4 bg-white dark:bg-[#121526] rounded-xl border border-slate-200 dark:border-[#1e233d] shadow-2xs flex flex-col w-full max-w-full min-w-0 overflow-hidden">
+          <div className="flex items-center justify-between mb-2 sm:mb-2.5 gap-2">
             <div className="min-w-0">
               <h4 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white truncate">Workflow Execution Pipeline</h4>
-              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-[#8896ab] truncate">Volume across requisitions, floor & returns</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-[#8896ab] truncate">Volume across requisitions, floor & returns</p>
             </div>
-            <span className="text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-[#1e233d] text-slate-700 dark:text-slate-300 shrink-0">
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-[#1e233d] text-slate-700 dark:text-slate-300 shrink-0">
               Bar Chart
             </span>
           </div>
 
-          <div className="h-64 sm:h-72 w-full max-w-full min-w-0 overflow-hidden">
+          <div className="h-48 sm:h-52 w-full max-w-full min-w-0 overflow-hidden">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={pipelineData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+              <BarChart data={pipelineData} margin={{ top: 8, right: 10, left: -22, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255, 255, 255, 0.08)" />
-                <XAxis dataKey="stage" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="stage" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                 <Tooltip
                   cursor={{ fill: 'rgba(255, 255, 255, 0.04)' }}
                   formatter={(val: any) => [`${val} Records`, 'Volume']}
                   contentStyle={{ backgroundColor: '#161a2e', borderRadius: '8px', border: '1px solid #283056', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)', fontSize: '12px' }}
                   itemStyle={{ color: '#f1f5f9' }}
                 />
-                <Bar dataKey="count" radius={[6, 6, 0, 0]} className="cursor-pointer focus:outline-none" />
+                <Bar dataKey="count" radius={[5, 5, 0, 0]} className="cursor-pointer focus:outline-none" />
               </BarChart>
             </ResponsiveContainer>
           </div>

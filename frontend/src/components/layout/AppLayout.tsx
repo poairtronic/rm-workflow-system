@@ -47,7 +47,7 @@ export function AppLayout() {
         onOpenScanner={() => { setScannedBarcode(''); setIsScannerOpen(true); }}
         onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
       />
-      <main className="md:ml-[260px] ml-0 mt-16 p-3 sm:p-5 md:p-8 pb-20 md:pb-8 app-main-content bg-[#F8FAFC] dark:bg-[#090a10] min-h-[calc(100dvh-64px)] max-w-full md:max-w-[calc(100vw-260px)] flex-1 overflow-x-hidden">
+      <main className="md:ml-[260px] ml-0 mt-16 p-3 sm:p-4 md:p-6 pb-20 md:pb-8 app-main-content bg-[#F8FAFC] dark:bg-[#090a10] min-h-[calc(100dvh-64px)] max-w-full md:max-w-[calc(100vw-260px)] flex-1 overflow-x-hidden">
         <ErrorBoundary>
           <Suspense fallback={<RouteLoadingSkeleton />}>
             <Outlet />

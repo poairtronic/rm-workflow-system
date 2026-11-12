@@ -28,63 +28,63 @@ export function DeliveryChallanOverviewTab({ data }: DeliveryChallanOverviewTabP
   }));
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-3 sm:space-y-4 animate-in fade-in duration-300">
       {/* 4 Quick Stat Metric Tiles */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
-        <div className="p-3.5 sm:p-4 bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-[#1e233d] shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1.5 sm:mb-2">
-            <span className="text-[10px] sm:text-xs font-semibold uppercase truncate">Total Challans</span>
-            <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-500 shrink-0 ml-1" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+        <div className="py-2 px-3 sm:py-2.5 sm:px-3.5 bg-white dark:bg-[#121526] rounded-xl border border-slate-200 dark:border-[#1e233d] shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase truncate">Total Challans</span>
+            <Truck className="w-3.5 h-3.5 text-indigo-500 shrink-0 ml-1" />
           </div>
-          <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">{data.totalDcs}</p>
-          <p className="text-[10px] sm:text-xs text-slate-500 dark:text-[#8896ab] mt-0.5 sm:mt-1 truncate">Dispatches registered</p>
+          <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate">{data.totalDcs}</p>
+          <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-[#8896ab] mt-0.5 truncate">Dispatches registered</p>
         </div>
 
-        <div className="p-3.5 sm:p-4 bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-[#1e233d] shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1.5 sm:mb-2">
-            <span className="text-[10px] sm:text-xs font-semibold uppercase truncate">Active Outside</span>
-            <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 shrink-0 ml-1" />
+        <div className="py-2 px-3 sm:py-2.5 sm:px-3.5 bg-white dark:bg-[#121526] rounded-xl border border-slate-200 dark:border-[#1e233d] shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase truncate">Active Outside</span>
+            <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0 ml-1" />
           </div>
-          <p className="text-xl sm:text-2xl font-bold text-amber-600 dark:text-amber-400 truncate">{data.openDcs}</p>
-          <p className="text-[10px] sm:text-xs text-slate-500 dark:text-[#8896ab] mt-0.5 sm:mt-1 truncate">Awaiting return</p>
+          <p className="text-base sm:text-lg font-bold text-amber-600 dark:text-amber-400 truncate">{data.openDcs}</p>
+          <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-[#8896ab] mt-0.5 truncate">Awaiting return</p>
         </div>
 
-        <div className="p-3.5 sm:p-4 bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-[#1e233d] shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1.5 sm:mb-2">
-            <span className="text-[10px] sm:text-xs font-semibold uppercase truncate">Units in Custody</span>
-            <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500 shrink-0 ml-1" />
+        <div className="py-2 px-3 sm:py-2.5 sm:px-3.5 bg-white dark:bg-[#121526] rounded-xl border border-slate-200 dark:border-[#1e233d] shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase truncate">Units in Custody</span>
+            <AlertCircle className="w-3.5 h-3.5 text-blue-500 shrink-0 ml-1" />
           </div>
-          <p className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400 truncate">
+          <p className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400 truncate">
             {Number(data.totalCustodyQty).toLocaleString()}
           </p>
-          <p className="text-[10px] sm:text-xs text-slate-500 dark:text-[#8896ab] mt-0.5 sm:mt-1 truncate">Net physical parts</p>
+          <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-[#8896ab] mt-0.5 truncate">Net physical parts</p>
         </div>
 
-        <div className="p-3.5 sm:p-4 bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-[#1e233d] shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1.5 sm:mb-2">
-            <span className="text-[10px] sm:text-xs font-semibold uppercase truncate">Closed & Verified</span>
-            <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500 shrink-0 ml-1" />
+        <div className="py-2 px-3 sm:py-2.5 sm:px-3.5 bg-white dark:bg-[#121526] rounded-xl border border-slate-200 dark:border-[#1e233d] shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 dark:text-[#8896ab] mb-1">
+            <span className="text-[10px] sm:text-[11px] font-semibold uppercase truncate">Closed & Verified</span>
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 ml-1" />
           </div>
-          <p className="text-xl sm:text-2xl font-bold text-emerald-600 dark:text-emerald-400 truncate">{data.closedDcs}</p>
-          <p className="text-[10px] sm:text-xs text-slate-500 dark:text-[#8896ab] mt-0.5 sm:mt-1 truncate">Reconciled in store</p>
+          <p className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 truncate">{data.closedDcs}</p>
+          <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-[#8896ab] mt-0.5 truncate">Reconciled in store</p>
         </div>
       </div>
 
       {/* Visual Charts: Pie Chart & Bar Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         {/* Challan Status Breakdown Donut Chart */}
-        <div className="p-4 sm:p-5 bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-[#1e233d] shadow-xs flex flex-col w-full max-w-full min-w-0 overflow-hidden">
-          <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+        <div className="p-3 sm:p-4 bg-white dark:bg-[#121526] rounded-xl border border-slate-200 dark:border-[#1e233d] shadow-2xs flex flex-col w-full max-w-full min-w-0 overflow-hidden">
+          <div className="flex items-center justify-between mb-2 sm:mb-2.5 gap-2">
             <div className="min-w-0">
               <h4 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white truncate">Delivery Challan Lifecycle</h4>
-              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-[#8896ab] truncate">Distribution across dispatched, partially returned & closed</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-[#8896ab] truncate">Distribution across dispatched, partially returned & closed</p>
             </div>
-            <span className="text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-[#1e233d] text-slate-700 dark:text-slate-300 shrink-0">
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-[#1e233d] text-slate-700 dark:text-slate-300 shrink-0">
               Donut
             </span>
           </div>
 
-          <div className="h-64 sm:h-72 w-full max-w-full min-w-0 overflow-hidden">
+          <div className="h-48 sm:h-52 w-full max-w-full min-w-0 overflow-hidden">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -92,9 +92,9 @@ export function DeliveryChallanOverviewTab({ data }: DeliveryChallanOverviewTabP
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
-                  cy="42%"
-                  innerRadius={52}
-                  outerRadius={82}
+                  cy="46%"
+                  innerRadius={40}
+                  outerRadius={65}
                   paddingAngle={3}
                   className="cursor-pointer focus:outline-none"
                 >
@@ -110,7 +110,7 @@ export function DeliveryChallanOverviewTab({ data }: DeliveryChallanOverviewTabP
                 <Legend
                   verticalAlign="bottom"
                   iconType="circle"
-                  wrapperStyle={{ fontSize: '10px', paddingTop: '6px' }}
+                  wrapperStyle={{ fontSize: '10px', paddingTop: '4px' }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -118,23 +118,23 @@ export function DeliveryChallanOverviewTab({ data }: DeliveryChallanOverviewTabP
         </div>
 
         {/* Vendor Custody Units Bar Chart */}
-        <div className="p-4 sm:p-5 bg-white dark:bg-[#121526] rounded-2xl border border-slate-200 dark:border-[#1e233d] shadow-xs flex flex-col w-full max-w-full min-w-0 overflow-hidden">
-          <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+        <div className="p-3 sm:p-4 bg-white dark:bg-[#121526] rounded-xl border border-slate-200 dark:border-[#1e233d] shadow-2xs flex flex-col w-full max-w-full min-w-0 overflow-hidden">
+          <div className="flex items-center justify-between mb-2 sm:mb-2.5 gap-2">
             <div className="min-w-0">
               <h4 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white truncate">Custody Material by Vendor</h4>
-              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-[#8896ab] truncate">Net physical units pending return at vendor facilities</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-[#8896ab] truncate">Net physical units pending return at vendor facilities</p>
             </div>
-            <span className="text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-[#1e233d] text-slate-700 dark:text-slate-300 shrink-0">
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-[#1e233d] text-slate-700 dark:text-slate-300 shrink-0">
               Bar Chart
             </span>
           </div>
 
-          <div className="h-64 sm:h-72 w-full max-w-full min-w-0 overflow-hidden">
+          <div className="h-48 sm:h-52 w-full max-w-full min-w-0 overflow-hidden">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={vendorBarData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+              <BarChart data={vendorBarData} margin={{ top: 8, right: 10, left: -22, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255, 255, 255, 0.08)" />
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                 <Tooltip
                   cursor={{ fill: 'rgba(255, 255, 255, 0.04)' }}
                   formatter={(val: any) => [`${Number(val).toLocaleString()} units`, 'Pending in Custody']}

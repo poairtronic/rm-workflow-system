@@ -46,27 +46,27 @@ export function OverviewHeaderMetrics({ summary }: OverviewHeaderMetricsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 [grid-template-columns:repeat(auto-fit,minmax(240px,1fr))] sm:[grid-template-columns:none]">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
       {cards.map((c) => {
         const Icon = c.icon;
         return (
           <div
             key={c.title}
-            className={`p-4 sm:p-5 rounded-2xl border bg-white dark:bg-[#121526] shadow-xs flex items-start justify-between gap-3 transition-all hover:shadow-md ${c.borderColor} dark:border-[#1e233d]`}
+            className={`py-2 px-3 sm:py-2.5 sm:px-3.5 rounded-xl border bg-white dark:bg-[#121526] shadow-2xs flex items-center justify-between gap-2 transition-all hover:shadow-xs ${c.borderColor} dark:border-[#1e233d]`}
           >
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-[#8896ab] mb-1 truncate">
+              <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-[#8896ab] truncate">
                 {c.title}
               </p>
-              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight truncate">
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight truncate mt-0.5">
                 {c.value}
               </h3>
-              <p className="text-[11px] sm:text-xs text-slate-500 dark:text-[#8896ab] mt-1 sm:mt-1.5 flex items-center gap-1 truncate">
+              <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-[#8896ab] mt-0.5 truncate">
                 {c.subtitle}
               </p>
             </div>
-            <div className={`p-2.5 sm:p-3 rounded-xl ${c.bgColor} dark:bg-opacity-15 ${c.color} shrink-0`}>
-              <Icon className="w-5 h-5" />
+            <div className={`p-1.5 sm:p-2 rounded-lg ${c.bgColor} dark:bg-opacity-15 ${c.color} shrink-0`}>
+              <Icon className="w-4 h-4" />
             </div>
           </div>
         );
