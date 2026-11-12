@@ -1,0 +1,123 @@
+const fs = require('fs');
+const path = require('path');
+
+const indents = [
+  {
+    indentId: 'AGIPL-26-08-07-187',
+    indentNumber: 'AGIPL-26-08-07-187',
+    poNumber: 'PO1169',
+    customerName: null,
+    layoutNumber: null,
+    lineItems: [
+      // List A (old "188" sheet) - 29 items
+      { mercItemId: 'PO1169-A-01', itemType: 'RAW_MATERIAL', name: 'Base plate', material: 'MS', shape: 'FLAT', lengthMm: 310, widthMm: 185, heightMm: 20, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-02', itemType: 'RAW_MATERIAL', name: 'Air Plug', material: 'OHNS', shape: 'ROUND_BAR', lengthMm: 60, widthMm: null, heightMm: null, diameterMm: 75, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-03', itemType: 'RAW_MATERIAL', name: 'Probe holder', material: 'MS', shape: 'FLAT', lengthMm: 70, widthMm: 180, heightMm: 20, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-04', itemType: 'RAW_MATERIAL', name: 'Top plate', material: 'MS', shape: 'FLAT', lengthMm: 105, widthMm: 125, heightMm: 20, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-05', itemType: 'RAW_MATERIAL', name: 'Support Plate', material: 'MS', shape: 'FLAT', lengthMm: 45, widthMm: 155, heightMm: 20, diameterMm: null, quantityRequired: 2, quantityIssued: 2, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-06', itemType: 'RAW_MATERIAL', name: 'Element Holder', material: 'MS', shape: 'FLAT', lengthMm: 95, widthMm: 125, heightMm: 45, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-07', itemType: 'RAW_MATERIAL', name: 'C-Probe Holder', material: 'MS', shape: 'FLAT', lengthMm: 125, widthMm: 95, heightMm: 20, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-08', itemType: 'RAW_MATERIAL', name: 'Probe Bush', material: 'MS', shape: 'ROUND_BAR', lengthMm: 45, widthMm: null, heightMm: null, diameterMm: 30, quantityRequired: 2, quantityIssued: 2, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-09', itemType: 'RAW_MATERIAL', name: 'Probe Bush-2', material: 'MS', shape: 'ROUND_BAR', lengthMm: 40, widthMm: null, heightMm: null, diameterMm: 30, quantityRequired: 3, quantityIssued: 3, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-10', itemType: 'RAW_MATERIAL', name: 'Brass Bush', material: 'BRASS', shape: 'ROUND_BAR', lengthMm: 20, widthMm: null, heightMm: null, diameterMm: 20, quantityRequired: 7, quantityIssued: 7, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-11', itemType: 'RAW_MATERIAL', name: 'Jig feet', material: 'MS', shape: 'ROUND_BAR', lengthMm: 75, widthMm: null, heightMm: null, diameterMm: 20, quantityRequired: 4, quantityIssued: 4, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-12', itemType: 'RAW_MATERIAL', name: 'Anvil', material: 'HSS', shape: 'ROUND_BAR', lengthMm: 70, widthMm: null, heightMm: null, diameterMm: 6, quantityRequired: 2, quantityIssued: 2, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-13', itemType: 'RAW_MATERIAL', name: 'Avil holder', material: 'MS', shape: 'ROUND_BAR', lengthMm: 60, widthMm: null, heightMm: null, diameterMm: 20, quantityRequired: 2, quantityIssued: 2, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-14', itemType: 'RAW_MATERIAL', name: 'Probe Actuator', material: 'SS', shape: 'ROUND_BAR', lengthMm: 45, widthMm: null, heightMm: null, diameterMm: 10, quantityRequired: 2, quantityIssued: 2, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-15', itemType: 'RAW_MATERIAL', name: 'Stopper', material: 'MS', shape: 'FLAT', lengthMm: 40, widthMm: 55, heightMm: 15, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-16', itemType: 'RAW_MATERIAL', name: 'Master', material: 'OHNS', shape: 'ROUND_BAR', lengthMm: 45, widthMm: null, heightMm: null, diameterMm: 55, quantityRequired: 1, quantityIssued: 1, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-17', itemType: 'BROUGHT_OUT', name: 'Element (STD)', material: 'STD', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 2, quantityIssued: 2, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-18', itemType: 'RAW_MATERIAL', name: 'guard', material: 'Sheet metal', shape: 'FLAT', lengthMm: 635, widthMm: 485, heightMm: 2, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-19', itemType: 'RAW_MATERIAL', name: 'Pin stopper', material: 'OHNS', shape: 'ROUND_BAR', lengthMm: 80, widthMm: null, heightMm: null, diameterMm: 20, quantityRequired: 1, quantityIssued: 1, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-20', itemType: 'BROUGHT_OUT', name: 'Allen Screw', material: 'M6X20', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 15, quantityIssued: 15, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-21', itemType: 'BROUGHT_OUT', name: 'Allen Screw', material: 'M6X25', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 4, quantityIssued: 4, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-22', itemType: 'BROUGHT_OUT', name: 'Allen Screw', material: 'M5X20', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 5, quantityIssued: 5, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-23', itemType: 'BROUGHT_OUT', name: 'Allen Screw', material: 'M4X20', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 15, quantityIssued: 15, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-24', itemType: 'BROUGHT_OUT', name: 'Allen Screw', material: 'M5X10', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 5, quantityIssued: 5, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-25', itemType: 'BROUGHT_OUT', name: 'Handle', material: 'std', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-26', itemType: 'BROUGHT_OUT', name: 'std anvil', material: 'Ø5*25', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 3, quantityIssued: 3, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-27', itemType: 'BROUGHT_OUT', name: 'LM guide', material: '15*15*220 (TOBAKI)', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-28', itemType: 'BROUGHT_OUT', name: 'Setting ring', material: 'KD 63*45', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 2, quantityIssued: 2, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1169-A-29', itemType: 'BROUGHT_OUT', name: 'Acrylic', material: '1350*10*3', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 2, quantityIssued: 2, unit: 'NOS', vendorName: 'List A' },
+
+      // List B (old "187" sheet) - 17 items
+      { mercItemId: 'PO1169-B-01', itemType: 'RAW_MATERIAL', name: 'Base plate', material: 'MS', shape: 'FLAT', lengthMm: 225, widthMm: 155, heightMm: 22, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1169-B-02', itemType: 'RAW_MATERIAL', name: 'Locator Base', material: 'OHNS', shape: 'ROUND_BAR', lengthMm: 25, widthMm: null, heightMm: null, diameterMm: 65, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1169-B-03', itemType: 'RAW_MATERIAL', name: 'Locator', material: 'OHNS', shape: 'ROUND_BAR', lengthMm: 55, widthMm: null, heightMm: null, diameterMm: 35, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1169-B-04', itemType: 'RAW_MATERIAL', name: 'keyway', material: 'OHNS', shape: 'FLAT', lengthMm: 55, widthMm: 15, heightMm: 15, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1169-B-05', itemType: 'RAW_MATERIAL', name: 'probe holder-1', material: 'MS', shape: 'FLAT', lengthMm: 55, widthMm: 80, heightMm: 30, diameterMm: null, quantityRequired: 2, quantityIssued: 2, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1169-B-06', itemType: 'RAW_MATERIAL', name: 'probe holder-2', material: 'MS', shape: 'FLAT', lengthMm: 60, widthMm: 55, heightMm: 30, diameterMm: null, quantityRequired: 2, quantityIssued: 2, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1169-B-07', itemType: 'RAW_MATERIAL', name: 'Probe guard', material: 'Sheet metal', shape: 'FLAT', lengthMm: 105, widthMm: 75, heightMm: 2, diameterMm: null, quantityRequired: 4, quantityIssued: 4, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1169-B-08', itemType: 'RAW_MATERIAL', name: 'Jig feet', material: 'MS', shape: 'ROUND_BAR', lengthMm: 75, widthMm: null, heightMm: null, diameterMm: 20, quantityRequired: 4, quantityIssued: 4, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1169-B-09', itemType: 'RAW_MATERIAL', name: 'special anvil-1', material: 'HSS', shape: 'FLAT', lengthMm: 15, widthMm: 18, heightMm: 5, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1169-B-10', itemType: 'RAW_MATERIAL', name: 'special anvil-2', material: 'HSS', shape: 'FLAT', lengthMm: 9, widthMm: 6, heightMm: 11, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1169-B-11', itemType: 'RAW_MATERIAL', name: 'Master', material: 'OHNS', shape: 'ROUND_BAR', lengthMm: 45, widthMm: null, heightMm: null, diameterMm: 55, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1169-B-12', itemType: 'BROUGHT_OUT', name: 'Allen Screw', material: 'M6X25', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 5, quantityIssued: 5, unit: 'NOS', vendorName: 'List B' },
+      { mercItemId: 'PO1169-B-13', itemType: 'BROUGHT_OUT', name: 'Allen Screw', material: 'M6X20', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 15, quantityIssued: 15, unit: 'NOS', vendorName: 'List B' },
+      { mercItemId: 'PO1169-B-14', itemType: 'BROUGHT_OUT', name: 'Allen Screw', material: 'M5X20', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 15, quantityIssued: 15, unit: 'NOS', vendorName: 'List B' },
+      { mercItemId: 'PO1169-B-15', itemType: 'BROUGHT_OUT', name: 'Allen Screw', material: 'M4X20', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 5, quantityIssued: 5, unit: 'NOS', vendorName: 'List B' },
+      { mercItemId: 'PO1169-B-16', itemType: 'BROUGHT_OUT', name: 'flat anvil', material: 'Ø5*10', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 8, quantityIssued: 8, unit: 'NOS', vendorName: 'List B' },
+      { mercItemId: 'PO1169-B-17', itemType: 'RAW_MATERIAL', name: 'Strip', material: 'Carbide', shape: 'FLAT', lengthMm: 50, widthMm: 10, heightMm: 6, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NOS', vendorName: 'List B' },
+    ]
+  },
+  {
+    indentId: 'AGIPL-26-08-10-189',
+    indentNumber: 'AGIPL-26-08-10-189',
+    poNumber: 'PO1349',
+    customerName: null,
+    layoutNumber: null,
+    lineItems: [
+      // List A (first "189" sheet) - 27 items
+      { mercItemId: 'PO1349-A-01', itemType: 'RAW_MATERIAL', name: 'Base plate', material: 'MS', shape: 'FLAT', lengthMm: 205, widthMm: 205, heightMm: 20, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-02', itemType: 'RAW_MATERIAL', name: 'Locator', material: 'OHNS', shape: 'FLAT', lengthMm: 95, widthMm: 78, heightMm: 35, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-03', itemType: 'RAW_MATERIAL', name: 'Top plate', material: 'OHNS', shape: 'FLAT', lengthMm: 95, widthMm: 78, heightMm: 25, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-04', itemType: 'RAW_MATERIAL', name: 'Anvil', material: 'OHNS', shape: 'FLAT', lengthMm: 25, widthMm: 60, heightMm: 15, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-05', itemType: 'RAW_MATERIAL', name: 'Support Block', material: 'OHNS', shape: 'FLAT', lengthMm: 75, widthMm: 55, heightMm: 25, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-06', itemType: 'RAW_MATERIAL', name: 'carbide plate-1', material: 'OHNS', shape: 'FLAT', lengthMm: 30, widthMm: 15, heightMm: 15, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-07', itemType: 'RAW_MATERIAL', name: 'Anvil spring stopper', material: 'MS', shape: 'FLAT', lengthMm: 30, widthMm: 15, heightMm: 10, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-08', itemType: 'RAW_MATERIAL', name: 'Carbide plate 2', material: 'OHNS', shape: 'FLAT', lengthMm: 25, widthMm: 28, heightMm: 15, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-09', itemType: 'RAW_MATERIAL', name: 'Strip 1', material: 'Carbide', shape: 'FLAT', lengthMm: 25, widthMm: 10, heightMm: 3, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-10', itemType: 'RAW_MATERIAL', name: 'Strip 2', material: 'Carbide', shape: 'FLAT', lengthMm: 65, widthMm: 15, heightMm: 4, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-11', itemType: 'RAW_MATERIAL', name: 'Probe Holder', material: 'MS', shape: 'FLAT', lengthMm: 50, widthMm: 60, heightMm: 18, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-12', itemType: 'RAW_MATERIAL', name: 'Rest strip', material: 'Carbide', shape: 'FLAT', lengthMm: 55, widthMm: 10, heightMm: 3, diameterMm: null, quantityRequired: 2, quantityIssued: 2, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-13', itemType: 'RAW_MATERIAL', name: 'Probe Guard', material: 'Sheet metal', shape: 'FLAT', lengthMm: 150, widthMm: 75, heightMm: 2.5, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-14', itemType: 'RAW_MATERIAL', name: 'Jig feet', material: 'MS', shape: 'ROUND_BAR', lengthMm: 120, widthMm: null, heightMm: null, diameterMm: 20, quantityRequired: 4, quantityIssued: 4, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-15', itemType: 'RAW_MATERIAL', name: 'Master holder', material: 'Nylon', shape: 'ROUND_BAR', lengthMm: 25, widthMm: null, heightMm: null, diameterMm: 55, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-16', itemType: 'RAW_MATERIAL', name: 'Brass Bush', material: 'Brass', shape: 'ROUND_BAR', lengthMm: 20, widthMm: null, heightMm: null, diameterMm: 20, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-17', itemType: 'RAW_MATERIAL', name: 'Sheet cover', material: 'CRCA', shape: 'FLAT', lengthMm: 205, widthMm: 90, heightMm: 2, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-18', itemType: 'RAW_MATERIAL', name: 'Anvil Top plate', material: 'OHNS', shape: 'FLAT', lengthMm: 52, widthMm: 75, heightMm: 10, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-19', itemType: 'RAW_MATERIAL', name: 'Carbide plate 2', material: 'MS', shape: 'FLAT', lengthMm: 15, widthMm: 30, heightMm: 15, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-20', itemType: 'BROUGHT_OUT', name: 'Allen Screw', material: 'M6*25', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 4, quantityIssued: 4, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-21', itemType: 'BROUGHT_OUT', name: 'Allen Screw', material: 'M6*20', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 20, quantityIssued: 20, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-22', itemType: 'BROUGHT_OUT', name: 'Allen Screw', material: 'M6*6', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 2, quantityIssued: 2, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-23', itemType: 'BROUGHT_OUT', name: 'Allen Screw', material: 'M5*20', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 8, quantityIssued: 8, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-24', itemType: 'BROUGHT_OUT', name: 'CSK', material: 'M5*10', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 4, quantityIssued: 4, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-25', itemType: 'BROUGHT_OUT', name: 'Dowel', material: 'Ø6*30', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-26', itemType: 'BROUGHT_OUT', name: 'Dowel', material: 'Ø5*30', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 2, quantityIssued: 2, unit: 'NOS', vendorName: 'List A' },
+      { mercItemId: 'PO1349-A-27', itemType: 'BROUGHT_OUT', name: 'Spring', material: 'Ø6*15', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NOS', vendorName: 'List A' },
+
+      // List B (second "189" sheet) - 14 items
+      { mercItemId: 'PO1349-B-01', itemType: 'RAW_MATERIAL', name: 'Base plate', material: 'MS', shape: 'FLAT', lengthMm: 155, widthMm: 155, heightMm: 20, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1349-B-02', itemType: 'RAW_MATERIAL', name: 'Probe Holder', material: 'MS', shape: 'FLAT', lengthMm: 65, widthMm: 35, heightMm: 20, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1349-B-03', itemType: 'RAW_MATERIAL', name: 'Support block', material: 'MS', shape: 'FLAT', lengthMm: 85, widthMm: 35, heightMm: 35, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1349-B-04', itemType: 'RAW_MATERIAL', name: 'Bush', material: 'OHNS', shape: 'ROUND_BAR', lengthMm: 10, widthMm: null, heightMm: null, diameterMm: 15, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1349-B-05', itemType: 'RAW_MATERIAL', name: 'Wear plate', material: 'OHNS', shape: 'FLAT', lengthMm: 55, widthMm: 95, heightMm: 15, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1349-B-06', itemType: 'RAW_MATERIAL', name: 'Guard', material: 'CRCA', shape: 'FLAT', lengthMm: 150, widthMm: 75, heightMm: 2.5, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1349-B-07', itemType: 'RAW_MATERIAL', name: 'Jig feet', material: 'MS', shape: 'ROUND_BAR', lengthMm: 120, widthMm: null, heightMm: null, diameterMm: 20, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1349-B-08', itemType: 'RAW_MATERIAL', name: 'strip', material: 'Carbide', shape: 'FLAT', lengthMm: 12, widthMm: 10, heightMm: 3, diameterMm: null, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1349-B-09', itemType: 'RAW_MATERIAL', name: 'Brass Bush', material: 'Brass', shape: 'ROUND_BAR', lengthMm: 25, widthMm: null, heightMm: null, diameterMm: 20, quantityRequired: 1, quantityIssued: 1, unit: 'NO', vendorName: 'List B' },
+      { mercItemId: 'PO1349-B-10', itemType: 'BROUGHT_OUT', name: 'Allen Screw', material: 'M6*25', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 10, quantityIssued: 10, unit: 'NOS', vendorName: 'List B' },
+      { mercItemId: 'PO1349-B-11', itemType: 'BROUGHT_OUT', name: 'Allen Screw', material: 'M5*20', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 10, quantityIssued: 10, unit: 'NOS', vendorName: 'List B' },
+      { mercItemId: 'PO1349-B-12', itemType: 'BROUGHT_OUT', name: 'Allen Screw', material: 'M5*8', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 10, quantityIssued: 10, unit: 'NOS', vendorName: 'List B' },
+      { mercItemId: 'PO1349-B-13', itemType: 'BROUGHT_OUT', name: 'Spring plunger', material: 'M8*20', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 2, quantityIssued: 2, unit: 'NOS', vendorName: 'List B' },
+      { mercItemId: 'PO1349-B-14', itemType: 'BROUGHT_OUT', name: 'LVDT Probe', material: 'Marposs', shape: null, lengthMm: null, widthMm: null, heightMm: null, diameterMm: null, quantityRequired: 2, quantityIssued: 2, unit: 'NOS', vendorName: 'List B' },
+    ]
+  }
+];
+
+fs.mkdirSync(path.resolve('data'), { recursive: true });
+fs.writeFileSync(path.resolve('data/legacy_indents.json'), JSON.stringify(indents, null, 2), 'utf8');
+console.log('Created data/legacy_indents.json with:');
+console.log(`  - Indent 1 (${indents[0].indentNumber}): ${indents[0].lineItems.length} lines`);
+console.log(`  - Indent 2 (${indents[1].indentNumber}): ${indents[1].lineItems.length} lines`);
+
