@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -148,5 +149,17 @@ export class ProductionProcessController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<ProductionProcess> {
     return this.productionProcessService.toggleActive(id);
+  }
+
+  /**
+   * Delete a production process.
+   * Restricted to ADMIN, STORES, GENERAL_MANAGER, and PRODUCTION roles.
+   */
+  @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.GENERAL_MANAGER, UserRole.PRODUCTION)
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<{ success: boolean; message: string }> {
+    return this.productionProcessService.remove(id);
   }
 }

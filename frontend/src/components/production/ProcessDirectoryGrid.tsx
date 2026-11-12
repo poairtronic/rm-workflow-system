@@ -1,11 +1,13 @@
 
 import type { ProductionProcessDto } from '../../types/process-master.dto';
-import { Edit2 } from 'lucide-react';
+import { Edit2, Trash2 } from 'lucide-react';
 
 interface ProcessDirectoryGridProps {
   data: ProductionProcessDto[];
   isLoading: boolean;
   onEdit: (process: ProductionProcessDto) => void;
+  onDelete?: (process: ProductionProcessDto) => void;
+  isDeleting?: boolean;
 }
 
 const StatusBadge = ({ isActive }: { isActive: boolean }) => {
@@ -25,7 +27,7 @@ const StatusBadge = ({ isActive }: { isActive: boolean }) => {
   );
 };
 
-export function ProcessDirectoryGrid({ data, isLoading, onEdit }: ProcessDirectoryGridProps) {
+export function ProcessDirectoryGrid({ data, isLoading, onEdit, onDelete, isDeleting }: ProcessDirectoryGridProps) {
   if (isLoading) {
     return (
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
@@ -52,7 +54,7 @@ export function ProcessDirectoryGrid({ data, isLoading, onEdit }: ProcessDirecto
                   <td className="px-6 py-2"><div className="h-4 bg-slate-200 rounded w-12"></div></td>
                   <td className="px-6 py-2"><div className="h-5 bg-slate-200 rounded-full w-20"></div></td>
                   <td className="px-6 py-2"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
-                  <td className="px-6 py-2 text-right"><div className="h-8 bg-slate-200 rounded-md w-16 ml-auto"></div></td>
+                  <td className="px-6 py-2 text-right"><div className="h-8 bg-slate-200 rounded-md w-28 ml-auto"></div></td>
                 </tr>
               ))}
             </tbody>
@@ -109,13 +111,27 @@ export function ProcessDirectoryGrid({ data, isLoading, onEdit }: ProcessDirecto
                   </div>
                 </td>
                 <td className="px-6 py-2 text-right">
-                  <button
-                    onClick={() => onEdit(item)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
-                    Edit
-                  </button>
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => onEdit(item)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg hover:bg-slate-50 hover:text-blue-600 hover:border-blue-200 focus:outline-none focus:ring-2 focus:ring-slate-200 transition-colors shadow-2xs"
+                      title="Edit Process"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-slate-500" />
+                      Edit
+                    </button>
+                    {onDelete && (
+                      <button
+                        onClick={() => onDelete(item)}
+                        disabled={isDeleting}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 border border-rose-200 text-rose-600 text-xs font-medium rounded-lg hover:bg-rose-100 hover:text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-200 transition-colors shadow-2xs disabled:opacity-50"
+                        title="Delete Process"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                        Delete
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

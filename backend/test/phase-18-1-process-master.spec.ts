@@ -297,6 +297,7 @@ describe('Phase 18.1 — Production Process Master Test Suite', () => {
         findOne: vi.fn().mockResolvedValue(mockProcess),
         update: vi.fn().mockResolvedValue(mockProcess),
         toggleActive: vi.fn().mockResolvedValue({ ...mockProcess, isActive: false }),
+        remove: vi.fn().mockResolvedValue({ success: true, message: 'Deleted' }),
       };
 
       controller = new ProductionProcessController(service as any);
@@ -367,6 +368,17 @@ describe('Phase 18.1 — Production Process Master Test Suite', () => {
 
       await controller.toggleActive('uuid-proc-1');
       expect(service.toggleActive).toHaveBeenCalledWith('uuid-proc-1');
+
+      await controller.remove('uuid-proc-1');
+      expect(service.remove).toHaveBeenCalledWith('uuid-proc-1');
+    });
+
+    it('PROC-SEC-008: DELETE /api/production-processes/:id permits ADMIN role and denies DESIGNER', () => {
+      const adminCtx = createMockContext(UserRole.ADMIN, controller.remove);
+      expect(rolesGuard.canActivate(adminCtx)).toBe(true);
+
+      const designerCtx = createMockContext(UserRole.DESIGNER, controller.remove);
+      expect(rolesGuard.canActivate(designerCtx)).toBe(false);
     });
   });
 });

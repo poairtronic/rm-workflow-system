@@ -356,6 +356,8 @@ export const productionProcessApi = {
     };
     return api.patch<ProductionProcessDto>(`/api/production-processes/${id}`, backendData);
   },
+  delete: (id: string) =>
+    api.delete<{ success: boolean; message: string }>(`/api/production-processes/${id}`),
   getVendors: async () => {
     const vendors = await api.get<any[]>('/api/vendors?isActive=true');
     return vendors.map(v => ({

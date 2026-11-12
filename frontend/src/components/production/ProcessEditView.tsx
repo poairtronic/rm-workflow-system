@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { X, Lock, ArrowLeft } from 'lucide-react';
+import { X, Lock, ArrowLeft, Trash2 } from 'lucide-react';
 import type { ProductionProcessDto, UpdateProductionProcessDto } from '../../types/process-master.dto';
 
 interface ProcessEditViewProps {
@@ -8,11 +8,12 @@ interface ProcessEditViewProps {
   onClose: () => void;
   process: ProductionProcessDto | null;
   onSubmit: (id: string, data: UpdateProductionProcessDto) => void;
+  onDelete?: (process: ProductionProcessDto) => void;
   isPending: boolean;
   hasAdminRights: boolean;
 }
 
-export function ProcessEditView({ isOpen, onClose, process, onSubmit, isPending, hasAdminRights }: ProcessEditViewProps) {
+export function ProcessEditView({ isOpen, onClose, process, onSubmit, onDelete, isPending, hasAdminRights }: ProcessEditViewProps) {
   const [isActiveToggle, setIsActiveToggle] = useState(false);
 
   const { register, handleSubmit, reset } = useForm<UpdateProductionProcessDto>({
@@ -149,23 +150,39 @@ export function ProcessEditView({ isOpen, onClose, process, onSubmit, isPending,
         </div>
 
         {/* Footer */}
-        <div className="p-5 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-10 px-4 flex items-center bg-white text-slate-900 border border-slate-200 text-sm font-medium rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200 transition-all"
-          >
-            Cancel
-          </button>
-          
-          <button
-            type="submit"
-            form="process-edit-form"
-            disabled={isPending}
-            className="h-10 px-6 flex items-center gap-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          >
-            {isPending ? 'Saving...' : 'Save Changes'}
-          </button>
+        <div className="p-5 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
+          <div>
+            {onDelete && hasAdminRights && (
+              <button
+                type="button"
+                onClick={() => onDelete(process)}
+                disabled={isPending}
+                className="h-10 px-4 flex items-center gap-1.5 bg-rose-50 border border-rose-200 text-rose-600 text-sm font-medium rounded-lg hover:bg-rose-100 hover:text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-200 transition-colors disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4 text-rose-500" />
+                <span>Delete Process</span>
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-10 px-4 flex items-center bg-white text-slate-900 border border-slate-200 text-sm font-medium rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200 transition-all"
+            >
+              Cancel
+            </button>
+            
+            <button
+              type="submit"
+              form="process-edit-form"
+              disabled={isPending}
+              className="h-10 px-6 flex items-center gap-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {isPending ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

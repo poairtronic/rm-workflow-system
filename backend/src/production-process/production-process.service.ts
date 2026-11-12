@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -180,5 +181,60 @@ export class ProductionProcessService {
       .select('MAX(p.sequenceNumber)', 'max')
       .getRawOne();
     return (highest?.max || 0) + 1;
+  }
+
+  async remove(id: string): Promise<{ success: boolean; message: string }> {
+    const process = await this.findOne(id);
+
+    // Check if process is referenced by delivery challans or items or movements
+    const [dcRes, dciRes, dcmRes] = await Promise.all([
+      this.processRepo.manager.query(
+        `SELECT COUNT(*)::int as count FROM delivery_challans WHERE process_id = $1`,
+        [id],
+      ),
+      this.processRepo.manager.query(
+        `SELECT COUNT(*)::int as count FROM delivery_challan_items WHERE process_id = $1`,
+        [id],
+      ),
+      this.processRepo.manager.query(
+        `SELECT COUNT(*)::int as count FROM dc_movements WHERE process_id = $1`,
+        [id],
+      ),
+    ]);
+
+    const dcCount =
+      Number(dcRes[0]?.count || 0) +
+      Number(dciRes[0]?.count || 0) +
+      Number(dcmRes[0]?.count || 0);
+
+    if (dcCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete process "${process.name}" (${process.code}) because it is referenced by delivery challans or movements. You can deactivate it instead.`,
+      );
+    }
+
+    // Clean up vendor capabilities and SLAs referencing this process
+    await this.processRepo.manager.query(
+      `DELETE FROM vendor_sla_overrides WHERE sla_id IN (SELECT id FROM vendor_slas WHERE process_id = $1)`,
+      [id],
+    );
+    await this.processRepo.manager.query(
+      `DELETE FROM vendor_slas WHERE process_id = $1`,
+      [id],
+    );
+    await this.processRepo.manager.query(
+      `DELETE FROM vendor_process_capabilities WHERE process_id = $1`,
+      [id],
+    );
+
+    await this.processRepo.remove(process);
+    this.logger.log(
+      `[PRODUCTION PROCESS DELETED] ID: ${process.id}, Code: ${process.code}, Sequence: ${process.sequenceNumber}`,
+    );
+
+    return {
+      success: true,
+      message: `Production process "${process.name}" (${process.code}) has been deleted successfully.`,
+    };
   }
 }

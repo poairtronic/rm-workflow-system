@@ -51,12 +51,34 @@ export function ProcessMasterWorkspace() {
     }
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => productionProcessApi.delete(id),
+    onSuccess: (res: any) => {
+      toast.success(res?.message || 'Production process deleted successfully.');
+      queryClient.invalidateQueries({ queryKey: ['productionProcesses'] });
+      setIsEditOpen(false);
+      setSelectedProcess(null);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to delete production process.');
+    }
+  });
+
   const handleCreateSubmit = (data: CreateProductionProcessDto) => {
     createMutation.mutate(data);
   };
 
   const handleEditSubmit = (id: string, data: UpdateProductionProcessDto) => {
     updateMutation.mutate({ id, data });
+  };
+
+  const handleDelete = (process: ProductionProcessDto) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete process "${process.nomenclature}" (${process.internalCode})?\n\nThis will remove the process routing step. If active delivery challans reference this process, deletion will be safely prevented.`
+    );
+    if (confirmed) {
+      deleteMutation.mutate(process.id);
+    }
   };
 
   const openEdit = (process: ProductionProcessDto) => {
@@ -124,7 +146,8 @@ export function ProcessMasterWorkspace() {
           onClose={() => setIsEditOpen(false)}
           process={selectedProcess}
           onSubmit={handleEditSubmit}
-          isPending={updateMutation.isPending}
+          onDelete={handleDelete}
+          isPending={updateMutation.isPending || deleteMutation.isPending}
           hasAdminRights={hasAdminRights}
         />
       ) : (
@@ -210,6 +233,8 @@ export function ProcessMasterWorkspace() {
                 data={filteredProcesses}
                 isLoading={isLoadingProcesses}
                 onEdit={openEdit}
+                onDelete={handleDelete}
+                isDeleting={deleteMutation.isPending}
               />
             )}
           </div>
