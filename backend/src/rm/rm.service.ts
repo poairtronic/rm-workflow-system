@@ -26,6 +26,7 @@ import { StateMachineValidator } from '../common/utils/state-machine-validator.j
 import { WorkflowNotificationService } from '../notifications/workflow-notification.service.js';
 import { UserRole } from '../auth/enums/role.enum.js';
 import { RmItemSnapshot, SnapshotChangeType } from './entities/rm-item-snapshot.entity.js';
+import { MaterialIssueItem } from '../material-issue/entities/material-issue-item.entity.js';
 
 @Injectable()
 export class RmService {
@@ -504,7 +505,9 @@ export class RmService {
           await queryRunner.manager.delete(RmItem, { rmFormId: rm.id });
           rm = await queryRunner.manager.save(rm);
         } else if (rm.status !== RmRequestStatus.DRAFT) {
-           throw new ConflictException(`SC ${scNumber} already has a non-DRAFT RM Request.`);
+          if (user.role !== UserRole.ADMIN) {
+            throw new ConflictException(`SC ${scNumber} already has a non-DRAFT RM Request.`);
+          }
         }
 
         for (const itemDto of scDto.items) {
@@ -517,7 +520,19 @@ export class RmService {
             where: { rmFormId: rm.id, mappedProductId: product.id }
           });
           if (existingItem) {
-             throw new BadRequestException(`Duplicate product ${product.id} in SC ${scNumber}`);
+            if (user.role === UserRole.ADMIN) {
+              existingItem.grade = itemDto.spec ? itemDto.spec.trim() : '';
+              existingItem.size = itemDto.spec ? itemDto.spec.trim() : '';
+              existingItem.description = itemDto.description ? itemDto.description.trim() : undefined;
+              existingItem.quantity = QuantityCalculator.roundDecimal(itemDto.quantity);
+              existingItem.partNumber = itemDto.partNumber?.trim() || existingItem.partNumber;
+              existingItem.partName = itemDto.partName?.trim() || itemDto.remarks?.trim() || existingItem.partName;
+              existingItem.remarks = itemDto.remarks?.trim() || itemDto.partName?.trim() || existingItem.remarks;
+              await queryRunner.manager.save(RmItem, existingItem);
+              continue;
+            } else {
+              throw new BadRequestException(`Duplicate product ${product.id} in SC ${scNumber}`);
+            }
           }
 
           const item = queryRunner.manager.create(RmItem, {
@@ -634,43 +649,49 @@ export class RmService {
       const isAdmin = user.role === UserRole.ADMIN;
       const ownerCond = isOwner ? { createdById: user.userId } : {};
 
-      const statusConditions: any[] = [
-        { poId, status: RmRequestStatus.DRAFT, ...ownerCond },
-        { poId, status: RmRequestStatus.REJECTED, ...ownerCond },
-      ];
+      let existingDrafts: RmRequest[];
       if (isAdmin) {
-        statusConditions.push({ poId, status: RmRequestStatus.SUBMITTED });
+        existingDrafts = await queryRunner.manager.find(RmRequest, {
+          where: { poId },
+          relations: { salesOrderComponent: true, items: true },
+        });
+      } else {
+        const statusConditions: any[] = [
+          { poId, status: RmRequestStatus.DRAFT, ...ownerCond },
+          { poId, status: RmRequestStatus.REJECTED, ...ownerCond },
+        ];
+        existingDrafts = await queryRunner.manager.find(RmRequest, {
+          where: statusConditions,
+          relations: { salesOrderComponent: true, items: true },
+        });
       }
-
-      const existingDrafts = await queryRunner.manager.find(RmRequest, {
-         where: statusConditions,
-         relations: { salesOrderComponent: true, items: true }
-      });
 
       const inputScNumbers = dto.scs.map(sc => sc.scNumber.trim());
 
       for (const draft of existingDrafts) {
         if (!inputScNumbers.includes(draft.salesOrderComponent!.scNumber)) {
-          await queryRunner.manager.delete(RmItem, { rmFormId: draft.id });
-          await queryRunner.manager.delete(RmRequest, { id: draft.id });
-          await queryRunner.manager.delete(SalesOrderComponent, { id: draft.scId });
+          const issueCount = await queryRunner.manager.count(MaterialIssueItem, {
+            where: { rmItem: { rmFormId: draft.id } },
+          });
+          if (issueCount === 0) {
+            await queryRunner.manager.delete(RmItem, { rmFormId: draft.id });
+            await queryRunner.manager.delete(RmRequest, { id: draft.id });
+            await queryRunner.manager.delete(SalesOrderComponent, { id: draft.scId });
+          }
         }
       }
 
       for (const scDto of dto.scs) {
         const scNumber = scDto.scNumber.trim();
-        let draft = existingDrafts.find(d => d.salesOrderComponent!.scNumber === scNumber);
+        let draft = existingDrafts.find(d => d.salesOrderComponent?.scNumber === scNumber);
 
-        let sc;
+        let sc: SalesOrderComponent | null = null;
         if (draft) {
           sc = draft.salesOrderComponent!;
           sc.productName = scDto.productName;
-          const targetStatus = draft.status === RmRequestStatus.SUBMITTED ? RmRequestStatus.SUBMITTED : RmRequestStatus.DRAFT;
-          draft.status = targetStatus;
-          sc.status = targetStatus === RmRequestStatus.SUBMITTED ? ScStatus.SUBMITTED : ScStatus.DRAFT;
+          sc.targetQuantity = scDto.targetQuantity || 1;
           await queryRunner.manager.save(sc);
           await queryRunner.manager.save(draft);
-          await queryRunner.manager.delete(RmItem, { rmFormId: draft.id });
         } else {
           console.log(`[DEBUG] updateDraftRm finding SC ${scNumber} for PO ${po.id}`);
           sc = await queryRunner.manager.findOne(SalesOrderComponent, {
@@ -679,19 +700,18 @@ export class RmService {
           });
           console.log(`[DEBUG] updateDraftRm found SC:`, sc?.id);
           if (sc) {
-            const isSubmittedAllowed = isAdmin && sc.rmRequest?.status === RmRequestStatus.SUBMITTED;
-            if (sc.rmRequest && sc.rmRequest.status !== RmRequestStatus.DRAFT && !isSubmittedAllowed) {
+            const isAllowed = isAdmin || sc.rmRequest?.status === RmRequestStatus.DRAFT;
+            if (sc.rmRequest && !isAllowed) {
               console.log(`[DEBUG] throwing ConflictException for SC ${scNumber}`);
               throw new ConflictException(`SC ${scNumber} already has a non-DRAFT RM Request.`);
             } else if (sc.rmRequest) {
-               if (isOwner && sc.rmRequest.createdById !== user.userId) {
-                  throw new ConflictException(`SC ${scNumber} draft belongs to another user.`);
-               }
-               draft = sc.rmRequest;
-               sc.productName = scDto.productName;
-               sc.targetQuantity = scDto.targetQuantity || 1;
-               await queryRunner.manager.save(sc);
-               await queryRunner.manager.delete(RmItem, { rmFormId: draft.id });
+              if (isOwner && sc.rmRequest.createdById !== user.userId) {
+                throw new ConflictException(`SC ${scNumber} draft belongs to another user.`);
+              }
+              draft = sc.rmRequest;
+              sc.productName = scDto.productName;
+              sc.targetQuantity = scDto.targetQuantity || 1;
+              await queryRunner.manager.save(sc);
             }
           } else {
             sc = queryRunner.manager.create(SalesOrderComponent, {
@@ -715,38 +735,84 @@ export class RmService {
           }
         }
 
+        // Upsert items safely in-place so existing foreign key references are not broken
+        const existingItems = await queryRunner.manager.find(RmItem, {
+          where: { rmFormId: draft.id },
+        });
+
+        const processedItemIds = new Set<string>();
+
         for (const itemDto of scDto.items) {
           const product = await queryRunner.manager.findOne(Product, { where: { id: itemDto.productId } });
           if (!product || !product.isActive) {
             throw new BadRequestException(`Product ${itemDto.productId} not found or inactive`);
           }
 
-          const existingItem = await queryRunner.manager.findOne(RmItem, {
-            where: { rmFormId: draft.id, mappedProductId: product.id }
-          });
-          if (existingItem) {
-             throw new BadRequestException(`Duplicate product ${product.id} in SC ${scNumber}`);
+          let matchedItem = existingItems.find(
+            ei => !processedItemIds.has(ei.id) && ei.mappedProductId === product.id
+          );
+          if (!matchedItem && itemDto.partNumber) {
+            matchedItem = existingItems.find(
+              ei => !processedItemIds.has(ei.id) && ei.partNumber === itemDto.partNumber
+            );
           }
 
-          const item = queryRunner.manager.create(RmItem, {
-            rmFormId: draft.id,
-            scId: sc!.id,
-            material: product.name,
-            mappedProductId: product.id,
-            materialType: 'ROUND_BAR',
-            grade: itemDto.spec ? itemDto.spec.trim() : '',
-            size: itemDto.spec ? itemDto.spec.trim() : '',
-            description: itemDto.description ? itemDto.description.trim() : undefined,
-            originalMaterial: product.name,
-            originalGrade: itemDto.spec ? itemDto.spec.trim() : '',
-            originalSize: itemDto.spec ? itemDto.spec.trim() : '',
-            originalQuantity: QuantityCalculator.roundDecimal(itemDto.quantity),
-            quantity: QuantityCalculator.roundDecimal(itemDto.quantity),
-            partNumber: itemDto.partNumber?.trim() || undefined,
-            partName: itemDto.partName?.trim() || itemDto.remarks?.trim() || undefined,
-            remarks: itemDto.remarks?.trim() || itemDto.partName?.trim() || undefined,
-          });
-          await queryRunner.manager.save(item);
+          const specVal = itemDto.spec ? itemDto.spec.trim() : '';
+          const descVal = itemDto.description ? itemDto.description.trim() : undefined;
+          const qtyVal = QuantityCalculator.roundDecimal(itemDto.quantity);
+          const partNoVal = itemDto.partNumber?.trim() || undefined;
+          const partNameVal = itemDto.partName?.trim() || itemDto.remarks?.trim() || undefined;
+          const remarksVal = itemDto.remarks?.trim() || itemDto.partName?.trim() || undefined;
+
+          if (matchedItem) {
+            matchedItem.material = product.name;
+            matchedItem.mappedProductId = product.id;
+            matchedItem.grade = specVal;
+            matchedItem.size = specVal;
+            matchedItem.description = descVal;
+            matchedItem.quantity = qtyVal;
+            matchedItem.partNumber = partNoVal;
+            matchedItem.partName = partNameVal;
+            matchedItem.remarks = remarksVal;
+            if (!matchedItem.originalMaterial) matchedItem.originalMaterial = product.name;
+            if (!matchedItem.originalGrade) matchedItem.originalGrade = specVal;
+            if (!matchedItem.originalQuantity) matchedItem.originalQuantity = qtyVal;
+            await queryRunner.manager.save(RmItem, matchedItem);
+            processedItemIds.add(matchedItem.id);
+          } else {
+            const newItem = queryRunner.manager.create(RmItem, {
+              rmFormId: draft.id,
+              scId: sc!.id,
+              material: product.name,
+              mappedProductId: product.id,
+              materialType: 'ROUND_BAR',
+              grade: specVal,
+              size: specVal,
+              description: descVal,
+              originalMaterial: product.name,
+              originalGrade: specVal,
+              originalSize: specVal,
+              originalQuantity: qtyVal,
+              quantity: qtyVal,
+              partNumber: partNoVal,
+              partName: partNameVal,
+              remarks: remarksVal,
+            });
+            const saved = await queryRunner.manager.save(RmItem, newItem);
+            processedItemIds.add(saved.id);
+          }
+        }
+
+        // Clean up unreferenced deleted items
+        for (const ei of existingItems) {
+          if (!processedItemIds.has(ei.id)) {
+            const issueCount = await queryRunner.manager.count(MaterialIssueItem, {
+              where: { rmItemId: ei.id },
+            });
+            if (issueCount === 0) {
+              await queryRunner.manager.delete(RmItem, { id: ei.id });
+            }
+          }
         }
       }
 
@@ -775,12 +841,23 @@ export class RmService {
 
     try {
       const isOwner = user.role === UserRole.DESIGNER;
+      const isAdmin = user.role === UserRole.ADMIN;
       const ownerCond = isOwner ? { createdById: user.userId } : {};
+
+      const targetStatuses = isAdmin
+        ? [
+            RmRequestStatus.DRAFT,
+            RmRequestStatus.SUBMITTED,
+            RmRequestStatus.REVIEWED,
+            RmRequestStatus.COMPLETED,
+            RmRequestStatus.REJECTED,
+          ]
+        : [RmRequestStatus.DRAFT];
 
       const qb = queryRunner.manager.createQueryBuilder(RmRequest, 'rm')
         .select('rm.id')
         .where('rm.po_id = :poId', { poId })
-        .andWhere('rm.status = :status', { status: RmRequestStatus.DRAFT });
+        .andWhere('rm.status IN (:...statuses)', { statuses: targetStatuses });
       if (isOwner) {
         qb.andWhere('rm.created_by_id = :userId', { userId: user.userId });
       }
@@ -790,12 +867,12 @@ export class RmService {
       console.log('[DEBUG] submitDraftRmByPo lock acquired');
 
       const drafts = await queryRunner.manager.find(RmRequest, {
-         where: { poId, status: RmRequestStatus.DRAFT, ...ownerCond },
+         where: { poId, status: In(targetStatuses), ...ownerCond },
          relations: { salesOrderComponent: true, items: true }
       });
 
       if (!drafts.length) {
-        throw new BadRequestException('No DRAFT RM Requests found for this PO.');
+        throw new BadRequestException('No RM Requests found for this PO.');
       }
 
       const submittedScs: string[] = [];
@@ -816,11 +893,20 @@ export class RmService {
         draftsToSave.push(draft);
 
         for (const item of draft.items) {
+          const latestSnap = await queryRunner.manager.findOne(RmItemSnapshot, {
+            where: { rmItemId: item.id },
+            order: { revisionNumber: 'DESC' },
+          });
+          const revisionNumber = latestSnap ? latestSnap.revisionNumber + 1 : 1;
+          const changeType = latestSnap
+            ? SnapshotChangeType.DESIGNER_REVISION
+            : SnapshotChangeType.ORIGINAL_SUBMISSION;
+
           const snap = queryRunner.manager.create(RmItemSnapshot, {
             rmItemId: item.id,
             rmFormId: draft.id,
-            revisionNumber: 1,
-            changeType: SnapshotChangeType.ORIGINAL_SUBMISSION,
+            revisionNumber,
+            changeType,
             changedById: user.userId,
             material: item.material,
             materialType: item.materialType,
