@@ -1,0 +1,14 @@
+SNO,RM SIZE,PO NO'); if (csvIdx !== -1) { const csv = content.substring(csvIdx); fs.writeFileSync('data/shopfloor_master_dataset.csv', csv, 'utf8'); console.log('Saved CSV! Length:', csv.length, 'lines:', csv.split('\n').length); } else { console.log('CSV header not found!'); }
+                                                                                                                                                                                                                                                                                                        ^
+
+TypeError: Cannot read properties of undefined (reading 'indexOf')
+    at [eval]:1:297
+    at runScriptInThisContext (node:internal/vm:219:10)
+    at node:internal/process/execution:451:12
+    at [eval]-wrapper:6:24
+    at runScriptInContext (node:internal/process/execution:449:60)
+    at evalFunction (node:internal/process/execution:283:30)
+    at evalTypeScript (node:internal/process/execution:295:3)
+    at node:internal/main/eval_string:71:3
+
+Node.js v24.16.0
