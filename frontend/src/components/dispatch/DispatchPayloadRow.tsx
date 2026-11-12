@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from 'react';
 import { useFormContext, Controller } from 'react-hook-form';
-import { Trash2, ArrowRight } from 'lucide-react';
+import { Trash2, ArrowRight, Lock, AlertTriangle, Info } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { api, unwrapList } from '../../services/api';
+import { api, unwrapList, deliveryChallanApi } from '../../services/api';
 import { masterDataService } from '../../services/masterDataService';
 import { SearchSelect, type SearchSelectOption } from '../ui/SearchSelect';
 
@@ -192,6 +192,43 @@ export function DispatchPayloadRow({
 
   const scItemId = watch(`scBlocks.${blockIndex}.items.${index}.scItemId`);
 
+  const currentPartName = watch(`scBlocks.${blockIndex}.items.${index}.partName`);
+  const currentProductId = watch(`scBlocks.${blockIndex}.items.${index}.productId`);
+
+  // Query product lock diagnostic check for Type 1 item
+  const { data: lockCheckData } = useQuery({
+    queryKey: ['type1-item-lock-check', scId, currentProductId, currentPartName],
+    queryFn: async () => {
+      if (!isType1 || !scId || (!currentProductId && !currentPartName)) return null;
+      return deliveryChallanApi.checkLock({
+        type: 'PRODUCTION_PROCESS_OUTWARD',
+        scId,
+        items: [
+          {
+            productId: currentProductId || undefined,
+            partName: currentPartName || undefined,
+            quantity: 1,
+          },
+        ],
+      });
+    },
+    enabled: Boolean(isType1 && scId && (currentProductId || currentPartName)),
+    staleTime: 5000,
+  });
+
+  const lockInfo = lockCheckData?.items?.[0];
+  const itemCap = lockInfo?.cap ?? lockInfo?.baseline ?? null;
+  const hasPriorDispatch = Boolean(lockInfo && itemCap !== null);
+  const isLockedOut = Boolean(hasPriorDispatch && (lockInfo?.available ?? 0) <= 0);
+  const hasPartialLock = Boolean(
+    hasPriorDispatch &&
+      lockInfo &&
+      itemCap !== null &&
+      lockInfo.available > 0 &&
+      lockInfo.available < itemCap,
+  );
+  const blockingDcNumber = lockInfo?.blockingDcs?.[0]?.dcNumber || 'Open DC';
+
   const handleType1ItemSelect = (selectedKey: string) => {
     setValue(`scBlocks.${blockIndex}.items.${index}.scItemId`, selectedKey, { shouldValidate: true });
     if (selectedKey === 'sc_assembly') {
@@ -360,6 +397,21 @@ export function DispatchPayloadRow({
           <span className="hidden sm:inline text-xs text-slate-500 font-medium">
             {isType1 ? 'Production Process Component' : 'Stock Conversion Item'}
           </span>
+
+          {/* Type 1 Product Lock Badges */}
+          {isType1 && isLockedOut && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 shadow-2xs">
+              <Lock className="w-3.5 h-3.5 text-rose-700 shrink-0" />
+              Out on DC {blockingDcNumber}
+            </span>
+          )}
+
+          {isType1 && hasPartialLock && lockInfo && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+              Partial Inward ({lockInfo.available} of {itemCap} Available)
+            </span>
+          )}
         </div>
 
         <button
@@ -437,25 +489,62 @@ export function DispatchPayloadRow({
             </div>
 
             <div className="md:col-span-3">
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Dispatched Quantity *
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                  Dispatched Quantity *
+                </label>
+                {hasPartialLock && lockInfo && (
+                  <span className="text-[10px] font-bold text-amber-700 font-mono">
+                    Max: {lockInfo.available}
+                  </span>
+                )}
+              </div>
               <input
                 type="number"
                 step="0.001"
-                min="0.001"
+                min={isLockedOut ? 0 : 0.001}
+                max={hasPartialLock && lockInfo ? lockInfo.available : undefined}
+                disabled={isLockedOut}
                 onFocus={(e) => e.target.select()}
                 {...register(`scBlocks.${blockIndex}.items.${index}.quantity` as const, {
-                  required: 'Quantity is required',
+                  required: !isLockedOut ? 'Quantity is required' : false,
                   valueAsNumber: true,
                   validate: (v) => {
+                    if (isLockedOut) return 'Product is locked out on open DC';
                     const num = Number(v);
-                    return (!isNaN(num) && num > 0) || 'Quantity must be > 0';
+                    if (isNaN(num) || num <= 0) return 'Quantity must be > 0';
+                    if (hasPartialLock && lockInfo && num > lockInfo.available) {
+                      return `Cannot exceed available quantity (${lockInfo.available})`;
+                    }
+                    return true;
                   },
                 })}
-                className="w-full min-h-[44px] sm:min-h-0 h-11 sm:h-9 px-3 rounded-lg bg-white border border-slate-200 text-base sm:text-xs text-slate-900 font-semibold tabular-nums focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
+                className={`w-full min-h-[44px] sm:min-h-0 h-11 sm:h-9 px-3 rounded-lg border text-base sm:text-xs font-semibold tabular-nums focus:outline-none ${
+                  isLockedOut
+                    ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                    : hasPartialLock && Number(dispatchQty) > (lockInfo?.available || Infinity)
+                    ? 'bg-rose-50 border-rose-300 text-rose-900 focus:ring-1 focus:ring-rose-500 font-bold'
+                    : 'bg-white border-slate-200 text-slate-900 focus:ring-1 focus:ring-primary focus:border-transparent'
+                }`}
                 placeholder="0.00"
               />
+              {/* Type 1 Product Lock hints */}
+              {isLockedOut && lockInfo ? (
+                <p className="mt-1 text-[11px] font-semibold text-rose-600 flex items-center gap-1">
+                  <Lock className="w-3.5 h-3.5 shrink-0" />
+                  All {itemCap} unit{itemCap === 1 ? '' : 's'} out on DC {blockingDcNumber} (not yet inwarded).
+                </p>
+              ) : hasPartialLock && lockInfo ? (
+                <p className="mt-1 text-[11px] font-medium text-amber-700 flex items-center gap-1">
+                  <Info className="w-3.5 h-3.5 shrink-0" />
+                  {lockInfo.outstanding} pending on DC {blockingDcNumber}; up to {lockInfo.available} can be dispatched
+                </p>
+              ) : null}
+              {hasPartialLock && lockInfo && Number(dispatchQty) > lockInfo.available && (
+                <p className="mt-0.5 text-[10px] text-rose-600 font-bold">
+                  Requested quantity exceeds available {lockInfo.available} units.
+                </p>
+              )}
             </div>
           </div>
 

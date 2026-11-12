@@ -12,6 +12,7 @@ import { Role } from '../roles/entities/role.entity.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { UserRole } from '../auth/enums/role.enum.js';
+import { RolesGuard } from '../auth/guards/roles.guard.js';
 
 @Injectable()
 export class UsersService {
@@ -128,6 +129,9 @@ export class UsersService {
         throw new BadRequestException(`Role ${updateUserDto.role} not found`);
       }
       user.roleId = role.id;
+      user.role = role;
+      await this.userRepository.update(id, { roleId: role.id });
+      RolesGuard.clearCache(id);
     }
 
     if (updateUserDto.password) {
@@ -195,8 +199,26 @@ export class UsersService {
       throw new BadRequestException(`Role ${roleName} not found`);
     }
 
+    // Direct database update query to guarantee PostgreSQL role_id persistence
+    await this.userRepository.update(id, { roleId: role.id });
+
+    // Update in-memory references
     user.roleId = role.id;
-    await this.userRepository.save(user);
+    user.role = role;
+
+    // Reset any stale user-specific overrides so user receives full default role permissions
+    try {
+      await this.userRepository.manager.query(
+        `DELETE FROM user_module_permissions WHERE user_id = $1`,
+        [id],
+      );
+    } catch {
+      // In case table or query is unavailable
+    }
+
+    // Invalidate RolesGuard permission cache
+    RolesGuard.clearCache(id);
+
     const { passwordHash: _, ...result } = user;
     return { ...result, role };
   }

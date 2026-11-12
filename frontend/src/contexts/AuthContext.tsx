@@ -78,7 +78,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     
     window.addEventListener('auth:unauthorized', handleUnauthorized);
-    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+
+    const handleFocusOrVisible = () => {
+      if (localStorage.getItem('rm_access_token')) {
+        authApi.getMe().then((res) => {
+          if (res?.user) setCurrentUser(res.user);
+        }).catch(() => {});
+      }
+    };
+
+    window.addEventListener('focus', handleFocusOrVisible);
+    window.addEventListener('auth:refresh', handleFocusOrVisible);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleFocusOrVisible();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
+      window.removeEventListener('focus', handleFocusOrVisible);
+      window.removeEventListener('auth:refresh', handleFocusOrVisible);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [navigate]); // exclude location.pathname to avoid re-running
 
   const login = async (credentials: any): Promise<User | null> => {

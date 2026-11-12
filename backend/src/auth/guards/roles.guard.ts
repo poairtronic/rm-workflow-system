@@ -11,8 +11,16 @@ interface CachedPerms {
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  private permCache = new Map<string, CachedPerms>();
+  private static permCache = new Map<string, CachedPerms>();
   private readonly CACHE_TTL_MS = 30000; // 30 seconds
+
+  public static clearCache(userId?: string) {
+    if (userId) {
+      RolesGuard.permCache.delete(userId);
+    } else {
+      RolesGuard.permCache.clear();
+    }
+  }
 
   constructor(
     private reflector: Reflector,
@@ -79,7 +87,7 @@ export class RolesGuard implements CanActivate {
 
       // Check in-memory cache
       const now = Date.now();
-      const cached = this.permCache.get(userId);
+      const cached = RolesGuard.permCache.get(userId);
       let permMap: Map<string, string>;
 
       if (cached && cached.expiresAt > now) {
@@ -112,7 +120,7 @@ export class RolesGuard implements CanActivate {
           permMap.set(row.module_key, row.access_type);
         }
 
-        this.permCache.set(userId, { perms: permMap, expiresAt: now + this.CACHE_TTL_MS });
+        RolesGuard.permCache.set(userId, { perms: permMap, expiresAt: now + this.CACHE_TTL_MS });
       }
 
       const isWriteMethod = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);

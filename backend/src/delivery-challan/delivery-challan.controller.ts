@@ -8,6 +8,7 @@ import { ReturnDeliveryChallanDto } from './dto/return-delivery-challan.dto.js';
 import { QcInspectDeliveryChallanDto } from './dto/qc-inspect-delivery-challan.dto.js';
 import { ReworkReDispatchDto } from './dto/rework-re-dispatch.dto.js';
 import { CreateSplDcDto } from './dto/create-spl-dc.dto.js';
+import { LockCheckDto } from './dto/lock-check.dto.js';
 import { DeliveryChallanType, DeliveryChallanStatus } from './entities/delivery-challan.entity.js';
 import { UserRole } from '../auth/enums/role.enum.js';
 
@@ -46,6 +47,12 @@ export class DeliveryChallanController {
   async createType3(@Body() dto: CreateSplDcDto, @Request() req: any) {
     const userId = req.user.userId;
     return this.deliveryChallanService.createSplDc(dto, userId);
+  }
+
+  @Post('lock-check')
+  @Roles(UserRole.STORES, UserRole.ADMIN, UserRole.PRODUCTION, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER)
+  async checkProductLock(@Body() dto: LockCheckDto) {
+    return this.deliveryChallanService.checkProductLock(dto);
   }
 
   @Get('type-3')

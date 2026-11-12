@@ -118,6 +118,7 @@ export function UserMasterWorkspace() {
     onSuccess: (updated) => {
       toast.success(`Role for "${updated.name}" updated to ${updated.role?.name || ''}`);
       queryClient.invalidateQueries({ queryKey: ['users-master'] });
+      window.dispatchEvent(new CustomEvent('auth:refresh'));
       setRoleChangeTarget(null);
     },
     onError: (err: any) => {

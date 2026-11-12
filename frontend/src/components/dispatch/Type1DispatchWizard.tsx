@@ -7,6 +7,8 @@ import { deliveryChallanApi, api, unwrapList } from '../../services/api';
 import { DispatchPayloadGrid } from './DispatchPayloadGrid';
 import { SearchSelect } from '../ui/SearchSelect';
 import { VendorSlaSelector } from '../dc/VendorSlaSelector';
+import { DcLockModal } from '../dc/DcLockModal';
+import type { ProductLockConflict } from '../../types/delivery-challan.dto';
 
 export function Type1DispatchWizard() {
   const queryClient = useQueryClient();
@@ -85,6 +87,10 @@ export function Type1DispatchWizard() {
 
   const [generatedDc, setGeneratedDc] = useState<any | null>(null);
 
+  // Product-level Lock Modal state
+  const [lockConflicts, setLockConflicts] = useState<ProductLockConflict[]>([]);
+  const [showLockModal, setShowLockModal] = useState(false);
+
   const createDcMutation = useMutation({
     mutationFn: (data: any) => deliveryChallanApi.create(data),
     onSuccess: (res: any) => {
@@ -94,6 +100,20 @@ export function Type1DispatchWizard() {
       setGeneratedDc(res);
     },
     onError: (error: any) => {
+      const errorData = error.response?.data;
+      const lockError =
+        errorData?.error?.code === 'DC_PRODUCT_LOCKED'
+          ? errorData.error
+          : errorData?.code === 'DC_PRODUCT_LOCKED'
+          ? errorData
+          : null;
+
+      if (lockError && Array.isArray(lockError.conflicts) && lockError.conflicts.length > 0) {
+        setLockConflicts(lockError.conflicts);
+        setShowLockModal(true);
+        return;
+      }
+
       const status = error.response?.status;
       if (status === 400) {
         toast.error('Insufficient stock or validation failure', { style: { background: '#FEF2F2', color: '#B91C1C' } });
@@ -430,6 +450,13 @@ export function Type1DispatchWizard() {
           </div>
         </form>
       </FormProvider>
+
+      {/* Shared DC Product Lock Conflict Modal */}
+      <DcLockModal
+        isOpen={showLockModal}
+        onClose={() => setShowLockModal(false)}
+        conflicts={lockConflicts}
+      />
     </div>
   );
 }

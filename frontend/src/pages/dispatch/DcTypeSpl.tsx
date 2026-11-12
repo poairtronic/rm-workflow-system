@@ -16,14 +16,17 @@ import {
   CheckCircle2,
   Printer,
   ArrowRight,
+  AlertTriangle,
 } from 'lucide-react';
 import { deliveryChallanApi, api, unwrapList } from '../../services/api';
 import { SearchSelect } from '../../components/ui/SearchSelect';
+import { DcLockModal } from '../../components/dc/DcLockModal';
 import type {
   MercPoItemsResponse,
   SplDcItem,
   CreateSplDcPayload,
   AvailableStockProduct,
+  ProductLockConflict,
 } from '../../types/delivery-challan.dto';
 
 export function DcTypeSpl() {
@@ -90,9 +93,15 @@ export function DcTypeSpl() {
   // Post-generation state for printing and confirmation
   const [generatedDc, setGeneratedDc] = useState<{ id: string; dcNumber: string } | null>(null);
 
+  // Product-level Lock Modal state
+  const [lockConflicts, setLockConflicts] = useState<ProductLockConflict[]>([]);
+  const [showLockModal, setShowLockModal] = useState(false);
+
   // Reset form to create another SPL DC
   const handleResetForm = () => {
     setGeneratedDc(null);
+    setLockConflicts([]);
+    setShowLockModal(false);
     setPoNumber('');
     setPoData(null);
     setItems([]);
@@ -173,17 +182,40 @@ export function DcTypeSpl() {
         setPoNumber(data.poNumber);
       }
 
-      // Auto-populate items from MERC line items
-      const initialItems: SplDcItem[] = (data.lineItems || []).map((line) => ({
-        poPartLabel: line.poPartLabel || `${data.poNumber} - ${line.name}`,
-        mercItemId: line.mercItemId,
-        partNo: line.name || '',
-        dispatchedQty: line.quantityRequired > 0 ? Number(line.quantityRequired) : 1,
-        batchNo: '',
-        description: [line.material, line.shape].filter(Boolean).join(' ') || '',
-        isExtraItem: false,
-        itemType: line.itemType,
-      }));
+      // Auto-populate items from MERC line items with product lock awareness
+      const initialItems: SplDcItem[] = (data.lineItems || []).map((line) => {
+        const lock = line.lock;
+        const itemCap = lock?.cap ?? lock?.baseline ?? null;
+        const hasPriorDispatch = Boolean(lock && itemCap !== null);
+        const isLockedOut = Boolean(hasPriorDispatch && (lock?.available ?? 0) <= 0);
+        const hasPartialLock = Boolean(
+          hasPriorDispatch &&
+            lock &&
+            itemCap !== null &&
+            lock.available > 0 &&
+            lock.available < itemCap,
+        );
+
+        let defaultQty = line.quantityRequired > 0 ? Number(line.quantityRequired) : 1;
+        if (isLockedOut) {
+          defaultQty = 0;
+        } else if (hasPartialLock && lock && defaultQty > lock.available) {
+          defaultQty = lock.available;
+        }
+
+        return {
+          poPartLabel: line.poPartLabel || `${data.poNumber} - ${line.name}`,
+          mercItemId: line.mercItemId,
+          partNo: line.name || '',
+          dispatchedQty: defaultQty,
+          batchNo: '',
+          description: [line.material, line.shape].filter(Boolean).join(' ') || '',
+          isExtraItem: false,
+          itemType: line.itemType,
+          lock: line.lock,
+          isSelected: !isLockedOut,
+        };
+      });
 
       setItems(initialItems);
       toast.success(`Loaded ${initialItems.length} line item(s) from MERC PO ${data.poNumber}`);
@@ -253,9 +285,16 @@ export function DcTypeSpl() {
     if (!vendorId) return false;
     if (!poNumber.trim()) return false;
     if (!expectedReturnDate) return false;
-    if (!items.length) return false;
-    // Every item must have quantity > 0 and part label
-    for (const item of items) {
+
+    const activeItems = items.filter((item) => {
+      const isLockedOut = item.lock && item.lock.baseline !== null && item.lock.available <= 0;
+      return item.isSelected !== false && !isLockedOut;
+    });
+
+    if (!activeItems.length) return false;
+
+    // Every active item must have quantity > 0 and part label
+    for (const item of activeItems) {
       if (!item.poPartLabel?.trim()) return false;
       if (!item.dispatchedQty || Number(item.dispatchedQty) <= 0) return false;
       if (item.isExtraItem && !item.partNo?.trim()) return false;
@@ -267,6 +306,36 @@ export function DcTypeSpl() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid || isSubmitting) return;
+
+    const activeItems = items.filter((item) => {
+      const isLockedOut = item.lock && item.lock.baseline !== null && item.lock.available <= 0;
+      return item.isSelected !== false && !isLockedOut;
+    });
+
+    // Client-side guard for product lock violation before network request
+    const clientConflicts: ProductLockConflict[] = [];
+    for (const item of activeItems) {
+      if (item.lock && item.lock.baseline !== null) {
+        if (Number(item.dispatchedQty) > item.lock.available + 0.0001) {
+          clientConflicts.push({
+            dcType: 'SPL_PROCESS',
+            scNumber: null,
+            poNumber: poNumber.trim(),
+            productLabel: item.poPartLabel,
+            requestedQty: Number(item.dispatchedQty),
+            availableQty: item.lock.available,
+            pendingQty: item.lock.outstanding,
+            blockingDcs: item.lock.blockingDcs || [],
+          });
+        }
+      }
+    }
+
+    if (clientConflicts.length > 0) {
+      setLockConflicts(clientConflicts);
+      setShowLockModal(true);
+      return;
+    }
 
     setIsSubmitting(true);
     const payload: CreateSplDcPayload = {
@@ -281,7 +350,7 @@ export function DcTypeSpl() {
         {
           processName: processName.trim(),
           targetProcess: targetProcess || undefined,
-          items: items.map((item) => ({
+          items: activeItems.map((item) => ({
             poPartLabel: item.poPartLabel.trim(),
             mercItemId: item.mercItemId,
             partNo: item.partNo?.trim() || item.poPartLabel.trim(),
@@ -304,6 +373,20 @@ export function DcTypeSpl() {
       // Scroll to top so the print card and options are immediately visible
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
+      const errorData = err?.response?.data;
+      const lockError =
+        errorData?.error?.code === 'DC_PRODUCT_LOCKED'
+          ? errorData.error
+          : errorData?.code === 'DC_PRODUCT_LOCKED'
+          ? errorData
+          : null;
+
+      if (lockError && Array.isArray(lockError.conflicts) && lockError.conflicts.length > 0) {
+        setLockConflicts(lockError.conflicts);
+        setShowLockModal(true);
+        return;
+      }
+
       const msg = err.response?.data?.message || err.message || 'Failed to create SPL DC';
       toast.error(msg);
     } finally {
@@ -648,133 +731,219 @@ export function DcTypeSpl() {
               </div>
             ) : (
               <div className="space-y-4">
-                {items.map((item, index) => (
-                  <div
-                    key={index}
-                    className="p-4 bg-white border border-slate-200 rounded-lg shadow-2xs space-y-4"
-                  >
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-mono font-bold text-slate-500">
-                          S.No. {String(index + 1).padStart(2, '0')}
-                        </span>
-                        <span
-                          className={`px-2 py-0.5 text-[11px] font-semibold rounded ${
-                            item.isExtraItem
-                              ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                {items.map((item, index) => {
+                  const lock = item.lock;
+                  const itemCap = lock?.cap ?? lock?.baseline ?? null;
+                  const hasPriorDispatch = Boolean(lock && itemCap !== null);
+                  const isLockedOut = Boolean(hasPriorDispatch && (lock?.available ?? 0) <= 0);
+                  const hasPartialLock = Boolean(
+                    hasPriorDispatch &&
+                      lock &&
+                      itemCap !== null &&
+                      lock.available > 0 &&
+                      lock.available < itemCap,
+                  );
+                  const blockingDcNumber = lock?.blockingDcs?.[0]?.dcNumber || 'Open DC';
+                  const isSelected = item.isSelected !== false && !isLockedOut;
+
+                  return (
+                    <div
+                      key={index}
+                      className={`p-4 rounded-lg border transition-all space-y-4 shadow-2xs ${
+                        isLockedOut
+                          ? 'bg-slate-50/80 border-slate-300 opacity-85'
+                          : isSelected
+                          ? 'bg-white border-slate-200'
+                          : 'bg-slate-50/50 border-slate-200 opacity-60'
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between border-b border-slate-100 pb-2.5 gap-2">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              disabled={isLockedOut}
+                              onChange={(e) => updateItem(index, 'isSelected', e.target.checked)}
+                              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                            />
+                            <span
+                              className={`text-xs font-mono font-bold ${
+                                isLockedOut ? 'text-slate-400' : 'text-slate-700'
+                              }`}
+                            >
+                              S.No. {String(index + 1).padStart(2, '0')}
+                            </span>
+                          </label>
+
+                          <span
+                            className={`px-2 py-0.5 text-[11px] font-semibold rounded ${
+                              item.isExtraItem
+                                ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                                : item.itemType === 'RAW_MATERIAL'
+                                ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                : 'bg-amber-100 text-amber-800 border border-amber-200'
+                            }`}
+                          >
+                            {item.isExtraItem
+                              ? 'EXTRA STOCK ITEM'
                               : item.itemType === 'RAW_MATERIAL'
-                              ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                              : 'bg-amber-100 text-amber-800 border border-amber-200'
-                          }`}
+                              ? 'RAW MATERIAL'
+                              : 'BOUGHT OUT'}
+                          </span>
+
+                          {/* Lock Status Badges */}
+                          {isLockedOut && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-bold rounded-md bg-rose-100 text-rose-800 border border-rose-300 shadow-2xs">
+                              <Lock className="w-3.5 h-3.5 text-rose-700 shrink-0" />
+                              Out on DC {blockingDcNumber}
+                            </span>
+                          )}
+
+                          {hasPartialLock && lock && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-bold rounded-md bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                              Partial Inward ({lock.available} of {itemCap} Available)
+                            </span>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => removeItem(index)}
+                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                          title="Remove Item"
                         >
-                          {item.isExtraItem
-                            ? 'EXTRA STOCK ITEM'
-                            : item.itemType === 'RAW_MATERIAL'
-                            ? 'RAW MATERIAL'
-                            : 'BOUGHT OUT'}
-                        </span>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => removeItem(index)}
-                        className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
-                        title="Remove Item"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* SC ITEM / COMPONENT PART NAME */}
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-medium text-slate-700 mb-1">
+                            SC ITEM / COMPONENT PART NAME *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={item.poPartLabel}
+                            onChange={(e) => updateItem(index, 'poPartLabel', e.target.value)}
+                            readOnly={!item.isExtraItem}
+                            className={`w-full h-9 px-3 rounded-lg border text-xs text-slate-900 focus:outline-none ${
+                              !item.isExtraItem
+                                ? 'bg-slate-50 border-slate-200 cursor-not-allowed font-medium'
+                                : 'bg-white border-slate-300 focus:ring-2 focus:ring-primary'
+                            }`}
+                          />
+                          <p className="mt-0.5 text-[10px] text-slate-400">
+                            Printed as Part No / Particulars on DC (e.g. PO123 - BASE PLATE)
+                          </p>
+                        </div>
+
+                        {/* Part No (auto or manual for extra) */}
+                        <div>
+                          <label className="block text-xs font-medium text-slate-700 mb-1">
+                            PART NO. {!item.isExtraItem ? '(AUTO)' : '*'}
+                          </label>
+                          <input
+                            type="text"
+                            required={Boolean(item.isExtraItem)}
+                            value={item.partNo}
+                            onChange={(e) => updateItem(index, 'partNo', e.target.value)}
+                            readOnly={!item.isExtraItem}
+                            placeholder={item.isExtraItem ? 'Enter Part No' : ''}
+                            className={`w-full h-9 px-3 rounded-lg border text-xs text-slate-900 focus:outline-none ${
+                              !item.isExtraItem
+                                ? 'bg-slate-50 border-slate-200 cursor-not-allowed font-mono'
+                                : 'bg-white border-slate-300 focus:ring-2 focus:ring-primary'
+                            }`}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+                        {/* Dispatched Qty */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-xs font-medium text-slate-700">
+                              DISPATCHED QUANTITY *
+                            </label>
+                            {hasPartialLock && lock && (
+                              <span className="text-[10px] font-bold text-amber-700 font-mono">
+                                Max: {lock.available}
+                              </span>
+                            )}
+                          </div>
+                          <input
+                            type="number"
+                            required={!isLockedOut && isSelected}
+                            disabled={isLockedOut || !isSelected}
+                            min={isLockedOut ? 0 : 0.001}
+                            max={hasPartialLock && lock ? lock.available : undefined}
+                            step="any"
+                            value={isLockedOut ? 0 : item.dispatchedQty}
+                            onChange={(e) => updateItem(index, 'dispatchedQty', Number(e.target.value))}
+                            className={`w-full h-9 px-3 rounded-lg border text-xs text-slate-900 focus:outline-none tabular-nums ${
+                              isLockedOut || !isSelected
+                                ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                                : hasPartialLock && lock && Number(item.dispatchedQty) > lock.available
+                                ? 'bg-rose-50 border-rose-300 text-rose-900 focus:ring-2 focus:ring-rose-500 font-bold'
+                                : 'bg-white border-slate-300 focus:ring-2 focus:ring-primary font-semibold'
+                            }`}
+                          />
+                          {/* Hints and Validation */}
+                          {isLockedOut && lock ? (
+                            <p className="mt-1 text-[11px] font-medium text-rose-600 flex items-center gap-1">
+                              <Lock className="w-3.5 h-3.5 shrink-0" />
+                              All {itemCap} unit{itemCap === 1 ? '' : 's'} out on DC {blockingDcNumber} (not yet inwarded).
+                            </p>
+                          ) : hasPartialLock && lock ? (
+                            <p className="mt-1 text-[11px] font-medium text-amber-700 flex items-center gap-1">
+                              <Info className="w-3.5 h-3.5 shrink-0" />
+                              {lock.outstanding} pending on DC {blockingDcNumber}; up to {lock.available} can be dispatched
+                            </p>
+                          ) : null}
+                          {hasPartialLock && lock && Number(item.dispatchedQty) > lock.available && (
+                            <p className="mt-0.5 text-[10px] text-rose-600 font-bold">
+                              Requested quantity exceeds available {lock.available} units.
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Batch / Heat No */}
+                        <div>
+                          <label className="block text-xs font-medium text-slate-700 mb-1">
+                            BATCH / HEAT NO. (OPTIONAL)
+                          </label>
+                          <input
+                            type="text"
+                            disabled={isLockedOut || !isSelected}
+                            value={item.batchNo ?? ''}
+                            onChange={(e) => updateItem(index, 'batchNo', e.target.value)}
+                            placeholder="e.g. HT-992"
+                            className="w-full h-9 px-3 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                          />
+                        </div>
+
+                        {/* Description */}
+                        <div>
+                          <label className="block text-xs font-medium text-slate-700 mb-1">
+                            DESCRIPTION / LINE NOTES
+                          </label>
+                          <input
+                            type="text"
+                            disabled={isLockedOut || !isSelected}
+                            value={item.description ?? ''}
+                            onChange={(e) => updateItem(index, 'description', e.target.value)}
+                            placeholder="Specifications or dimensions"
+                            className="w-full h-9 px-3 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                          />
+                        </div>
+                      </div>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* SC ITEM / COMPONENT PART NAME */}
-                      <div className="md:col-span-2">
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          SC ITEM / COMPONENT PART NAME *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={item.poPartLabel}
-                          onChange={(e) => updateItem(index, 'poPartLabel', e.target.value)}
-                          readOnly={!item.isExtraItem}
-                          className={`w-full h-9 px-3 rounded-lg border text-xs text-slate-900 focus:outline-none ${
-                            !item.isExtraItem
-                              ? 'bg-slate-50 border-slate-200 cursor-not-allowed font-medium'
-                              : 'bg-white border-slate-300 focus:ring-2 focus:ring-primary'
-                          }`}
-                        />
-                        <p className="mt-0.5 text-[10px] text-slate-400">
-                          Printed as Part No / Particulars on DC (e.g. PO123 - BASE PLATE)
-                        </p>
-                      </div>
-
-                      {/* Part No (auto or manual for extra) */}
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          PART NO. {!item.isExtraItem ? '(AUTO)' : '*'}
-                        </label>
-                        <input
-                          type="text"
-                          required={Boolean(item.isExtraItem)}
-                          value={item.partNo}
-                          onChange={(e) => updateItem(index, 'partNo', e.target.value)}
-                          readOnly={!item.isExtraItem}
-                          placeholder={item.isExtraItem ? 'Enter Part No' : ''}
-                          className={`w-full h-9 px-3 rounded-lg border text-xs text-slate-900 focus:outline-none ${
-                            !item.isExtraItem
-                              ? 'bg-slate-50 border-slate-200 cursor-not-allowed font-mono'
-                              : 'bg-white border-slate-300 focus:ring-2 focus:ring-primary'
-                          }`}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-                      {/* Dispatched Qty */}
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          DISPATCHED QUANTITY *
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          min={0.001}
-                          step="any"
-                          value={item.dispatchedQty}
-                          onChange={(e) => updateItem(index, 'dispatchedQty', Number(e.target.value))}
-                          className="w-full h-9 px-3 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary tabular-nums"
-                        />
-                      </div>
-
-                      {/* Batch / Heat No */}
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          BATCH / HEAT NO. (OPTIONAL)
-                        </label>
-                        <input
-                          type="text"
-                          value={item.batchNo ?? ''}
-                          onChange={(e) => updateItem(index, 'batchNo', e.target.value)}
-                          placeholder="e.g. HT-992"
-                          className="w-full h-9 px-3 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
-                        />
-                      </div>
-
-                      {/* Description */}
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
-                          DESCRIPTION / LINE NOTES
-                        </label>
-                        <input
-                          type="text"
-                          value={item.description ?? ''}
-                          onChange={(e) => updateItem(index, 'description', e.target.value)}
-                          placeholder="Specific instructions printed on DC..."
-                          className="w-full h-9 px-3 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -872,6 +1041,13 @@ export function DcTypeSpl() {
           </button>
         </div>
       </form>
+
+      {/* Shared DC Product Lock Conflict Modal */}
+      <DcLockModal
+        isOpen={showLockModal}
+        onClose={() => setShowLockModal(false)}
+        conflicts={lockConflicts}
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException, NotFoundException, Optional } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException, ConflictException, Optional } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, QueryRunner, LessThan, In, EntityManager, Like } from 'typeorm';
@@ -27,6 +27,43 @@ import { PdfGeneratorService } from '../reports/pdf/pdf-generator.service.js';
 import { MercIndentPending } from '../merc-indent/entities/merc-indent-pending.entity.js';
 import { MercIndentLineItem } from '../merc-indent/entities/merc-indent-line-item.entity.js';
 import { CreateSplDcDto } from './dto/create-spl-dc.dto.js';
+import { LockCheckDto } from './dto/lock-check.dto.js';
+import {
+  normalizeText,
+  buildProductKey,
+  buildType1LockKey,
+  buildType3LockKey,
+} from './utils/product-key.util.js';
+
+export interface BlockingDcInfo {
+  dcId: string;
+  dcNumber: string;
+  pendingQty: number;
+}
+
+export interface ProductLockConflict {
+  dcType: string;
+  scNumber: string | null;
+  poNumber: string | null;
+  productLabel: string;
+  requestedQty: number;
+  availableQty: number;
+  pendingQty: number;
+  capQty?: number | null;
+  blockingDcs: BlockingDcInfo[];
+}
+
+export interface ProductLockItemInput {
+  scId?: string | null;
+  productId?: string | null;
+  partName?: string | null;
+  partNumber?: string | null;
+  poNumber?: string | null;
+  mercItemId?: string | null;
+  poPartLabel?: string | null;
+  isExtraItem?: boolean;
+  requestedQty: number;
+}
 
 @Injectable()
 export class DeliveryChallanService {
@@ -194,6 +231,65 @@ export class DeliveryChallanService {
         dto.processName?.trim() ||
         dto.items.find(i => i.processName?.trim())?.processName?.trim() ||
         null;
+
+      // Validate Product-Level Quantity Lock for Type 1 before insert
+      const lockItems: ProductLockItemInput[] = [];
+      for (const itemDto of dto.items) {
+        const targetScId = itemDto.scId || headerScId;
+        let partNumber = itemDto.partNumber?.trim() || null;
+        let partName = itemDto.partName?.trim() || null;
+        const targetRmItemId = itemDto.rmItemId || itemDto.productId || null;
+
+        let sc: SalesOrderComponent | null = null;
+        if (targetScId) {
+          sc = await queryRunner.manager.findOne(SalesOrderComponent, {
+            where: { id: targetScId },
+          });
+          if (sc) {
+            partNumber = sc.scNumber;
+          }
+        }
+
+        if (targetScId && targetRmItemId) {
+          const rmItem = await queryRunner.manager.findOne(RmItem, {
+            where: [
+              { id: targetRmItemId },
+              { scId: targetScId, mappedProductId: targetRmItemId },
+              { scId: targetScId, id: targetRmItemId },
+            ],
+          });
+          if (rmItem) {
+            partName = rmItem.partName || rmItem.material || partName;
+          }
+        }
+
+        if (!partName && itemDto.productId) {
+          const prod = await queryRunner.manager.findOne(Product, {
+            where: { id: itemDto.productId },
+          });
+          if (prod) {
+            partName = prod.name || null;
+          }
+        }
+
+        if (!partName && sc) {
+          partName = sc.productName;
+        }
+
+        lockItems.push({
+          scId: targetScId,
+          productId: itemDto.productId || null,
+          partName,
+          partNumber,
+          requestedQty: Number(itemDto.quantityDispatched ?? 0),
+        });
+      }
+
+      await this.validateProductLock(
+        DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD,
+        lockItems,
+        queryRunner.manager,
+      );
 
       const challan = queryRunner.manager.create(DeliveryChallan, {
         challanNumber,
@@ -594,6 +690,666 @@ export class DeliveryChallanService {
     }
   }
 
+  /**
+   * Calculates the product-level lock and available dispatch quantity for a single item.
+   */
+  public async calculateItemLock(
+    type: DeliveryChallanType | string,
+    item: {
+      scId?: string | null;
+      productId?: string | null;
+      partName?: string | null;
+      poNumber?: string | null;
+      mercItemId?: string | null;
+      isExtraItem?: boolean;
+      quantity?: number;
+    },
+    manager: EntityManager,
+  ): Promise<{
+    isExempt: boolean;
+    cap: number | null;
+    capQty: number | null;
+    baseline: number | null;
+    outstanding: number;
+    available: number;
+    blockingDcs: BlockingDcInfo[];
+    isCapFromBaseline?: boolean;
+  }> {
+    const isType1 = type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD;
+    const isType3 = type === DeliveryChallanType.SPL_PROCESS;
+
+    if (!isType1 && !isType3) {
+      return {
+        isExempt: true,
+        cap: null,
+        capQty: null,
+        baseline: null,
+        outstanding: 0,
+        available: item.quantity != null ? Number(item.quantity) : Infinity,
+        blockingDcs: [],
+      };
+    }
+
+    if (typeof manager?.query !== 'function') {
+      return {
+        isExempt: false,
+        cap: null,
+        capQty: null,
+        baseline: null,
+        outstanding: 0,
+        available: item.quantity != null ? Number(item.quantity) : Infinity,
+        blockingDcs: [],
+      };
+    }
+
+    if (isType1) {
+      if (!item.scId) {
+        return {
+          isExempt: true,
+          cap: null,
+          capQty: null,
+          baseline: null,
+          outstanding: 0,
+          available: item.quantity != null ? Number(item.quantity) : Infinity,
+          blockingDcs: [],
+        };
+      }
+
+      const prodId = item.productId && String(item.productId).trim() ? String(item.productId).trim() : null;
+      const normPartName = normalizeText(item.partName);
+
+      if (!prodId && !normPartName) {
+        return {
+          isExempt: true,
+          cap: null,
+          capQty: null,
+          baseline: null,
+          outstanding: 0,
+          available: item.quantity != null ? Number(item.quantity) : Infinity,
+          blockingDcs: [],
+        };
+      }
+
+      // 1. Resolve Cap for Type 1
+      let resolvedCap: number | null = null;
+      let isCapFromBaseline = false;
+
+      // Check child rm_items under sc_id first
+      const rmRows: Array<{ cap: string | number }> = await manager.query(
+        `
+        SELECT SUM(rmi.quantity) as cap
+        FROM rm_items rmi
+        WHERE rmi.sc_id = $1::uuid
+          AND (
+            ($2::uuid IS NOT NULL AND rmi.mapped_product_id = $2::uuid)
+            OR ($3 <> '' AND (
+              UPPER(REGEXP_REPLACE(TRIM(COALESCE(rmi.part_name, '')), '\\s+', ' ', 'g')) = $3
+              OR UPPER(REGEXP_REPLACE(TRIM(COALESCE(rmi.material, '')), '\\s+', ' ', 'g')) = $3
+            ))
+          );
+        `,
+        [item.scId, prodId, normPartName],
+      );
+
+      if (rmRows && rmRows.length > 0 && rmRows[0].cap != null && Number(rmRows[0].cap) > 0) {
+        resolvedCap = Number(rmRows[0].cap);
+      } else {
+        // Fallback to sales_order_components.target_quantity
+        const scRows: Array<{ target_quantity: string | number }> = await manager.query(
+          `
+          SELECT soc.target_quantity
+          FROM sales_order_components soc
+          WHERE soc.id = $1::uuid
+            AND (
+              ($2::uuid IS NOT NULL AND soc.product_id = $2::uuid)
+              OR ($3 <> '' AND UPPER(REGEXP_REPLACE(TRIM(COALESCE(soc.product_name, '')), '\\s+', ' ', 'g')) = $3)
+              OR ($2::uuid IS NULL AND $3 = '')
+            );
+          `,
+          [item.scId, prodId, normPartName],
+        );
+
+        if (scRows && scRows.length > 0 && scRows[0].target_quantity != null && Number(scRows[0].target_quantity) > 0) {
+          resolvedCap = Number(scRows[0].target_quantity);
+        }
+      }
+
+      // Query open DCs for outstanding calculation
+      const openRows: Array<{
+        dcId: string;
+        dcNumber: string;
+        pendingQty: string | number;
+      }> = await manager.query(
+        `
+        SELECT 
+          dc.id as "dcId",
+          dc.challan_number as "dcNumber",
+          GREATEST(dci.quantity_dispatched - COALESCE(dci.actual_received_qty, 0), 0) as "pendingQty"
+        FROM delivery_challan_items dci
+        JOIN delivery_challans dc ON dci.challan_id = dc.id
+        WHERE dc.type = 'PRODUCTION_PROCESS_OUTWARD'
+          AND dci.sc_id = $1::uuid
+          AND (
+            ($2::uuid IS NOT NULL AND dci.product_id = $2::uuid)
+            OR ($3 <> '' AND UPPER(REGEXP_REPLACE(TRIM(COALESCE(dci.part_name, '')), '\\s+', ' ', 'g')) = $3)
+          )
+          AND dc.status NOT IN ('CLOSED', 'RETURNED')
+        ORDER BY dc.created_at ASC, dci.id ASC;
+        `,
+        [item.scId, prodId, normPartName],
+      );
+
+      // If cap was not found on SC/rm_items, fallback to earliest DC quantity
+      if (resolvedCap == null || resolvedCap <= 0) {
+        const earliestRows: Array<{ id: string; quantity_dispatched: string | number }> = await manager.query(
+          `
+          SELECT dci.id, dci.quantity_dispatched
+          FROM delivery_challan_items dci
+          JOIN delivery_challans dc ON dci.challan_id = dc.id
+          WHERE dc.type = 'PRODUCTION_PROCESS_OUTWARD'
+            AND dci.sc_id = $1::uuid
+            AND (
+              ($2::uuid IS NOT NULL AND dci.product_id = $2::uuid)
+              OR ($3 <> '' AND UPPER(REGEXP_REPLACE(TRIM(COALESCE(dci.part_name, '')), '\\s+', ' ', 'g')) = $3)
+            )
+          ORDER BY dci.created_at ASC, dci.id ASC
+          LIMIT 1;
+          `,
+          [item.scId, prodId, normPartName],
+        );
+
+        if (earliestRows && earliestRows.length > 0) {
+          resolvedCap = Number(earliestRows[0].quantity_dispatched);
+          isCapFromBaseline = true;
+        }
+      }
+
+      if (resolvedCap == null) {
+        return {
+          isExempt: false,
+          cap: null,
+          capQty: null,
+          baseline: null,
+          outstanding: 0,
+          available: item.quantity != null ? Number(item.quantity) : Infinity,
+          blockingDcs: [],
+          isCapFromBaseline: false,
+        };
+      }
+
+      const blockingDcs: BlockingDcInfo[] = openRows
+        .filter((r) => Number(r.pendingQty) > 0.0001)
+        .map((r) => ({
+          dcId: r.dcId,
+          dcNumber: r.dcNumber,
+          pendingQty: Number(r.pendingQty),
+        }));
+
+      const outstanding = openRows.reduce((sum, r) => sum + Number(r.pendingQty), 0);
+      const available = Math.max(0, resolvedCap - outstanding);
+
+      return {
+        isExempt: false,
+        cap: resolvedCap,
+        capQty: resolvedCap,
+        baseline: resolvedCap,
+        outstanding,
+        available,
+        blockingDcs,
+        isCapFromBaseline,
+      };
+    }
+
+    if (isType3) {
+      if (item.isExtraItem || !item.mercItemId) {
+        return {
+          isExempt: true,
+          cap: null,
+          capQty: null,
+          baseline: null,
+          outstanding: 0,
+          available: item.quantity != null ? Number(item.quantity) : Infinity,
+          blockingDcs: [],
+        };
+      }
+
+      const normPo = normalizeText(item.poNumber);
+      const mercItemId = String(item.mercItemId).trim();
+
+      if (!normPo || !mercItemId) {
+        return {
+          isExempt: true,
+          cap: null,
+          capQty: null,
+          baseline: null,
+          outstanding: 0,
+          available: item.quantity != null ? Number(item.quantity) : Infinity,
+          blockingDcs: [],
+        };
+      }
+
+      // 1. Resolve Cap for Type 3 from merc_indent_line_items
+      let resolvedCap: number | null = null;
+      let isCapFromBaseline = false;
+
+      const mercRows: Array<{ cap: string | number }> = await manager.query(
+        `
+        SELECT 
+          GREATEST(
+            COALESCE(mili.quantity_required, 0),
+            COALESCE(mili.quantity_issued, 0)
+          ) as cap
+        FROM merc_indent_line_items mili
+        JOIN merc_indent_pending mip ON mili.merc_indent_pending_id = mip.id
+        WHERE UPPER(REGEXP_REPLACE(TRIM(COALESCE(mip.po_number, '')), '\\s+', ' ', 'g')) = $1
+          AND mili.merc_item_id = $2
+        LIMIT 1;
+        `,
+        [normPo, mercItemId],
+      );
+
+      if (mercRows && mercRows.length > 0 && mercRows[0].cap != null && Number(mercRows[0].cap) > 0) {
+        resolvedCap = Number(mercRows[0].cap);
+      } else {
+        // Fallback to earliest DC quantity
+        const earliestRows: Array<{ id: string; quantity_dispatched: string | number }> = await manager.query(
+          `
+          SELECT dci.id, dci.quantity_dispatched
+          FROM delivery_challan_items dci
+          JOIN delivery_challans dc ON dci.challan_id = dc.id
+          WHERE dc.type = 'SPL_PROCESS'
+            AND UPPER(REGEXP_REPLACE(TRIM(COALESCE(dc.po_number, '')), '\\s+', ' ', 'g')) = $1
+            AND dci.merc_item_id = $2
+            AND (dci.is_extra_item IS NOT TRUE)
+          ORDER BY dci.created_at ASC, dci.id ASC
+          LIMIT 1;
+          `,
+          [normPo, mercItemId],
+        );
+
+        if (earliestRows && earliestRows.length > 0) {
+          resolvedCap = Number(earliestRows[0].quantity_dispatched);
+          isCapFromBaseline = true;
+        }
+      }
+
+      if (resolvedCap == null) {
+        return {
+          isExempt: false,
+          cap: null,
+          capQty: null,
+          baseline: null,
+          outstanding: 0,
+          available: item.quantity != null ? Number(item.quantity) : Infinity,
+          blockingDcs: [],
+          isCapFromBaseline: false,
+        };
+      }
+
+      const openRows: Array<{
+        dcId: string;
+        dcNumber: string;
+        pendingQty: string | number;
+      }> = await manager.query(
+        `
+        SELECT 
+          dc.id as "dcId",
+          dc.challan_number as "dcNumber",
+          GREATEST(dci.quantity_dispatched - COALESCE(dci.actual_received_qty, 0), 0) as "pendingQty"
+        FROM delivery_challan_items dci
+        JOIN delivery_challans dc ON dci.challan_id = dc.id
+        WHERE dc.type = 'SPL_PROCESS'
+          AND UPPER(REGEXP_REPLACE(TRIM(COALESCE(dc.po_number, '')), '\\s+', ' ', 'g')) = $1
+          AND dci.merc_item_id = $2
+          AND (dci.is_extra_item IS NOT TRUE)
+          AND dc.status NOT IN ('CLOSED', 'RETURNED')
+        ORDER BY dc.created_at ASC, dci.id ASC;
+        `,
+        [normPo, mercItemId],
+      );
+
+      const blockingDcs: BlockingDcInfo[] = openRows
+        .filter((r) => Number(r.pendingQty) > 0.0001)
+        .map((r) => ({
+          dcId: r.dcId,
+          dcNumber: r.dcNumber,
+          pendingQty: Number(r.pendingQty),
+        }));
+
+      const outstanding = openRows.reduce((sum, r) => sum + Number(r.pendingQty), 0);
+      const available = Math.max(0, resolvedCap - outstanding);
+
+      return {
+        isExempt: false,
+        cap: resolvedCap,
+        capQty: resolvedCap,
+        baseline: resolvedCap,
+        outstanding,
+        available,
+        blockingDcs,
+        isCapFromBaseline,
+      };
+    }
+
+    return {
+      isExempt: true,
+      cap: null,
+      capQty: null,
+      baseline: null,
+      outstanding: 0,
+      available: item.quantity != null ? Number(item.quantity) : Infinity,
+      blockingDcs: [],
+    };
+  }
+
+  /**
+   * Enforces the quantity-based product lock inside an active transaction.
+   * Acquires advisory transaction locks in sorted order to eliminate race conditions.
+   * Collects all conflicts across items and rejects intra-request duplicates.
+   */
+  public async validateProductLock(
+    type: DeliveryChallanType | string,
+    items: ProductLockItemInput[],
+    manager: EntityManager,
+  ): Promise<void> {
+    const isType1 = type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD;
+    const isType3 = type === DeliveryChallanType.SPL_PROCESS;
+
+    if (!isType1 && !isType3) {
+      return;
+    }
+
+    if (!items || items.length === 0) {
+      return;
+    }
+
+    interface PreparedItem {
+      rawItem: ProductLockItemInput;
+      lockKey: string;
+      productLabel: string;
+      scNumber: string | null;
+      poNumber: string | null;
+    }
+
+    const preparedItems: PreparedItem[] = [];
+    const conflicts: ProductLockConflict[] = [];
+    const seenRequestKeys = new Set<string>();
+
+    for (const it of items) {
+      if (isType3 && (it.isExtraItem || !it.mercItemId)) {
+        continue;
+      }
+
+      if (isType1 && !it.scId) {
+        continue;
+      }
+
+      let lockKey = '';
+      let productLabel = '';
+      let scNumber: string | null = it.partNumber || null;
+      let poNumber: string | null = null;
+
+      if (isType1) {
+        const prodKey = buildProductKey({ productId: it.productId, partName: it.partName });
+        if (!prodKey) continue;
+        lockKey = buildType1LockKey(it.scId!, prodKey);
+        productLabel = it.partName || prodKey;
+
+        if (!scNumber && it.scId) {
+          try {
+            const sc = await manager.findOne(SalesOrderComponent, { where: { id: it.scId } });
+            if (sc) {
+              scNumber = sc.scNumber;
+              if (!productLabel || productLabel === prodKey) {
+                productLabel = sc.productName || productLabel;
+              }
+            }
+          } catch {
+            // Ignore lookup failure
+          }
+        }
+      } else if (isType3) {
+        const normPo = normalizeText(it.poNumber);
+        if (!normPo || !it.mercItemId) continue;
+        lockKey = buildType3LockKey(normPo, it.mercItemId);
+        productLabel = it.poPartLabel || it.partNumber || it.mercItemId;
+        poNumber = normPo;
+      }
+
+      if (seenRequestKeys.has(lockKey)) {
+        conflicts.push({
+          dcType: String(type),
+          scNumber,
+          poNumber,
+          productLabel,
+          requestedQty: it.requestedQty,
+          availableQty: 0,
+          pendingQty: 0,
+          blockingDcs: [],
+        });
+      } else {
+        seenRequestKeys.add(lockKey);
+        preparedItems.push({
+          rawItem: it,
+          lockKey,
+          productLabel,
+          scNumber,
+          poNumber,
+        });
+      }
+    }
+
+    const uniqueKeys = Array.from(new Set(preparedItems.map((p) => p.lockKey))).sort();
+    for (const key of uniqueKeys) {
+      if (typeof manager?.query === 'function') {
+        try {
+          await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [key]);
+        } catch {
+          // Continue if advisory lock is not supported in simulated unit test managers
+        }
+      }
+    }
+
+    for (const item of preparedItems) {
+      const lockInfo = await this.calculateItemLock(
+        type,
+        {
+          scId: item.rawItem.scId,
+          productId: item.rawItem.productId,
+          partName: item.rawItem.partName,
+          poNumber: item.rawItem.poNumber,
+          mercItemId: item.rawItem.mercItemId,
+          isExtraItem: item.rawItem.isExtraItem,
+          quantity: item.rawItem.requestedQty,
+        },
+        manager,
+      );
+
+      if (!lockInfo.isExempt && (lockInfo.cap !== null || lockInfo.baseline !== null)) {
+        if (item.rawItem.requestedQty > lockInfo.available + 0.0001) {
+          conflicts.push({
+            dcType: String(type),
+            scNumber: item.scNumber,
+            poNumber: item.poNumber,
+            productLabel: item.productLabel,
+            requestedQty: item.rawItem.requestedQty,
+            availableQty: lockInfo.available,
+            pendingQty: lockInfo.outstanding,
+            capQty: lockInfo.cap ?? lockInfo.baseline,
+            blockingDcs: lockInfo.blockingDcs,
+          });
+        }
+      }
+    }
+
+    if (conflicts.length > 0) {
+      throw new ConflictException({
+        code: 'DC_PRODUCT_LOCKED',
+        message: 'Product not yet inwarded',
+        conflicts,
+      });
+    }
+  }
+
+  /**
+   * Diagnostic preview lock check without writes or persistent locks.
+   */
+  public async checkProductLock(dto: LockCheckDto): Promise<{
+    allowed: boolean;
+    conflicts: ProductLockConflict[];
+    items: Array<{
+      lockKey: string;
+      productLabel: string;
+      requestedQty: number;
+      baseline: number | null;
+      outstanding: number;
+      available: number;
+      allowed: boolean;
+      blockingDcs: BlockingDcInfo[];
+    }>;
+  }> {
+    const isType1 = dto.type === DeliveryChallanType.PRODUCTION_PROCESS_OUTWARD;
+    const isType3 = dto.type === DeliveryChallanType.SPL_PROCESS;
+
+    const itemsSummary: Array<{
+      lockKey: string;
+      productLabel: string;
+      requestedQty: number;
+      cap?: number | null;
+      capQty?: number | null;
+      baseline: number | null;
+      outstanding: number;
+      available: number;
+      allowed: boolean;
+      blockingDcs: BlockingDcInfo[];
+    }> = [];
+
+    const conflicts: ProductLockConflict[] = [];
+    const seenKeys = new Set<string>();
+
+    for (const it of dto.items) {
+      const targetScId = it.scId || dto.scId;
+      const targetPo = dto.poNumber || null;
+
+      if (isType3 && (it.isExtraItem || !it.mercItemId)) {
+        itemsSummary.push({
+          lockKey: 'EXEMPT',
+          productLabel: it.poPartLabel || it.partNumber || it.partName || 'Extra Item',
+          requestedQty: Number(it.quantity || 0),
+          baseline: null,
+          outstanding: 0,
+          available: Number(it.quantity || 0),
+          allowed: true,
+          blockingDcs: [],
+        });
+        continue;
+      }
+
+      let lockKey = '';
+      let productLabel = it.partName || it.poPartLabel || it.partNumber || 'Item';
+      let scNumber: string | null = it.partNumber || null;
+
+      if (isType1) {
+        if (!targetScId) continue;
+        const prodKey = buildProductKey({ productId: it.productId, partName: it.partName });
+        lockKey = buildType1LockKey(targetScId, prodKey);
+        productLabel = it.partName || prodKey;
+
+        if (!scNumber && targetScId) {
+          try {
+            const sc = await this.dataSource.manager.findOne(SalesOrderComponent, { where: { id: targetScId } });
+            if (sc) {
+              scNumber = sc.scNumber;
+              productLabel = sc.productName || productLabel;
+            }
+          } catch {
+            // ignore
+          }
+        }
+      } else if (isType3) {
+        const normPo = normalizeText(targetPo);
+        if (!normPo || !it.mercItemId) continue;
+        lockKey = buildType3LockKey(normPo, it.mercItemId);
+        productLabel = it.poPartLabel || it.partNumber || it.mercItemId;
+      }
+
+      if (seenKeys.has(lockKey)) {
+        const conflict: ProductLockConflict = {
+          dcType: String(dto.type),
+          scNumber,
+          poNumber: targetPo ? normalizeText(targetPo) : null,
+          productLabel,
+          requestedQty: Number(it.quantity || 0),
+          availableQty: 0,
+          pendingQty: 0,
+          blockingDcs: [],
+        };
+        conflicts.push(conflict);
+        itemsSummary.push({
+          lockKey,
+          productLabel,
+          requestedQty: Number(it.quantity || 0),
+          baseline: null,
+          outstanding: 0,
+          available: 0,
+          allowed: false,
+          blockingDcs: [],
+        });
+        continue;
+      }
+
+      seenKeys.add(lockKey);
+
+      const lockInfo = await this.calculateItemLock(
+        dto.type,
+        {
+          scId: targetScId,
+          productId: it.productId,
+          partName: it.partName,
+          poNumber: targetPo,
+          mercItemId: it.mercItemId,
+          isExtraItem: it.isExtraItem,
+          quantity: Number(it.quantity || 0),
+        },
+        this.dataSource.manager,
+      );
+
+      const isAllowed = lockInfo.isExempt || (lockInfo.cap === null && lockInfo.baseline === null) || Number(it.quantity || 0) <= lockInfo.available + 0.0001;
+
+      if (!isAllowed) {
+        conflicts.push({
+          dcType: String(dto.type),
+          scNumber,
+          poNumber: targetPo ? normalizeText(targetPo) : null,
+          productLabel,
+          requestedQty: Number(it.quantity || 0),
+          availableQty: lockInfo.available,
+          pendingQty: lockInfo.outstanding,
+          capQty: lockInfo.cap ?? lockInfo.baseline,
+          blockingDcs: lockInfo.blockingDcs,
+        });
+      }
+
+      itemsSummary.push({
+        lockKey,
+        productLabel,
+        requestedQty: Number(it.quantity || 0),
+        cap: lockInfo.cap,
+        capQty: lockInfo.cap,
+        baseline: lockInfo.baseline,
+        outstanding: lockInfo.outstanding,
+        available: lockInfo.available,
+        allowed: isAllowed,
+        blockingDcs: lockInfo.blockingDcs,
+      });
+    }
+
+    return {
+      allowed: conflicts.length === 0,
+      conflicts,
+      items: itemsSummary,
+    };
+  }
 
   private getPendingRepo(): Repository<MercIndentPending> {
     return this.mercIndentPendingRepo || this.dataSource.getRepository(MercIndentPending);
@@ -678,22 +1434,44 @@ export class DeliveryChallanService {
       customerName: indent.customerName,
       layoutNumber: indent.layoutNumber,
       mercIndentId: indent.id,
-      lineItems: lineItems.map((item) => ({
-        mercItemId: item.mercItemId,
-        itemType: item.itemType,
-        name: item.name,
-        material: item.material ?? null,
-        shape: item.shape ?? null,
-        lengthMm: item.lengthMm != null ? Number(item.lengthMm) : null,
-        widthMm: item.widthMm != null ? Number(item.widthMm) : null,
-        heightMm: item.heightMm != null ? Number(item.heightMm) : null,
-        diameterMm: item.diameterMm != null ? Number(item.diameterMm) : null,
-        quantityRequired: Number(item.quantityRequired),
-        unit: item.unit ?? null,
-        vendorName: item.vendorName ?? null,
-        source: item.source ?? null,
-        poPartLabel: `${indent.poNumber || poNumber} - ${item.name}`,
-      })),
+      lineItems: await Promise.all(
+        lineItems.map(async (item) => {
+          const lockInfo = await this.calculateItemLock(
+            DeliveryChallanType.SPL_PROCESS,
+            {
+              poNumber: indent.poNumber || poNumber,
+              mercItemId: item.mercItemId,
+              quantity: Number(item.quantityRequired),
+            },
+            this.dataSource.manager,
+          );
+
+          return {
+            mercItemId: item.mercItemId,
+            itemType: item.itemType,
+            name: item.name,
+            material: item.material ?? null,
+            shape: item.shape ?? null,
+            lengthMm: item.lengthMm != null ? Number(item.lengthMm) : null,
+            widthMm: item.widthMm != null ? Number(item.widthMm) : null,
+            heightMm: item.heightMm != null ? Number(item.heightMm) : null,
+            diameterMm: item.diameterMm != null ? Number(item.diameterMm) : null,
+            quantityRequired: Number(item.quantityRequired),
+            unit: item.unit ?? null,
+            vendorName: item.vendorName ?? null,
+            source: item.source ?? null,
+            poPartLabel: `${indent.poNumber || poNumber} - ${item.name}`,
+            lock: {
+              cap: lockInfo.cap,
+              capQty: lockInfo.cap,
+              baseline: lockInfo.baseline,
+              outstanding: lockInfo.outstanding,
+              available: lockInfo.available,
+              blockingDcs: lockInfo.blockingDcs,
+            },
+          };
+        }),
+      ),
       availableStockProducts: (stockProducts || []).map((p) => ({
         productId: p.id,
         productName: p.name,
@@ -722,6 +1500,27 @@ export class DeliveryChallanService {
       // 2. Generate DC number using SAME sequence as Type 1 and Type 2
       const now = new Date();
       const challanNumber = await this.generateNextChallanNumber(queryRunner, now);
+
+      // Validate Product-Level Quantity Lock for Type 3 (SPL) before insert
+      const lockItems: ProductLockItemInput[] = [];
+      for (const group of dto.dispatchGroups) {
+        for (const item of group.items) {
+          lockItems.push({
+            poNumber: dto.poNumber,
+            mercItemId: item.mercItemId || null,
+            poPartLabel: item.poPartLabel || item.partNo || null,
+            partNumber: item.partNo || null,
+            isExtraItem: Boolean(item.isExtraItem),
+            requestedQty: Number(item.dispatchedQty ?? 0),
+          });
+        }
+      }
+
+      await this.validateProductLock(
+        DeliveryChallanType.SPL_PROCESS,
+        lockItems,
+        queryRunner.manager,
+      );
 
       // 3. Create delivery_challans record
       const challan = queryRunner.manager.create(DeliveryChallan, {
@@ -1554,13 +2353,25 @@ export class DeliveryChallanService {
         }
 
         // Store editable actualReceivedQty and returnTargetBinId
-        if (dtoItem.actualReceivedQty !== undefined && dtoItem.actualReceivedQty !== null) {
-          challanItem.actualReceivedQty = Number(dtoItem.actualReceivedQty);
-        } else if (dtoItem.actualInwardQty !== undefined && dtoItem.actualInwardQty !== null) {
-          challanItem.actualReceivedQty = Number(dtoItem.actualInwardQty);
-        } else {
-          challanItem.actualReceivedQty = Number(challanItem.actualReceivedQty || 0) + qtyReceived;
+        const incomingQty = Number(
+          dtoItem.actualReceivedQty !== undefined && dtoItem.actualReceivedQty !== null
+            ? dtoItem.actualReceivedQty
+            : dtoItem.actualInwardQty !== undefined && dtoItem.actualInwardQty !== null
+            ? dtoItem.actualInwardQty
+            : qtyReceived,
+        );
+
+        const isCumulative = Boolean(dtoItem.isCumulative);
+        const currentActual = Number(challanItem.actualReceivedQty || 0);
+        const newActualReceived = isCumulative ? incomingQty : currentActual + incomingQty;
+
+        const maxAllowed = Number(challanItem.quantityDispatched);
+        if (newActualReceived > maxAllowed + 0.0001) {
+          throw new BadRequestException(
+            `Total inward quantity (${newActualReceived}) cannot exceed quantity dispatched (${maxAllowed}) for item ${dtoItem.itemId}`,
+          );
         }
+        challanItem.actualReceivedQty = Math.min(newActualReceived, maxAllowed);
 
         const targetBin = dtoItem.targetBinId || dtoItem.destinationBinId;
         if (targetBin) {

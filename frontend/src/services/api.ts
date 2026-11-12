@@ -80,21 +80,31 @@ class ApiClient {
     }
     
     let errorMsg = `${method} ${endpoint} failed: ${response.status} ${response.statusText}`;
+    let errorJson: any = null;
     try {
-      const errorJson = await response.json();
+      errorJson = await response.json();
       errorMsg = extractErrorMessage({ response: { data: errorJson } }, errorMsg);
     } catch {}
-    
+
     // Global toast for errors, skip 401 as it's handled by AuthContext, and skip if silent
     if (!silent) {
       if (response.status === 429) {
         toast.error('Too many requests. Please wait a moment.', { id: 'rate-limit-error' });
+      } else if (
+        response.status === 409 &&
+        (errorJson?.code === 'DC_PRODUCT_LOCKED' || errorJson?.error?.code === 'DC_PRODUCT_LOCKED')
+      ) {
+        // Suppress generic toast so that DcLockModal presents the rich modal without double-alerting
       } else if (response.status !== 401) {
         toast.error(errorMsg);
       }
     }
-    
-    throw new Error(errorMsg);
+
+    const err: any = new Error(errorMsg);
+    err.response = { status: response.status, data: errorJson };
+    err.status = response.status;
+    err.data = errorJson;
+    throw err;
   }
 
   private async parseResponseBody<T>(response: Response): Promise<T> {
@@ -460,6 +470,8 @@ import type {
   MercPoItemsResponse,
   CreateSplDcPayload,
   SplDcSummary,
+  ProductLockConflict,
+  BlockingDcInfo,
 } from '../types/delivery-challan.dto';
 import type { ProcessDcReturnDto, CloseDcDto, QcInspectDcDto, ReworkReDispatchDto } from '../types/dc-return.dto';
 
@@ -620,6 +632,34 @@ export const deliveryChallanApi = {
     const qs = query.toString();
     return api.get<SplDcSummary[]>(`/api/delivery-challans/type-3${qs ? `?${qs}` : ''}`);
   },
+  checkLock: (payload: {
+    type: string;
+    scId?: string;
+    poNumber?: string;
+    items: Array<{
+      productId?: string;
+      partName?: string;
+      mercItemId?: string;
+      isExtraItem?: boolean;
+      quantity?: number;
+    }>;
+  }) =>
+    api.post<{
+      allowed: boolean;
+      conflicts: ProductLockConflict[];
+      items: Array<{
+        lockKey: string;
+        productLabel: string;
+        requestedQty: number;
+        cap?: number | null;
+        capQty?: number | null;
+        baseline: number | null;
+        outstanding: number;
+        available: number;
+        allowed: boolean;
+        blockingDcs: BlockingDcInfo[];
+      }>;
+    }>('/api/delivery-challans/lock-check', payload),
 };
 
 import type { ConsolidatedTraceabilityDto } from '../types/traceability.dto';

@@ -206,6 +206,33 @@ export interface DcLifecycleReportResponse {
   };
 }
 
+export interface BlockingDcInfo {
+  dcId: string;
+  dcNumber: string;
+  pendingQty: number;
+}
+
+export interface DcProductLockInfo {
+  cap?: number | null;
+  capQty?: number | null;
+  baseline: number | null;
+  outstanding: number;
+  available: number;
+  blockingDcs: BlockingDcInfo[];
+}
+
+export interface ProductLockConflict {
+  dcType: string;
+  scNumber: string | null;
+  poNumber: string | null;
+  productLabel: string;
+  requestedQty: number;
+  availableQty: number;
+  pendingQty: number;
+  capQty?: number | null;
+  blockingDcs: BlockingDcInfo[];
+}
+
 export interface MercPoLineItem {
   mercItemId: string;
   itemType: 'RAW_MATERIAL' | 'BROUGHT_OUT';
@@ -221,6 +248,7 @@ export interface MercPoLineItem {
   vendorName: string | null;
   source: string | null;
   poPartLabel: string; // "PO123 - BASE PLATE"
+  lock?: DcProductLockInfo;
 }
 
 export interface AvailableStockProduct {
@@ -249,6 +277,8 @@ export interface SplDcItem {
   isExtraItem?: boolean;
   productId?: string;
   itemType?: 'RAW_MATERIAL' | 'BROUGHT_OUT';
+  lock?: DcProductLockInfo;
+  isSelected?: boolean;
 }
 
 export interface SplDispatchGroup {

@@ -7,6 +7,7 @@ import {
   ArrayMinSize,
   IsNumber,
   Min,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -59,6 +60,10 @@ export class ReturnDeliveryChallanItemDto {
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 3 })
   actualReceivedQty?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isCumulative?: boolean;
 
   @IsOptional()
   @IsString()

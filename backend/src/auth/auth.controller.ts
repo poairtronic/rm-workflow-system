@@ -160,10 +160,14 @@ export class AuthController {
     const userId = req.user?.sub || req.user?.userId;
     let effectiveModules: string[] = [];
     let permissionsMap: Record<string, string> = {};
+    let liveRole = req.user?.role;
     try {
       const perms = await this.permissionsService.getUserPermissions(userId);
       effectiveModules = perms.effectiveModules;
       permissionsMap = perms.permissionsMap || {};
+      if (perms?.roleName) {
+        liveRole = perms.roleName;
+      }
     } catch {
       // Fallback
     }
@@ -173,6 +177,8 @@ export class AuthController {
       user: {
         ...req.user,
         id: userId,
+        role: liveRole,
+        roles: [liveRole],
         effectiveModules,
         permissionsMap,
       },
