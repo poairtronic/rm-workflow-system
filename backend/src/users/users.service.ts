@@ -131,6 +131,14 @@ export class UsersService {
       user.roleId = role.id;
       user.role = role;
       await this.userRepository.update(id, { roleId: role.id });
+      try {
+        await this.userRepository.manager.query(
+          `DELETE FROM user_module_permissions WHERE user_id = $1`,
+          [id],
+        );
+      } catch {
+        // Table or query fallback
+      }
       RolesGuard.clearCache(id);
     }
 

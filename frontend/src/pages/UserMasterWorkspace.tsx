@@ -117,7 +117,12 @@ export function UserMasterWorkspace() {
       userMasterApi.updateRole(id, role),
     onSuccess: (updated) => {
       toast.success(`Role for "${updated.name}" updated to ${updated.role?.name || ''}`);
+      queryClient.setQueryData(['users-master'], (old: UserMasterDto[] | undefined) => {
+        if (!old) return old;
+        return old.map((u) => (u.id === updated.id ? { ...u, role: updated.role, roleId: updated.role?.id || u.roleId } : u));
+      });
       queryClient.invalidateQueries({ queryKey: ['users-master'] });
+      queryClient.invalidateQueries({ queryKey: ['user-permissions', updated.id] });
       window.dispatchEvent(new CustomEvent('auth:refresh'));
       setRoleChangeTarget(null);
     },
@@ -251,7 +256,7 @@ export function UserMasterWorkspace() {
             >
               {SYSTEM_ROLES.map((r) => (
                 <option key={r.value} value={r.value}>
-                  Change to {r.label}
+                  {r.value === roleName ? `${r.label} (Current)` : `Change to ${r.label}`}
                 </option>
               ))}
             </select>
