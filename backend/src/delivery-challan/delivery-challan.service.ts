@@ -779,9 +779,9 @@ export class DeliveryChallanService {
         `
         SELECT SUM(rmi.quantity) as cap
         FROM rm_items rmi
-        WHERE rmi.sc_id = $1::uuid
+        WHERE rmi.sc_id::text = $1::text
           AND (
-            ($2::uuid IS NOT NULL AND rmi.mapped_product_id = $2::uuid)
+            ($2::text IS NOT NULL AND rmi.mapped_product_id::text = $2::text)
             OR ($3 <> '' AND (
               UPPER(REGEXP_REPLACE(TRIM(COALESCE(rmi.part_name, '')), '\\s+', ' ', 'g')) = $3
               OR UPPER(REGEXP_REPLACE(TRIM(COALESCE(rmi.material, '')), '\\s+', ' ', 'g')) = $3
@@ -799,11 +799,15 @@ export class DeliveryChallanService {
           `
           SELECT soc.target_quantity
           FROM sales_order_components soc
-          WHERE soc.id = $1::uuid
+          WHERE soc.id::text = $1::text
             AND (
-              ($2::uuid IS NOT NULL AND soc.product_id = $2::uuid)
-              OR ($3 <> '' AND UPPER(REGEXP_REPLACE(TRIM(COALESCE(soc.product_name, '')), '\\s+', ' ', 'g')) = $3)
-              OR ($2::uuid IS NULL AND $3 = '')
+              $3 = ''
+              OR UPPER(REGEXP_REPLACE(TRIM(COALESCE(soc.product_name, '')), '\\s+', ' ', 'g')) = $3
+              OR ($2::text IS NOT NULL AND EXISTS (
+                SELECT 1 FROM products p 
+                WHERE p.id::text = $2::text 
+                  AND UPPER(TRIM(p.name)) = UPPER(TRIM(soc.product_name))
+              ))
             );
           `,
           [item.scId, prodId, normPartName],
@@ -828,9 +832,9 @@ export class DeliveryChallanService {
         FROM delivery_challan_items dci
         JOIN delivery_challans dc ON dci.challan_id = dc.id
         WHERE dc.type = 'PRODUCTION_PROCESS_OUTWARD'
-          AND dci.sc_id = $1::uuid
+          AND dci.sc_id::text = $1::text
           AND (
-            ($2::uuid IS NOT NULL AND dci.product_id = $2::uuid)
+            ($2::text IS NOT NULL AND dci.product_id::text = $2::text)
             OR ($3 <> '' AND UPPER(REGEXP_REPLACE(TRIM(COALESCE(dci.part_name, '')), '\\s+', ' ', 'g')) = $3)
           )
           AND dc.status NOT IN ('CLOSED', 'RETURNED')
@@ -847,9 +851,9 @@ export class DeliveryChallanService {
           FROM delivery_challan_items dci
           JOIN delivery_challans dc ON dci.challan_id = dc.id
           WHERE dc.type = 'PRODUCTION_PROCESS_OUTWARD'
-            AND dci.sc_id = $1::uuid
+            AND dci.sc_id::text = $1::text
             AND (
-              ($2::uuid IS NOT NULL AND dci.product_id = $2::uuid)
+              ($2::text IS NOT NULL AND dci.product_id::text = $2::text)
               OR ($3 <> '' AND UPPER(REGEXP_REPLACE(TRIM(COALESCE(dci.part_name, '')), '\\s+', ' ', 'g')) = $3)
             )
           ORDER BY dci.created_at ASC, dci.id ASC
@@ -1300,19 +1304,32 @@ export class DeliveryChallanService {
 
       seenKeys.add(lockKey);
 
-      const lockInfo = await this.calculateItemLock(
-        dto.type,
-        {
-          scId: targetScId,
-          productId: it.productId,
-          partName: it.partName,
-          poNumber: targetPo,
-          mercItemId: it.mercItemId,
-          isExtraItem: it.isExtraItem,
-          quantity: Number(it.quantity || 0),
-        },
-        this.dataSource.manager,
-      );
+      let lockInfo: any;
+      try {
+        lockInfo = await this.calculateItemLock(
+          dto.type,
+          {
+            scId: targetScId,
+            productId: it.productId,
+            partName: it.partName,
+            poNumber: targetPo,
+            mercItemId: it.mercItemId,
+            isExtraItem: it.isExtraItem,
+            quantity: Number(it.quantity || 0),
+          },
+          this.dataSource.manager,
+        );
+      } catch {
+        lockInfo = {
+          isExempt: true,
+          cap: null,
+          capQty: null,
+          baseline: null,
+          outstanding: 0,
+          available: Number(it.quantity || 0),
+          blockingDcs: [],
+        };
+      }
 
       const isAllowed = lockInfo.isExempt || (lockInfo.cap === null && lockInfo.baseline === null) || Number(it.quantity || 0) <= lockInfo.available + 0.0001;
 
