@@ -198,7 +198,11 @@ export class EmailAuditService {
       .skip(offset)
       .take(limit);
 
-    const [logs, total] = await qb.getManyAndCount();
-    return { logs, total, limit, offset };
+    try {
+      const [logs, total] = await qb.getManyAndCount();
+      return { logs, total, limit, offset };
+    } catch {
+      return { logs: [], total: 0, limit, offset };
+    }
   }
 }

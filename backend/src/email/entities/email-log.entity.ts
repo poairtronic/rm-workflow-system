@@ -21,12 +21,12 @@ export class EmailLog {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'job_id', type: 'uuid' })
-  jobId!: string;
+  @Column({ name: 'job_id', type: 'uuid', nullable: true })
+  jobId?: string | null;
 
-  @ManyToOne(() => EmailJob, { onDelete: 'RESTRICT', nullable: false })
+  @ManyToOne(() => EmailJob, { onDelete: 'RESTRICT', nullable: true })
   @JoinColumn({ name: 'job_id' })
-  job?: EmailJob;
+  job?: EmailJob | null;
 
   @Column({ name: 'event_type', type: 'varchar', length: 100 })
   eventType!: string;

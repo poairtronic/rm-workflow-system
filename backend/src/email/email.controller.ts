@@ -205,13 +205,25 @@ export class EmailController {
         `,
       });
 
-      await this.emailAuditService.recordAttempt(
-        job,
-        1,
-        deliveryResult.success ? EmailJobStatus.SENT : EmailJobStatus.FAILED,
-        deliveryResult.providerMessageId || null,
-        deliveryResult.error || null,
-      );
+      await this.emailJobRepo.update(job.id, {
+        status: deliveryResult.success ? EmailJobStatus.SENT : EmailJobStatus.FAILED,
+        sentAt: deliveryResult.success ? new Date() : undefined,
+        providerMessageId: deliveryResult.providerMessageId || undefined,
+        lastError: deliveryResult.error || undefined,
+        attempts: 1,
+      });
+
+      try {
+        await this.emailAuditService.recordAttempt(
+          job,
+          1,
+          deliveryResult.success ? EmailJobStatus.SENT : EmailJobStatus.FAILED,
+          deliveryResult.providerMessageId || null,
+          deliveryResult.error || null,
+        );
+      } catch {
+        // Audit log persistence failure should not mask actual dispatch status
+      }
 
       return {
         success: deliveryResult.success,
@@ -223,13 +235,27 @@ export class EmailController {
           : `Email delivery attempt logged (${deliveryResult.error || 'Failed'})`,
       };
     } catch (err: any) {
-      await this.emailAuditService.recordAttempt(
-        job,
-        1,
-        EmailJobStatus.FAILED,
-        null,
-        err.message || String(err),
-      );
+      try {
+        await this.emailJobRepo.update(job.id, {
+          status: EmailJobStatus.FAILED,
+          lastError: err?.message || String(err),
+          attempts: 1,
+        });
+      } catch {
+        // Ignore job update error
+      }
+
+      try {
+        await this.emailAuditService.recordAttempt(
+          job,
+          1,
+          EmailJobStatus.FAILED,
+          null,
+          err.message || String(err),
+        );
+      } catch {
+        // Suppress audit log error
+      }
 
       return {
         success: false,

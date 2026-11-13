@@ -56,6 +56,7 @@ import { StockTransaction } from '../inventory/entities/stock-transaction.entity
 import { UploadedFile } from '../files/entities/uploaded-file.entity.js';
 import { Attachment } from '../attachments/entities/attachment.entity.js';
 import { EmailJob } from '../email/entities/email-job.entity.js';
+import { EmailLog } from '../email/entities/email-log.entity.js';
 import { SystemSetting } from '../notifications/entities/system-setting.entity.js';
 import { UserNotificationPreference } from '../notifications/entities/user-notification-preference.entity.js';
 import { GeneralIssue } from '../general-issue/entities/general-issue.entity.js';
@@ -120,6 +121,7 @@ export const ALL_ENTITIES = [
   UploadedFile,
   Attachment,
   EmailJob,
+  EmailLog,
   SystemSetting,
   UserNotificationPreference,
   GeneralIssue,
