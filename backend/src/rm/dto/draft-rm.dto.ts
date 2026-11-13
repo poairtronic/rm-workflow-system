@@ -79,6 +79,11 @@ export class CreateDraftRmDto {
   @IsUUID('4')
   customerId?: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  customerName?: string;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => DraftRmScDto)

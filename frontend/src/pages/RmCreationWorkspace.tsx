@@ -70,6 +70,9 @@ export function RmCreationWorkspace() {
 
   const [mode, setMode] = useState<CreationMode>('BY_PO');
   const [poNumber, setPoNumber] = useState('');
+  const [customers, setCustomers] = useState<Array<{ id: string; name: string; code?: string }>>([]);
+  const [customerName, setCustomerName] = useState('');
+  const [customerId, setCustomerId] = useState('');
   const [scCards, setScCards] = useState<SCCardForm[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [availableScs, setAvailableScs] = useState<SC[]>([]);
@@ -114,12 +117,23 @@ export function RmCreationWorkspace() {
   useEffect(() => {
     loadProducts();
     loadScList();
+    loadCustomers();
     if (existingPoId) {
       loadExistingDraft(existingPoId);
     } else {
       initNewForm();
     }
   }, [existingPoId]);
+
+  const loadCustomers = async () => {
+    try {
+      const res = await api.get<any[]>('/api/customers');
+      const list = unwrapList(res);
+      setCustomers(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.error('Failed to load customers', err);
+    }
+  };
 
   const initNewForm = async () => {
     try {
@@ -181,6 +195,12 @@ export function RmCreationWorkspace() {
       
       if (data && data.poNumber) {
         setPoNumber(data.poNumber);
+        if (data.customerName) {
+          setCustomerName(data.customerName);
+        }
+        if (data.customerId) {
+          setCustomerId(data.customerId);
+        }
         
         // Check for rejection notices
         const rejectedSc = data.scs?.find((s: any) => s.status === 'REJECTED' && s.remarks);
@@ -245,6 +265,8 @@ export function RmCreationWorkspace() {
     setMode(newMode);
     setError(null);
     setSuccess(null);
+    setCustomerName('');
+    setCustomerId('');
 
     if (newMode === 'STANDALONE') {
       const timestamp = new Date().toISOString().slice(2, 10).replace(/-/g, '');
@@ -287,6 +309,10 @@ export function RmCreationWorkspace() {
     if (foundSc) {
       const poNum = foundSc.purchaseOrder?.poNumber || `PO-AUTO-${foundSc.scNumber}`;
       setPoNumber(poNum);
+      const cName = (foundSc.purchaseOrder as any)?.customer?.name || '';
+      const cId = (foundSc.purchaseOrder as any)?.customer?.id || (foundSc.purchaseOrder as any)?.customerId || '';
+      setCustomerName(cName);
+      setCustomerId(cId);
       setScCards([
         {
           id: foundSc.id,
@@ -458,6 +484,8 @@ export function RmCreationWorkspace() {
     try {
       const payload = {
         poNumber: poNumber.trim(),
+        customerId: customerId || undefined,
+        customerName: customerName.trim() || undefined,
         scs: scCards.map((card) => {
           const targetQty = Number(card.targetQuantity) || 1;
           return {
@@ -718,7 +746,7 @@ export function RmCreationWorkspace() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl">
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-1">
               {mode === 'STANDALONE' ? 'Job / Standalone Reference *' : 'Purchase Order (PO) Number *'}
@@ -728,9 +756,41 @@ export function RmCreationWorkspace() {
               value={poNumber}
               onChange={(e) => setPoNumber(e.target.value)}
               placeholder={mode === 'STANDALONE' ? 'e.g. REQ-SHOP-2026-01' : 'e.g. PO-2026-001'}
-              className="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
             />
           </div>
+
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1 flex items-center justify-between">
+              <span>Customer Name</span>
+              <span className="text-xs font-normal text-slate-400">Optional</span>
+            </label>
+            <input
+              type="text"
+              list="customer-suggestions"
+              value={customerName}
+              onChange={(e) => {
+                const val = e.target.value;
+                setCustomerName(val);
+                const matched = customers.find(
+                  (c) =>
+                    c.name.toLowerCase() === val.toLowerCase().trim() ||
+                    c.code?.toLowerCase() === val.toLowerCase().trim()
+                );
+                setCustomerId(matched ? matched.id : '');
+              }}
+              placeholder="e.g. PRICOL, HYUNDAI, SCL..."
+              className="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+            />
+            <datalist id="customer-suggestions">
+              {customers.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.code ? `Code: ${c.code}` : ''}
+                </option>
+              ))}
+            </datalist>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-slate-500 mb-1">Workflow Target</label>
             <div className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between">

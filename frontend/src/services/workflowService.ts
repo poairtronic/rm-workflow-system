@@ -146,7 +146,7 @@ export const workflowService = {
   closeSc: (id: string, remarks?: string) => api.post<SC>(`/api/sc/${id}/close`, { remarks }),
 
   // RM
-  createDraftRm: (data: { poNumber: string; customerId?: string; scs: { scNumber: string; productName: string; targetQuantity?: number; items: { productId: string; partNumber?: string; partName?: string; spec: string; quantity: number; remarks?: string; }[] }[] }) =>
+  createDraftRm: (data: { poNumber: string; customerId?: string; customerName?: string; scs: { scNumber: string; productName: string; targetQuantity?: number; items: { productId: string; partNumber?: string; partName?: string; spec: string; quantity: number; remarks?: string; }[] }[] }) =>
     api.post<any>('/api/rm/draft', data),
   getDraftRmByPo: (poId: string) => api.get<any[]>(`/api/rm/po/${poId}/draft`),
   updateDraftRm: (poId: string, data: any) => api.put<any>(`/api/rm/po/${poId}/draft`, data),

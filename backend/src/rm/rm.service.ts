@@ -6,7 +6,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, In } from 'typeorm';
+import { Repository, DataSource, In, ILike } from 'typeorm';
 import {
   RmRequest,
   RmRequestStatus,
@@ -425,7 +425,23 @@ export class RmService {
       });
 
       if (!po) {
-        const customerId = dto.customerId || null;
+        let customerId = dto.customerId || null;
+        if (!customerId && dto.customerName?.trim()) {
+          const trimmedName = dto.customerName.trim();
+          let cust = await queryRunner.manager.findOne(Customer, {
+            where: [{ name: ILike(trimmedName) }, { code: ILike(trimmedName) }],
+          });
+          if (!cust) {
+            const cleanCode = 'CUST-' + trimmedName.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 15);
+            cust = queryRunner.manager.create(Customer, {
+              name: trimmedName,
+              code: cleanCode || `CUST-${Date.now().toString().slice(-6)}`,
+            });
+            cust = await queryRunner.manager.save(cust);
+          }
+          customerId = cust.id;
+        }
+
         po = queryRunner.manager.create(PurchaseOrder, {
           poNumber: dto.poNumber.trim(),
           customerId,
@@ -580,15 +596,19 @@ export class RmService {
     }
 
     // 3. Fallback: check if the PO exists directly
-    const po = (records.length > 0 && records[0].purchaseOrder)
-      ? records[0].purchaseOrder
-      : await this.dataSource.getRepository(PurchaseOrder).findOne({ where: { id: poId } });
+    const targetPoId = (records.length > 0 && records[0].purchaseOrder) ? records[0].purchaseOrder.id : poId;
+    const po = await this.dataSource.getRepository(PurchaseOrder).findOne({
+      where: { id: targetPoId },
+      relations: { customer: true },
+    });
 
     if (!po && !records.length) return null;
 
     return {
        poId: po ? po.id : poId,
        poNumber: po ? po.poNumber : '',
+       customerId: po?.customer?.id || null,
+       customerName: po?.customer?.name || '',
        scs: records.map(rm => ({
          scId: rm.scId,
          scNumber: rm.salesOrderComponent?.scNumber || '',
@@ -622,6 +642,28 @@ export class RmService {
     try {
       const po = await queryRunner.manager.findOne(PurchaseOrder, { where: { id: poId } });
       if (!po) throw new NotFoundException('PO not found');
+
+      // Update customer on PO if specified
+      if (dto.customerId !== undefined || dto.customerName !== undefined) {
+        let customerId = dto.customerId || null;
+        if (!customerId && dto.customerName?.trim()) {
+          const trimmedName = dto.customerName.trim();
+          let cust = await queryRunner.manager.findOne(Customer, {
+            where: [{ name: ILike(trimmedName) }, { code: ILike(trimmedName) }],
+          });
+          if (!cust) {
+            const cleanCode = 'CUST-' + trimmedName.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 15);
+            cust = queryRunner.manager.create(Customer, {
+              name: trimmedName,
+              code: cleanCode || `CUST-${Date.now().toString().slice(-6)}`,
+            });
+            cust = await queryRunner.manager.save(cust);
+          }
+          customerId = cust.id;
+        }
+        po.customerId = customerId;
+        await queryRunner.manager.save(po);
+      }
 
       const isOwner = user.role === UserRole.DESIGNER;
       const isAdmin = user.role === UserRole.ADMIN;
