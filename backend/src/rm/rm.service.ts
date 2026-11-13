@@ -425,29 +425,7 @@ export class RmService {
       });
 
       if (!po) {
-        let customerId = dto.customerId;
-        if (!customerId) {
-          let defaultCustomer = await queryRunner.manager.findOne(Customer, {
-            where: { code: 'BDL-IND' },
-          });
-          if (!defaultCustomer) {
-            const existingCustomers = await queryRunner.manager.find(Customer, {
-              order: { createdAt: 'ASC' },
-              take: 1,
-            });
-            if (existingCustomers.length > 0) {
-              defaultCustomer = existingCustomers[0];
-            }
-          }
-          if (!defaultCustomer) {
-            defaultCustomer = queryRunner.manager.create(Customer, {
-              code: 'BDL-IND',
-              name: 'Bharat Dynamics Limited',
-            });
-            defaultCustomer = await queryRunner.manager.save(defaultCustomer);
-          }
-          customerId = defaultCustomer.id;
-        }
+        const customerId = dto.customerId || null;
         po = queryRunner.manager.create(PurchaseOrder, {
           poNumber: dto.poNumber.trim(),
           customerId,

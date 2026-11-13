@@ -21,14 +21,15 @@ export class PurchaseOrder {
   @Column({ name: 'po_number', unique: true, length: 100 })
   poNumber!: string;
 
-  @Column({ name: 'customer_id' })
-  customerId!: string;
+  @Column({ name: 'customer_id', type: 'uuid', nullable: true })
+  customerId?: string | null;
 
   @ManyToOne('Customer', (customer: Customer) => customer.purchaseOrders, {
-    onDelete: 'RESTRICT',
+    onDelete: 'SET NULL',
+    nullable: true,
   })
   @JoinColumn({ name: 'customer_id' })
-  customer!: Customer;
+  customer?: Customer | null;
 
   @Column({ name: 'external_reference', nullable: true, length: 150 })
   externalReference?: string;

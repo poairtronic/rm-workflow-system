@@ -34,16 +34,21 @@ export class PoService {
       );
     }
 
-    const customer = await this.customerRepository.findOne({
-      where: { id: createDto.customerId },
-    });
-    if (!customer) {
-      throw new NotFoundException(
-        `Customer with id ${createDto.customerId} not found`,
-      );
+    if (createDto.customerId) {
+      const customer = await this.customerRepository.findOne({
+        where: { id: createDto.customerId },
+      });
+      if (!customer) {
+        throw new NotFoundException(
+          `Customer with id ${createDto.customerId} not found`,
+        );
+      }
     }
 
-    const po = this.poRepository.create(createDto);
+    const po = this.poRepository.create({
+      ...createDto,
+      customerId: createDto.customerId || null,
+    });
     return await this.poRepository.save(po);
   }
 

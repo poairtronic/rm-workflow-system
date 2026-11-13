@@ -21,7 +21,7 @@ export function buildTraceabilityEvents(raw: any): TraceabilityEvent[] {
         assemblyComponent: sc.productName || 'N/A',
         drawingNumber: sc.drawingNumber || 'N/A',
         parentPoNumber: po.poNumber || 'UNKNOWN',
-        customer: po.customer?.name || 'Customer',
+        customer: po.customer?.name || '',
         targetBatchQuantity: `${Number(sc.targetQuantity) || 1} NOS`,
         currentStage: getCanonicalStage(sc),
       },

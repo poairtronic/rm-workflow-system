@@ -157,7 +157,7 @@ export function PoTraceabilityWorkspace() {
           {/* Hydrated View */}
           {data && !isLoading && !isError && (() => {
             const safePoNumber = (data as any).poNumber || (data as any).po?.poNumber || 'PO';
-            const safeCustomerName = (data as any).customerName || (data as any).po?.customer?.name || 'Customer';
+            const safeCustomerName = (data as any).customerName || (data as any).po?.customer?.name || '';
             const rawChildComponents: any[] = (data as any).childComponents || [];
             const safePoDate =
               (data as any).po?.createdAt ||
@@ -249,7 +249,7 @@ export function PoTraceabilityWorkspace() {
                   <div className="flex flex-wrap items-center gap-8 border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
                     <div>
                       <p className="text-xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">Customer</p>
-                      <p className="text-sm font-bold text-slate-900">{safeCustomerName}</p>
+                      <p className="text-sm font-bold text-slate-900">{safeCustomerName || '—'}</p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-400 uppercase tracking-wider mb-1 font-semibold">PO Date</p>

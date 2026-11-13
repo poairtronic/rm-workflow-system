@@ -33,7 +33,7 @@ export function ScContextBanner({ masterData }: ScContextBannerProps) {
           </div>
           <div>
             <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Customer</p>
-            <p className="text-sm font-medium text-slate-900">{masterData.customerName}</p>
+            <p className="text-sm font-medium text-slate-900">{masterData.customerName || '—'}</p>
           </div>
           <div>
             <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Nomenclature</p>

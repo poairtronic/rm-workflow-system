@@ -14,8 +14,8 @@ export class CreatePoDto {
   poNumber!: string;
 
   @IsUUID()
-  @IsNotEmpty()
-  customerId!: string;
+  @IsOptional()
+  customerId?: string | null;
 
   @IsString()
   @IsOptional()

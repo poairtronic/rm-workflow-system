@@ -1340,7 +1340,7 @@ export class TraceabilityService {
         assemblyComponent: scMeta.productName,
         drawingNumber: scMeta.drawingNumber || 'N/A',
         parentPoNumber: poMeta.poNumber,
-        customer: poMeta.customer?.name || 'Customer',
+        customer: poMeta.customer?.name || '',
         targetBatchQuantity: `${scMeta.targetQuantity} NOS`,
       },
     });
@@ -1611,7 +1611,7 @@ export class TraceabilityService {
       masterData: {
         scCode: scMeta.scNumber,
         poNumber: poMeta.poNumber,
-        customerName: poMeta.customer?.name || 'Customer',
+        customerName: poMeta.customer?.name || '',
         nomenclature: scMeta.productName,
         drawingNumber: scMeta.drawingNumber || 'N/A',
         fulfillmentStatus: this.mapToCanonicalStage(scMeta.status),
@@ -2018,7 +2018,7 @@ export class TraceabilityService {
         activeVendorDispatches: dispatchedChallans,
       },
       poNumber: po.poNumber,
-      customerName: po.customer?.name || 'Customer',
+      customerName: po.customer?.name || '',
       poDate: po.referenceDate ? new Date(po.referenceDate).toISOString() : (po.createdAt ? new Date(po.createdAt).toISOString() : ''),
       targetDeliveryDate: po.referenceDate ? new Date(po.referenceDate).toISOString() : '',
       scs: childComponents.map((c) => ({

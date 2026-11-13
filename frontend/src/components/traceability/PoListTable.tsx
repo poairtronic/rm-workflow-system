@@ -216,13 +216,19 @@ export function PoListTable({ pos, isLoading, onSelectPo, selectedPoId }: PoList
 
                       {/* Customer */}
                       <td className="py-3 px-4">
-                        <div className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                          {po.customer?.name || 'Customer'}
-                        </div>
-                        {po.customer?.code && (
-                          <div className="text-[11px] text-slate-400 font-mono mt-0.5">
-                            Code: {po.customer.code}
-                          </div>
+                        {po.customer?.name ? (
+                          <>
+                            <div className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                              {po.customer.name}
+                            </div>
+                            {po.customer.code && (
+                              <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                                Code: {po.customer.code}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-slate-400 text-xs italic">—</span>
                         )}
                       </td>
 

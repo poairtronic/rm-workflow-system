@@ -675,7 +675,7 @@ export const traceabilityApi = {
     const masterData = {
       scCode: raw?.sc?.scNumber || 'SC',
       poNumber: raw?.po?.poNumber || 'UNKNOWN',
-      customerName: raw?.po?.customer?.name || 'Customer',
+      customerName: raw?.po?.customer?.name || '',
       nomenclature: raw?.sc?.productName || 'Component',
       drawingNumber: raw?.sc?.drawingNumber || 'N/A',
       fulfillmentStatus: canonicalStage,
