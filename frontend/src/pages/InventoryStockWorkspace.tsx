@@ -259,28 +259,41 @@ export function InventoryStockWorkspace() {
     return true;
   });
 
-  // All bins in Bin Area (or standalone box/bin storage units)
-  const filteredBinOptions = bins.filter((b) => {
-    const rack = rackMap.get(b.rackId);
-    const loc = rack ? locMap.get(rack.locationId) : null;
-    const isBinStorage = (
-      b.code.startsWith('BIN') ||
-      b.code.startsWith('BOX') ||
-      b.code === 'BLUE BOX' ||
-      b.code === 'NONE' ||
-      (loc && (
+  // All bins in Bin Area (approximately 25 bins in real life)
+  const filteredBinOptions = React.useMemo(() => {
+    let result = bins.filter((b) => {
+      const rack = rackMap.get(b.rackId);
+      const loc = rack ? locMap.get(rack.locationId) : null;
+      if (!loc) return false;
+      return (
+        loc.code === 'LOC-BIN' ||
         loc.code === 'BIN-AREA' ||
         loc.code === 'LOC-BINS' ||
-        loc.name.toLowerCase().includes('bin') ||
-        loc.name.toLowerCase().includes('box')
-      ))
-    );
-    if (!isBinStorage) return false;
+        loc.name.toLowerCase().includes('bin area') ||
+        loc.name.toLowerCase() === 'bin area'
+      );
+    });
 
-    if (selectedLocations.length > 0 && rack && !selectedLocations.includes(rack.locationId)) return false;
-    if (selectedWarehouses.length > 0 && loc && !selectedWarehouses.includes(loc.warehouseId)) return false;
-    return true;
-  });
+    if (selectedLocations.length > 0) {
+      result = result.filter((b) => {
+        const rack = rackMap.get(b.rackId);
+        return rack && selectedLocations.includes(rack.locationId);
+      });
+    }
+    if (selectedWarehouses.length > 0) {
+      result = result.filter((b) => {
+        const rack = rackMap.get(b.rackId);
+        const loc = rack ? locMap.get(rack.locationId) : null;
+        return loc && selectedWarehouses.includes(loc.warehouseId);
+      });
+    }
+    return result.sort((a, b) => {
+      const numA = parseInt(a.code.replace(/\D/g, '') || a.name.replace(/\D/g, '') || '0', 10);
+      const numB = parseInt(b.code.replace(/\D/g, '') || b.name.replace(/\D/g, '') || '0', 10);
+      if (numA !== numB) return numA - numB;
+      return a.code.localeCompare(b.code);
+    });
+  }, [bins, rackMap, locMap, selectedLocations, selectedWarehouses]);
 
   const filteredBalances = React.useMemo(() => {
     return balances.filter(b => {
@@ -781,7 +794,11 @@ export function InventoryStockWorkspace() {
                   <MultiSelectFilter
                     label="Bin"
                     placeholder="All Bins"
-                    options={filteredBinOptions.map((b) => ({ id: b.id, label: b.code, subtext: b.name }))}
+                    options={filteredBinOptions.map((b) => ({
+                      id: b.id,
+                      label: b.name || b.code,
+                      subtext: b.code && b.code.toLowerCase() !== (b.name || '').toLowerCase() ? b.code : undefined,
+                    }))}
                     selectedValues={selectedBins}
                     onChange={setSelectedBins}
                   />

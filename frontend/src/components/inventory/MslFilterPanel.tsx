@@ -139,15 +139,39 @@ export function MslFilterPanel({
   }, [racks, selectedLocations, selectedWarehouses, locMap]);
 
   const filteredBinOptions = React.useMemo(() => {
-    return bins.filter((b) => {
+    // Only real bins in Bin Area (approximately 25 bins in real life)
+    let result = bins.filter((b) => {
       const rack = rackMap.get(b.rackId);
-      if (selectedRacks.length > 0 && (!rack || !selectedRacks.includes(rack.id))) return false;
-      if (selectedLocations.length > 0 && (!rack || !selectedLocations.includes(rack.locationId))) return false;
-      if (selectedWarehouses.length > 0) {
+      const loc = rack ? locMap.get(rack.locationId) : null;
+      if (!loc) return false;
+      return (
+        loc.code === 'LOC-BIN' ||
+        loc.code === 'BIN-AREA' ||
+        loc.code === 'LOC-BINS' ||
+        loc.name.toLowerCase().includes('bin area') ||
+        loc.name.toLowerCase() === 'bin area'
+      );
+    });
+
+    if (selectedRacks.length > 0) result = result.filter((b) => selectedRacks.includes(b.rackId));
+    if (selectedLocations.length > 0) {
+      result = result.filter((b) => {
+        const rack = rackMap.get(b.rackId);
+        return rack && selectedLocations.includes(rack.locationId);
+      });
+    }
+    if (selectedWarehouses.length > 0) {
+      result = result.filter((b) => {
+        const rack = rackMap.get(b.rackId);
         const loc = rack ? locMap.get(rack.locationId) : null;
-        if (!loc || !selectedWarehouses.includes(loc.warehouseId)) return false;
-      }
-      return true;
+        return loc && selectedWarehouses.includes(loc.warehouseId);
+      });
+    }
+    return result.sort((a, b) => {
+      const numA = parseInt(a.code.replace(/\D/g, '') || a.name.replace(/\D/g, '') || '0', 10);
+      const numB = parseInt(b.code.replace(/\D/g, '') || b.name.replace(/\D/g, '') || '0', 10);
+      if (numA !== numB) return numA - numB;
+      return a.code.localeCompare(b.code);
     });
   }, [bins, selectedRacks, selectedLocations, selectedWarehouses, rackMap, locMap]);
 
@@ -288,8 +312,8 @@ export function MslFilterPanel({
               placeholder="All Bins"
               options={filteredBinOptions.map((b) => ({
                 id: b.id,
-                label: b.code,
-                subtext: b.name,
+                label: b.name || b.code,
+                subtext: b.code && b.code.toLowerCase() !== (b.name || '').toLowerCase() ? b.code : undefined,
               }))}
               selectedValues={selectedBins}
               onChange={onBinsChange}

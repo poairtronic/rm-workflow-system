@@ -223,7 +223,7 @@ export function MultiSelectFilter({
                         {opt.label}
                       </span>
                     </div>
-                    {opt.subtext && (
+                    {opt.subtext && opt.subtext.toLowerCase() !== opt.label.toLowerCase() && (
                       <span className="font-mono text-[10px] text-slate-400 ml-2 shrink-0">
                         {opt.subtext}
                       </span>

@@ -585,20 +585,17 @@ export function ProductsMasterWorkspace() {
   }, [racks, locations, selectedWarehouses, selectedLocations]);
 
   const filteredBinOptions = useMemo(() => {
+    // Only real bins in Bin Area (approximately 25 bins in real life)
     let result = bins.filter((b) => {
       const rack = rackMap.get(b.rackId);
       const loc = rack ? locMap.get(rack.locationId) : null;
+      if (!loc) return false;
       return (
-        b.code.startsWith('BIN') ||
-        b.code.startsWith('BOX') ||
-        b.code === 'BLUE BOX' ||
-        b.code === 'NONE' ||
-        (loc && (
-          loc.code === 'BIN-AREA' ||
-          loc.code === 'LOC-BINS' ||
-          loc.name.toLowerCase().includes('bin') ||
-          loc.name.toLowerCase().includes('box')
-        ))
+        loc.code === 'LOC-BIN' ||
+        loc.code === 'BIN-AREA' ||
+        loc.code === 'LOC-BINS' ||
+        loc.name.toLowerCase().includes('bin area') ||
+        loc.name.toLowerCase() === 'bin area'
       );
     });
 
@@ -606,16 +603,21 @@ export function ProductsMasterWorkspace() {
       const allowedRackIds = new Set(
         racks.filter((r) => selectedLocations.includes(r.locationId)).map((r) => r.id)
       );
-      return result.filter((b) => allowedRackIds.has(b.rackId));
+      result = result.filter((b) => allowedRackIds.has(b.rackId));
     }
     if (selectedWarehouses.length > 0) {
-      return result.filter((b) => {
+      result = result.filter((b) => {
         const rack = rackMap.get(b.rackId);
         const loc = rack ? locMap.get(rack.locationId) : null;
         return loc && selectedWarehouses.includes(loc.warehouseId);
       });
     }
-    return result;
+    return result.sort((a, b) => {
+      const numA = parseInt(a.code.replace(/\D/g, '') || a.name.replace(/\D/g, '') || '0', 10);
+      const numB = parseInt(b.code.replace(/\D/g, '') || b.name.replace(/\D/g, '') || '0', 10);
+      if (numA !== numB) return numA - numB;
+      return a.code.localeCompare(b.code);
+    });
   }, [bins, racks, rackMap, locMap, selectedLocations, selectedWarehouses]);
 
   // Multi-Filter Computation
@@ -1548,7 +1550,11 @@ export function ProductsMasterWorkspace() {
           <MultiSelectFilter
             label="Bin"
             placeholder="All Bins"
-            options={filteredBinOptions.map((b) => ({ id: b.id, label: b.code, subtext: b.name }))}
+            options={filteredBinOptions.map((b) => ({
+              id: b.id,
+              label: b.name || b.code,
+              subtext: b.code && b.code.toLowerCase() !== (b.name || '').toLowerCase() ? b.code : undefined,
+            }))}
             selectedValues={selectedBins}
             onChange={setSelectedBins}
           />

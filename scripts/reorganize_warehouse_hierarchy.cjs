@@ -166,24 +166,29 @@ async function main() {
   console.log('✓ Ensured all 100 Racks in Rack Area (RACK 0001 to RACK 0100).');
 
   // =========================================================================
-  // AREA 2: BIN AREA (BIN 0001 to BIN 0025)
+  // AREA 2: BIN AREA (bin 001 to bin 025)
   // =========================================================================
-  console.log('\n--- Populating Area 2: Bin Area (BIN 0001 to BIN 0025) ---');
+  console.log('\n--- Populating Area 2: Bin Area (bin 001 to bin 025) ---');
   for (let i = 1; i <= 25; i++) {
     const num4 = String(i).padStart(4, '0');
     const num3 = String(i).padStart(3, '0');
-    const rackName = `BIN ${num4}`;
-    const rackCode = `BIN-${num4}`;
+    const rackName = `bin ${num3}`;
+    const rackCode = `BIN-${num3}`;
     const oldNames = [
+      `BIN ${num4}`,
       `BIN ${num3}`,
       `BIN 00${i}`,
       `RCK-BIN${num3}`,
       `RCK-BIN00${i}`,
       `BIN ${i}`
     ];
-    await ensureRackAndBin('bin', rackCode, rackName, oldNames);
+    const rackId = await ensureRackAndBin('bin', rackCode, rackName, oldNames);
+    await c.query(
+      "UPDATE bins SET code = $1, name = $2, is_active = true, updated_at = NOW() WHERE rack_id = $3",
+      [`bin ${num3}`, `bin ${num3}`, rackId]
+    );
   }
-  console.log('✓ Ensured all 25 Bins/Shelves in Bin Area (BIN 0001 to BIN 0025).');
+  console.log('✓ Ensured all 25 Bins in Bin Area (bin 001 to bin 025).');
 
   // =========================================================================
   // AREA 3: FINE BLANK AREA (FINE BLANK AREA 001 to 003)

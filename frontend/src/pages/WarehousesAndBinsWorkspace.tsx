@@ -697,8 +697,8 @@ function RacksAndBinsRowView({
               {/* Dynamic naming based on location name */}
               {(() => {
                 const locName = location.name.toLowerCase();
-                const sectionLabel = locName.includes('rack') ? 'Rack' : locName.includes('bin') ? 'Shelving' : 'Section';
-                const sectionLabelPlural = locName.includes('rack') ? 'Racks' : locName.includes('bin') ? 'Shelves' : 'Sections';
+                const sectionLabel = locName.includes('rack') ? 'Rack' : locName.includes('bin') ? 'Bin' : 'Section';
+                const sectionLabelPlural = locName.includes('rack') ? 'Racks' : locName.includes('bin') ? 'Bins' : 'Sections';
                 return (
                   <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
                     {racks.length} {racks.length === 1 ? sectionLabel : sectionLabelPlural}
@@ -885,9 +885,16 @@ function RackBoxCard({
         </div>
       );
     }
+    const sortedBins = [...bins].sort((a, b) => {
+      const numA = parseInt(a.code.replace(/\D/g, '') || a.name.replace(/\D/g, '') || '0', 10);
+      const numB = parseInt(b.code.replace(/\D/g, '') || b.name.replace(/\D/g, '') || '0', 10);
+      if (numA !== numB) return numA - numB;
+      return (a.name || a.code).localeCompare(b.name || b.code);
+    });
+
     return (
       <>
-        {bins.map((bin) => (
+        {sortedBins.map((bin) => (
           <div
             key={bin.id}
             className="rounded-xl border border-slate-200 dark:border-[#1e233d] bg-white dark:bg-[#121526] p-5 shadow-xs hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 flex flex-col justify-between space-y-3 cursor-pointer group"
@@ -898,7 +905,7 @@ function RackBoxCard({
                   <Box className="w-4 h-4" />
                 </div>
                 <span className="font-bold text-slate-900 dark:text-white text-base font-mono truncate">
-                  {bin.code}
+                  {bin.name || bin.code}
                 </span>
               </div>
               {isAdmin && (
@@ -916,7 +923,9 @@ function RackBoxCard({
               )}
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-500 dark:text-slate-400 font-medium">{bin.name || 'Storage Bin'}</span>
+              <span className="text-slate-500 dark:text-slate-400 font-medium">
+                {bin.code && bin.code.toLowerCase() !== (bin.name || '').toLowerCase() ? bin.code : 'Bin Area'}
+              </span>
               <span className={`px-2 py-1 rounded-md font-semibold ${bin.isActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}`}>
                 {bin.isActive ? 'ACTIVE' : 'INACTIVE'}
               </span>
