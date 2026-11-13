@@ -1057,7 +1057,7 @@ export class RmService {
       const issueRows: any[] = await this.dataSource.query(
         `SELECT mi.sc_id as "scId", mii.rm_item_id as "rmItemId", mii.quantity_issued as "quantityIssued",
                 COALESCE(mii.issued_product_name, p.name, ri.material) as "issuedProductName",
-                COALESCE(mii.issued_product_id, ri.mapped_product_id) as "issuedProductId",
+                COALESCE(mii.issued_product_id, ri.mapped_product_id::text) as "issuedProductId",
                 ri.material as "requestedMaterial",
                 ri.original_material as "originalMaterial",
                 ri.original_grade as "originalGrade",
@@ -1066,7 +1066,7 @@ export class RmService {
          FROM material_issue_items mii
          JOIN material_issues mi ON mi.id = mii.material_issue_id
          LEFT JOIN rm_items ri ON ri.id = mii.rm_item_id
-         LEFT JOIN products p ON p.id = mii.issued_product_id
+         LEFT JOIN products p ON p.id::text = mii.issued_product_id
          WHERE mi.sc_id = ANY($1) AND mi.issue_type = 'INITIAL_ISSUE'
          ORDER BY mi.created_at ASC`,
         [scIds],
