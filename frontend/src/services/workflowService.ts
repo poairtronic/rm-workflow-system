@@ -156,6 +156,7 @@ export const workflowService = {
   getNextPartNumber: () =>
     api.get<{ nextPartNumber: string; maxSequence: number }>('/api/rm/next-part-number'),
   deleteRm: (id: string) => api.delete<any>(`/api/rm/${id}`),
+  deleteRmByPo: (poId: string) => api.delete<any>(`/api/rm/po/${poId}`),
   deleteRmItem: (id: string, itemId: string) => api.delete<any>(`/api/rm/${id}/items/${itemId}`),
 
   createRm: (scId: string, remarks?: string) => api.post<RMRequest>('/api/rm', { scId, remarks }),

@@ -85,6 +85,13 @@ export class PoController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
+  @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.DESIGNER, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER)
+  deletePo(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) {
+    return this.poService.delete(id, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Post(':id/documents')
   @Roles(UserRole.ADMIN, UserRole.STORES)
   async attachDocument(

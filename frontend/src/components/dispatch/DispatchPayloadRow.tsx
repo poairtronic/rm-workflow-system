@@ -227,7 +227,10 @@ export function DispatchPayloadRow({
       lockInfo.available > 0 &&
       lockInfo.available < itemCap,
   );
-  const blockingDcNumber = lockInfo?.blockingDcs?.[0]?.dcNumber || 'Open DC';
+  const blockingDcsSummary = lockInfo?.blockingDcs && lockInfo.blockingDcs.length > 0
+    ? lockInfo.blockingDcs.map((d: any) => `${d.dcNumber} (${d.pendingQty} pending)`).join(', ')
+    : 'Open DC';
+  const singleBlockingDc = lockInfo?.blockingDcs?.[0]?.dcNumber || 'Open DC';
 
   const handleType1ItemSelect = (selectedKey: string) => {
     setValue(`scBlocks.${blockIndex}.items.${index}.scItemId`, selectedKey, { shouldValidate: true });
@@ -402,7 +405,7 @@ export function DispatchPayloadRow({
           {isType1 && isLockedOut && (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 shadow-2xs">
               <Lock className="w-3.5 h-3.5 text-rose-700 shrink-0" />
-              Out on DC {blockingDcNumber}
+              Out on {lockInfo?.blockingDcs && lockInfo.blockingDcs.length > 1 ? 'Multiple DCs' : singleBlockingDc}
             </span>
           )}
 
@@ -532,12 +535,12 @@ export function DispatchPayloadRow({
               {isLockedOut && lockInfo ? (
                 <p className="mt-1 text-[11px] font-semibold text-rose-600 flex items-center gap-1">
                   <Lock className="w-3.5 h-3.5 shrink-0" />
-                  All {itemCap} unit{itemCap === 1 ? '' : 's'} out on DC {blockingDcNumber} (not yet inwarded).
+                  All {itemCap} unit{itemCap === 1 ? '' : 's'} out on {lockInfo?.blockingDcs && lockInfo.blockingDcs.length > 1 ? `DCs: ${blockingDcsSummary}` : `DC ${blockingDcsSummary}`} (not yet inwarded).
                 </p>
               ) : hasPartialLock && lockInfo ? (
                 <p className="mt-1 text-[11px] font-medium text-amber-700 flex items-center gap-1">
                   <Info className="w-3.5 h-3.5 shrink-0" />
-                  {lockInfo.outstanding} pending on DC {blockingDcNumber}; up to {lockInfo.available} can be dispatched
+                  {lockInfo.outstanding} pending across {lockInfo?.blockingDcs && lockInfo.blockingDcs.length > 1 ? `DCs: ${blockingDcsSummary}` : `DC ${blockingDcsSummary}`}; up to {lockInfo.available} can be dispatched
                 </p>
               ) : null}
               {hasPartialLock && lockInfo && Number(dispatchQty) > lockInfo.available && (

@@ -743,7 +743,10 @@ export function DcTypeSpl() {
                       lock.available > 0 &&
                       lock.available < itemCap,
                   );
-                  const blockingDcNumber = lock?.blockingDcs?.[0]?.dcNumber || 'Open DC';
+                  const blockingDcsSummary = lock?.blockingDcs && lock.blockingDcs.length > 0
+                    ? lock.blockingDcs.map((d: any) => `${d.dcNumber} (${d.pendingQty} pending)`).join(', ')
+                    : 'Open DC';
+                  const singleBlockingDc = lock?.blockingDcs?.[0]?.dcNumber || 'Open DC';
                   const isSelected = item.isSelected !== false && !isLockedOut;
 
                   return (
@@ -796,7 +799,7 @@ export function DcTypeSpl() {
                           {isLockedOut && (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-bold rounded-md bg-rose-100 text-rose-800 border border-rose-300 shadow-2xs">
                               <Lock className="w-3.5 h-3.5 text-rose-700 shrink-0" />
-                              Out on DC {blockingDcNumber}
+                              Out on {lock?.blockingDcs && lock.blockingDcs.length > 1 ? 'Multiple DCs' : singleBlockingDc}
                             </span>
                           )}
 
@@ -896,12 +899,12 @@ export function DcTypeSpl() {
                           {isLockedOut && lock ? (
                             <p className="mt-1 text-[11px] font-medium text-rose-600 flex items-center gap-1">
                               <Lock className="w-3.5 h-3.5 shrink-0" />
-                              All {itemCap} unit{itemCap === 1 ? '' : 's'} out on DC {blockingDcNumber} (not yet inwarded).
+                              All {itemCap} unit{itemCap === 1 ? '' : 's'} out on {lock?.blockingDcs && lock.blockingDcs.length > 1 ? `DCs: ${blockingDcsSummary}` : `DC ${blockingDcsSummary}`} (not yet inwarded).
                             </p>
                           ) : hasPartialLock && lock ? (
                             <p className="mt-1 text-[11px] font-medium text-amber-700 flex items-center gap-1">
                               <Info className="w-3.5 h-3.5 shrink-0" />
-                              {lock.outstanding} pending on DC {blockingDcNumber}; up to {lock.available} can be dispatched
+                              {lock.outstanding} pending across {lock?.blockingDcs && lock.blockingDcs.length > 1 ? `DCs: ${blockingDcsSummary}` : `DC ${blockingDcsSummary}`}; up to {lock.available} can be dispatched
                             </p>
                           ) : null}
                           {hasPartialLock && lock && Number(item.dispatchedQty) > lock.available && (

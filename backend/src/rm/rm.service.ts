@@ -1001,6 +1001,7 @@ export class RmService {
       else group.submittedCount++;
 
       group.scs.push({
+        rmId: req.id,
         scId: req.salesOrderComponent!.id,
         scNumber: req.salesOrderComponent!.scNumber,
         productName: req.salesOrderComponent!.productName,
@@ -1154,15 +1155,105 @@ export class RmService {
   async deleteRm(id: string, user: any) {
     const rm = await this.rmRepo.findOne({ where: { id }, relations: { salesOrderComponent: true } });
     if (!rm) throw new NotFoundException('RM not found');
-    if (user.role === UserRole.DESIGNER && rm.createdById !== user.userId) throw new NotFoundException('RM not found');
-    
-    StateMachineValidator.assertRmDraft(rm.status, 'delete RM');
-    
-    await this.rmRepo.remove(rm);
-    if (rm.salesOrderComponent && rm.salesOrderComponent.status === ScStatus.DRAFT) {
-      await this.scRepo.remove(rm.salesOrderComponent);
+    if (user && user.role === UserRole.DESIGNER && rm.createdById !== user.userId) {
+      throw new NotFoundException('RM not found');
     }
-    return { success: true };
+
+    const scId = rm.scId || rm.salesOrderComponent?.id;
+    if (scId) {
+      const issues = await this.dataSource.query(
+        `SELECT 1 FROM material_issues WHERE sc_id = $1 LIMIT 1`,
+        [scId],
+      );
+      if (issues.length > 0) {
+        throw new BadRequestException(
+          'Cannot delete RM Requisition because materials have already been issued from stock. Material issues must be reversed first.',
+        );
+      }
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      await queryRunner.query(`DELETE FROM rm_item_snapshots WHERE rm_form_id = $1`, [id]);
+      await queryRunner.query(`DELETE FROM rm_form_sc WHERE rm_form_id = $1 OR sc_id = $2`, [id, scId || '00000000-0000-0000-0000-000000000000']);
+      await queryRunner.query(`DELETE FROM rm_items WHERE rm_form_id = $1`, [id]);
+      await queryRunner.query(`DELETE FROM rm_requests WHERE id = $1`, [id]);
+
+      // If the associated SC was in DRAFT, SUBMITTED, STORES_PENDING, or REJECTED with no material issues, clean it up too
+      if (rm.salesOrderComponent && [ScStatus.DRAFT, ScStatus.SUBMITTED, ScStatus.STORES_PENDING, ScStatus.REJECTED].includes(rm.salesOrderComponent.status)) {
+        await queryRunner.query(`DELETE FROM sales_order_components WHERE id = $1`, [rm.salesOrderComponent.id]);
+      }
+
+      await queryRunner.commitTransaction();
+      return { success: true, message: 'RM Requisition deleted successfully.' };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async deleteRmByPo(poId: string, user: any) {
+    // Find all RM requests for this PO (either directly or via SC)
+    const rms = await this.rmRepo.find({
+      where: [
+        { poId },
+        { salesOrderComponent: { poId } },
+      ],
+      relations: { salesOrderComponent: true },
+    });
+
+    if (rms.length === 0) {
+      throw new NotFoundException(`No RM requisitions found for Purchase Order "${poId}".`);
+    }
+
+    if (user && user.role === UserRole.DESIGNER) {
+      const unauthorized = rms.some((r) => r.createdById !== user.userId);
+      if (unauthorized) {
+        throw new BadRequestException('You can only delete requisitions you created.');
+      }
+    }
+
+    const scIds = rms.map((r) => r.scId || r.salesOrderComponent?.id).filter(Boolean);
+    if (scIds.length > 0) {
+      const issues = await this.dataSource.query(
+        `SELECT 1 FROM material_issues WHERE sc_id = ANY($1) LIMIT 1`,
+        [scIds],
+      );
+      if (issues.length > 0) {
+        throw new BadRequestException(
+          'Cannot delete RM Requisitions because one or more components already have materials issued from stock.',
+        );
+      }
+    }
+
+    const rmIds = rms.map((r) => r.id);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      await queryRunner.query(`DELETE FROM rm_item_snapshots WHERE rm_form_id = ANY($1)`, [rmIds]);
+      await queryRunner.query(`DELETE FROM rm_form_sc WHERE rm_form_id = ANY($1) OR sc_id = ANY($2)`, [rmIds, scIds.length ? scIds : ['00000000-0000-0000-0000-000000000000']]);
+      await queryRunner.query(`DELETE FROM rm_items WHERE rm_form_id = ANY($1)`, [rmIds]);
+      await queryRunner.query(`DELETE FROM rm_requests WHERE id = ANY($1)`, [rmIds]);
+
+      if (scIds.length > 0) {
+        await queryRunner.query(`DELETE FROM sales_order_components WHERE id = ANY($1)`, [scIds]);
+      }
+
+      await queryRunner.commitTransaction();
+      return { success: true, count: rmIds.length, message: `Deleted ${rmIds.length} RM requisition(s) successfully.` };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async deleteRmItem(id: string, itemId: string, user: any) {

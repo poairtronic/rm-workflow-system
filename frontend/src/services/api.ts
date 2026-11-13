@@ -755,6 +755,13 @@ export const traceabilityApi = {
 export const poApi = {
   getAll: () => api.get<any[]>('/api/po'),
   getById: (id: string) => api.get<any>(`/api/po/${id}`),
+  delete: (id: string) => api.delete<{ success: boolean; message: string }>(`/api/po/${id}`),
+};
+
+export const scApi = {
+  getAll: (search?: string) => api.get<any[]>(`/api/sc${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+  getById: (id: string) => api.get<any>(`/api/sc/${id}`),
+  delete: (id: string) => api.delete<{ success: boolean; message: string }>(`/api/sc/${id}`),
 };
 
 import type { GlobalVendorMetrics, VendorProfileDto, EscalateDcDto } from '../types/vendor-analytics.dto';

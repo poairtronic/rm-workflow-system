@@ -159,8 +159,14 @@ export class RmController {
     return this.rmService.findOne(id, req?.user);
   }
 
+  @Delete('po/:poId')
+  @Roles(UserRole.DESIGNER, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER)
+  deleteRmByPo(@Param('poId', ParseUUIDPipe) poId: string, @Req() req: any) {
+    return this.rmService.deleteRmByPo(poId, req.user);
+  }
+
   @Delete(':id')
-  @Roles(UserRole.DESIGNER, UserRole.ADMIN)
+  @Roles(UserRole.DESIGNER, UserRole.ADMIN, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER)
   deleteRm(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) {
     return this.rmService.deleteRm(id, req.user);
   }

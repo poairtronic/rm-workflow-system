@@ -339,4 +339,66 @@ export class ScService {
     }
     return Array.from(grouped.values());
   }
+
+  async deleteSc(id: string, user: any) {
+    const sc = await this.scRepo.findOne({
+      where: { id },
+      relations: {
+        rmRequest: { items: true },
+        materialIssues: true,
+      },
+    });
+
+    if (!sc) {
+      throw new NotFoundException(`Sales Order Component with ID "${id}" not found.`);
+    }
+
+    const dataSource = this.scRepo.manager.connection;
+
+    // Check if active material issues or DCs or production records exist
+    const hasMaterialIssues =
+      (sc.materialIssues && sc.materialIssues.length > 0) ||
+      (await dataSource.query(`SELECT 1 FROM material_issues WHERE sc_id = $1 LIMIT 1`, [id])).length > 0;
+
+    const hasDcs =
+      (await dataSource.query(`SELECT 1 FROM delivery_challans WHERE sc_id = $1 LIMIT 1`, [id])).length > 0 ||
+      (await dataSource.query(`SELECT 1 FROM delivery_challan_items WHERE sc_id = $1 LIMIT 1`, [id])).length > 0;
+
+    const hasConsumptions =
+      (await dataSource.query(`SELECT 1 FROM material_consumptions WHERE sc_id = $1 LIMIT 1`, [id])).length > 0;
+
+    if (hasMaterialIssues || hasDcs || hasConsumptions) {
+      throw new BadRequestException(
+        `Cannot delete SC "${sc.scNumber}" because active material issues, delivery challans, or production transactions exist for this component.`,
+      );
+    }
+
+    const queryRunner = dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      if (sc.rmRequest) {
+        await queryRunner.query(`DELETE FROM rm_item_snapshots WHERE rm_form_id = $1`, [sc.rmRequest.id]);
+        await queryRunner.query(`DELETE FROM rm_form_sc WHERE rm_form_id = $1 OR sc_id = $2`, [sc.rmRequest.id, id]);
+        await queryRunner.query(`DELETE FROM rm_items WHERE rm_form_id = $1 OR sc_id = $2`, [sc.rmRequest.id, id]);
+        await queryRunner.query(`DELETE FROM rm_requests WHERE id = $1`, [sc.rmRequest.id]);
+      } else {
+        await queryRunner.query(`DELETE FROM rm_form_sc WHERE sc_id = $1`, [id]);
+        await queryRunner.query(`DELETE FROM rm_items WHERE sc_id = $1`, [id]);
+      }
+
+      await queryRunner.query(`DELETE FROM additional_material_requests WHERE sc_id = $1`, [id]);
+      await queryRunner.query(`DELETE FROM attachments WHERE record_id = $1 AND context IN ('SC', 'SC_DOCUMENT', 'RM_REQUEST')`, [id]);
+      await queryRunner.query(`DELETE FROM sales_order_components WHERE id = $1`, [id]);
+
+      await queryRunner.commitTransaction();
+      return { success: true, message: `SC ${sc.scNumber} deleted successfully.` };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
 }

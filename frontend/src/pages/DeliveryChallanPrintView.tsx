@@ -218,8 +218,8 @@ export function DeliveryChallanPrintView() {
   }
   const vendorContactText = contactParts.join(' / ');
 
-  // Chunk items into pages (10 items per page ensures clean A4 print with zero overlapping)
-  const ITEMS_PER_PAGE = 10;
+  // Chunk items into pages (8 items per page ensures clean A4 print with zero overlapping even with multi-line specs/addresses)
+  const ITEMS_PER_PAGE = 8;
   const pages: (typeof displayItems)[] = [];
   if (displayItems.length === 0) {
     pages.push([]);
@@ -363,13 +363,13 @@ export function DeliveryChallanPrintView() {
         return (
           <div
             key={pageIdx}
-            className="dc-sheet-wrapper w-[210mm] h-[297mm] max-h-[297mm] mx-auto bg-white p-[10mm_12mm] shadow-2xl print:shadow-none box-border flex flex-col justify-between overflow-hidden"
+            className="dc-sheet-wrapper w-[210mm] h-[296mm] max-h-[296mm] mx-auto bg-white p-[10mm_12mm] shadow-2xl print:shadow-none box-border flex flex-col justify-between overflow-hidden"
           >
             {/* Main Document Outer Box */}
             <div className="border border-black flex-1 flex flex-col h-full overflow-hidden">
               
               {/* Header Row: Logo & Company Name */}
-              <div className="flex border-b border-black">
+              <div className="flex border-b border-black shrink-0">
                 {/* Logo Cell */}
                 <div className="w-32 p-2 border-r border-black flex items-center justify-center shrink-0">
                   <VelanLogo width={74} height={58} color="#475569" />
@@ -393,7 +393,7 @@ export function DeliveryChallanPrintView() {
               </div>
 
               {/* Document Title Banner */}
-              <div className="border-b border-black py-1 px-4 text-center bg-white flex justify-between items-center">
+              <div className="border-b border-black py-1 px-4 text-center bg-white flex justify-between items-center shrink-0">
                 <div className="w-24 text-left text-[10px] font-semibold text-slate-500">
                   {totalPages > 1 ? `Sheet ${pageNumber}/${totalPages}` : ''}
                 </div>
@@ -406,7 +406,7 @@ export function DeliveryChallanPrintView() {
               </div>
 
               {/* Supplier Info & DC Meta Grid */}
-              <div className="grid grid-cols-2 border-b border-black text-xs">
+              <div className="grid grid-cols-2 border-b border-black text-xs shrink-0">
                 {/* Left Box: Supplier Informations */}
                 <div className="p-3 border-r border-black flex flex-col justify-between leading-snug">
                   <div>
@@ -458,28 +458,28 @@ export function DeliveryChallanPrintView() {
               </div>
 
               {/* Items Table: Expands to fill available page height, with NO horizontal lines between items */}
-              <div className="flex-1 flex flex-col min-h-0" style={{ display: 'flex', flexDirection: 'column', flex: '1 1 0%' }}>
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden" style={{ display: 'flex', flexDirection: 'column', flex: '1 1 0%' }}>
                 <table className="w-full border-collapse table-fixed" style={{ height: '100%', width: '100%' }}>
                   <thead>
-                    <tr className="border-b border-black bg-white text-[11px] font-bold text-slate-900" style={{ height: '28px' }}>
-                      <th className="py-1 px-2 border-r border-black text-center" style={{ width: '42px' }}>Sl</th>
-                      <th className="py-1 px-3 border-r border-black text-left" style={{ width: '190px' }}>Part No.</th>
-                      <th className="py-1 px-3 border-r border-black text-left">Product/Particulars</th>
-                      <th className="py-1 px-3 text-right" style={{ width: '100px' }}>Quantity</th>
+                    <tr className="border-b border-black bg-white text-[11px] font-bold text-slate-900 shrink-0" style={{ height: '28px' }}>
+                      <th className="py-1 px-2 border-r border-black text-center" style={{ width: '38px' }}>Sl</th>
+                      <th className="py-1 px-2.5 border-r border-black text-left" style={{ width: '225px' }}>Part No.</th>
+                      <th className="py-1 px-2.5 border-r border-black text-left">Product/Particulars</th>
+                      <th className="py-1 px-2.5 text-right" style={{ width: '85px' }}>Quantity</th>
                     </tr>
                   </thead>
-                  <tbody style={{ height: 'calc(100% - 28px)' }}>
+                  <tbody>
                     {pageItems.map((item, itemIdx) => {
                       const globalSl = pageIdx * ITEMS_PER_PAGE + itemIdx + 1;
                       return (
-                        <tr key={itemIdx} className="text-[11px] align-top">
+                        <tr key={itemIdx} className="text-[11px] align-top" style={{ height: '1px' }}>
                           <td className="py-1 px-2 border-r border-black text-center font-semibold text-slate-800">
                             {globalSl}
                           </td>
-                          <td className="py-1 px-3 border-r border-black font-bold text-slate-900 uppercase">
+                          <td className="py-1 px-2.5 border-r border-black font-bold text-slate-900 uppercase">
                             {item.partNo}
                           </td>
-                          <td className="py-1 px-3 border-r border-black font-semibold text-slate-800">
+                          <td className="py-1 px-2.5 border-r border-black font-semibold text-slate-800">
                             <div className="uppercase">{item.productName}</div>
                             {item.description && (
                               <div className="text-[10px] text-slate-600 font-normal normal-case leading-tight mt-0.5 whitespace-pre-wrap">
@@ -487,7 +487,7 @@ export function DeliveryChallanPrintView() {
                               </div>
                             )}
                           </td>
-                          <td className="py-1 px-3 text-right font-bold text-slate-900 tabular-nums whitespace-nowrap">
+                          <td className="py-1 px-2.5 text-right font-bold text-slate-900 tabular-nums whitespace-nowrap">
                             {item.qty} {item.uom}
                           </td>
                         </tr>
@@ -495,7 +495,7 @@ export function DeliveryChallanPrintView() {
                     })}
 
                     {/* Empty stretch row: Has vertical column borders continuing down all the way to Footer, but NO horizontal lines */}
-                    <tr style={{ height: '100%' }}>
+                    <tr style={{ height: 'auto' }}>
                       <td className="border-r border-black"></td>
                       <td className="border-r border-black"></td>
                       <td className="border-r border-black"></td>
@@ -528,8 +528,12 @@ export function DeliveryChallanPrintView() {
                       </div>
                     </div>
 
+                    <div className="text-center font-semibold text-slate-700">
+                      <span>Page {pageNumber} of {totalPages}</span>
+                    </div>
+
                     <div className="text-right">
-                      <p className="font-bold uppercase text-slate-900 mb-9">
+                      <p className="font-bold uppercase text-slate-900 mb-8">
                         For {company.name || 'VELAN METROLOGY INDIA PRIVATE LIMITED'}
                       </p>
                       <p className="font-medium text-slate-800 text-[10px]">
@@ -552,7 +556,7 @@ export function DeliveryChallanPrintView() {
                       <span>Company's GSTIN : </span>
                       <span className="font-mono font-bold text-slate-900">{company.gstin || '33AAICV7596H1ZR'}</span>
                     </div>
-                    <div className="font-bold text-blue-700 uppercase tracking-wider text-xs">
+                    <div className="font-bold text-blue-700 print:text-black uppercase tracking-wider text-xs">
                       [ Continued on Page {pageNumber + 1} ]
                     </div>
                     <div>

@@ -90,6 +90,12 @@ export class ScController {
     return this.scService.findOne(id);
   }
 
+  @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.DESIGNER, UserRole.SENIOR_MANAGER, UserRole.GENERAL_MANAGER)
+  deleteSc(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) {
+    return this.scService.deleteSc(id, req.user);
+  }
+
   @Post(':id/complete')
   @Roles(UserRole.PRODUCTION, UserRole.ADMIN)
   completeSc(
