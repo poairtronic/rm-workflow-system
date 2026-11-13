@@ -75,7 +75,7 @@ export class CreateRmItemDto {
   @IsOptional()
   @IsString()
   @MaxLength(20)
-  weightUnit?: string = 'KG';
+  weightUnit?: string = 'NOS';
 
   @IsOptional()
   @IsString()

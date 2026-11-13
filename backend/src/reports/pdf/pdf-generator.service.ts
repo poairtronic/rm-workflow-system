@@ -245,7 +245,7 @@ export class PdfGeneratorService {
         { text: item.description || item.product?.name || item.material?.name || '-' },
         { text: req.toLocaleString(), alignment: 'right' },
         { text: issued.toLocaleString(), bold: true, alignment: 'right' },
-        { text: item.uom || item.unit || 'KG', alignment: 'center' },
+        { text: item.uom || item.unit || 'NOS', alignment: 'center' },
         { text: item.binLocation || item.bin?.code || item.lotNumber || 'STORES-A1', alignment: 'center' },
       ]);
     });

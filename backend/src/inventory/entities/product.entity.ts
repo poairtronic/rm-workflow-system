@@ -64,7 +64,7 @@ export class Product {
   @Column({ name: 'is_active', default: true })
   isActive!: boolean;
 
-  @Column({ length: 50, nullable: true, default: 'KG' })
+  @Column({ length: 50, nullable: true, default: 'NOS' })
   uom?: string;
 
   @OneToMany('StockBalance', (balance: any) => balance.product)

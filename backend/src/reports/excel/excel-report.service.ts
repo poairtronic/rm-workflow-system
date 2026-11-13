@@ -120,7 +120,7 @@ export class ExcelReportService {
         material: rm.material || 'N/A',
         grade: rm.grade || 'N/A',
         quantity: Number(rm.quantity) || 0,
-        unit: rm.unit || 'KG',
+        unit: rm.unit || 'NOS',
         createdAt: rm.createdAt ? new Date(rm.createdAt).toISOString().split('T')[0] : 'N/A',
       });
     });

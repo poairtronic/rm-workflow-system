@@ -99,7 +99,7 @@ export class RmService {
       thickness: dto.thickness,
       diameter: dto.diameter,
       weight: dto.weight,
-      weightUnit: dto.weightUnit || 'KG',
+      weightUnit: dto.weightUnit || 'NOS',
       remarks: dto.remarks?.trim(),
     });
 

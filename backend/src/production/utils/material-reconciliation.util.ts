@@ -84,7 +84,7 @@ export class MaterialReconciliationUtil {
       material: params.material,
       grade: params.grade,
       size: params.size,
-      unit: params.unit || 'KG',
+      unit: params.unit || 'NOS',
       requestedQuantity: params.requestedQuantity,
       initialIssuedQuantity: params.initialIssuedQuantity,
       additionalIssuedQuantity: additionalIssued,

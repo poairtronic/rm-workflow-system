@@ -136,7 +136,7 @@ export class RmItem {
   })
   weight?: number;
 
-  @Column({ name: 'weight_unit', length: 20, default: 'KG' })
+  @Column({ name: 'weight_unit', length: 20, default: 'NOS' })
   weightUnit!: string;
 
   @Column({ name: 'part_number', length: 100, nullable: true })

@@ -46,13 +46,13 @@ export function buildTraceabilityEvents(raw: any): TraceabilityEvent[] {
         revisionNumber: `Rev ${req.revisionNumber || 1}`,
         lifecycleStage: 'Stores Pending',
         materialSpecificationsCount: `${req.items?.length || 0} Material Specification(s)`,
-        totalRequiredQuantity: `${totalBomQty.toFixed(2)} KG / Units`,
+        totalRequiredQuantity: `${totalBomQty.toFixed(2)} NOS`,
         reviewedBy: req.reviewedBy?.name || 'Approved',
         materialSpecifications:
           (req.items || [])
             .map(
               (it: any) =>
-                `${it.material || ''} ${it.grade || ''} (${Number(it.quantity || 0)} ${it.weightUnit || 'KG'})`
+                `${it.material || ''} ${it.grade || ''} (${Number(it.quantity || 0)} ${it.weightUnit || 'NOS'})`
             )
             .join('; ') || 'Standard RM specifications',
       },
@@ -76,7 +76,7 @@ export function buildTraceabilityEvents(raw: any): TraceabilityEvent[] {
         issueNumber: iss.issueNumber || 'N/A',
         issueType: iss.issueType || 'INITIAL_ISSUE',
         issueDateTime: new Date(iss.issueDate).toLocaleString(),
-        totalQuantityIssued: `${totalIssued.toFixed(2)} KG / Units`,
+        totalQuantityIssued: `${totalIssued.toFixed(2)} NOS`,
         issuedBy: iss.issuedBy?.name || 'Stores Warehouse',
         remarks: iss.remarks || 'Raw material issued to production',
         itemsBreakdown:
@@ -109,7 +109,7 @@ export function buildTraceabilityEvents(raw: any): TraceabilityEvent[] {
         lifecycleStage: 'Production Received',
         receiptStatus: rec.status || 'VERIFIED',
         receivedDateTime: new Date(rec.receivedAt).toLocaleString(),
-        totalQuantityReceived: `${totalReceived.toFixed(2)} KG / Units`,
+        totalQuantityReceived: `${totalReceived.toFixed(2)} NOS`,
         receivedBy: rec.receivedBy?.name || 'Shop Floor Inward Officer',
         remarks: rec.remarks || 'Material received on shop floor',
       },
@@ -300,7 +300,7 @@ export function buildTraceabilityEvents(raw: any): TraceabilityEvent[] {
       details: {
         returnStatus: r.status || 'RETURNED',
         returnedDateTime: new Date(r.returnedAt).toLocaleString(),
-        quantityReturned: `${totalRetQty.toFixed(2)} KG`,
+        quantityReturned: `${totalRetQty.toFixed(2)} NOS`,
         returnedBy: r.returnedBy?.name || 'Production Floor',
         confirmedBy: r.confirmedBy?.name || 'Pending Stores Confirmation',
         remarks: r.remarks || 'Surplus / Scrap material return',

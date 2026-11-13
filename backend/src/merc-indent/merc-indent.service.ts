@@ -1239,8 +1239,12 @@ export class MercIndentService implements OnModuleInit {
   /**
    * Background cron to keep indents automatically and lively in sync with MERC every 25 seconds.
    */
-  @Cron(process.env.MERC_SYNC_CRON_SCHEDULE || '*/25 * * * * *')
+  @Cron(process.env.MERC_SYNC_CRON_SCHEDULE || '0 * * * *')
   async handleScheduledMercSync(): Promise<void> {
+    // Only run if explicitly enabled to prevent keeping Neon serverless compute awake 24/7
+    if (process.env.ENABLE_MERC_CRON !== 'true' && !process.env.MERC_SYNC_CRON_SCHEDULE) {
+      return;
+    }
     try {
       await this.syncFromMerc();
     } catch (err: any) {

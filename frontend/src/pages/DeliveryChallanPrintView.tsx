@@ -179,7 +179,8 @@ export function DeliveryChallanPrintView() {
     dc.items?.[0]?.processName ||
     '';
   const dcNumber = challan.challanNumber || dc.dcNumber || 'SDC/2627/0001';
-  const notes = challan.notes || dc.remarks || dc.notes || 'HT AND RETURN';
+  const rawNotes = challan.notes || dc.remarks || dc.notes || 'HT AND RETURN';
+  const notes = rawNotes.replace(/^\[BATCH:[^\]]+\]\s*/i, '').trim() || 'HT AND RETURN';
 
   // Format vendor address lines
   const formatVendorAddress = (rawAddress?: string) => {

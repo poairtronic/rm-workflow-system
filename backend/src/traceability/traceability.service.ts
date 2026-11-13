@@ -385,7 +385,7 @@ export class TraceabilityService {
         grade: rmItem.grade || undefined,
         size: rmItem.size || undefined,
         description: rmItem.description || undefined,
-        uom: rmItem.weightUnit || 'KG',
+        uom: rmItem.weightUnit || 'NOS',
         originalRequested,
         initialIssued,
         additionalIssued,
@@ -437,7 +437,7 @@ export class TraceabilityService {
       finalRmUsed,
       variance,
       isZeroLossVerified,
-      uom: itemsBreakdown[0]?.uom || (sc.rmItems && sc.rmItems[0]?.weightUnit) || 'KG',
+      uom: itemsBreakdown[0]?.uom || (sc.rmItems && sc.rmItems[0]?.weightUnit) || 'NOS',
     };
 
     return {
@@ -1356,7 +1356,7 @@ export class TraceabilityService {
         details: {
           formType: req.formType,
           revision: `Rev ${req.revisionNumber}`,
-          totalRequiredQuantity: `${totalBomQty.toFixed(2)} KG / Units`,
+          totalRequiredQuantity: `${totalBomQty.toFixed(2)} NOS`,
           reviewedBy: req.reviewedBy?.name || 'Approved',
         },
       });
@@ -1374,7 +1374,7 @@ export class TraceabilityService {
           issueNumber: iss.issueNumber,
           issueType: iss.issueType,
           issueDateTime: new Date(iss.issueDate).toLocaleString(),
-          totalQuantityIssued: `${totalIss.toFixed(2)} KG / Units`,
+          totalQuantityIssued: `${totalIss.toFixed(2)} NOS`,
           issuedBy: iss.issuedBy?.name || 'Stores Warehouse',
           remarks: iss.remarks || 'Raw material issued to production',
           itemsBreakdown:
@@ -1399,7 +1399,7 @@ export class TraceabilityService {
         details: {
           status: 'Production Received',
           receivedDateTime: new Date(rec.receivedAt).toLocaleString(),
-          totalQuantityReceived: `${totalRec.toFixed(2)} KG / Units`,
+          totalQuantityReceived: `${totalRec.toFixed(2)} NOS`,
           receivedBy: rec.receivedBy?.name || 'Shop Floor Inward Officer',
         },
       });
@@ -1568,7 +1568,7 @@ export class TraceabilityService {
         details: {
           returnStatus: r.status,
           returnedDateTime: new Date(r.returnedAt).toLocaleString(),
-          quantityReturned: `${totalR.toFixed(2)} KG`,
+          quantityReturned: `${totalR.toFixed(2)} NOS`,
           returnedBy: r.returnedBy?.name || 'Production Floor',
         },
       });
@@ -1583,7 +1583,7 @@ export class TraceabilityService {
       totalScrapKg: 0,
       varianceKg: Number(finalRmUsageResponse.summary.variance) || 0,
       isBalanced: Boolean(finalRmUsageResponse.summary.isZeroLossVerified),
-      uom: finalRmUsageResponse.summary.uom || (sc.rmItems && sc.rmItems[0]?.weightUnit) || 'KG',
+      uom: finalRmUsageResponse.summary.uom || (sc.rmItems && sc.rmItems[0]?.weightUnit) || 'NOS',
     };
 
     return {
@@ -3085,7 +3085,7 @@ export class TraceabilityService {
       const mat = c.rmItem?.material ?? 'Unknown Material';
       const type = c.rmItem?.materialType ?? 'ROUND_BAR';
       const grade = c.rmItem?.grade ?? 'Standard';
-      const unit = c.unit ?? 'KG';
+      const unit = c.unit ?? 'NOS';
       const qty = Number(c.consumedQuantity) || 0;
       const recDate = new Date(c.recordedAt);
 

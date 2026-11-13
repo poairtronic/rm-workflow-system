@@ -554,7 +554,7 @@ export class MasterDataService implements OnModuleInit {
       );
     }
 
-    const normalizedUom = (dto.uom || 'KG').trim().toUpperCase();
+    const normalizedUom = (dto.uom || 'NOS').trim().toUpperCase();
 
     const product = this.productRepo.create({
       code: normalizedCode,
@@ -1290,7 +1290,7 @@ export class MasterDataService implements OnModuleInit {
       productId: b.productId,
       productName: b.product?.name || 'Unknown Product',
       productCode: b.product?.code || 'N/A',
-      uom: b.product?.uom || 'KG',
+      uom: b.product?.uom || 'NOS',
       quantity: Number(b.currentQuantity),
       currentBinId: b.binId,
       currentBinCode: b.bin?.code || 'N/A',

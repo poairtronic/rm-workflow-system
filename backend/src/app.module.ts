@@ -70,6 +70,11 @@ import { MercIndentModule } from './merc-indent/merc-indent.module.js';
           ssl: isSsl ? { rejectUnauthorized: false } : false,
           retryAttempts: 2,
           retryDelay: 3000,
+          extra: {
+            min: 0,
+            max: 10,
+            idleTimeoutMillis: 10000,
+          },
         };
       },
     }),

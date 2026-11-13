@@ -85,7 +85,7 @@ export class RmItemSnapshot {
   @Column({ type: 'numeric', precision: 12, scale: 3, nullable: true })
   weight?: number;
 
-  @Column({ name: 'weight_unit', length: 20, default: 'KG' })
+  @Column({ name: 'weight_unit', length: 20, default: 'NOS' })
   weightUnit!: string;
 
   @Column({ name: 'revision_reason', type: 'text', nullable: true })
