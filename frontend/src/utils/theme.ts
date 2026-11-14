@@ -14,6 +14,10 @@ export function getCurrentTheme(): string {
 
 export function applyTheme(theme: string) {
   const root = document.documentElement;
+
+  // Add global transition class to animate all surfaces and elements smoothly
+  root.classList.add('theme-transition');
+
   root.classList.remove('dark', 'theme-modern-dark', 'theme-enterprise-slate');
 
   const isLight = theme === 'Enterprise Light' || theme === 'light';
@@ -22,7 +26,7 @@ export function applyTheme(theme: string) {
 
   if (!isLight) {
     if (theme === 'Enterprise Slate') {
-      root.classList.add('theme-enterprise-slate');
+      root.classList.add('dark', 'theme-enterprise-slate');
     } else {
       root.classList.add('dark', 'theme-modern-dark');
     }
@@ -32,6 +36,11 @@ export function applyTheme(theme: string) {
     localStorage.setItem('vsmart-theme', dataTheme);
   } catch {}
   window.dispatchEvent(new CustomEvent('theme-changed', { detail: { theme: isLight ? 'Enterprise Light' : 'Modern Dark' } }));
+
+  // Remove transition class after animation completes so normal interactions remain snappy
+  setTimeout(() => {
+    root.classList.remove('theme-transition');
+  }, 350);
 }
 
 export function applyDensity(density: string) {

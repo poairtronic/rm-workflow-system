@@ -95,6 +95,54 @@ div.recharts-wrapper *:focus-visible,
 }
 
 /* ==========================================================================
+   GLOBAL THEME TRANSITION & RENDERING ENGINE
+   Provides a cinematic, silky-smooth transition across all surfaces, text,
+   borders, and interactive elements when switching between light and dark mode.
+   ========================================================================== */
+
+/* Active transition state applied during theme toggle */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition: background-color 280ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 280ms cubic-bezier(0.4, 0, 0.2, 1),
+              color 280ms cubic-bezier(0.4, 0, 0.2, 1),
+              fill 280ms cubic-bezier(0.4, 0, 0.2, 1),
+              stroke 280ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition-delay: 0s !important;
+}
+
+/* Base smooth transition on structural containers and interactive controls */
+html,
+body,
+#root,
+aside,
+header,
+main,
+nav,
+.app-main-content {
+  transition: background-color 250ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 250ms cubic-bezier(0.4, 0, 0.2, 1),
+              color 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button,
+a,
+input,
+select,
+textarea,
+.card,
+[role="button"],
+[role="dialog"] {
+  transition: background-color 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              color 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================================================
    THEME STYLES - MODERN OBSIDIAN DARK THEME (Ultra-Modern Reference UI)
    ========================================================================== */
 
@@ -206,6 +254,20 @@ html.theme-modern-dark .border-slate-100,
 html.dark .border-slate-200\/80,
 html.theme-modern-dark .border-slate-200\/80 {
   border-color: #1e233d !important;
+}
+
+/* Global Dividers & Splitters */
+html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+html.theme-modern-dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
+html.theme-modern-dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+html.theme-modern-dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+html.theme-modern-dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-slate-800 > :not([hidden]) ~ :not([hidden]),
+html.theme-modern-dark .divide-slate-800 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #1a1e33 !important;
 }
 
 /* Typography Hierarchy (Crisp white headers, soft readable body, muted subtexts) */
@@ -374,31 +436,96 @@ html.theme-modern-dark .bg-purple-50 {
   border-color: rgba(168, 85, 247, 0.25) !important;
 }
 
-/* Table Action Buttons */
+/* Table Action Buttons & Themed Buttons */
 html.dark button.border-red-200,
-html.theme-modern-dark button.border-red-200 {
-  background-color: rgba(244, 63, 94, 0.1) !important;
+html.theme-modern-dark button.border-red-200,
+html.dark button[class*="bg-red-50"],
+html.theme-modern-dark button[class*="bg-red-50"],
+html.dark button[class*="bg-rose-50"],
+html.theme-modern-dark button[class*="bg-rose-50"] {
+  background-color: rgba(244, 63, 94, 0.12) !important;
   border-color: rgba(244, 63, 94, 0.3) !important;
   color: #fb7185 !important;
 }
 
+html.dark button.border-red-200:hover,
+html.theme-modern-dark button.border-red-200:hover,
+html.dark button[class*="bg-red-50"]:hover,
+html.theme-modern-dark button[class*="bg-red-50"]:hover,
+html.dark button[class*="bg-rose-50"]:hover,
+html.theme-modern-dark button[class*="bg-rose-50"]:hover {
+  background-color: rgba(244, 63, 94, 0.22) !important;
+  border-color: rgba(244, 63, 94, 0.45) !important;
+  color: #fecdd3 !important;
+}
+
 html.dark button.border-amber-200,
-html.theme-modern-dark button.border-amber-200 {
-  background-color: rgba(245, 158, 11, 0.1) !important;
+html.theme-modern-dark button.border-amber-200,
+html.dark button[class*="bg-amber-50"],
+html.theme-modern-dark button[class*="bg-amber-50"],
+html.dark button[class*="bg-yellow-50"],
+html.theme-modern-dark button[class*="bg-yellow-50"] {
+  background-color: rgba(245, 158, 11, 0.12) !important;
   border-color: rgba(245, 158, 11, 0.3) !important;
   color: #fbbf24 !important;
 }
 
+html.dark button.border-amber-200:hover,
+html.theme-modern-dark button.border-amber-200:hover,
+html.dark button[class*="bg-amber-50"]:hover,
+html.theme-modern-dark button[class*="bg-amber-50"]:hover,
+html.dark button[class*="bg-yellow-50"]:hover,
+html.theme-modern-dark button[class*="bg-yellow-50"]:hover {
+  background-color: rgba(245, 158, 11, 0.22) !important;
+  border-color: rgba(245, 158, 11, 0.45) !important;
+  color: #fde68a !important;
+}
+
 html.dark button.border-emerald-200,
-html.theme-modern-dark button.border-emerald-200 {
-  background-color: rgba(16, 185, 129, 0.1) !important;
+html.theme-modern-dark button.border-emerald-200,
+html.dark button[class*="bg-emerald-50"],
+html.theme-modern-dark button[class*="bg-emerald-50"],
+html.dark button[class*="bg-green-50"],
+html.theme-modern-dark button[class*="bg-green-50"] {
+  background-color: rgba(16, 185, 129, 0.12) !important;
   border-color: rgba(16, 185, 129, 0.3) !important;
   color: #34d399 !important;
+}
+
+html.dark button.border-emerald-200:hover,
+html.theme-modern-dark button.border-emerald-200:hover,
+html.dark button[class*="bg-emerald-50"]:hover,
+html.theme-modern-dark button[class*="bg-emerald-50"]:hover,
+html.dark button[class*="bg-green-50"]:hover,
+html.theme-modern-dark button[class*="bg-green-50"]:hover {
+  background-color: rgba(16, 185, 129, 0.22) !important;
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  color: #a7f3d0 !important;
+}
+
+html.dark button[class*="bg-indigo-50"],
+html.theme-modern-dark button[class*="bg-indigo-50"],
+html.dark button[class*="bg-blue-50"],
+html.theme-modern-dark button[class*="bg-blue-50"] {
+  background-color: rgba(99, 102, 241, 0.12) !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+  color: #818cf8 !important;
+}
+
+html.dark button[class*="bg-indigo-50"]:hover,
+html.theme-modern-dark button[class*="bg-indigo-50"]:hover,
+html.dark button[class*="bg-blue-50"]:hover,
+html.theme-modern-dark button[class*="bg-blue-50"]:hover {
+  background-color: rgba(99, 102, 241, 0.22) !important;
+  border-color: rgba(99, 102, 241, 0.45) !important;
+  color: #c7d2fe !important;
 }
 
 /* Secondary Action Buttons */
 html.dark button.border-slate-300,
 html.theme-modern-dark button.border-slate-300,
+html.dark button.border-slate-200,
+html.theme-modern-dark button.border-slate-200,
 html.dark button.border-gray-300,
 html.theme-modern-dark button.border-gray-300 {
   background-color: #161a2e !important;
@@ -408,6 +535,8 @@ html.theme-modern-dark button.border-gray-300 {
 
 html.dark button.border-slate-300:hover,
 html.theme-modern-dark button.border-slate-300:hover,
+html.dark button.border-slate-200:hover,
+html.theme-modern-dark button.border-slate-200:hover,
 html.dark button.border-gray-300:hover,
 html.theme-modern-dark button.border-gray-300:hover {
   background-color: #1d223c !important;
@@ -507,6 +636,53 @@ html.theme-modern-dark [class*="bg-violet-50"] {
   border-color: rgba(168, 85, 247, 0.25) !important;
 }
 
+/* Dark mode text corrections for light status classes */
+html.dark .text-amber-800,
+html.theme-modern-dark .text-amber-800,
+html.dark .text-amber-700,
+html.theme-modern-dark .text-amber-700,
+html.dark .text-amber-600,
+html.theme-modern-dark .text-amber-600 {
+  color: #fbbf24 !important;
+}
+
+html.dark .text-red-800,
+html.theme-modern-dark .text-red-800,
+html.dark .text-red-700,
+html.theme-modern-dark .text-red-700,
+html.dark .text-red-600,
+html.theme-modern-dark .text-red-600,
+html.dark .text-rose-600,
+html.theme-modern-dark .text-rose-600 {
+  color: #fb7185 !important;
+}
+
+html.dark .text-indigo-800,
+html.theme-modern-dark .text-indigo-800,
+html.dark .text-indigo-700,
+html.theme-modern-dark .text-indigo-700,
+html.dark .text-indigo-600,
+html.theme-modern-dark .text-indigo-600,
+html.dark .text-blue-700,
+html.theme-modern-dark .text-blue-700,
+html.dark .text-blue-600,
+html.theme-modern-dark .text-blue-600 {
+  color: #818cf8 !important;
+}
+
+html.dark .text-emerald-800,
+html.theme-modern-dark .text-emerald-800,
+html.dark .text-emerald-700,
+html.theme-modern-dark .text-emerald-700,
+html.dark .text-emerald-600,
+html.theme-modern-dark .text-emerald-600,
+html.dark .text-green-700,
+html.theme-modern-dark .text-green-700,
+html.dark .text-green-600,
+html.theme-modern-dark .text-green-600 {
+  color: #34d399 !important;
+}
+
 /* Neutral Surfaces: slate-200, slate-300, gray-200, gray-300 */
 html.dark [class*="bg-slate-200"],
 html.theme-modern-dark [class*="bg-slate-200"],
@@ -519,11 +695,16 @@ html.theme-modern-dark [class*="bg-slate-300"] {
   border-color: #2b3254 !important;
 }
 
-html.dark [class*="hover:bg-slate-200"]:hover,
-html.theme-modern-dark [class*="hover:bg-slate-200"]:hover,
+/* Smooth row hover effects */
+html.dark [class*="hover:bg-slate-50"]:hover,
+html.theme-modern-dark [class*="hover:bg-slate-50"]:hover,
+html.dark [class*="hover:bg-gray-50"]:hover,
+html.theme-modern-dark [class*="hover:bg-gray-50"]:hover,
 html.dark [class*="hover:bg-slate-100"]:hover,
-html.theme-modern-dark [class*="hover:bg-slate-100"]:hover {
-  background-color: #1a1e33 !important;
+html.theme-modern-dark [class*="hover:bg-slate-100"]:hover,
+html.dark [class*="hover:bg-slate-200"]:hover,
+html.theme-modern-dark [class*="hover:bg-slate-200"]:hover {
+  background-color: #161a2e !important;
 }
 
 /* ==========================================================================

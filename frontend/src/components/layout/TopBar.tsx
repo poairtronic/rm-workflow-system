@@ -619,17 +619,18 @@ export function TopBar({ onOpenScanner, onToggleMobileMenu }: TopBarProps = {}) 
           </kbd>
         </button>
 
-        {/* Instant Theme Toggle Button */}
+        {/* Instant Theme Toggle Button with Smooth Animation */}
         <button
           type="button"
           onClick={toggleTheme}
-          className="p-2 rounded-lg text-slate-500 dark:text-[#8896ab] hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-[#161a2e] border border-transparent dark:border-[#1e233d]/60 transition-colors cursor-pointer"
+          className="p-2 rounded-lg text-slate-500 dark:text-[#8896ab] hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-[#161a2e] border border-transparent dark:border-[#1e233d]/60 transition-all duration-300 cursor-pointer group active:scale-95"
           title={currentTheme === 'Modern Dark' ? 'Switch to Light Mode' : 'Switch to Modern Dark Mode'}
+          aria-label="Toggle theme"
         >
           {currentTheme === 'Modern Dark' ? (
-            <Sun className="w-4 h-4 text-amber-400" />
+            <Sun className="w-4 h-4 text-amber-400 transition-transform duration-300 group-hover:rotate-45" />
           ) : (
-            <Moon className="w-4 h-4 text-slate-600" />
+            <Moon className="w-4 h-4 text-slate-600 transition-transform duration-300 group-hover:-rotate-12" />
           )}
         </button>
 

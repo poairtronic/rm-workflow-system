@@ -106,35 +106,35 @@ export function RmRequisitionWorkspace() {
     switch (status) {
       case 'DRAFT':
         return (
-          <span className="px-2.5 py-1 text-xs font-bold bg-slate-100 text-slate-700 rounded-full border border-slate-200">
+          <span className="px-2.5 py-1 text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700">
             Draft
           </span>
         );
       case 'SUBMITTED':
       case 'STORES_REVIEW':
         return (
-          <span className="px-2.5 py-1 text-xs font-bold bg-blue-100 text-blue-700 rounded-full border border-blue-200">
+          <span className="px-2.5 py-1 text-xs font-bold bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-400 rounded-full border border-blue-200 dark:border-blue-500/30">
             Stores Review
           </span>
         );
       case 'REJECTED':
         return (
-          <span className="px-2.5 py-1 text-xs font-bold bg-red-100 text-red-700 rounded-full border border-red-200 flex items-center space-x-1">
-            <AlertTriangle className="w-3 h-3 text-red-600" />
+          <span className="px-2.5 py-1 text-xs font-bold bg-red-100 dark:bg-rose-500/15 text-red-700 dark:text-rose-400 rounded-full border border-red-200 dark:border-rose-500/30 flex items-center space-x-1">
+            <AlertTriangle className="w-3 h-3 text-red-600 dark:text-rose-400" />
             <span>Rejected by Stores</span>
           </span>
         );
       case 'COMPLETED':
       case 'ISSUED':
         return (
-          <span className="px-2.5 py-1 text-xs font-bold bg-emerald-100 text-emerald-700 rounded-full border border-emerald-200 flex items-center space-x-1">
-            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+          <span className="px-2.5 py-1 text-xs font-bold bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 rounded-full border border-emerald-200 dark:border-emerald-500/30 flex items-center space-x-1">
+            <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
             <span>Material Issued</span>
           </span>
         );
       default:
         return (
-          <span className="px-2.5 py-1 text-xs font-medium bg-slate-100 text-slate-700 rounded-full">
+          <span className="px-2.5 py-1 text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-700">
             {status}
           </span>
         );
@@ -197,7 +197,7 @@ export function RmRequisitionWorkspace() {
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
               activeTab === 'ALL'
                 ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-100'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#161a2e]'
             }`}
           >
             All ({drafts.length})
@@ -207,7 +207,7 @@ export function RmRequisitionWorkspace() {
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
               activeTab === 'DRAFT'
                 ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-100'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#161a2e]'
             }`}
           >
             Drafts ({drafts.filter((d) => d.draftCount > 0).length})
@@ -217,7 +217,7 @@ export function RmRequisitionWorkspace() {
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
               activeTab === 'SUBMITTED'
                 ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-100'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#161a2e]'
             }`}
           >
             Stores Review ({drafts.filter((d) => d.submittedCount > 0).length})
@@ -227,7 +227,7 @@ export function RmRequisitionWorkspace() {
             className={`flex items-center space-x-1 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
               activeTab === 'REJECTED'
                 ? 'bg-red-600 text-white shadow-xs'
-                : 'text-red-700 bg-red-50 hover:bg-red-100'
+                : 'text-red-700 dark:text-rose-400 bg-red-50 dark:bg-rose-500/10 hover:bg-red-100 dark:hover:bg-rose-500/20'
             }`}
           >
             <AlertTriangle className="w-3.5 h-3.5" />
@@ -245,7 +245,7 @@ export function RmRequisitionWorkspace() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search PO, SC, or Product..."
-            className="w-full pl-9 pr-3.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            className="w-full pl-9 pr-3.5 py-1.5 text-sm border border-slate-300 dark:border-[#1e233d] rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-[#0e111f] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-2xs"
           />
         </div>
       </div>
@@ -279,29 +279,31 @@ export function RmRequisitionWorkspace() {
             return (
               <div
                 key={group.poId}
-                className={`bg-white border rounded-xl shadow-xs overflow-hidden transition-all ${
-                  hasRejectedSc ? 'border-red-300 ring-1 ring-red-200' : 'border-slate-200'
+                className={`bg-white dark:bg-[#121526] border rounded-xl shadow-xs overflow-hidden transition-all ${
+                  hasRejectedSc
+                    ? 'border-red-300 dark:border-rose-800/80 ring-1 ring-red-200 dark:ring-rose-900/50'
+                    : 'border-slate-200 dark:border-[#1e233d]'
                 }`}
               >
-                <div className="px-6 py-4 bg-slate-50/80 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="px-6 py-4 bg-slate-50/80 dark:bg-[#0e111f] border-b border-slate-200 dark:border-[#1e233d] flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
                     <div className="flex items-center space-x-2">
-                      <span className="text-xs font-bold uppercase tracking-wider text-slate-400">PO / Reference:</span>
-                      <h3 className="text-base font-bold text-slate-900">{group.poNumber}</h3>
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">PO / Reference:</span>
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white">{group.poNumber}</h3>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1 flex items-center">
-                      <Clock className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center">
+                      <Clock className="w-3.5 h-3.5 mr-1 text-slate-400 dark:text-slate-500" />
                       Updated {new Date(group.updatedAt).toLocaleString()}
                     </p>
                   </div>
                   
                   <div className="flex items-center space-x-3">
                     <div className="text-right mr-2 text-xs">
-                      <div className="font-bold text-slate-900">{group.scs.length} Size Card(s)</div>
-                      <div className="text-slate-500">
+                      <div className="font-bold text-slate-900 dark:text-white">{group.scs.length} Size Card(s)</div>
+                      <div className="text-slate-500 dark:text-slate-400">
                         {group.draftCount} Draft • {group.submittedCount} Under Review
                         {(group.rejectedCount ?? 0) > 0 && (
-                          <span className="text-red-600 font-bold"> • {group.rejectedCount} Rejected</span>
+                          <span className="text-red-600 dark:text-rose-400 font-bold"> • {group.rejectedCount} Rejected</span>
                         )}
                       </div>
                     </div>
@@ -317,27 +319,27 @@ export function RmRequisitionWorkspace() {
                     ) : group.draftCount > 0 ? (
                       <button
                         onClick={() => handleEdit(group.poId)}
-                        className="flex items-center space-x-1.5 px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 text-xs font-semibold shadow-xs transition-colors"
+                        className="flex items-center space-x-1.5 px-3 py-1.5 bg-white dark:bg-[#161a2e] border border-slate-300 dark:border-[#242a45] text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-50 dark:hover:bg-[#1d223c] text-xs font-semibold shadow-xs transition-colors"
                       >
-                        <Edit className="w-3.5 h-3.5 text-slate-500" />
+                        <Edit className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                         <span>Resume Draft</span>
                       </button>
                     ) : isAdmin ? (
                       <button
                         onClick={() => handleEdit(group.poId)}
-                        className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-50 border border-amber-300 text-amber-800 rounded-lg hover:bg-amber-100 text-xs font-bold shadow-xs transition-colors"
+                        className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-50 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/30 text-amber-800 dark:text-amber-400 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-500/20 text-xs font-bold shadow-xs transition-colors"
                         title="Admin Override: You can edit this submitted requisition"
                       >
-                        <Edit className="w-3.5 h-3.5 text-amber-600" />
+                        <Edit className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                         <span>Edit (Admin)</span>
                       </button>
                     ) : (
                       <button
                         onClick={() => handleEdit(group.poId)}
-                        className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 text-xs font-semibold shadow-xs transition-colors"
+                        className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-50 dark:bg-[#161a2e] border border-slate-200 dark:border-[#242a45] text-slate-600 dark:text-slate-400 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1d223c] text-xs font-semibold shadow-xs transition-colors"
                         title="Requisition submitted and locked. Only Admins can modify."
                       >
-                        <Lock className="w-3.5 h-3.5 text-slate-400" />
+                        <Lock className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                         <span>View (Locked)</span>
                       </button>
                     )}
@@ -353,7 +355,7 @@ export function RmRequisitionWorkspace() {
                           poNumber: group.poNumber,
                         })
                       }
-                      className="flex items-center space-x-1 px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 border border-red-200 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                      className="flex items-center space-x-1 px-2.5 py-1.5 bg-red-50 dark:bg-rose-500/10 hover:bg-red-100 dark:hover:bg-rose-500/20 text-red-600 dark:text-rose-400 hover:text-red-700 dark:hover:text-rose-300 border border-red-200 dark:border-rose-500/30 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
                       title="Delete all requisitions under this PO"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -362,25 +364,25 @@ export function RmRequisitionWorkspace() {
                   </div>
                 </div>
 
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-slate-100 dark:divide-[#1a1e33] bg-white dark:bg-[#121526]">
                   {group.scs.map((sc) => (
                     <div
                       key={sc.scId}
-                      className="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors"
+                      className="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-[#121526] hover:bg-slate-50/80 dark:hover:bg-[#161a2e] transition-colors"
                     >
                       <div className="flex-1">
                         <div className="flex items-center space-x-2">
-                          <span className="font-bold text-sm text-slate-900">{sc.scNumber}</span>
-                          <span className="text-xs text-slate-400">•</span>
-                          <span className="text-xs text-slate-600 font-medium">Mfg: {sc.productName}</span>
-                          <span className="text-xs text-slate-400">•</span>
-                          <span className="text-xs text-slate-500">{sc.itemCount} RM item(s)</span>
+                          <span className="font-bold text-sm text-slate-900 dark:text-white">{sc.scNumber}</span>
+                          <span className="text-xs text-slate-400 dark:text-slate-500">•</span>
+                          <span className="text-xs text-slate-600 dark:text-slate-300 font-medium">Mfg: {sc.productName}</span>
+                          <span className="text-xs text-slate-400 dark:text-slate-500">•</span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">{sc.itemCount} RM item(s)</span>
                         </div>
 
                         {/* Stores Rejection Remarks Alert Box */}
                         {sc.status === 'REJECTED' && sc.remarks && (
-                          <div className="mt-2 p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-800 flex items-start space-x-2">
-                            <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                          <div className="mt-2 p-2.5 bg-red-50 dark:bg-rose-950/40 border border-red-200 dark:border-rose-800/60 rounded-lg text-xs text-red-800 dark:text-rose-300 flex items-start space-x-2">
+                            <AlertTriangle className="w-4 h-4 text-red-600 dark:text-rose-400 flex-shrink-0 mt-0.5" />
                             <div>
                               <span className="font-bold">Stores Rejection Reason: </span>
                               <span>{sc.remarks.replace(/^\[Submit:[^\]]*\]\s*/, '')}</span>
@@ -402,7 +404,7 @@ export function RmRequisitionWorkspace() {
                               items: sc.items || [],
                             })
                           }
-                          className="px-2.5 py-1 text-xs text-indigo-600 hover:text-indigo-800 font-semibold bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
+                          className="px-2.5 py-1 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-semibold bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 border border-indigo-200/60 dark:border-indigo-500/30 rounded-md transition-colors"
                         >
                           Inspect Items
                         </button>
@@ -417,7 +419,7 @@ export function RmRequisitionWorkspace() {
                                 poNumber: group.poNumber,
                               })
                             }
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
+                            className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-500/15 rounded-md transition-colors cursor-pointer"
                             title={`Delete requisition for ${sc.scNumber}`}
                           >
                             <Trash2 className="w-4 h-4" />
@@ -435,20 +437,20 @@ export function RmRequisitionWorkspace() {
 
       {/* Inspection Modal */}
       {inspectSc && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden">
-            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#121526] rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 dark:border-[#1e233d] overflow-hidden">
+            <div className="p-5 border-b border-slate-200 dark:border-[#1e233d] flex items-center justify-between bg-slate-50 dark:bg-[#0e111f]">
               <div>
-                <h3 className="text-base font-bold text-slate-900">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
                   Requisition Items: {inspectSc.scNumber}
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   PO: {inspectSc.poNumber} • Component: {inspectSc.productName}
                 </p>
               </div>
               <button
                 onClick={() => setInspectSc(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-[#1e233d] rounded-lg transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -456,20 +458,20 @@ export function RmRequisitionWorkspace() {
 
             <div className="p-6 space-y-4">
               {inspectSc.status === 'REJECTED' && inspectSc.remarks && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800">
+                <div className="p-3 bg-red-50 dark:bg-rose-950/40 border border-red-200 dark:border-rose-800/60 rounded-xl text-xs text-red-800 dark:text-rose-300">
                   <span className="font-bold">Rejection Note: </span>
                   <span>{inspectSc.remarks}</span>
                 </div>
               )}
 
               {inspectSc.items.length === 0 ? (
-                <div className="text-center py-6 text-slate-500 text-xs">
+                <div className="text-center py-6 text-slate-500 dark:text-slate-400 text-xs">
                   No detailed item breakdown recorded for this card.
                 </div>
               ) : (
-                <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                <div className="overflow-x-auto border border-slate-200 dark:border-[#1e233d] rounded-xl">
                   <table className="w-full text-left text-xs whitespace-nowrap">
-                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
+                    <thead className="bg-slate-50 dark:bg-[#0e111f] border-b border-slate-200 dark:border-[#1e233d] text-slate-600 dark:text-slate-300 font-bold uppercase tracking-wider">
                       <tr>
                         <th className="p-3">Material</th>
                         <th className="p-3">Spec / Grade</th>
@@ -477,13 +479,13 @@ export function RmRequisitionWorkspace() {
                         <th className="p-3 text-right">Required Qty</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 font-medium">
+                    <tbody className="divide-y divide-slate-100 dark:divide-[#1a1e33] font-medium">
                       {inspectSc.items.map((item, i) => (
-                        <tr key={item.id || i} className="hover:bg-slate-50/50">
-                          <td className="p-3 font-semibold text-slate-900">{item.material || 'RM Material'}</td>
-                          <td className="p-3 text-slate-700">{item.grade || '—'}</td>
-                          <td className="p-3 text-slate-500 max-w-xs truncate" title={item.description}>{item.description || '—'}</td>
-                          <td className="p-3 text-right font-bold text-indigo-600 tabular-nums">
+                        <tr key={item.id || i} className="hover:bg-slate-50/50 dark:hover:bg-[#161a2e]">
+                          <td className="p-3 font-semibold text-slate-900 dark:text-white">{item.material || 'RM Material'}</td>
+                          <td className="p-3 text-slate-700 dark:text-slate-300">{item.grade || '—'}</td>
+                          <td className="p-3 text-slate-500 dark:text-slate-400 max-w-xs truncate" title={item.description}>{item.description || '—'}</td>
+                          <td className="p-3 text-right font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">
                             {item.quantity}
                           </td>
                         </tr>
@@ -494,10 +496,10 @@ export function RmRequisitionWorkspace() {
               )}
             </div>
 
-            <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end">
+            <div className="p-4 border-t border-slate-200 dark:border-[#1e233d] bg-slate-50 dark:bg-[#0e111f] flex justify-end">
               <button
                 onClick={() => setInspectSc(null)}
-                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-100 transition-colors shadow-xs"
+                className="px-4 py-2 bg-white dark:bg-[#161a2e] border border-slate-300 dark:border-[#242a45] text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg hover:bg-slate-100 dark:hover:bg-[#1d223c] transition-colors shadow-xs cursor-pointer"
               >
                 Close
               </button>
@@ -508,22 +510,22 @@ export function RmRequisitionWorkspace() {
 
       {/* Delete Confirmation Modal */}
       {deleteModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden p-6 space-y-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#121526] rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 dark:border-[#1e233d] overflow-hidden p-6 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-rose-500/20 text-red-600 dark:text-rose-400 flex items-center justify-center shrink-0">
                 <Trash2 className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
                   {deleteModal.type === 'PO' ? 'Delete Requisition Group' : 'Delete RM Requisition'}
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   {deleteModal.type === 'PO' ? `PO: ${deleteModal.poNumber}` : `SC: ${deleteModal.name}`}
                 </p>
               </div>
             </div>
-            <p className="text-sm text-slate-600 leading-relaxed">
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
               {deleteModal.type === 'PO'
                 ? `Are you sure you want to delete all unissued RM requisitions under Purchase Order "${deleteModal.poNumber}"? This will remove these records and allow recreating new requisitions.`
                 : `Are you sure you want to delete the raw material requisition for Sales Component "${deleteModal.name}"? This action cannot be undone.`}
@@ -533,7 +535,7 @@ export function RmRequisitionWorkspace() {
                 type="button"
                 disabled={isDeleting}
                 onClick={() => setDeleteModal(null)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#161a2e] rounded-lg transition-colors cursor-pointer"
               >
                 Cancel
               </button>
