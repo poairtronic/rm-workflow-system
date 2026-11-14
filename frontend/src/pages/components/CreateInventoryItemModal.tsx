@@ -40,7 +40,7 @@ export const CreateInventoryItemModal: React.FC<CreateInventoryItemModalProps> =
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('rm_access_token')}`
         },
         body: JSON.stringify({
           ...formData,

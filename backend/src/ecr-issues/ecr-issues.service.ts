@@ -113,9 +113,8 @@ export class EcrIssuesService {
     ecrId?: string,
   ): Promise<{ exists: boolean; status?: string; componentsIssued?: boolean } | null> {
     try {
-      const ecrDbUrl =
-        process.env.ECR_DATABASE_URL ||
-        'postgresql://neondb_owner:npg_pJA2XQNTY9Db@ep-winter-water-at1ihqar-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require';
+      const ecrDbUrl = process.env.ECR_DATABASE_URL;
+      if (!ecrDbUrl) throw new Error('ECR_DATABASE_URL environment variable is not configured');
       const pg = await import('pg');
       const Client = pg.default ? (pg.default.Client || pg.default) : (pg.Client || pg);
       const client = new (Client as any)({ connectionString: ecrDbUrl });
@@ -359,9 +358,8 @@ export class EcrIssuesService {
     // Strategy 2: If HTTP endpoint was unreachable, fallback to direct query of ECR database for APPROVED unissued reports
     if (!httpSucceeded) {
       try {
-        const ecrDbUrl =
-          process.env.ECR_DATABASE_URL ||
-          'postgresql://neondb_owner:npg_pJA2XQNTY9Db@ep-winter-water-at1ihqar-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require';
+        const ecrDbUrl = process.env.ECR_DATABASE_URL;
+        if (!ecrDbUrl) throw new Error('ECR_DATABASE_URL environment variable is not configured');
         const pg = await import('pg');
         const Client = pg.default ? (pg.default.Client || pg.default) : (pg.Client || pg);
         const client = new (Client as any)({ connectionString: ecrDbUrl });
@@ -849,9 +847,8 @@ export class EcrIssuesService {
       // If webhook was not acknowledged, execute direct DB update fallback
       if (!webhookSuccess) {
         try {
-          const ecrDbUrl =
-            process.env.ECR_DATABASE_URL ||
-            'postgresql://neondb_owner:npg_pJA2XQNTY9Db@ep-winter-water-at1ihqar-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require';
+          const ecrDbUrl = process.env.ECR_DATABASE_URL;
+          if (!ecrDbUrl) throw new Error('ECR_DATABASE_URL environment variable is not configured');
           const pg = await import('pg');
           const Client = pg.default ? (pg.default.Client || pg.default) : (pg.Client || pg);
           const client = new (Client as any)({ connectionString: ecrDbUrl });

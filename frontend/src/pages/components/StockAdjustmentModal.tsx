@@ -72,7 +72,7 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({ item
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('rm_access_token')}`
         },
         body: JSON.stringify({
           ...formData,

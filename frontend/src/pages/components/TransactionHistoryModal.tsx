@@ -38,7 +38,7 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
       });
       const response = await fetch(`${APP_CONFIG.apiBaseUrl}/api/inventory/${item.id}/transactions?${queryParams.toString()}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('rm_access_token')}`
         }
       });
 

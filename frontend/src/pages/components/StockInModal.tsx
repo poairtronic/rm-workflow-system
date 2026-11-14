@@ -60,7 +60,7 @@ export const StockInModal: React.FC<StockInModalProps> = ({ item, onClose, onSuc
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('rm_access_token')}`
         },
         body: JSON.stringify({
           ...formData,
