@@ -20,6 +20,7 @@ import { CreateConsumableRequestDto } from './dto/create-consumable-request.dto.
 import { ReceiveConsumablePurchaseDto } from './dto/receive-consumable-purchase.dto.js';
 import { IssueConsumableToProductionDto } from './dto/issue-to-production.dto.js';
 import { PrintPrDto } from './dto/print-pr.dto.js';
+import { CreateConsumablePoDto } from './dto/create-consumable-po.dto.js';
 import { QueryConsumableItemsDto } from './dto/query-consumables.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
@@ -205,7 +206,7 @@ export class ConsumablesController {
   )
   @ApiOperation({ summary: 'Generate and archive PR PDF to Supabase storage' })
   async archivePrPdf(
-    @Body() body: { prNumber: string; itemIds: string[] },
+    @Body() dto: CreateConsumablePoDto,
     @Req() req: any,
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
@@ -214,12 +215,12 @@ export class ConsumablesController {
     }
     // Fetch items for the PR
     const result = await this.consumablesService.getPrItemsForArchive(
-      body.prNumber,
-      body.itemIds,
+      dto.prNumber,
+      dto.itemIds,
     );
     // Generate PDF
     const buffer = await this.pdfGeneratorService.generateConsumablePrPdf({
-      prNumber: body.prNumber,
+      prNumber: dto.prNumber,
       printedAt: new Date(),
       preparedBy: result.preparedBy,
       items: result.items,
@@ -228,12 +229,12 @@ export class ConsumablesController {
     const archived = await this.pdfGeneratorService.archivePdf(
       buffer,
       'pr',
-      `PR-${body.prNumber}-${Date.now()}`,
+      `PR-${dto.prNumber}-${Date.now()}`,
       userId,
     );
     return {
       success: true,
-      prNumber: body.prNumber,
+      prNumber: dto.prNumber,
       downloadUrl: archived.downloadUrl,
       storageKey: archived.storageKey,
     };

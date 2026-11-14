@@ -22,6 +22,7 @@ import { UpdateGlobalPreferenceDto } from './dto/update-global-preference.dto.js
 import { UpdateUserPreferenceDto } from './dto/update-user-preference.dto.js';
 import { GetNotificationsQueryDto } from './dto/get-notifications-query.dto.js';
 import { ResetSystemDataDto } from './dto/reset-system-data.dto.js';
+import { UpdateSystemConfigDto } from './dto/update-system-config.dto.js';
 
 @Controller('api/notifications')
 export class NotificationsController {
@@ -111,11 +112,11 @@ export class NotificationsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.GENERAL_MANAGER)
   async updateSystemConfig(
-    @Body() body: any,
+    @Body() dto: UpdateSystemConfigDto,
     @Request() req: any,
   ) {
     const actorId = req.user?.userId || req.user?.id || 'ADMIN';
-    return await this.notificationsService.updateSystemConfig(body, actorId);
+    return await this.notificationsService.updateSystemConfig(dto, actorId);
   }
 
   @Post('system-config/reset-data')

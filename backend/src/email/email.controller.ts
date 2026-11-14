@@ -29,6 +29,7 @@ import {
 import { EmailJobStatus } from './enums/email-job-status.enum.js';
 import { EmailProvider as EmailProviderEnum } from './enums/email-provider.enum.js';
 import { GmailApiProvider } from './providers/gmail-api.provider.js';
+import { TestSendEmailDto } from './dto/test-send-email.dto.js';
 
 @Controller('api/email')
 export class EmailController {
@@ -155,14 +156,14 @@ export class EmailController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.GENERAL_MANAGER, UserRole.SENIOR_MANAGER)
   async sendTestEmail(
-    @Body() body: { recipientEmail: string; subject?: string; message?: string },
+    @Body() dto: TestSendEmailDto,
   ) {
-    const to = (body.recipientEmail || '').trim();
+    const to = (dto.recipientEmail || '').trim();
     if (!to) {
       throw new BadRequestException('Recipient email address is required');
     }
-    const subject = body.subject?.trim() || 'V-SMART System Test Email';
-    const bodyText = body.message?.trim() || 'This is a test notification from the V-SMART system to verify automated email delivery.';
+    const subject = dto.subject?.trim() || 'V-SMART System Test Email';
+    const bodyText = dto.message?.trim() || 'This is a test notification from the V-SMART system to verify automated email delivery.';
 
     const job = await this.emailQueueService.enqueueJob({
       recipientEmail: to,

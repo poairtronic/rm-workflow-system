@@ -23,6 +23,7 @@ import { UserRole } from '../auth/enums/role.enum.js';
 import { CreateRmDto, CreateRmItemDto, SubmitRmDto } from './dto/rm.dto.js';
 import { CreateDraftRmDto, UpdateDraftRmDto } from './dto/draft-rm.dto.js';
 import { StoresReviewRmDto } from './dto/stores-review.dto.js';
+import { UpdateRmItemDto } from './dto/update-rm-item.dto.js';
 import { RmRequestStatus } from './entities/rm-request.entity.js';
 import { CreateRmDocumentDto } from './dto/create-rm-document.dto.js';
 import { AttachmentsService } from '../attachments/attachments.service.js';
@@ -186,7 +187,7 @@ export class RmController {
   updateRmItem(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('itemId', ParseUUIDPipe) itemId: string,
-    @Body() dto: any,
+    @Body() dto: UpdateRmItemDto,
     @Req() req: any,
   ) {
     return this.rmService.updateRmItem(id, itemId, dto, req.user);

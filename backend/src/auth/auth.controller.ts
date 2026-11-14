@@ -21,6 +21,8 @@ import { RefreshTokenDto, LogoutDto } from './dto/refresh-token.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
+import { UpdateProfileDto } from './dto/update-profile.dto.js';
+import { DevTokenDto } from './dto/dev-token.dto.js';
 import { PermissionsService } from '../permissions/permissions.service.js';
 
 @ApiTags('auth')
@@ -146,12 +148,12 @@ export class AuthController {
   }
 
   @Post('dev-token')
-  getDevToken(@Body() body: { role?: UserRole; userId?: string }) {
+  getDevToken(@Body() dto: DevTokenDto) {
     if (process.env.NODE_ENV === 'production') {
       throw new ForbiddenException('Dev token endpoint is strictly disabled in production');
     }
-    const targetRole = body?.role ?? UserRole.ADMIN;
-    return this.authService.createDevTestToken(targetRole, body?.userId);
+    const targetRole = dto?.role ?? UserRole.ADMIN;
+    return this.authService.createDevTestToken(targetRole, dto?.userId);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -202,7 +204,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Patch('profile')
   updateProfile(
-    @Body() dto: { name?: string; department?: string },
+    @Body() dto: UpdateProfileDto,
     @Req() req: { user: any },
   ) {
     const currentUserId = req?.user?.userId || req?.user?.sub || req?.user?.id;

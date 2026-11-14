@@ -13,6 +13,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { UserRole } from '../auth/enums/role.enum.js';
+import { CreateAuditLogDto } from './dto/create-audit-log.dto.js';
 
 @Controller('api/audit')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -72,10 +73,13 @@ export class AuditController {
 
   @Post('log')
   @Roles(UserRole.ADMIN)
-  async createLog(@Body() body: any, @Req() req: any) {
+  async createLog(@Body() dto: CreateAuditLogDto, @Req() req: any) {
     const actorId = req.user?.userId || req.user?.id;
     return await this.auditService.logEvent({
-      ...body,
+      entityName: (dto as any).entityName || dto.entity,
+      entityId: dto.entityId || '',
+      actionType: (dto as any).actionType || dto.action,
+      metadata: dto.metadata,
       actorId,
     });
   }
