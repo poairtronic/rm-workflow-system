@@ -422,6 +422,7 @@ export class MasterDataService implements OnModuleInit {
     let candidateNum = maxNum + 1;
     let candidateBarcode = `PRD-${String(candidateNum).padStart(6, '0')}`;
 
+    let attempts = 0;
     while (
       await this.productRepo.findOne({
         where: { barcode: candidateBarcode },
@@ -429,6 +430,9 @@ export class MasterDataService implements OnModuleInit {
     ) {
       candidateNum++;
       candidateBarcode = `PRD-${String(candidateNum).padStart(6, '0')}`;
+      if (++attempts > 50) {
+        throw new Error('Unable to generate unique barcode after 50 attempts — check sequence integrity');
+      }
     }
 
     return candidateBarcode;
@@ -482,6 +486,7 @@ export class MasterDataService implements OnModuleInit {
     let candidateCode = `RM-${String(candidateNum).padStart(4, '0')}`;
 
     // Ensure candidateCode doesn't already exist
+    let attempts = 0;
     while (
       await this.productRepo
         .createQueryBuilder('p')
@@ -490,6 +495,9 @@ export class MasterDataService implements OnModuleInit {
     ) {
       candidateNum++;
       candidateCode = `RM-${String(candidateNum).padStart(4, '0')}`;
+      if (++attempts > 50) {
+        throw new Error('Unable to generate unique product code after 50 attempts — check sequence integrity');
+      }
     }
 
     return candidateCode;

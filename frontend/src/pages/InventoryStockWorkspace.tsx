@@ -295,9 +295,14 @@ export function InventoryStockWorkspace() {
     });
   }, [bins, rackMap, locMap, selectedLocations, selectedWarehouses]);
 
+  const productMap = React.useMemo(
+    () => new Map(products.map((p: any) => [p.id, p])),
+    [products]
+  );
+
   const filteredBalances = React.useMemo(() => {
     return balances.filter(b => {
-      const p = products.find(prod => prod.id === b.productId);
+      const p = productMap.get(b.productId);
       
       // Search
       if (balancesSearch) {
@@ -348,7 +353,7 @@ export function InventoryStockWorkspace() {
 
       return true;
     });
-  }, [balances, balancesSearch, selectedCategories, selectedFamilies, selectedWarehouses, selectedLocations, selectedRacks, selectedBins, uomFilter, mslFilter, statusFilter, products, binMap, rackMap, locMap]);
+  }, [balances, balancesSearch, selectedCategories, selectedFamilies, selectedWarehouses, selectedLocations, selectedRacks, selectedBins, uomFilter, mslFilter, statusFilter, productMap, binMap, rackMap, locMap]);
 
 
   const handleRowClick = async (row: StockBalance) => {

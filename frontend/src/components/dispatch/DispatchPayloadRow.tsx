@@ -48,31 +48,35 @@ export function DispatchPayloadRow({
     staleTime: 60000,
   });
 
-  const scBlocks = watch('scBlocks');
-  const scId = scBlocks?.[blockIndex]?.scId;
+  const scId = watch(`scBlocks.${blockIndex}.scId`);
   const { data: scList } = useQuery({
     queryKey: ['sc'],
     queryFn: async () => unwrapList(await api.get<any[]>('/api/sc')),
   });
   const selectedSc = scList?.find((sc: any) => sc.id === scId);
 
-  const scProductIds =
-    selectedSc?.rmRequest?.items
-      ?.map(
-        (i: any) =>
-          i.mappedProductId ||
-          i.mapped_product_id ||
-          i.productId ||
-          i.product_id ||
-          i.mappedProduct?.id ||
-          i.product?.id,
-      )
-      .filter(Boolean) || [];
+  const scProductIds = useMemo(() => {
+    return (
+      selectedSc?.rmRequest?.items
+        ?.map(
+          (i: any) =>
+            i.mappedProductId ||
+            i.mapped_product_id ||
+            i.productId ||
+            i.product_id ||
+            i.mappedProduct?.id ||
+            i.product?.id,
+        )
+        .filter(Boolean) || []
+    );
+  }, [selectedSc]);
 
-  const availableProducts =
-    scId && scProductIds.length > 0
-      ? products?.filter((p: any) => scProductIds.includes(p.id)) || []
-      : products || [];
+  const availableProducts = useMemo(() => {
+    if (scId && scProductIds.length > 0) {
+      return products?.filter((p: any) => scProductIds.includes(p.id)) || [];
+    }
+    return products || [];
+  }, [scId, scProductIds, products]);
 
   const sortedProducts = useMemo(() => {
     return (availableProducts as any[]).slice().sort((a, b) => {

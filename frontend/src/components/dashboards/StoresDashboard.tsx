@@ -14,7 +14,10 @@ export const StoresDashboard: React.FC = () => {
         setLoading(false);
       }
     }).catch((err) => {
-      if (isMounted) console.error(err);
+      if (isMounted) {
+        console.error(err);
+        setLoading(false);
+      }
     });
     return () => { isMounted = false; };
   }, []);

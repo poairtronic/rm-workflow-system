@@ -39,6 +39,14 @@ export class PoController {
     return this.poService.getStatus();
   }
 
+  @Post('emergency')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.GENERAL_MANAGER)
+  async createEmergencyPO(@Body() body: any, @Req() req: any) {
+    const actorId = req.user?.userId || req.user?.id;
+    return this.poService.createEmergencyPO(body, actorId);
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Post()
   @Roles(UserRole.ADMIN, UserRole.STORES, UserRole.DESIGNER)

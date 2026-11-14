@@ -1355,7 +1355,9 @@ function AddBinSlideOver({
   useEffect(() => {
     if (isOpen) {
       masterDataService.getWarehouses({ pageSize: 100 }).then((res) => {
-        const whList = res.data.map((w) => ({ id: w.id, primary: w.name, secondary: w.code }));
+        const whList = Array.isArray(res?.data)
+          ? res.data.map((w) => ({ id: w.id, primary: w.name, secondary: w.code }))
+          : [];
         setWarehouses(whList);
 
         // Preselect warehouse if passed, or auto-select if only 1 warehouse exists
@@ -1366,6 +1368,9 @@ function AddBinSlideOver({
         } else {
           setSelectedWarehouse(undefined);
         }
+      }).catch((err) => {
+        console.error('Failed to load warehouses:', err);
+        setWarehouses([]);
       });
 
       setSelectedLocation(initialLocationId);
@@ -1383,7 +1388,9 @@ function AddBinSlideOver({
   useEffect(() => {
     if (selectedWarehouse) {
       masterDataService.getLocations({ parentId: selectedWarehouse, pageSize: 100 }).then((res) => {
-        const locList = res.data.map((l) => ({ id: l.id, primary: l.name, secondary: l.code }));
+        const locList = Array.isArray(res?.data)
+          ? res.data.map((l) => ({ id: l.id, primary: l.name, secondary: l.code }))
+          : [];
         setLocations(locList);
 
         if (initialLocationId && locList.some((l) => l.id === initialLocationId)) {
@@ -1391,6 +1398,9 @@ function AddBinSlideOver({
         } else if (locList.length === 1) {
           setSelectedLocation(locList[0].id);
         }
+      }).catch((err) => {
+        console.error('Failed to load locations:', err);
+        setLocations([]);
       });
     } else {
       setLocations([]);
@@ -1402,12 +1412,17 @@ function AddBinSlideOver({
   useEffect(() => {
     if (selectedLocation) {
       masterDataService.getRacks({ parentId: selectedLocation, pageSize: 100 }).then((res) => {
-        const rackList = res.data.map((r) => ({ id: r.id, primary: r.name, secondary: r.code }));
+        const rackList = Array.isArray(res?.data)
+          ? res.data.map((r) => ({ id: r.id, primary: r.name, secondary: r.code }))
+          : [];
         setRacks(rackList);
 
         if (initialRackId && rackList.some((r) => r.id === initialRackId)) {
           setSelectedRack(initialRackId);
         }
+      }).catch((err) => {
+        console.error('Failed to load racks:', err);
+        setRacks([]);
       });
     } else {
       setRacks([]);
