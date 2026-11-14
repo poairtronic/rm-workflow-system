@@ -319,7 +319,8 @@ export class EcrIssuesService {
     let syncedCount = 0;
     let reports: any[] = [];
     const ecrApiUrl = (process.env.ECR_API_URL || 'https://error-correction-application.onrender.com').replace(/\/+$/, '');
-    const secret = process.env.ECR_INTERNAL_SECRET || process.env.RM_INTERNAL_SECRET || 'vsmart_ecr_bridge_2026_secure';
+    const secret = process.env.ECR_INTERNAL_SECRET || process.env.RM_INTERNAL_SECRET;
+    if (!secret) throw new Error('ECR_INTERNAL_SECRET or RM_INTERNAL_SECRET environment variable is not configured');
 
     // Strategy 1: Try HTTP endpoints on ECR backend
     const candidateUrls = [
@@ -808,7 +809,8 @@ export class EcrIssuesService {
     // 6. After commit — Call ECR webhook (outside transaction, non-blocking)
     try {
       const ecrApiUrl = (process.env.ECR_API_URL || 'https://error-correction-application.onrender.com').replace(/\/+$/, '');
-      const secret = process.env.ECR_INTERNAL_SECRET || process.env.RM_INTERNAL_SECRET || 'vsmart_ecr_bridge_2026_secure';
+      const secret = process.env.ECR_INTERNAL_SECRET || process.env.RM_INTERNAL_SECRET;
+      if (!secret) throw new Error('ECR_INTERNAL_SECRET or RM_INTERNAL_SECRET environment variable is not configured');
       const totalQty = dto.items.reduce((sum, i) => sum + i.quantityIssued, 0);
 
       let webhookSuccess = false;

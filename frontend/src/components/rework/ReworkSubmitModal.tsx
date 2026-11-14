@@ -6,8 +6,6 @@ import { Button } from '../ui/Button';
 import { api } from '../../services/api';
 import type { ReworkScItem } from '../../services/workflowService';
 
-const ECR_BASE_URL = 'https://error-correction-application.onrender.com';
-
 const PROCESS_TEMPLATES: Record<string, string[]> = {
   "APG_ less than 6 dia": ["DESIGN_APG","RM_APG","OP10_TURNING","OP20_IC","OP40_50_CH","OP60_QC","OP80_HT","OP90_SZ","OP100_BLK","OP140_CG","OP150_SG_JET_RECESS","OP170_VA"],
   "APG_Vertical Bench mount _ Super Drill": ["DESIGN_APG","RM_APG","OP10_TURNING","OP20_IC","OP40_50_CH","OP60_QC","OP80_HT","OP90_SZ","OP100_BLK","OP140_CG","SUPER_DRILL","OP150_SG_JET_RECESS","OP170_VA"],
@@ -103,9 +101,9 @@ export function ReworkSubmitModal({
       }
 
       const endpoints = [
-        { key: 'components', url: `${ECR_BASE_URL}/api/master-data/components` },
-        { key: 'errorTypes', url: `${ECR_BASE_URL}/api/master-data/error-types` },
-        { key: 'operators', url: `${ECR_BASE_URL}/api/master-data/operators` },
+        { key: 'components', url: `${import.meta.env.VITE_ECR_BASE_URL}/api/master-data/components` },
+        { key: 'errorTypes', url: `${import.meta.env.VITE_ECR_BASE_URL}/api/master-data/error-types` },
+        { key: 'operators', url: `${import.meta.env.VITE_ECR_BASE_URL}/api/master-data/operators` },
       ];
 
       try {
