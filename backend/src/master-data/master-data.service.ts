@@ -770,9 +770,13 @@ export class MasterDataService implements OnModuleInit {
       }
 
       if (!candidateBarcode) {
+        let attempts = 0;
         do {
           nextNum++;
           candidateBarcode = `PRD-${String(nextNum).padStart(6, '0')}`;
+          if (++attempts > 1000) {
+            throw new Error('Unable to find available barcode in sequence after 1000 iterations — check sequence integrity');
+          }
         } while (usedBarcodes.has(candidateBarcode.toUpperCase()));
       }
 
