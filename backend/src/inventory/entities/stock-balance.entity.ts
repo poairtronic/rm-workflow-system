@@ -21,7 +21,7 @@ export class StockBalance {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'product_id', nullable: true })
+  @Column({ name: 'product_id', type: 'uuid', nullable: true })
   productId?: string;
 
   @ManyToOne(() => Product, (product) => product.stockBalances, {
@@ -31,7 +31,7 @@ export class StockBalance {
   @JoinColumn({ name: 'product_id' })
   product?: Product;
 
-  @Column({ name: 'bin_id', nullable: true })
+  @Column({ name: 'bin_id', type: 'uuid', nullable: true })
   binId?: string;
 
   @ManyToOne(() => Bin, (bin) => bin.stockBalances, {
@@ -41,7 +41,7 @@ export class StockBalance {
   @JoinColumn({ name: 'bin_id' })
   bin?: Bin;
 
-  @Column({ name: 'inventory_item_id', nullable: true, unique: true })
+  @Column({ name: 'inventory_item_id', type: 'uuid', nullable: true, unique: true })
   inventoryItemId?: string;
 
   @OneToOne('InventoryItem', (item: InventoryItem) => item.stockBalance, {
@@ -69,7 +69,7 @@ export class StockBalance {
   })
   openingBalance?: number;
 
-  @Column({ name: 'last_transaction_id', nullable: true })
+  @Column({ name: 'last_transaction_id', type: 'uuid', nullable: true })
   lastTransactionId?: string;
 
   @ManyToOne(() => StockTransaction, { nullable: true, onDelete: 'SET NULL' })

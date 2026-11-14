@@ -21,7 +21,7 @@ export class MslAlert {
   id!: string;
 
   @Index()
-  @Column({ name: 'product_id' })
+  @Column({ name: 'product_id', type: 'uuid' })
   productId!: string;
 
   @ManyToOne(() => Product, (product) => product.mslAlerts, { onDelete: 'CASCADE' })

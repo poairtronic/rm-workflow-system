@@ -16,7 +16,7 @@ export class UserNotificationPreference {
   id!: string;
 
   @Index({ unique: true })
-  @Column({ name: 'user_id', unique: true })
+  @Column({ name: 'user_id', type: 'uuid', unique: true })
   userId!: string;
 
   @OneToOne('User', { onDelete: 'CASCADE' })

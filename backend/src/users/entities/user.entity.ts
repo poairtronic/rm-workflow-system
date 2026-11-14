@@ -25,7 +25,7 @@ export class User {
   @Column({ name: 'password_hash', length: 255 })
   passwordHash!: string;
 
-  @Column({ name: 'role_id' })
+  @Column({ name: 'role_id', type: 'uuid' })
   roleId!: string;
 
   @ManyToOne('Role', (role: Role) => role.users, { onDelete: 'RESTRICT' })

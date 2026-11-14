@@ -18,7 +18,7 @@ export class WarehouseLocation {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'warehouse_id' })
+  @Column({ name: 'warehouse_id', type: 'uuid' })
   warehouseId!: string;
 
   @ManyToOne(() => Warehouse, (warehouse) => warehouse.locations, {

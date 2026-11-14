@@ -16,7 +16,7 @@ export class RefreshToken {
   id!: string;
 
   @Index('IDX_refresh_tokens_user_id')
-  @Column({ name: 'user_id' })
+  @Column({ name: 'user_id', type: 'uuid' })
   userId!: string;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })

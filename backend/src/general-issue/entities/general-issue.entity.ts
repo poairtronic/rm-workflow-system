@@ -62,7 +62,7 @@ export class GeneralIssue {
   })
   status!: GeneralIssueStatus;
 
-  @Column({ name: 'issued_by_id' })
+  @Column({ name: 'issued_by_id', type: 'uuid' })
   issuedById!: string;
 
   @ManyToOne(() => User, { onDelete: 'RESTRICT' })

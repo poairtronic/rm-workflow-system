@@ -66,7 +66,17 @@ import { MercIndentModule } from './merc-indent/merc-indent.module.js';
           url: dbUrl,
           entities: [RefreshToken, EcrMaterialPending, ...ALL_ENTITIES.filter((e) => e !== RefreshToken)],
           autoLoadEntities: true,
-          synchronize: configService.get("TYPEORM_SYNC") === "true" || (!(configService.get("NODE_ENV") === "production") && (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1"))),
+          synchronize: (() => {
+            if (process.env.NODE_ENV === 'production') return false;
+            if (process.env.TYPEORM_SYNC === 'true') {
+              console.warn('WARNING: TYPEORM_SYNC is enabled — never use in production');
+            }
+            return (
+              process.env.TYPEORM_SYNC === 'true' ||
+              dbUrl.includes('localhost') ||
+              dbUrl.includes('127.0.0.1')
+            );
+          })(),
           ssl: isSsl ? { rejectUnauthorized: false } : false,
           retryAttempts: 2,
           retryDelay: 3000,

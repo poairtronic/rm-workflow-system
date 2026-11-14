@@ -14,7 +14,7 @@ export class GeneralIssueItem {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'general_issue_id' })
+  @Column({ name: 'general_issue_id', type: 'uuid' })
   generalIssueId!: string;
 
   @ManyToOne('GeneralIssue', (issue: GeneralIssue) => issue.items, {
@@ -23,7 +23,7 @@ export class GeneralIssueItem {
   @JoinColumn({ name: 'general_issue_id' })
   generalIssue!: GeneralIssue;
 
-  @Column({ name: 'product_id' })
+  @Column({ name: 'product_id', type: 'uuid' })
   productId!: string;
 
   @ManyToOne(() => Product, { onDelete: 'RESTRICT' })

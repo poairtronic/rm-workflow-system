@@ -18,7 +18,7 @@ export class ProductFamily {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'category_id' })
+  @Column({ name: 'category_id', type: 'uuid' })
   categoryId!: string;
 
   @ManyToOne(() => ProductCategory, (category) => category.families, {

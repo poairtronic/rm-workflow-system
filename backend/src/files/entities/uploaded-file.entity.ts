@@ -34,14 +34,14 @@ export class UploadedFile {
   @Column({ name: 'is_active', default: true })
   isActive!: boolean;
 
-  @Column({ name: 'created_by_id' })
+  @Column({ name: 'created_by_id', type: 'uuid' })
   createdById!: string;
 
   @ManyToOne(() => User, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'created_by_id' })
   createdBy!: User;
 
-  @Column({ name: 'removed_by_id', nullable: true })
+  @Column({ name: 'removed_by_id', type: 'uuid', nullable: true })
   removedById?: string;
 
   @ManyToOne(() => User, { onDelete: 'RESTRICT' })

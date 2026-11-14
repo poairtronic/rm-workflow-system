@@ -43,7 +43,7 @@ export class StockTransaction {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'product_id', nullable: true })
+  @Column({ name: 'product_id', type: 'uuid', nullable: true })
   productId?: string;
 
   @ManyToOne(() => Product, (product) => product.stockTransactions, {
@@ -60,7 +60,7 @@ export class StockTransaction {
   @JoinColumn({ name: 'inventory_item_id' })
   inventoryItem?: InventoryItem;
 
-  @Column({ name: 'source_bin_id', nullable: true })
+  @Column({ name: 'source_bin_id', type: 'uuid', nullable: true })
   sourceBinId?: string;
 
   @ManyToOne(() => Bin, (bin) => bin.sourceTransactions, {
@@ -70,7 +70,7 @@ export class StockTransaction {
   @JoinColumn({ name: 'source_bin_id' })
   sourceBin?: Bin;
 
-  @Column({ name: 'destination_bin_id', nullable: true })
+  @Column({ name: 'destination_bin_id', type: 'uuid', nullable: true })
   destinationBinId?: string;
 
   @ManyToOne(() => Bin, (bin) => bin.destinationTransactions, {
@@ -125,7 +125,7 @@ export class StockTransaction {
   })
   cost?: number;
 
-  @Column({ name: 'created_by_id' })
+  @Column({ name: 'created_by_id', type: 'uuid' })
   createdById!: string;
 
   @ManyToOne(() => User, { onDelete: 'RESTRICT' })

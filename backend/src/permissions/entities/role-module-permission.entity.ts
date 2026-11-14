@@ -17,7 +17,7 @@ export class RoleModulePermission {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'role_id' })
+  @Column({ name: 'role_id', type: 'uuid' })
   roleId!: string;
 
   @ManyToOne(() => Role, { onDelete: 'CASCADE' })

@@ -43,7 +43,7 @@ export class SalesOrderComponent {
   @Column({ name: 'sc_number', length: 100 })
   scNumber!: string;
 
-  @Column({ name: 'po_id' })
+  @Column({ name: 'po_id', type: 'uuid' })
   poId!: string;
 
   @ManyToOne(() => PurchaseOrder, (po) => po.salesOrderComponents, {

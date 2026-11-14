@@ -19,7 +19,7 @@ export class Bin {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'rack_id' })
+  @Column({ name: 'rack_id', type: 'uuid' })
   rackId!: string;
 
   @ManyToOne(() => Rack, (rack) => rack.bins, {

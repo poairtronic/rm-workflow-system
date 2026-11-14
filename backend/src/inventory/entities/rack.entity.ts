@@ -18,7 +18,7 @@ export class Rack {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'location_id' })
+  @Column({ name: 'location_id', type: 'uuid' })
   locationId!: string;
 
   @ManyToOne(() => WarehouseLocation, (location) => location.racks, {
