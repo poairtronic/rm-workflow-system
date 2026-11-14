@@ -985,7 +985,7 @@ function RackBoxCard({
             </div>
             <div className="flex items-center space-x-1.5 shrink-0 ml-1">
               <span className="font-mono text-xs font-semibold px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
-                {rack.code}
+                {rack.code?.replace(/^RCK-(\d+)/, 'RACK $1').replace(/^RCK-/, 'RACK ') || rack.code}
               </span>
               {isAdmin && (
                 <button
@@ -1284,9 +1284,9 @@ function AddRackModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <FormField label="Rack Code" required hint="e.g. RCK-01 or AISLE-B">
+          <FormField label="Rack Code" required hint="e.g. RACK 0102 or AISLE-B">
             <TextInput
-              placeholder="e.g. RCK-01"
+              placeholder="e.g. RACK 0102"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               required
@@ -1295,7 +1295,7 @@ function AddRackModal({
 
           <FormField label="Rack Name" required hint="Descriptive rack or aisle label">
             <TextInput
-              placeholder="e.g. General Storage Rack 1"
+              placeholder="e.g. RACK 0102"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -1550,7 +1550,7 @@ function AddBinSlideOver({
                   <TextInput
                     value={newRackCode}
                     onChange={(e) => setNewRackCode(e.target.value.toUpperCase())}
-                    placeholder="e.g. RCK-02"
+                    placeholder="e.g. RACK 0102"
                     required
                   />
                 </FormField>
@@ -1558,7 +1558,7 @@ function AddBinSlideOver({
                   <TextInput
                     value={newRackName}
                     onChange={(e) => setNewRackName(e.target.value)}
-                    placeholder="e.g. Heavy Duty Rack"
+                    placeholder="e.g. RACK 0102"
                   />
                 </FormField>
               </div>

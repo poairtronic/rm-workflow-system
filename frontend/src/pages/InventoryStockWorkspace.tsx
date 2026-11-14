@@ -29,6 +29,20 @@ import { ExportDropdown } from '../components/common/ExportDropdown';
 import type { ExportColumn } from '../utils/exportUtils';
 const UOM_OPTIONS = ['MM', 'NOS', 'PC', 'KG', 'KGS', 'MTRS', 'LTRS', 'BOX', 'PACK', 'SET', 'ROLL'];
 
+export const cleanLocationCode = (code?: string): string => {
+  if (!code) return 'N/A';
+  if (code.startsWith('RCK-')) return code.replace(/^RCK-0*/, 'RACK ').replace(/^RCK-/, 'RACK ');
+  if (code.startsWith('BIN-RACK')) return code.replace(/^BIN-RACK0*/, 'RACK ').replace(/^BIN-RACK/, 'RACK ').replace(/-01$/, '');
+  if (code.startsWith('BIN-RCK')) return code.replace(/^BIN-RCK0*/, 'RACK ').replace(/^BIN-RCK/, 'RACK ').replace(/-01$/, '');
+  if (code.startsWith('BIN-BARAREA')) return 'BAR AREA';
+  if (code.startsWith('BIN-RODAREA')) return 'ROD AREA';
+  if (code.startsWith('BIN-BEURORACK')) return code.replace(/^BIN-BEURORACK0*/, 'BEURO RACK ').replace(/-01$/, '');
+  if (code.startsWith('BIN-BOX')) return code.replace(/^BIN-BOX0*/, 'BOX AREA ').replace(/-01$/, '');
+  if (code.startsWith('BIN-FB')) return code.replace(/^BIN-FB0*/, 'FINE BLANK AREA ').replace(/-01$/, '');
+  if (code.startsWith('BIN-NONE')) return 'MISC STORAGE (BALLS)';
+  return code;
+};
+
 export function getStockMslStatus(
   currentQuantity: number,
   msl: number | null | undefined
@@ -393,7 +407,7 @@ export function InventoryStockWorkspace() {
         }
         return (
           <div className="flex flex-col gap-0.5">
-            <span className="font-mono text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-700 w-fit">{primaryLabel}</span>
+            <span className="font-mono text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-700 w-fit">{cleanLocationCode(primaryLabel)}</span>
             {locLabel && <span className="text-[10px] text-slate-400 font-medium">{locLabel}</span>}
           </div>
         );
@@ -479,9 +493,9 @@ export function InventoryStockWorkspace() {
     { key: 'createdAt', header: 'Date', render: (r) => new Date(r.createdAt).toLocaleString() },
     { key: 'product', header: 'Product', render: (r) => r.product?.name || 'N/A' },
     { key: 'bin', header: 'Bin', render: (r) => {
-        if (r.sourceBin && r.destinationBin) return `${r.sourceBin.code} → ${r.destinationBin.code}`;
-        if (r.sourceBin) return r.sourceBin.code;
-        if (r.destinationBin) return r.destinationBin.code;
+        if (r.sourceBin && r.destinationBin) return `${cleanLocationCode(r.sourceBin.code)} → ${cleanLocationCode(r.destinationBin.code)}`;
+        if (r.sourceBin) return cleanLocationCode(r.sourceBin.code);
+        if (r.destinationBin) return cleanLocationCode(r.destinationBin.code);
         return 'N/A';
     }},
     { key: 'transactionType', header: 'Type', render: (r) => <StatusBadge status={r.transactionType} /> },
@@ -522,7 +536,8 @@ export function InventoryStockWorkspace() {
             }
           }
         }
-        return locLabel ? `${primaryLabel} (${locLabel})` : primaryLabel;
+        const cleaned = cleanLocationCode(primaryLabel);
+        return locLabel ? `${cleaned} (${locLabel})` : cleaned;
       },
     },
     { header: 'Warehouse', accessor: (r) => r.warehouseName || 'N/A' },
@@ -551,9 +566,9 @@ export function InventoryStockWorkspace() {
     {
       header: 'Bin',
       accessor: (r) => {
-        if (r.sourceBin && r.destinationBin) return `${r.sourceBin.code} → ${r.destinationBin.code}`;
-        if (r.sourceBin) return r.sourceBin.code;
-        if (r.destinationBin) return r.destinationBin.code;
+        if (r.sourceBin && r.destinationBin) return `${cleanLocationCode(r.sourceBin.code)} → ${cleanLocationCode(r.destinationBin.code)}`;
+        if (r.sourceBin) return cleanLocationCode(r.sourceBin.code);
+        if (r.destinationBin) return cleanLocationCode(r.destinationBin.code);
         return 'N/A';
       },
     },
