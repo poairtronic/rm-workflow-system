@@ -182,43 +182,9 @@ export function DcTypeSpl() {
         setPoNumber(data.poNumber);
       }
 
-      // Auto-populate items from MERC line items with product lock awareness
-      const initialItems: SplDcItem[] = (data.lineItems || []).map((line) => {
-        const lock = line.lock;
-        const itemCap = lock?.cap ?? lock?.baseline ?? null;
-        const hasPriorDispatch = Boolean(lock && itemCap !== null);
-        const isLockedOut = Boolean(hasPriorDispatch && (lock?.available ?? 0) <= 0);
-        const hasPartialLock = Boolean(
-          hasPriorDispatch &&
-            lock &&
-            itemCap !== null &&
-            lock.available > 0 &&
-            lock.available < itemCap,
-        );
-
-        let defaultQty = line.quantityRequired > 0 ? Number(line.quantityRequired) : 1;
-        if (isLockedOut) {
-          defaultQty = 0;
-        } else if (hasPartialLock && lock && defaultQty > lock.available) {
-          defaultQty = lock.available;
-        }
-
-        return {
-          poPartLabel: line.poPartLabel || `${data.poNumber} - ${line.name}`,
-          mercItemId: line.mercItemId,
-          partNo: line.name || '',
-          dispatchedQty: defaultQty,
-          batchNo: '',
-          description: [line.material, line.shape].filter(Boolean).join(' ') || '',
-          isExtraItem: false,
-          itemType: line.itemType,
-          lock: line.lock,
-          isSelected: !isLockedOut,
-        };
-      });
-
-      setItems(initialItems);
-      toast.success(`Loaded ${initialItems.length} line item(s) from MERC PO ${data.poNumber}`);
+      // PO items start empty so the user can select individual products from the dropdown
+      setItems([]);
+      toast.success(`Loaded PO ${data.poNumber} (${data.lineItems?.length || 0} product(s) available)`);
     } catch (err: any) {
       setPoData(null);
       setItems([]);
@@ -227,6 +193,89 @@ export function DcTypeSpl() {
     } finally {
       setLoadingPo(false);
     }
+  };
+
+  // PO line items that have not yet been added to the dispatch list
+  const availablePoLineItems = useMemo(() => {
+    if (!poData?.lineItems) return [];
+    const addedMercItemIds = new Set(
+      items
+        .filter((i) => !i.isExtraItem && i.mercItemId)
+        .map((i) => i.mercItemId)
+    );
+    return poData.lineItems.filter((line) => !addedMercItemIds.has(line.mercItemId));
+  }, [poData?.lineItems, items]);
+
+  // Options for PO product dropdown SearchSelect
+  const poProductOptions = useMemo(() => {
+    if (!poData?.lineItems) return [];
+    return availablePoLineItems.map((line) => {
+      const lock = line.lock;
+      const itemCap = lock?.cap ?? lock?.baseline ?? null;
+      const isLockedOut = Boolean(lock && itemCap !== null && (lock?.available ?? 0) <= 0);
+      const hasPartialLock = Boolean(
+        lock && itemCap !== null && lock.available > 0 && lock.available < itemCap
+      );
+
+      const typeLabel = line.itemType === 'RAW_MATERIAL' ? 'RAW MATERIAL' : 'BOUGHT OUT';
+      const desc = [line.material, line.shape].filter(Boolean).join(' ');
+      const qtyLabel = `Req Qty: ${line.quantityRequired ?? 1}`;
+
+      let lockNote = '';
+      if (isLockedOut) {
+        lockNote = ' • ⚠️ LOCKED (Out on DC)';
+      } else if (hasPartialLock && lock) {
+        lockNote = ` • ⚠️ ${lock.available} of ${itemCap} Avail`;
+      }
+
+      return {
+        id: line.mercItemId,
+        primary: line.poPartLabel || `${poData.poNumber} - ${line.name}`,
+        secondary: `[${typeLabel}] ${qtyLabel}${desc ? ` • ${desc}` : ''}${lockNote}`,
+      };
+    });
+  }, [poData, availablePoLineItems]);
+
+  // Add a product from the MERC PO line items
+  const handleAddPoItem = (mercItemId: string) => {
+    if (!poData?.lineItems) return;
+    const line = poData.lineItems.find((l) => l.mercItemId === mercItemId);
+    if (!line) return;
+
+    const lock = line.lock;
+    const itemCap = lock?.cap ?? lock?.baseline ?? null;
+    const hasPriorDispatch = Boolean(lock && itemCap !== null);
+    const isLockedOut = Boolean(hasPriorDispatch && (lock?.available ?? 0) <= 0);
+    const hasPartialLock = Boolean(
+      hasPriorDispatch &&
+        lock &&
+        itemCap !== null &&
+        lock.available > 0 &&
+        lock.available < itemCap,
+    );
+
+    let defaultQty = line.quantityRequired > 0 ? Number(line.quantityRequired) : 1;
+    if (isLockedOut) {
+      defaultQty = 0;
+    } else if (hasPartialLock && lock && defaultQty > lock.available) {
+      defaultQty = lock.available;
+    }
+
+    const newItem: SplDcItem = {
+      poPartLabel: line.poPartLabel || `${poData.poNumber} - ${line.name}`,
+      mercItemId: line.mercItemId,
+      partNo: line.name || '',
+      dispatchedQty: defaultQty,
+      batchNo: '',
+      description: [line.material, line.shape].filter(Boolean).join(' ') || '',
+      isExtraItem: false,
+      itemType: line.itemType,
+      lock: line.lock,
+      isSelected: !isLockedOut,
+    };
+
+    setItems((prev) => [...prev, newItem]);
+    toast.success(`Added ${newItem.poPartLabel}`);
   };
 
   const handleSelectPo = (item: any) => {
@@ -649,9 +698,15 @@ export function DcTypeSpl() {
               </div>
               <div>
                 <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold block">
-                  PO Items Loaded
+                  PO Products Available
                 </span>
-                <span className="font-semibold text-blue-700">{items.length}</span>
+                <span className="font-semibold text-blue-700">{poData.lineItems?.length ?? 0}</span>
+              </div>
+              <div>
+                <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold block">
+                  Selected For Dispatch
+                </span>
+                <span className="font-semibold text-emerald-700">{items.length}</span>
               </div>
             </div>
           )}
@@ -704,30 +759,84 @@ export function DcTypeSpl() {
           </div>
 
           {/* Items Payload List */}
-          <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-4 mt-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-200">
+          <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-4 mt-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200">
               <div>
                 <h3 className="text-sm font-bold text-slate-800">Items Payload</h3>
                 <p className="text-xs text-slate-500">
-                  Specify the MERC PO items and extra stock parts being dispatched to the vendor.
+                  Select products from the PO or add extra stock parts to dispatch.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowStockPicker(true)}
-                disabled={!poData}
-                title={!poData ? 'Please fetch a PO first to enable extra stock items' : ''}
-                className="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 transition-colors shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <Plus className="w-4 h-4 text-primary" />
-                + Add Item from Stock
-              </button>
+              {poData && (
+                <div className="text-xs font-medium text-slate-600 bg-white px-3 py-1 rounded-md border border-slate-200 shadow-2xs">
+                  <span>Selected: <strong className="text-blue-600">{items.length}</strong></span>
+                  <span className="mx-2 text-slate-300">|</span>
+                  <span>Available in PO: <strong className="text-slate-800">{availablePoLineItems.length}</strong></span>
+                </div>
+              )}
+            </div>
+
+            {/* Product Selection Controls: PO Products Dropdown & Add Item from Stock Button */}
+            <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-2xs">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
+                <div className="flex-1 min-w-0">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Select Product from PO {poData?.poNumber ? `(${poData.poNumber})` : ''}
+                  </label>
+                  <SearchSelect
+                    value=""
+                    onChange={(selectedId) => handleAddPoItem(selectedId)}
+                    disabled={!poData || availablePoLineItems.length === 0}
+                    placeholder={
+                      !poData
+                        ? 'Fetch a PO order first to select products...'
+                        : availablePoLineItems.length === 0
+                        ? `All ${poData.lineItems?.length || 0} PO products added`
+                        : `Choose product to dispatch (${availablePoLineItems.length} available)...`
+                    }
+                    searchPlaceholder="Search product by name, material, or part #..."
+                    options={poProductOptions}
+                  />
+                </div>
+
+                <div className="shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowStockPicker(true)}
+                    disabled={!poData}
+                    title={!poData ? 'Please fetch a PO first to enable extra stock items' : ''}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 h-11 sm:h-9 px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-xl sm:rounded-lg hover:bg-slate-50 hover:border-slate-400 transition-colors shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4 text-primary" />
+                    + Add Item from Stock
+                  </button>
+                </div>
+              </div>
+              {!poData && (
+                <p className="mt-2 text-[11px] text-slate-400 italic">
+                  * Enter a PO number above and click &quot;Fetch Items&quot; to load products into the dropdown.
+                </p>
+              )}
             </div>
 
             {items.length === 0 ? (
-              <div className="text-center py-12 text-slate-500 text-sm bg-white rounded-lg border border-dashed border-slate-200">
+              <div className="text-center py-10 text-slate-500 text-sm bg-white rounded-lg border border-dashed border-slate-200">
                 <Boxes className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                No items added yet. Enter a PO Number above and click <strong>Fetch Items</strong>.
+                {poData ? (
+                  <>
+                    <p className="font-medium text-slate-700">No products selected for dispatch yet.</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Select a product from the dropdown above or click <strong>+ Add Item from Stock</strong>.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium text-slate-700">No items added yet.</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Enter a PO Number above and click <strong>Fetch Items</strong>.
+                    </p>
+                  </>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
