@@ -154,12 +154,6 @@ export function DcTypeSpl() {
           return;
         }
       }
-      // If expectedReturnDate is not set yet, set default 7 days SLA
-      if (!expectedReturnDate) {
-        const date = new Date();
-        date.setDate(date.getDate() + 7);
-        setExpectedReturnDate(date.toISOString().split('T')[0]);
-      }
     }
   }, [vendorId, targetProcess, slaList]);
 
@@ -527,6 +521,11 @@ export function DcTypeSpl() {
                 value={vendorId}
                 onChange={(val) => {
                   setVendorId(val);
+                  if (val && !expectedReturnDate) {
+                    const date = new Date();
+                    date.setDate(date.getDate() + 7);
+                    setExpectedReturnDate(date.toISOString().split('T')[0]);
+                  }
                   const vendorSlas = (slaList as any[])?.filter((s: any) => s.vendorId === val) || [];
                   if (vendorSlas.length === 1 && !targetProcess) {
                     setTargetProcess(vendorSlas[0].processId);
@@ -740,6 +739,11 @@ export function DcTypeSpl() {
                 value={targetProcess}
                 onChange={(e) => {
                   setTargetProcess(e.target.value);
+                  if (e.target.value && !expectedReturnDate) {
+                    const date = new Date();
+                    date.setDate(date.getDate() + 7);
+                    setExpectedReturnDate(date.toISOString().split('T')[0]);
+                  }
                   const selected = (processList as any[])?.find((p: any) => p.id === e.target.value);
                   if (selected && !processName.trim()) {
                     setProcessName(selected.name);

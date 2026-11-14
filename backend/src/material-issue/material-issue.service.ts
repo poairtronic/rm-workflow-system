@@ -251,6 +251,7 @@ export class MaterialIssueService {
           const balances = await queryRunner.manager.find(StockBalance, {
             where: { productId: effectiveProductId },
             order: { currentQuantity: 'DESC' },
+            lock: { mode: 'pessimistic_write' },
           });
 
           for (const b of balances) {

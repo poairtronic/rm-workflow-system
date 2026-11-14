@@ -54,7 +54,7 @@ export function ExportDropdown<T>({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     setIsOpen(false);
     if (!data || data.length === 0) {
       toast.error('No records available to export.');
@@ -62,7 +62,7 @@ export function ExportDropdown<T>({
     }
     try {
       toast.loading('Generating Excel spreadsheet...', { id: 'export-xlsx' });
-      exportToExcel({
+      await exportToExcel({
         data,
         columns,
         fileName,

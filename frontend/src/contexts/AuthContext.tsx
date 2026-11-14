@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../services/api';
@@ -32,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('rm_access_token'));
   const [isLoading, setIsLoading] = useState(true);
+  const lastAuthCheckRef = useRef<number>(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -80,6 +81,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener('auth:unauthorized', handleUnauthorized);
 
     const handleFocusOrVisible = () => {
+      const now = Date.now();
+      if (now - lastAuthCheckRef.current < 2000) return;
+      lastAuthCheckRef.current = now;
+
       if (localStorage.getItem('rm_access_token')) {
         authApi.getMe().then((res) => {
           if (res?.user) setCurrentUser(res.user);

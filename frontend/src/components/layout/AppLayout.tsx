@@ -42,11 +42,15 @@ export function AppLayout() {
 
   return (
     <div className="min-h-[100dvh] bg-[#F8FAFC] dark:bg-[#090a10] text-slate-900 dark:text-slate-100 overflow-x-hidden flex flex-col">
-      <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
-      <TopBar
-        onOpenScanner={() => { setScannedBarcode(''); setIsScannerOpen(true); }}
-        onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
-      />
+      <ErrorBoundary>
+        <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
+      </ErrorBoundary>
+      <ErrorBoundary>
+        <TopBar
+          onOpenScanner={() => { setScannedBarcode(''); setIsScannerOpen(true); }}
+          onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
+        />
+      </ErrorBoundary>
       <main className="md:ml-[260px] ml-0 mt-16 p-3 sm:p-4 md:p-6 pb-20 md:pb-8 app-main-content bg-[#F8FAFC] dark:bg-[#090a10] min-h-[calc(100dvh-64px)] max-w-full md:max-w-[calc(100vw-260px)] flex-1 overflow-x-hidden">
         <ErrorBoundary>
           <Suspense fallback={<RouteLoadingSkeleton />}>
@@ -59,14 +63,16 @@ export function AppLayout() {
       <BottomNav />
 
       {/* Global Hardware Barcode Scanner Interface */}
-      <BarcodeScannerModal
-        isOpen={isScannerOpen}
-        initialBarcode={scannedBarcode}
-        onClose={() => {
-          setIsScannerOpen(false);
-          setScannedBarcode('');
-        }}
-      />
+      <ErrorBoundary>
+        <BarcodeScannerModal
+          isOpen={isScannerOpen}
+          initialBarcode={scannedBarcode}
+          onClose={() => {
+            setIsScannerOpen(false);
+            setScannedBarcode('');
+          }}
+        />
+      </ErrorBoundary>
     </div>
   );
 }

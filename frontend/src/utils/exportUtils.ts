@@ -1,5 +1,3 @@
-import * as XLSX from 'xlsx';
-
 export interface ExportColumn<T> {
   header: string;
   key?: keyof T;
@@ -28,7 +26,7 @@ function getCellValue<T>(item: T, col: ExportColumn<T>): string | number {
 /**
  * Exports data to an Excel (.xlsx) file
  */
-export function exportToExcel<T>({
+export async function exportToExcel<T>({
   data,
   columns,
   fileName = 'v_smart_export',
@@ -42,6 +40,8 @@ export function exportToExcel<T>({
   if (!data || data.length === 0) {
     throw new Error('No data available to export.');
   }
+
+  const XLSX = await import('xlsx');
 
   // Build row objects for XLSX
   const rows = data.map((item) => {
