@@ -472,7 +472,11 @@ export const BarcodeLabelModal: React.FC<BarcodeLabelModalProps> = ({
                     min={1}
                     max={100}
                     value={copies}
-                    onChange={(e) => setCopies(Math.max(1, parseInt(e.target.value) || 1))}
+                    onChange={(e) => {
+                      const parsed = parseInt(e.target.value, 10);
+                      const value = isNaN(parsed) ? 1 : parsed;
+                      setCopies(Math.max(1, value));
+                    }}
                     className="w-full h-9 px-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0e111f] text-sm text-slate-900 dark:text-white"
                   />
                   <Copy className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-3 pointer-events-none" />

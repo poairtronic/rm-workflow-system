@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import type { AuthUser } from '../../types/auth';
 import { AuthService } from '../../services/auth.service';
 
@@ -20,8 +20,14 @@ const USER_KEY = 'rm_auth_user';
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() => {
-    const savedUser = localStorage.getItem(USER_KEY);
-    return savedUser ? JSON.parse(savedUser) : null;
+    let storedUser = null;
+    try {
+      const raw = localStorage.getItem('rm_auth_user');
+      if (raw) storedUser = JSON.parse(raw);
+    } catch {
+      localStorage.removeItem('rm_auth_user');
+    }
+    return storedUser;
   });
   const [token, setToken] = useState<string | null>(() => {
     return localStorage.getItem(TOKEN_KEY);
@@ -29,13 +35,13 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setToken(null);
     setUser(null);
     setError(null);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
-  };
+  }, []);
 
   // Restore profile or validate token on initial mount
   useEffect(() => {
@@ -53,9 +59,9 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
           logout();
         });
     }
-  }, []);
+  }, [logout]);
 
-  const login = async (email: string, pass: string) => {
+  const login = useCallback(async (email: string, pass: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -71,24 +77,23 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const clearError = () => setError(null);
+  const clearError = useCallback(() => setError(null), []);
 
+  const contextValue = useMemo(() => ({
+    user,
+    token,
+    isAuthenticated: Boolean(token),
+    loading,
+    error,
+    login,
+    logout,
+    clearError,
+  }), [user, token, loading, error, login, logout, clearError]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        isAuthenticated: Boolean(token),
-        loading,
-        error,
-        login,
-        logout,
-        clearError,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

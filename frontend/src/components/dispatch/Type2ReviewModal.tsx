@@ -68,7 +68,7 @@ export function Type2ReviewModal({ isOpen, onClose, onSubmit, isSubmitting }: Ty
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {items.map((item, idx) => (
-                  <tr key={idx}>
+                  <tr key={item.productId || `${item.materialCode}-${item.sourceBinId}` || idx}>
                     <td className="px-4 py-2 font-medium text-slate-900">{item.materialCode}</td>
                     <td className="px-4 py-2 text-slate-600">{item.sourceBinId}</td>
                     <td className="px-4 py-2 text-right tabular-nums font-medium">{item.quantity} {item.uom}</td>

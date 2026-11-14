@@ -13,7 +13,7 @@ export class DashboardsController {
   @Get('designer')
   @Roles(UserRole.DESIGNER, UserRole.ADMIN)
   async getDesignerDashboard(@Req() req: any) {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     return this.dashboardsService.getDesignerDashboard(userId);
   }
 

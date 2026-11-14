@@ -79,7 +79,7 @@ export function DcLockModal({
 
             return (
               <div
-                key={index}
+                key={`${conflict.productLabel}-${conflict.scNumber || conflict.poNumber || index}`}
                 className="p-4 rounded-xl border border-rose-200 bg-rose-50/30 space-y-3 shadow-2xs"
               >
                 {/* Product Name & Scope Tags */}

@@ -312,7 +312,7 @@ export function Type2DispatchView() {
                           const partNo = item.partNumber || `DC2-${String(idx + 1).padStart(3, '0')}`;
                           const partName = item.partName || prod?.name || '—';
                           return (
-                            <tr key={idx} className="hover:bg-slate-50/50">
+                            <tr key={item.id || item.productId || `item-${idx}`} className="hover:bg-slate-50/50">
                               <td className="px-4 py-2.5 font-mono font-bold text-blue-700 text-xs">{partNo}</td>
                               <td className="px-4 py-2.5 font-bold text-slate-900">{partName}</td>
                               <td className="px-4 py-2.5 text-xs text-slate-600">

@@ -162,12 +162,14 @@ export function EmailCommunicationWorkspace() {
   const failedJobs = metrics?.failed || 0;
 
   // Operational Health: Real-time status from backend metrics or latest log status
-  const lastSuccessTime = metrics?.lastSuccessfulSend?.timestamp ? new Date(metrics.lastSuccessfulSend.timestamp).getTime() : 0;
-  const lastFailureTime = metrics?.lastFailure?.timestamp ? new Date(metrics.lastFailure.timestamp).getTime() : 0;
+  const lastSuccessTime = metrics?.lastSuccessfulSend?.timestamp;
+  const lastFailureTime = metrics?.lastFailure?.timestamp;
+  const successMs = lastSuccessTime ? new Date(lastSuccessTime).getTime() : 0;
+  const failureMs = lastFailureTime ? new Date(lastFailureTime).getTime() : 0;
   const latestLogSent = logs && logs.length > 0 && logs[0].status === 'SENT';
   const isHealthy = metrics?.systemHealth
     ? metrics.systemHealth === 'HEALTHY'
-    : (latestLogSent || (lastSuccessTime > 0 && lastSuccessTime >= lastFailureTime) || failedJobs === 0);
+    : (latestLogSent || (successMs > 0 && successMs >= failureMs) || failedJobs === 0);
 
   // Recent success rate (based on current operational window)
   const recentLogs = logs.slice(0, 20);

@@ -47,8 +47,8 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
         return;
       }
 
-      const secret =
-        this.configService.get<string>('JWT_SECRET') || 'your_development_secret';
+      const secret = this.configService.get<string>('JWT_SECRET');
+      if (!secret) throw new Error('JWT_SECRET environment variable is not configured');
       const payload = this.jwtService.verify(token, { secret });
 
       const userId = payload.sub || payload.id || payload.userId;

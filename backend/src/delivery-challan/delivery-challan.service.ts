@@ -1633,6 +1633,12 @@ export class DeliveryChallanService {
                 });
                 await queryRunner.manager.save(stockTx);
               }
+
+              if (remainingToDeduct > 0) {
+                throw new BadRequestException(
+                  `Insufficient stock for extra item — available stock is less than requested dispatch quantity`
+                );
+              }
             }
           }
         }
@@ -2716,6 +2722,12 @@ export class DeliveryChallanService {
 
     if (item.reworkStatus === ReworkItemStatus.RE_DISPATCHED) {
       throw new BadRequestException(`Rework item ${reworkId} is already re-dispatched under DC ${item.reworkDcNumber}`);
+    }
+
+    if (item.reworkStatus !== ReworkItemStatus.MARKED_OKAY) {
+      throw new BadRequestException(
+        'Item must be marked okay by QC before it can be re-dispatched'
+      );
     }
 
     const queryRunner = this.dataSource.createQueryRunner();

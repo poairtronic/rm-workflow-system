@@ -8,7 +8,7 @@ interface Props {
 }
 
 export function DeficitProgressBar({ currentStock, mslThreshold, unit, severity }: Props) {
-  const percentage = Math.min(Math.max((currentStock / mslThreshold) * 100, 0), 100);
+  const percentage = Math.min(Math.max((currentStock != null && mslThreshold > 0 ? (currentStock / mslThreshold) * 100 : 0), 0), 100);
   const deficit = mslThreshold - currentStock;
 
   const isCritical = severity === 'CRITICAL';
@@ -18,7 +18,7 @@ export function DeficitProgressBar({ currentStock, mslThreshold, unit, severity 
   return (
     <div className="flex flex-col gap-1 w-full max-w-[200px]">
       <div className="flex justify-between items-center text-[12px] font-medium tabular-nums">
-        <span className="text-slate-500">{currentStock.toFixed(1)} {unit}</span>
+        <span className="text-slate-500">{(currentStock != null ? currentStock.toFixed(1) : '0.0')} {unit}</span>
         <span className={textColor}>
           -{deficit.toFixed(1)} {unit}
         </span>

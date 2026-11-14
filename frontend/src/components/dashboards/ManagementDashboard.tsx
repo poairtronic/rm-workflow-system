@@ -7,10 +7,16 @@ export const ManagementDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
     dashboardsApi.getManagement().then((res: any) => {
-      setData(res);
-      setLoading(false);
-    }).catch(console.error);
+      if (isMounted) {
+        setData(res);
+        setLoading(false);
+      }
+    }).catch((err) => {
+      if (isMounted) console.error(err);
+    });
+    return () => { isMounted = false; };
   }, []);
 
   if (loading) return <div>Loading management metrics...</div>;

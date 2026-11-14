@@ -40,10 +40,8 @@ export class UsersService {
       throw new BadRequestException(`Role ${createUserDto.role} not found`);
     }
 
-    const rawPassword =
-      createUserDto.password ||
-      process.env.SEED_DEFAULT_PASSWORD ||
-      'airtronic123A@';
+    const rawPassword = createUserDto.password || process.env.SEED_DEFAULT_PASSWORD;
+    if (!rawPassword) throw new Error('SEED_DEFAULT_PASSWORD environment variable is not configured');
     const passwordHash = await bcrypt.hash(rawPassword, 10);
 
     const user = this.userRepository.create({
@@ -267,8 +265,8 @@ export class UsersService {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    const passwordToSet =
-      newPassword || process.env.SEED_DEFAULT_PASSWORD || 'airtronic123A@';
+    const passwordToSet = newPassword || process.env.SEED_DEFAULT_PASSWORD;
+    if (!passwordToSet) throw new Error('SEED_DEFAULT_PASSWORD environment variable is not configured');
     user.passwordHash = await bcrypt.hash(passwordToSet, 10);
     await this.userRepository.save(user);
 

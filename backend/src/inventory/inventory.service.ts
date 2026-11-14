@@ -701,25 +701,28 @@ export class InventoryService {
       // 3. Update stock balance atomically
       const { transactionType, quantity } = createTxDto;
 
-      let mathOperator = '';
       if (transactionType === TransactionType.STOCK_IN) {
-        mathOperator = '+';
-      } else if (transactionType === TransactionType.STOCK_OUT) {
-        mathOperator = '-';
-      } else if (transactionType === TransactionType.ADJUSTMENT) {
-        throw new BadRequestException(
-          'ADJUSTMENT transaction type logic needs explicit delta specification',
-        );
-      }
-
-      if (mathOperator) {
         await queryRunner.manager.query(
           `UPDATE stock_balances 
-           SET current_quantity = current_quantity ${mathOperator} $1, 
+           SET current_quantity = current_quantity + $1, 
                last_transaction_id = $2, 
                updated_at = NOW() 
            WHERE inventory_item_id = $3`,
           [quantity, savedTx.id, inventoryItemId],
+        );
+      } else if (transactionType === TransactionType.STOCK_OUT) {
+        const updateResult = await queryRunner.query(
+          `UPDATE stock_balances 
+           SET current_quantity = current_quantity - $1, updated_at = NOW()
+           WHERE inventory_item_id = $2 AND current_quantity >= $1`,
+          [quantity, inventoryItemId],
+        );
+        if (updateResult[1] === 0) {
+          throw new BadRequestException('Insufficient stock — stock-out quantity exceeds available balance');
+        }
+      } else if (transactionType === TransactionType.ADJUSTMENT) {
+        throw new BadRequestException(
+          'ADJUSTMENT transaction type logic needs explicit delta specification',
         );
       }
 

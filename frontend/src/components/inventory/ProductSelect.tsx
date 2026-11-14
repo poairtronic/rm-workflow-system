@@ -49,7 +49,7 @@ export function ProductSelect({ value, onChange, error, className, disabled, pla
         })
         .catch(() => {});
     }
-  }, [value, products]);
+  }, [value, products, selectedProduct]);
 
   const options = products.map((p) => ({
     id: p.id,

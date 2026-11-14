@@ -84,7 +84,7 @@ async function bootstrap() {
     app.enableCors({
       origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
         // Allow requests with no origin (like mobile apps, curl, or server-to-server) or matching origins / *.onrender.com
-        if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.onrender.com')) {
+        if (!origin || allowedOrigins.includes(origin)) {
           callback(null, true);
         } else {
           callback(null, false);

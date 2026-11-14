@@ -1134,11 +1134,9 @@ export class MercIndentService implements OnModuleInit {
    * Helper to resolve the shared internal secret for MERC communication.
    */
   getMercSecret(): string {
-    return (
-      process.env.MERC_INTERNAL_SECRET ||
-      process.env.RM_INTERNAL_SECRET ||
-      'vsmart_merc_bridge_2026_secure'
-    );
+    const secret = process.env.MERC_INTERNAL_SECRET || process.env.RM_INTERNAL_SECRET;
+    if (!secret) throw new Error('MERC_INTERNAL_SECRET or RM_INTERNAL_SECRET environment variable is not configured');
+    return secret;
   }
 
   /**

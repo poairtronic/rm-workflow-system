@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../services/api';
@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [navigate]); // exclude location.pathname to avoid re-running
 
-  const login = async (credentials: any): Promise<User | null> => {
+  const login = useCallback(async (credentials: any): Promise<User | null> => {
     try {
       const response = await authApi.login(credentials);
       
@@ -121,9 +121,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       throw err;
     }
-  };
+  }, []);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     try {
       const res = await authApi.getMe();
       if (res?.user) {
@@ -132,9 +132,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // ignore
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     const refreshToken = localStorage.getItem('rm_refresh_token');
     try {
       if (refreshToken) {
@@ -149,7 +149,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(null);
       navigate('/login');
     }
-  };
+  }, [navigate]);
+
+  const contextValue = useMemo(() => ({
+    currentUser,
+    token,
+    isAuthenticated: !!currentUser,
+    login,
+    logout,
+    isLoading,
+    refreshUser,
+  }), [currentUser, token, login, logout, isLoading, refreshUser]);
 
   if (isLoading) {
     return (
@@ -160,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ currentUser, token, isAuthenticated: !!currentUser, login, logout, isLoading, refreshUser }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
