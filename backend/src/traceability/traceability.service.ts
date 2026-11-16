@@ -2445,72 +2445,177 @@ export class TraceabilityService {
       order: { name: 'ASC' },
     });
 
-    const allDcs = await this.deliveryChallanRepo.find({
-      relations: { vendor: true, process: true, items: true },
-    });
+    // 1. DC Performance, Custody, and SLA Evaluation per vendor and globally
+    const dcStatsQuery = `
+      WITH dc_item_agg AS (
+        SELECT
+          challan_id,
+          COALESCE(SUM(GREATEST(0, COALESCE(quantity_dispatched, 0) - COALESCE(quantity_returned, 0))), 0) AS balance_qty,
+          COALESCE(SUM(COALESCE(qc_rejected_qty, 0)), 0) AS item_qc_rejected_qty
+        FROM delivery_challan_items
+        GROUP BY challan_id
+      ),
+      dc_rework_agg AS (
+        SELECT
+          source_dc_id,
+          COALESCE(SUM(COALESCE(rejected_qty, 0)), 0) AS rework_rejected_qty
+        FROM dc_rework_items
+        GROUP BY source_dc_id
+      ),
+      dc_enriched AS (
+        SELECT
+          dc.id,
+          dc.vendor_id,
+          dc.status,
+          dc.dispatch_date,
+          dc.expected_return_date,
+          dc.actual_return_date,
+          dc.process_id,
+          COALESCE(dia.balance_qty, 0) AS balance_qty,
+          CASE WHEN COALESCE(dra.rework_rejected_qty, 0) > 0 OR COALESCE(dia.item_qc_rejected_qty, 0) > 0 THEN 1 ELSE 0 END AS has_rework,
+          CASE WHEN dc.status IN ('CLOSED', 'RETURNED') THEN 1 ELSE 0 END AS is_closed,
+          CASE WHEN dc.status NOT IN ('CLOSED', 'RETURNED') AND dc.expected_return_date IS NOT NULL AND dc.expected_return_date < NOW() THEN 1 ELSE 0 END AS is_overdue,
+          CASE
+            WHEN dc.status IN ('CLOSED', 'RETURNED') AND dc.actual_return_date IS NOT NULL AND dc.dispatch_date IS NOT NULL THEN
+              ROUND(GREATEST(0, (EXTRACT(EPOCH FROM (dc.actual_return_date - dc.dispatch_date)) / 86400.0))::numeric, 3)
+            ELSE NULL
+          END AS actual_time_taken,
+          vs.sla_days
+        FROM delivery_challans dc
+        LEFT JOIN dc_item_agg dia ON dia.challan_id = dc.id
+        LEFT JOIN dc_rework_agg dra ON dra.source_dc_id = dc.id
+        LEFT JOIN vendor_slas vs ON vs.vendor_id = dc.vendor_id AND vs.process_id = dc.process_id AND vs.is_active = true
+      ),
+      dc_evaluated AS (
+        SELECT
+          e.*,
+          CASE
+            WHEN e.is_closed = 1 THEN 1
+            WHEN e.is_overdue = 1 OR e.has_rework = 1 THEN 1
+            ELSE 0
+          END AS is_evaluated,
+          CASE
+            WHEN e.is_closed = 1 THEN
+              CASE
+                WHEN e.has_rework = 1 THEN 1
+                WHEN e.expected_return_date IS NOT NULL AND e.actual_return_date IS NOT NULL AND e.actual_return_date > e.expected_return_date THEN 1
+                WHEN e.expected_return_date IS NULL AND e.sla_days IS NOT NULL AND e.actual_time_taken IS NOT NULL AND e.actual_time_taken > e.sla_days THEN 1
+                ELSE 0
+              END
+            WHEN e.is_overdue = 1 OR e.has_rework = 1 THEN 1
+            ELSE 0
+          END AS is_breached
+        FROM dc_enriched e
+      )
+      SELECT
+        vendor_id,
+        COUNT(id) AS total_dcs,
+        SUM(CASE WHEN is_closed = 0 THEN 1 ELSE 0 END) AS open_dcs,
+        SUM(CASE WHEN is_closed = 1 THEN 1 ELSE 0 END) AS closed_dcs,
+        SUM(CASE WHEN is_overdue = 1 THEN 1 ELSE 0 END) AS overdue_dcs,
+        SUM(CASE WHEN is_closed = 0 THEN balance_qty ELSE 0 END) AS custody_qty,
+        SUM(CASE WHEN is_closed = 1 AND actual_time_taken IS NOT NULL THEN actual_time_taken ELSE 0 END) AS turnaround_days_sum,
+        SUM(CASE WHEN is_closed = 1 AND actual_time_taken IS NOT NULL THEN 1 ELSE 0 END) AS turnaround_dcs_count,
+        SUM(is_evaluated) AS evaluated_dcs,
+        SUM(is_breached) AS breached_dcs
+      FROM dc_evaluated
+      GROUP BY vendor_id;
+    `;
 
-    // Fetch all rework items to penalize quality failures in SLA adherence
-    const allReworkItems = await this.reworkRepo.find();
-    const reworkByDcId = new Map<string, number>();
-    const reworkUnitsByVendorId = new Map<string, number>();
-    const reworkDcsByVendorId = new Map<string, Set<string>>();
+    // 2. Rework item units & distinct DC count per vendor
+    const reworkQuery = `
+      WITH rework_from_items AS (
+        SELECT
+          rw.original_vendor_id AS vendor_id,
+          rw.source_dc_id AS dc_id,
+          SUM(COALESCE(rw.rejected_qty, 0)) AS qty
+        FROM dc_rework_items rw
+        WHERE rw.original_vendor_id IS NOT NULL
+        GROUP BY rw.original_vendor_id, rw.source_dc_id
+      ),
+      fallback_from_qc AS (
+        SELECT
+          dc.vendor_id,
+          dc.id AS dc_id,
+          SUM(COALESCE(dci.qc_rejected_qty, 0)) AS qty
+        FROM delivery_challans dc
+        JOIN delivery_challan_items dci ON dci.challan_id = dc.id
+        WHERE dc.vendor_id IS NOT NULL
+          AND dci.qc_rejected_qty > 0
+          AND NOT EXISTS (
+            SELECT 1 FROM dc_rework_items rw WHERE rw.source_dc_id = dc.id
+          )
+        GROUP BY dc.vendor_id, dc.id
+      ),
+      combined_rework AS (
+        SELECT * FROM rework_from_items
+        UNION ALL
+        SELECT * FROM fallback_from_qc
+      )
+      SELECT
+        vendor_id,
+        COUNT(DISTINCT dc_id) AS rework_dcs_count,
+        COALESCE(SUM(qty), 0) AS rework_units_count
+      FROM combined_rework
+      GROUP BY vendor_id;
+    `;
 
-    for (const rw of allReworkItems) {
-      const qty = Number(rw.rejectedQty) || 0;
-      const current = reworkByDcId.get(rw.sourceDcId) || 0;
-      reworkByDcId.set(rw.sourceDcId, current + qty);
+    // 3. Global Rework Summary (overall distinct rework DCs and total units)
+    const reworkGlobalQuery = `
+      WITH all_rework_dcs AS (
+        SELECT source_dc_id AS dc_id, SUM(COALESCE(rejected_qty, 0)) AS qty
+        FROM dc_rework_items
+        GROUP BY source_dc_id
+        UNION ALL
+        SELECT dc.id AS dc_id, SUM(COALESCE(dci.qc_rejected_qty, 0)) AS qty
+        FROM delivery_challans dc
+        JOIN delivery_challan_items dci ON dci.challan_id = dc.id
+        WHERE dci.qc_rejected_qty > 0
+          AND NOT EXISTS (
+            SELECT 1 FROM dc_rework_items rw WHERE rw.source_dc_id = dc.id
+          )
+        GROUP BY dc.id
+      )
+      SELECT
+        COUNT(DISTINCT dc_id) AS total_rework_dcs,
+        COALESCE(SUM(qty), 0) AS total_rework_units
+      FROM all_rework_dcs;
+    `;
 
-      if (rw.originalVendorId) {
-        reworkUnitsByVendorId.set(
-          rw.originalVendorId,
-          (reworkUnitsByVendorId.get(rw.originalVendorId) || 0) + qty,
-        );
-        let vSet = reworkDcsByVendorId.get(rw.originalVendorId);
-        if (!vSet) {
-          vSet = new Set<string>();
-          reworkDcsByVendorId.set(rw.originalVendorId, vSet);
-        }
-        vSet.add(rw.sourceDcId);
-      }
-    }
+    // 4. Ageing Distribution for Open DCs
+    const ageingQuery = `
+      WITH open_dc_balance AS (
+        SELECT
+          dc.id,
+          GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - dc.dispatch_date)) / 86400.0)) AS age_days,
+          COALESCE(SUM(GREATEST(0, COALESCE(dci.quantity_dispatched, 0) - COALESCE(dci.quantity_returned, 0))), 0) AS balance_qty
+        FROM delivery_challans dc
+        LEFT JOIN delivery_challan_items dci ON dci.challan_id = dc.id
+        WHERE dc.status NOT IN ('CLOSED', 'RETURNED')
+          AND dc.dispatch_date IS NOT NULL
+        GROUP BY dc.id, dc.dispatch_date
+      )
+      SELECT
+        COUNT(CASE WHEN age_days < 7 THEN 1 END) AS count_less_7,
+        COALESCE(SUM(CASE WHEN age_days < 7 THEN balance_qty ELSE 0 END), 0) AS balance_less_7,
+        COUNT(CASE WHEN age_days >= 7 AND age_days <= 14 THEN 1 END) AS count_7_14,
+        COALESCE(SUM(CASE WHEN age_days >= 7 AND age_days <= 14 THEN balance_qty ELSE 0 END), 0) AS balance_7_14,
+        COUNT(CASE WHEN age_days > 14 AND age_days <= 30 THEN 1 END) AS count_15_30,
+        COALESCE(SUM(CASE WHEN age_days > 14 AND age_days <= 30 THEN balance_qty ELSE 0 END), 0) AS balance_15_30,
+        COUNT(CASE WHEN age_days > 30 THEN 1 END) AS count_more_30,
+        COALESCE(SUM(CASE WHEN age_days > 30 THEN balance_qty ELSE 0 END), 0) AS balance_more_30
+      FROM open_dc_balance;
+    `;
 
-    // Also account for any DC item where qcRejectedQty > 0
-    for (const dc of allDcs) {
-      const itemsRejected = (dc.items || []).reduce(
-        (sum, item) => sum + (Number(item.qcRejectedQty) || 0),
-        0,
-      );
-      if (itemsRejected > 0 && !reworkByDcId.has(dc.id)) {
-        reworkByDcId.set(dc.id, itemsRejected);
-        if (dc.vendorId) {
-          reworkUnitsByVendorId.set(
-            dc.vendorId,
-            (reworkUnitsByVendorId.get(dc.vendorId) || 0) + itemsRejected,
-          );
-          let vSet = reworkDcsByVendorId.get(dc.vendorId);
-          if (!vSet) {
-            vSet = new Set<string>();
-            reworkDcsByVendorId.set(dc.vendorId, vSet);
-          }
-          vSet.add(dc.id);
-        }
-      }
-    }
+    const [dcStatsRows, reworkRows, reworkGlobalRows, ageingRows] = await Promise.all([
+      this.deliveryChallanRepo.query(dcStatsQuery),
+      this.deliveryChallanRepo.query(reworkQuery),
+      this.deliveryChallanRepo.query(reworkGlobalQuery),
+      this.deliveryChallanRepo.query(ageingQuery),
+    ]);
 
-    const totalReworkDcs = reworkByDcId.size;
-    let totalReworkUnits = 0;
-    for (const units of reworkByDcId.values()) {
-      totalReworkUnits += units;
-    }
-
-    const allSlas = await this.vendorSlaRepo.find({
-      where: { isActive: true },
-    });
-    const slaMap = new Map<string, number>();
-    for (const sla of allSlas) {
-      slaMap.set(`${sla.vendorId}_${sla.processId}`, sla.slaDays);
-    }
-
+    const dcStatsByVendor = new Map<string, any>();
+    let totalDcs = 0;
     let openDcs = 0;
     let closedDcs = 0;
     let overdueDcs = 0;
@@ -2520,194 +2625,46 @@ export class TraceabilityService {
     let evaluatedDcs = 0;
     let breachedDcs = 0;
 
-    const ageingDistribution: VendorDcAgeingDistributionDto = {
-      lessThan7Days: { count: 0, totalBalanceQty: 0 },
-      sevenTo14Days: { count: 0, totalBalanceQty: 0 },
-      fifteenTo30Days: { count: 0, totalBalanceQty: 0 },
-      moreThan30Days: { count: 0, totalBalanceQty: 0 },
-    };
-
-    // Group DCs by vendor
-    const dcsByVendorId = new Map<string, DeliveryChallan[]>();
-    for (const dc of allDcs) {
-      if (dc.vendorId) {
-        let list = dcsByVendorId.get(dc.vendorId);
-        if (!list) {
-          list = [];
-          dcsByVendorId.set(dc.vendorId, list);
-        }
-        list.push(dc);
+    for (const row of dcStatsRows) {
+      if (row.vendor_id) {
+        dcStatsByVendor.set(row.vendor_id, row);
       }
+      totalDcs += Number(row.total_dcs || 0);
+      openDcs += Number(row.open_dcs || 0);
+      closedDcs += Number(row.closed_dcs || 0);
+      overdueDcs += Number(row.overdue_dcs || 0);
+      totalCustodyQty += Number(row.custody_qty || 0);
+      totalTurnaroundDays += Number(row.turnaround_days_sum || 0);
+      closedWithDurationCount += Number(row.turnaround_dcs_count || 0);
+      evaluatedDcs += Number(row.evaluated_dcs || 0);
+      breachedDcs += Number(row.breached_dcs || 0);
+    }
 
-      const isClosed =
-        dc.status === DeliveryChallanStatus.CLOSED ||
-        dc.status === DeliveryChallanStatus.RETURNED;
-
-      const dcBalance = (dc.items || []).reduce((sum, item) => {
-        const disp = Number(item.quantityDispatched) || 0;
-        const ret = Number(item.quantityReturned) || 0;
-        return sum + Math.max(0, disp - ret);
-      }, 0);
-
-      const isOverdue =
-        !isClosed &&
-        !!dc.expectedReturnDate &&
-        new Date(dc.expectedReturnDate).getTime() < Date.now();
-
-      const dcReworkQty = reworkByDcId.get(dc.id) || 0;
-      const hasRework = dcReworkQty > 0;
-
-      if (!isClosed) {
-        openDcs++;
-        totalCustodyQty += dcBalance;
-
-        if (isOverdue || hasRework) {
-          if (isOverdue) overdueDcs++;
-          evaluatedDcs++;
-          breachedDcs++;
-        }
-
-        const ageDays = Math.max(
-          0,
-          Math.floor(
-            (Date.now() - new Date(dc.dispatchDate).getTime()) /
-              (1000 * 60 * 60 * 24),
-          ),
-        );
-
-        if (ageDays < 7) {
-          ageingDistribution.lessThan7Days.count++;
-          ageingDistribution.lessThan7Days.totalBalanceQty += dcBalance;
-        } else if (ageDays <= 14) {
-          ageingDistribution.sevenTo14Days.count++;
-          ageingDistribution.sevenTo14Days.totalBalanceQty += dcBalance;
-        } else if (ageDays <= 30) {
-          ageingDistribution.fifteenTo30Days.count++;
-          ageingDistribution.fifteenTo30Days.totalBalanceQty += dcBalance;
-        } else {
-          ageingDistribution.moreThan30Days.count++;
-          ageingDistribution.moreThan30Days.totalBalanceQty += dcBalance;
-        }
-      } else {
-        closedDcs++;
-
-        let actualTimeTaken: number | null = null;
-        if (dc.actualReturnDate && dc.dispatchDate) {
-          const diffMs =
-            new Date(dc.actualReturnDate).getTime() -
-            new Date(dc.dispatchDate).getTime();
-          actualTimeTaken = QuantityCalculator.roundDecimal(
-            Math.max(0, diffMs / (1000 * 60 * 60 * 24)),
-          );
-          totalTurnaroundDays += actualTimeTaken;
-          closedWithDurationCount++;
-        }
-
-        let isTurnaroundBreached = false;
-        const slaDays =
-          dc.vendorId && dc.processId
-            ? slaMap.get(`${dc.vendorId}_${dc.processId}`)
-            : null;
-
-        if (dc.expectedReturnDate && dc.actualReturnDate) {
-          isTurnaroundBreached =
-            new Date(dc.actualReturnDate).getTime() >
-            new Date(dc.expectedReturnDate).getTime();
-        } else if (
-          slaDays !== undefined &&
-          slaDays !== null &&
-          actualTimeTaken !== null
-        ) {
-          isTurnaroundBreached = actualTimeTaken > slaDays;
-        }
-
-        const isSlaBreached = isTurnaroundBreached || hasRework;
-
-        evaluatedDcs++;
-        if (isSlaBreached) breachedDcs++;
+    const reworkByVendor = new Map<string, any>();
+    for (const row of reworkRows) {
+      if (row.vendor_id) {
+        reworkByVendor.set(row.vendor_id, row);
       }
     }
 
     // Build per-vendor rankings
     const vendorRankings: VendorPerformanceRankingItemDto[] = [];
     for (const vendor of vendors) {
-      const vDcs = dcsByVendorId.get(vendor.id) || [];
-      const vVendorReworkDcs = reworkDcsByVendorId.get(vendor.id)?.size || 0;
-      const vVendorReworkUnits = reworkUnitsByVendorId.get(vendor.id) || 0;
+      const stats = dcStatsByVendor.get(vendor.id);
+      const rework = reworkByVendor.get(vendor.id);
 
-      let vOpen = 0;
-      let vClosed = 0;
-      let vOverdue = 0;
-      let vCustody = 0;
-      let vTurnaroundSum = 0;
-      let vTurnaroundCount = 0;
-      let vEvaluated = 0;
-      let vBreached = 0;
+      const vTotal = Number(stats?.total_dcs || 0);
+      const vOpen = Number(stats?.open_dcs || 0);
+      const vClosed = Number(stats?.closed_dcs || 0);
+      const vOverdue = Number(stats?.overdue_dcs || 0);
+      const vCustody = Number(stats?.custody_qty || 0);
+      const vTurnaroundSum = Number(stats?.turnaround_days_sum || 0);
+      const vTurnaroundCount = Number(stats?.turnaround_dcs_count || 0);
+      const vEvaluated = Number(stats?.evaluated_dcs || 0);
+      const vBreached = Number(stats?.breached_dcs || 0);
 
-      for (const dc of vDcs) {
-        const isClosed =
-          dc.status === DeliveryChallanStatus.CLOSED ||
-          dc.status === DeliveryChallanStatus.RETURNED;
-
-        const dcBal = (dc.items || []).reduce((sum, item) => {
-          const disp = Number(item.quantityDispatched) || 0;
-          const ret = Number(item.quantityReturned) || 0;
-          return sum + Math.max(0, disp - ret);
-        }, 0);
-
-        const isOverdue =
-          !isClosed &&
-          !!dc.expectedReturnDate &&
-          new Date(dc.expectedReturnDate).getTime() < Date.now();
-
-        const dcReworkQty = reworkByDcId.get(dc.id) || 0;
-        const hasRework = dcReworkQty > 0;
-
-        if (isClosed) {
-          vClosed++;
-          let timeTaken: number | null = null;
-          if (dc.actualReturnDate && dc.dispatchDate) {
-            const diffMs =
-              new Date(dc.actualReturnDate).getTime() -
-              new Date(dc.dispatchDate).getTime();
-            timeTaken = QuantityCalculator.roundDecimal(
-              Math.max(0, diffMs / (1000 * 60 * 60 * 24)),
-            );
-            vTurnaroundSum += timeTaken;
-            vTurnaroundCount++;
-          }
-
-          let isTurnaroundBreached = false;
-          const slaDays = dc.processId
-            ? slaMap.get(`${vendor.id}_${dc.processId}`)
-            : null;
-
-          if (dc.expectedReturnDate && dc.actualReturnDate) {
-            isTurnaroundBreached =
-              new Date(dc.actualReturnDate).getTime() >
-              new Date(dc.expectedReturnDate).getTime();
-          } else if (
-            slaDays !== undefined &&
-            slaDays !== null &&
-            timeTaken !== null
-          ) {
-            isTurnaroundBreached = timeTaken > slaDays;
-          }
-
-          const isSlaBreached = isTurnaroundBreached || hasRework;
-
-          vEvaluated++;
-          if (isSlaBreached) vBreached++;
-        } else {
-          vOpen++;
-          vCustody += dcBal;
-          if (isOverdue || hasRework) {
-            if (isOverdue) vOverdue++;
-            vEvaluated++;
-            vBreached++;
-          }
-        }
-      }
+      const vReworkDcs = Number(rework?.rework_dcs_count || 0);
+      const vReworkUnits = Number(rework?.rework_units_count || 0);
 
       const vComplianceRate =
         vEvaluated > 0
@@ -2725,15 +2682,15 @@ export class TraceabilityService {
         vendorId: vendor.id,
         vendorCode: vendor.code,
         vendorName: vendor.name,
-        totalDcs: vDcs.length,
+        totalDcs: vTotal,
         openDcs: vOpen,
         closedDcs: vClosed,
         overdueDcs: vOverdue,
         slaComplianceRate: vComplianceRate,
         avgTurnaroundDays: vAvgTurnaround,
         activeItemsInCustody: QuantityCalculator.roundDecimal(vCustody),
-        reworkDcsCount: vVendorReworkDcs,
-        reworkUnitsCount: QuantityCalculator.roundDecimal(vVendorReworkUnits),
+        reworkDcsCount: vReworkDcs,
+        reworkUnitsCount: QuantityCalculator.roundDecimal(vReworkUnits),
       });
     }
 
@@ -2765,11 +2722,16 @@ export class TraceabilityService {
           )
         : 0;
 
+    const totalReworkDcs = Number(reworkGlobalRows[0]?.total_rework_dcs || 0);
+    const totalReworkUnits = Number(reworkGlobalRows[0]?.total_rework_units || 0);
+
+    const ageing = ageingRows[0] || {};
+
     return {
       summary: {
         totalVendors: vendors.length,
         activeVendors: vendors.filter((v) => v.isActive).length,
-        totalDcs: allDcs.length,
+        totalDcs,
         openDcs,
         closedDcs,
         overdueDcs,
@@ -2781,28 +2743,20 @@ export class TraceabilityService {
       },
       ageingDistribution: {
         lessThan7Days: {
-          count: ageingDistribution.lessThan7Days.count,
-          totalBalanceQty: QuantityCalculator.roundDecimal(
-            ageingDistribution.lessThan7Days.totalBalanceQty,
-          ),
+          count: Number(ageing.count_less_7 || 0),
+          totalBalanceQty: QuantityCalculator.roundDecimal(Number(ageing.balance_less_7 || 0)),
         },
         sevenTo14Days: {
-          count: ageingDistribution.sevenTo14Days.count,
-          totalBalanceQty: QuantityCalculator.roundDecimal(
-            ageingDistribution.sevenTo14Days.totalBalanceQty,
-          ),
+          count: Number(ageing.count_7_14 || 0),
+          totalBalanceQty: QuantityCalculator.roundDecimal(Number(ageing.balance_7_14 || 0)),
         },
         fifteenTo30Days: {
-          count: ageingDistribution.fifteenTo30Days.count,
-          totalBalanceQty: QuantityCalculator.roundDecimal(
-            ageingDistribution.fifteenTo30Days.totalBalanceQty,
-          ),
+          count: Number(ageing.count_15_30 || 0),
+          totalBalanceQty: QuantityCalculator.roundDecimal(Number(ageing.balance_15_30 || 0)),
         },
         moreThan30Days: {
-          count: ageingDistribution.moreThan30Days.count,
-          totalBalanceQty: QuantityCalculator.roundDecimal(
-            ageingDistribution.moreThan30Days.totalBalanceQty,
-          ),
+          count: Number(ageing.count_more_30 || 0),
+          totalBalanceQty: QuantityCalculator.roundDecimal(Number(ageing.balance_more_30 || 0)),
         },
       },
       vendorRankings,

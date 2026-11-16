@@ -37,6 +37,7 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
   private autoLoop: boolean = false;
   private timerHandle: NodeJS.Timeout | null = null;
   private activeProcessingPromise: Promise<void> | null = null;
+  private currentPollIntervalMs: number = 5000;
 
   constructor(
     private readonly emailQueueService: EmailQueueService,
@@ -82,6 +83,7 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
         this.configService.get('EMAIL_WORKER_SHUTDOWN_TIMEOUT_MS') ||
           this.shutdownTimeoutMs,
       );
+      this.currentPollIntervalMs = this.pollIntervalMs;
     }
   }
 
@@ -119,6 +121,7 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
     }
     this.isRunning = true;
     this.autoLoop = autoLoop;
+    this.currentPollIntervalMs = this.pollIntervalMs;
     if (this.autoLoop) {
       this.scheduleNextTick(0);
     }
@@ -127,6 +130,7 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
   public stop(): void {
     this.isRunning = false;
     this.autoLoop = false;
+    this.currentPollIntervalMs = this.pollIntervalMs;
     if (this.timerHandle) {
       clearTimeout(this.timerHandle);
       this.timerHandle = null;
@@ -167,6 +171,7 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
 
     this.isPolling = true;
     let processedCount = 0;
+    let hasClaimedJobs = false;
 
     try {
       // 1. Recover stale jobs locked by crashed workers
@@ -193,6 +198,8 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
         return 0;
       }
 
+      hasClaimedJobs = true;
+      this.currentPollIntervalMs = this.pollIntervalMs;
       this.logger.log(`Claimed ${claimedJobs.length} email job(s) for worker ${this.workerId}`);
 
       // 3. Process claimed jobs sequentially within batch
@@ -210,7 +217,13 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
     } finally {
       this.isPolling = false;
       if (this.isRunning && this.autoLoop) {
-        this.scheduleNextTick(this.pollIntervalMs);
+        this.scheduleNextTick(this.currentPollIntervalMs);
+        if (!hasClaimedJobs) {
+          this.currentPollIntervalMs = Math.min(
+            this.currentPollIntervalMs * 2,
+            60000,
+          );
+        }
       }
     }
 

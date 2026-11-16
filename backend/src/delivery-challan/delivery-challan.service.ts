@@ -3022,7 +3022,10 @@ export class DeliveryChallanService {
     status?: string;
     reworkOnly?: boolean;
     search?: string;
+    page?: number;
+    offset?: number;
   }): Promise<{ items: any[]; kpis: any }> {
+    const skip = filters?.offset ?? (filters?.page && filters.page > 0 ? (filters.page - 1) * 50 : 0);
     const qb = this.challanRepo.createQueryBuilder('dc')
       .leftJoinAndSelect('dc.vendor', 'vendor')
       .leftJoinAndSelect('dc.process', 'process')
@@ -3030,13 +3033,77 @@ export class DeliveryChallanService {
       .leftJoinAndSelect('dc.items', 'item')
       .leftJoinAndSelect('item.product', 'product')
       .leftJoinAndSelect('item.outputProduct', 'outputProduct')
-      .leftJoinAndSelect('item.bin', 'bin')
-      .leftJoinAndSelect('item.outputBin', 'outputBin')
-      .leftJoinAndSelect('item.returnTargetBin', 'returnTargetBin')
       .leftJoinAndSelect('dc.reworkItems', 'reworkItem')
       .leftJoinAndSelect('reworkItem.reworkDc', 'reworkDc')
       .leftJoinAndSelect('reworkDc.vendor', 'reworkVendor')
-      .leftJoinAndSelect('dc.qcInspections', 'qcInspection')
+      .select([
+        'dc.id',
+        'dc.challanNumber',
+        'dc.type',
+        'dc.status',
+        'dc.processName',
+        'dc.notes',
+        'dc.vendorId',
+        'dc.scId',
+        'dc.dispatchDate',
+        'dc.expectedReturnDate',
+        'dc.actualReturnDate',
+        'vendor.id',
+        'vendor.name',
+        'vendor.code',
+        'process.id',
+        'process.name',
+        'sc.id',
+        'sc.scNumber',
+        'item.id',
+        'item.challanId',
+        'item.productId',
+        'item.outputProductId',
+        'item.partNumber',
+        'item.partName',
+        'item.poPartLabel',
+        'item.processName',
+        'item.quantityDispatched',
+        'item.initialExpectedQty',
+        'item.expectedOutputQuantity',
+        'item.expectedReturnQty',
+        'item.actualReceivedQty',
+        'item.qcPassedQty',
+        'item.qcRejectedQty',
+        'item.qcPendingQty',
+        'product.id',
+        'product.code',
+        'product.name',
+        'product.uom',
+        'outputProduct.id',
+        'outputProduct.code',
+        'outputProduct.name',
+        'outputProduct.uom',
+        'reworkItem.id',
+        'reworkItem.sourceDcId',
+        'reworkItem.productId',
+        'reworkItem.partNumber',
+        'reworkItem.productName',
+        'reworkItem.rejectedQty',
+        'reworkItem.uom',
+        'reworkItem.originalVendorId',
+        'reworkItem.originalVendorName',
+        'reworkItem.reworkDcId',
+        'reworkItem.reworkDcNumber',
+        'reworkItem.reworkStatus',
+        'reworkItem.dcType',
+        'reworkItem.updatedAt',
+        'reworkItem.qcRemarks',
+        'reworkItem.sourceDcNumber',
+        'reworkDc.id',
+        'reworkDc.vendorId',
+        'reworkDc.dispatchDate',
+        'reworkDc.actualReturnDate',
+        'reworkVendor.id',
+        'reworkVendor.name',
+      ])
+      .take(50)
+      .skip(skip)
       .orderBy('dc.dispatchDate', 'DESC');
 
     if (filters?.type && filters.type !== 'ALL') {
