@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { PackageSearch, PackagePlus, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { PackageSearch, PackagePlus, AlertCircle, CheckCircle2, Search, X } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { workflowService } from '../services/workflowService';
 import { extractErrorMessage } from '../utils/extractErrorMessage';
@@ -59,6 +59,7 @@ export function StoresRmIssueWorkspace() {
   const [error, setError] = useState<string | null>(null);
   
   const [selectedPoId, setSelectedPoId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Active issue selection
   const [selectedScForIssue, setSelectedScForIssue] = useState<{ id: string; num: string } | null>(null);
@@ -133,7 +134,62 @@ export function StoresRmIssueWorkspace() {
     return sc.scStatus === 'PARTIALLY_ISSUED';
   };
 
+  const queryLower = searchQuery.trim().toLowerCase();
+
+  const filteredQueues = queues.filter((po) => {
+    if (!queryLower) return true;
+    const poMatches = po.poNumber.toLowerCase().includes(queryLower);
+    const scMatches = po.scs.some(
+      (sc) =>
+        sc.scNumber.toLowerCase().includes(queryLower) ||
+        (sc.productName && sc.productName.toLowerCase().includes(queryLower)) ||
+        (sc.items && sc.items.some(
+          (it) =>
+            (it.material && it.material.toLowerCase().includes(queryLower)) ||
+            (it.originalMaterial && it.originalMaterial.toLowerCase().includes(queryLower)) ||
+            (it.partNumber && it.partNumber.toLowerCase().includes(queryLower)) ||
+            (it.description && it.description.toLowerCase().includes(queryLower))
+        ))
+    );
+    return poMatches || scMatches;
+  });
+
+  useEffect(() => {
+    if (filteredQueues.length > 0) {
+      const isCurrentSelectedInFiltered = filteredQueues.some((q) => q.poId === selectedPoId);
+      if (!isCurrentSelectedInFiltered) {
+        setSelectedPoId(filteredQueues[0].poId);
+      }
+    } else {
+      setSelectedPoId(null);
+    }
+  }, [searchQuery, queues]);
+
   const selectedPo = queues.find((q) => q.poId === selectedPoId);
+
+  const displayedScs = selectedPo
+    ? selectedPo.scs.filter((sc) => {
+        if (!queryLower) return true;
+        const scMatches =
+          sc.scNumber.toLowerCase().includes(queryLower) ||
+          (sc.productName && sc.productName.toLowerCase().includes(queryLower)) ||
+          (sc.items && sc.items.some(
+            (it) =>
+              (it.material && it.material.toLowerCase().includes(queryLower)) ||
+              (it.originalMaterial && it.originalMaterial.toLowerCase().includes(queryLower)) ||
+              (it.partNumber && it.partNumber.toLowerCase().includes(queryLower)) ||
+              (it.description && it.description.toLowerCase().includes(queryLower))
+          ));
+        const anyScMatchesInPo = selectedPo.scs.some(
+          (s) =>
+            s.scNumber.toLowerCase().includes(queryLower) ||
+            (s.productName && s.productName.toLowerCase().includes(queryLower))
+        );
+        if (anyScMatchesInPo) return scMatches;
+        return selectedPo.poNumber.toLowerCase().includes(queryLower);
+      })
+    : [];
+
   const poCompletedCount = selectedPo
     ? selectedPo.scs.filter((s) => checkIsScFullyIssued(s)).length
     : 0;
@@ -190,48 +246,115 @@ export function StoresRmIssueWorkspace() {
       ) : (
         <div className="flex flex-1 overflow-hidden space-x-6">
           {/* PO List Pane */}
-          <div className="w-1/3 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col">
-            <div className="p-4 border-b border-slate-200 bg-slate-50">
-              <h3 className="font-semibold text-slate-900">Purchase Orders</h3>
+          <div className="w-1/3 bg-white border border-slate-200 rounded-xl shadow-xs flex flex-col min-w-[300px] max-w-[380px]">
+            <div className="p-3.5 border-b border-slate-200 bg-slate-50 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-slate-900 text-sm">Purchase Orders</h3>
+                <span className="text-[11px] text-slate-500 font-medium bg-slate-200/70 px-2 py-0.5 rounded-full">
+                  {filteredQueues.length} of {queues.length}
+                </span>
+              </div>
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search SC #, PO #, Product..."
+                  className="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-2xs"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    title="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
-              {queues.map((po) => {
-                const isPoCompleted = po.scs.length > 0 && po.scs.every(s => checkIsScFullyIssued(s));
-                const isPoPartial = !isPoCompleted && po.scs.some(s => checkIsScPartiallyIssued(s) || ((s.totalIssued || 0) > 0));
-
-                return (
+              {filteredQueues.length === 0 ? (
+                <div className="p-6 text-center text-slate-500 text-xs">
+                  <Search className="w-6 h-6 mx-auto mb-2 text-slate-300" />
+                  <p className="font-semibold text-slate-700">No matching purchase orders</p>
+                  <p className="text-slate-400 mt-0.5 text-[11px]">No PO or SC matched "{searchQuery}"</p>
                   <button
-                    key={po.poId}
-                    onClick={() => setSelectedPoId(po.poId)}
-                    className={`w-full text-left p-3 rounded-lg border transition-colors cursor-pointer ${
-                      selectedPoId === po.poId
-                        ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-500'
-                        : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-200'
-                    }`}
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="mt-3 px-3 py-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors cursor-pointer"
                   >
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="font-semibold text-slate-900">{po.poNumber}</span>
-                      {isPoCompleted ? (
-                        <span className="text-xs bg-blue-100 text-blue-800 font-semibold px-2 py-0.5 rounded-full">
-                          Stores Issued
-                        </span>
-                      ) : isPoPartial ? (
-                        <span className="text-xs bg-purple-100 text-purple-800 font-semibold px-2 py-0.5 rounded-full">
-                          Stores Issued Partially
-                        </span>
-                      ) : (
-                        <span className="text-xs bg-amber-100 text-amber-800 font-semibold px-2 py-0.5 rounded-full">
-                          Stores Pending
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-slate-500">
-                      <span>{po.scs.length} Component{po.scs.length > 1 ? 's' : ''}</span>
-                      <span>{new Date(po.updatedAt).toLocaleDateString()}</span>
-                    </div>
+                    Clear Search
                   </button>
-                );
-              })}
+                </div>
+              ) : (
+                filteredQueues.map((po) => {
+                  const isPoCompleted = po.scs.length > 0 && po.scs.every((s) => checkIsScFullyIssued(s));
+                  const isPoPartial =
+                    !isPoCompleted && po.scs.some((s) => checkIsScPartiallyIssued(s) || (s.totalIssued || 0) > 0);
+
+                  const matchingScs = queryLower
+                    ? po.scs.filter(
+                        (s) =>
+                          s.scNumber.toLowerCase().includes(queryLower) ||
+                          (s.productName && s.productName.toLowerCase().includes(queryLower))
+                      )
+                    : [];
+
+                  return (
+                    <button
+                      key={po.poId}
+                      onClick={() => setSelectedPoId(po.poId)}
+                      className={`w-full text-left p-3 rounded-lg border transition-colors cursor-pointer ${
+                        selectedPoId === po.poId
+                          ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-500'
+                          : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-200'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-semibold text-slate-900 truncate pr-2" title={po.poNumber}>
+                          {po.poNumber}
+                        </span>
+                        {isPoCompleted ? (
+                          <span className="shrink-0 text-xs bg-blue-100 text-blue-800 font-semibold px-2 py-0.5 rounded-full">
+                            Stores Issued
+                          </span>
+                        ) : isPoPartial ? (
+                          <span className="shrink-0 text-xs bg-purple-100 text-purple-800 font-semibold px-2 py-0.5 rounded-full">
+                            Stores Issued Partially
+                          </span>
+                        ) : (
+                          <span className="shrink-0 text-xs bg-amber-100 text-amber-800 font-semibold px-2 py-0.5 rounded-full">
+                            Stores Pending
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-slate-500">
+                        <span>{po.scs.length} Component{po.scs.length > 1 ? 's' : ''}</span>
+                        <span>{new Date(po.updatedAt).toLocaleDateString()}</span>
+                      </div>
+                      {matchingScs.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1 items-center pt-1 border-t border-slate-100">
+                          <span className="text-[10px] text-slate-400 font-medium">Found:</span>
+                          {matchingScs.slice(0, 3).map((s) => (
+                            <span
+                              key={s.scId}
+                              className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200"
+                            >
+                              {s.scNumber}
+                            </span>
+                          ))}
+                          {matchingScs.length > 3 && (
+                            <span className="text-[10px] text-slate-400">+{matchingScs.length - 3}</span>
+                          )}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })
+              )}
             </div>
           </div>
 
@@ -243,7 +366,14 @@ export function StoresRmIssueWorkspace() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-lg font-bold text-slate-900">PO: {selectedPo.poNumber}</h3>
-                      <p className="text-sm text-slate-500 mt-1">Select an SC below to issue raw materials directly to production.</p>
+                      <p className="text-sm text-slate-500 mt-1 flex flex-wrap items-center gap-2">
+                        <span>Select an SC below to issue raw materials directly to production.</span>
+                        {queryLower && displayedScs.length !== selectedPo.scs.length && (
+                          <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
+                            Showing {displayedScs.length} of {selectedPo.scs.length} SCs matching "{searchQuery}"
+                          </span>
+                        )}
+                      </p>
                     </div>
                     {isSelectedPoCompleted ? (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-blue-100 text-blue-800 rounded-full border border-blue-300">
@@ -262,18 +392,47 @@ export function StoresRmIssueWorkspace() {
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                  {selectedPo.scs.map((sc) => {
-                    const isScFullyIssued = checkIsScFullyIssued(sc);
-                    const isScPartial = checkIsScPartiallyIssued(sc);
+                  {displayedScs.length === 0 ? (
+                    <div className="bg-white border border-slate-200 rounded-xl p-8 text-center shadow-xs">
+                      <Search className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                      <h4 className="font-bold text-slate-800 text-sm">No SCs matching "{searchQuery}"</h4>
+                      <p className="text-xs text-slate-500 mt-1">
+                        This Purchase Order does not contain any Sales Order Component matching your search query.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="mt-3 px-3 py-1.5 text-xs text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg font-semibold transition-colors cursor-pointer"
+                      >
+                        Clear Search Filter
+                      </button>
+                    </div>
+                  ) : (
+                    displayedScs.map((sc) => {
+                      const isScFullyIssued = checkIsScFullyIssued(sc);
+                      const isScPartial = checkIsScPartiallyIssued(sc);
+                      const isDirectMatch = queryLower && sc.scNumber.toLowerCase().includes(queryLower);
 
-                    return (
-                    <div key={sc.scId} className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h4 className="font-bold text-lg text-slate-900">{sc.scNumber}</h4>
-                          <p className="text-sm text-slate-500">Product: {sc.productName}</p>
-                        </div>
-                        <div>
+                      return (
+                        <div
+                          key={sc.scId}
+                          className={`bg-white border rounded-lg p-5 shadow-xs transition-all ${
+                            isDirectMatch ? 'border-indigo-400 ring-2 ring-indigo-200' : 'border-slate-200'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-bold text-lg text-slate-900">{sc.scNumber}</h4>
+                                {isDirectMatch && (
+                                  <span className="text-[10px] font-bold bg-indigo-600 text-white px-2 py-0.5 rounded-full">
+                                    Search Match
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-slate-500">Product: {sc.productName}</p>
+                            </div>
+                            <div>
                           {isScPartial ? (
                             <span className="px-2.5 py-1 text-xs font-semibold bg-purple-100 text-purple-800 rounded-md border border-purple-200">
                               Stores Issued Partially ({sc.totalIssued || 0}/{sc.totalRequired || 0})
@@ -406,7 +565,7 @@ export function StoresRmIssueWorkspace() {
                       </div>
                     </div>
                   );
-                  })}
+                }))}
                 </div>
               </div>
             ) : (
