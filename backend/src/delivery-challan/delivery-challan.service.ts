@@ -1715,58 +1715,101 @@ export class DeliveryChallanService {
     });
   }
 
-  async findAll(filters?: { scId?: string; processId?: string; vendorId?: string; type?: DeliveryChallanType; isOverdue?: boolean; status?: DeliveryChallanStatus }) {
-    const baseWhere: any = {};
-    if (filters?.vendorId) baseWhere.vendorId = filters.vendorId;
-    if (filters?.type) baseWhere.type = filters.type;
+  async findAll(filters?: {
+    scId?: string;
+    processId?: string;
+    vendorId?: string;
+    type?: DeliveryChallanType;
+    isOverdue?: boolean;
+    status?: DeliveryChallanStatus;
+    page?: number;
+    offset?: number;
+  }) {
+    const skip = filters?.offset ?? (filters?.page && filters.page > 0 ? (filters.page - 1) * 50 : 0);
+
+    const qb = this.challanRepo
+      .createQueryBuilder('dc')
+      .leftJoinAndSelect('dc.vendor', 'vendor')
+      .leftJoinAndSelect('dc.sc', 'sc')
+      .leftJoinAndSelect('dc.items', 'item')
+      .leftJoinAndSelect('dc.reworkItems', 'reworkItem')
+      .select([
+        'dc.id',
+        'dc.challanNumber',
+        'dc.type',
+        'dc.status',
+        'dc.processName',
+        'dc.notes',
+        'dc.vendorId',
+        'dc.scId',
+        'dc.processId',
+        'dc.dispatchDate',
+        'dc.expectedReturnDate',
+        'dc.actualReturnDate',
+        'dc.createdAt',
+        'vendor.id',
+        'vendor.name',
+        'vendor.code',
+        'sc.id',
+        'sc.scNumber',
+        'item.id',
+        'item.challanId',
+        'item.productId',
+        'item.partNumber',
+        'item.partName',
+        'item.poPartLabel',
+        'item.processName',
+        'item.quantityDispatched',
+        'item.quantityReturned',
+        'item.expectedReturnQty',
+        'item.expectedOutputQuantity',
+        'item.actualReceivedQty',
+        'item.qcPendingQty',
+        'item.qcPassedQty',
+        'item.qcRejectedQty',
+        'reworkItem.id',
+        'reworkItem.sourceDcId',
+        'reworkItem.sourceDcNumber',
+        'reworkItem.reworkDcNumber',
+        'reworkItem.reworkStatus',
+        'reworkItem.rejectedQty',
+        'reworkItem.originalVendorId',
+      ])
+      .orderBy('dc.createdAt', 'DESC')
+      .take(50)
+      .skip(skip);
+
+    if (filters?.vendorId) {
+      qb.andWhere('dc.vendorId = :vendorId', { vendorId: filters.vendorId });
+    }
+    if (filters?.type) {
+      qb.andWhere('dc.type = :type', { type: filters.type });
+    }
     if (filters?.status && !filters?.isOverdue) {
-      baseWhere.status = filters.status;
+      qb.andWhere('dc.status = :status', { status: filters.status });
     }
     if (filters?.isOverdue) {
-      baseWhere.status = In([
-        DeliveryChallanStatus.OPEN,
-        DeliveryChallanStatus.DISPATCHED,
-        DeliveryChallanStatus.PARTIALLY_RETURNED,
-      ]);
-      baseWhere.expectedReturnDate = LessThan(new Date());
+      qb.andWhere('dc.status IN (:...overdueStatuses)', {
+        overdueStatuses: [
+          DeliveryChallanStatus.OPEN,
+          DeliveryChallanStatus.DISPATCHED,
+          DeliveryChallanStatus.PARTIALLY_RETURNED,
+        ],
+      });
+      qb.andWhere('dc.expectedReturnDate < :now', { now: new Date() });
+    }
+    if (filters?.scId && filters?.processId) {
+      qb.andWhere('(dc.scId = :scId OR item.scId = :scId) AND (dc.processId = :processId OR item.processId = :processId)', {
+        scId: filters.scId,
+        processId: filters.processId,
+      });
+    } else if (filters?.scId) {
+      qb.andWhere('(dc.scId = :scId OR item.scId = :scId)', { scId: filters.scId });
+    } else if (filters?.processId) {
+      qb.andWhere('(dc.processId = :processId OR item.processId = :processId)', { processId: filters.processId });
     }
 
-    let where: any = baseWhere;
-
-    if (filters?.scId || filters?.processId) {
-      const condition1 = { ...baseWhere };
-      const condition2 = { ...baseWhere, items: {} as any };
-      
-      if (filters?.scId) {
-        condition1.scId = filters.scId;
-        condition2.items.scId = filters.scId;
-      }
-      if (filters?.processId) {
-        condition1.processId = filters.processId;
-        condition2.items.processId = filters.processId;
-      }
-      where = [condition1, condition2];
-    }
-
-    return this.challanRepo.find({
-      where,
-      relations: {
-        items: {
-          product: true,
-          bin: true,
-          sc: {
-            purchaseOrder: true,
-          },
-          process: true,
-        },
-        vendor: true,
-        sc: {
-          purchaseOrder: true,
-        },
-        reworkItems: true,
-      },
-      order: { createdAt: 'DESC' },
-    });
+    return qb.getMany();
   }
 
   isOverdue(challan: DeliveryChallan): boolean {

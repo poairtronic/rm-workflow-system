@@ -142,9 +142,13 @@ export class RmController {
   findAll(
     @Query('scId') scId?: string,
     @Query('status') status?: RmRequestStatus,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
     @Req() req?: any,
   ) {
-    return this.rmService.findAll({ scId, status }, req?.user);
+    const pageNum = page ? Math.max(1, parseInt(page, 10)) : 1;
+    const limitNum = limit ? Math.max(1, parseInt(limit, 10)) : 25;
+    return this.rmService.findAll({ scId, status, page: pageNum, limit: limitNum }, req?.user);
   }
 
   @Get(':id')

@@ -130,9 +130,20 @@ export class DeliveryChallanController {
     @Query('type') type?: DeliveryChallanType,
     @Query('isOverdue') isOverdue?: string,
     @Query('status') status?: DeliveryChallanStatus,
+    @Query('page') page?: string,
+    @Query('offset') offset?: string,
   ) {
     const isOverdueBool = isOverdue === 'true';
-    return this.deliveryChallanService.findAll({ scId, processId, vendorId, type, isOverdue: isOverdueBool, status });
+    return this.deliveryChallanService.findAll({
+      scId,
+      processId,
+      vendorId,
+      type,
+      isOverdue: isOverdueBool,
+      status,
+      page: page ? parseInt(page, 10) : undefined,
+      offset: offset ? parseInt(offset, 10) : undefined,
+    });
   }
 
   @Get('next-type2-item-sequence')

@@ -220,7 +220,19 @@ export class RmService {
     }
   }
 
-  async findAll(query?: { scId?: string; status?: RmRequestStatus }, user?: any) {
+  async findAll(
+    query?: {
+      scId?: string;
+      status?: RmRequestStatus;
+      page?: number;
+      limit?: number;
+      offset?: number;
+    },
+    user?: any,
+  ) {
+    const take = query?.limit ?? 25;
+    const skip = query?.offset ?? (query?.page && query.page > 0 ? (query.page - 1) * take : 0);
+
     const qb = this.rmRepo
       .createQueryBuilder('rm')
       .leftJoinAndSelect('rm.salesOrderComponent', 'sc')
@@ -239,6 +251,7 @@ export class RmService {
     }
 
     qb.orderBy('rm.createdAt', 'DESC');
+    qb.take(take).skip(skip);
     return qb.getMany();
   }
 

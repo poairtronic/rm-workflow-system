@@ -129,36 +129,59 @@ export class InventoryService {
 
     const [balances, total] = await query.getManyAndCount();
 
-    const data = await Promise.all(balances.map(async b => {
-      let latestTx: StockTransaction | null = null;
-      if (b.productId && b.binId) {
-        latestTx = await this.stockTransactionRepository.findOne({
-          where: [
-            { productId: b.productId, destinationBinId: b.binId, lotBatchNumber: Not(IsNull()) },
-            { productId: b.productId, sourceBinId: b.binId, lotBatchNumber: Not(IsNull()) }
-          ],
-          order: { createdAt: 'DESC' }
-        });
-      }
+    const lotBatchMap = new Map<string, string>();
+    const pairs = balances.filter((b) => b.productId && b.binId);
+    if (pairs.length > 0) {
+      const conditions = pairs
+        .map((_, i) => `(product_id = $${i * 2 + 1} AND bin_id = $${i * 2 + 2})`)
+        .join(' OR ');
+      const params = pairs.flatMap((b) => [b.productId, b.binId]);
 
-      return {
-        id: b.id,
-        productId: b.productId,
-        productCode: b.product?.code,
-        productName: b.product?.name,
-        uom: b.product?.uom,
-        msl: b.product?.minimumInventory,
-        binId: b.binId,
-        binCode: b.bin?.code,
-        rackId: b.bin?.rackId,
-        rackCode: b.bin?.rack?.code,
-        locationId: b.bin?.rack?.locationId,
-        locationName: b.bin?.rack?.location?.name,
-        warehouseId: b.bin?.rack?.location?.warehouseId,
-        warehouseName: b.bin?.rack?.location?.warehouse?.name || 'Unknown',
-        currentQuantity: Number(b.currentQuantity),
-        latestLotBatchNumber: latestTx?.lotBatchNumber || null
-      };
+      const sql = `
+        SELECT DISTINCT ON (product_id, bin_id)
+          product_id,
+          bin_id,
+          lot_batch_number
+        FROM (
+          SELECT product_id, destination_bin_id AS bin_id, lot_batch_number, created_at
+          FROM stock_transactions
+          WHERE destination_bin_id IS NOT NULL AND lot_batch_number IS NOT NULL
+          UNION ALL
+          SELECT product_id, source_bin_id AS bin_id, lot_batch_number, created_at
+          FROM stock_transactions
+          WHERE source_bin_id IS NOT NULL AND lot_batch_number IS NOT NULL
+        ) tx
+        WHERE ${conditions}
+        ORDER BY product_id, bin_id, created_at DESC;
+      `;
+
+      const rows: Array<{ product_id: string; bin_id: string; lot_batch_number: string }> =
+        await this.stockTransactionRepository.query(sql, params);
+
+      for (const row of rows) {
+        if (row.lot_batch_number) {
+          lotBatchMap.set(`${row.product_id}_${row.bin_id}`, row.lot_batch_number);
+        }
+      }
+    }
+
+    const data = balances.map((b) => ({
+      id: b.id,
+      productId: b.productId,
+      productCode: b.product?.code,
+      productName: b.product?.name,
+      uom: b.product?.uom,
+      msl: b.product?.minimumInventory,
+      binId: b.binId,
+      binCode: b.bin?.code,
+      rackId: b.bin?.rackId,
+      rackCode: b.bin?.rack?.code,
+      locationId: b.bin?.rack?.locationId,
+      locationName: b.bin?.rack?.location?.name,
+      warehouseId: b.bin?.rack?.location?.warehouseId,
+      warehouseName: b.bin?.rack?.location?.warehouse?.name || 'Unknown',
+      currentQuantity: Number(b.currentQuantity),
+      latestLotBatchNumber: (b.productId && b.binId ? lotBatchMap.get(`${b.productId}_${b.binId}`) : null) || null,
     }));
 
     return {
