@@ -236,8 +236,6 @@ export class RmService {
 
     if (user && user.role !== UserRole.ADMIN && user.role !== UserRole.DESIGNER) {
        qb.andWhere('rm.status != :draftStatus', { draftStatus: RmRequestStatus.DRAFT });
-    } else if (user && user.role === UserRole.DESIGNER) {
-       qb.andWhere('(rm.status != :draftStatus OR rm.createdById = :userId)', { draftStatus: RmRequestStatus.DRAFT, userId: user.userId });
     }
 
     qb.orderBy('rm.createdAt', 'DESC');
@@ -263,9 +261,6 @@ export class RmService {
     }
 
     if (user && user.role !== UserRole.ADMIN && user.role !== UserRole.DESIGNER && rm.status === RmRequestStatus.DRAFT) {
-      throw new NotFoundException(`RM Request with ID "${id}" not found.`);
-    }
-    if (user && user.role === UserRole.DESIGNER && rm.status === RmRequestStatus.DRAFT && rm.createdById !== user.userId) {
       throw new NotFoundException(`RM Request with ID "${id}" not found.`);
     }
 
@@ -575,7 +570,7 @@ export class RmService {
       .where('rm.po_id = :poId', { poId })
       .andWhere('rm.status IN (:...statuses)', { statuses: [RmRequestStatus.DRAFT, RmRequestStatus.REJECTED] });
       
-    if (user.role !== UserRole.ADMIN) {
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.DESIGNER) {
       qb.andWhere('rm.created_by_id = :userId', { userId: user.userId });
     }
 
@@ -589,7 +584,7 @@ export class RmService {
         .leftJoinAndSelect('rm.purchaseOrder', 'po')
         .where('rm.po_id = :poId', { poId });
 
-      if (user.role !== UserRole.ADMIN) {
+      if (user.role !== UserRole.ADMIN && user.role !== UserRole.DESIGNER) {
         allRmQb.andWhere('rm.created_by_id = :userId', { userId: user.userId });
       }
       records = await allRmQb.getMany();
@@ -665,23 +660,30 @@ export class RmService {
         await queryRunner.manager.save(po);
       }
 
-      const isOwner = user.role === UserRole.DESIGNER;
       const isAdmin = user.role === UserRole.ADMIN;
-      const ownerCond = isOwner ? { createdById: user.userId } : {};
+      const isDesigner = user.role === UserRole.DESIGNER;
 
       let existingDrafts: RmRequest[];
-      if (isAdmin) {
+      if (isAdmin || isDesigner) {
         existingDrafts = await queryRunner.manager.find(RmRequest, {
-          where: { poId },
+          where: [
+            { poId, status: RmRequestStatus.DRAFT },
+            { poId, status: RmRequestStatus.REJECTED },
+          ],
           relations: { salesOrderComponent: true, items: true },
         });
+        if (isAdmin && existingDrafts.length === 0) {
+          existingDrafts = await queryRunner.manager.find(RmRequest, {
+            where: { poId },
+            relations: { salesOrderComponent: true, items: true },
+          });
+        }
       } else {
-        const statusConditions: any[] = [
-          { poId, status: RmRequestStatus.DRAFT, ...ownerCond },
-          { poId, status: RmRequestStatus.REJECTED, ...ownerCond },
-        ];
         existingDrafts = await queryRunner.manager.find(RmRequest, {
-          where: statusConditions,
+          where: [
+            { poId, status: RmRequestStatus.DRAFT, createdById: user.userId },
+            { poId, status: RmRequestStatus.REJECTED, createdById: user.userId },
+          ],
           relations: { salesOrderComponent: true, items: true },
         });
       }
@@ -725,9 +727,6 @@ export class RmService {
               console.log(`[DEBUG] throwing ConflictException for SC ${scNumber}`);
               throw new ConflictException(`SC ${scNumber} already has a non-DRAFT RM Request.`);
             } else if (sc.rmRequest) {
-              if (isOwner && sc.rmRequest.createdById !== user.userId) {
-                throw new ConflictException(`SC ${scNumber} draft belongs to another user.`);
-              }
               draft = sc.rmRequest;
               sc.productName = scDto.productName;
               sc.targetQuantity = scDto.targetQuantity || 1;
@@ -748,7 +747,7 @@ export class RmService {
             draft = queryRunner.manager.create(RmRequest, {
               poId: po.id,
               scId: sc.id,
-              createdById: isOwner ? user.userId : (sc.rmRequest?.createdById || user.userId),
+              createdById: user.userId,
               status: RmRequestStatus.DRAFT,
             });
             draft = await queryRunner.manager.save(draft);
@@ -860,9 +859,8 @@ export class RmService {
     await queryRunner.startTransaction();
 
     try {
-      const isOwner = user.role === UserRole.DESIGNER;
       const isAdmin = user.role === UserRole.ADMIN;
-      const ownerCond = isOwner ? { createdById: user.userId } : {};
+      const isDesigner = user.role === UserRole.DESIGNER;
 
       const targetStatuses = isAdmin
         ? [
@@ -878,7 +876,7 @@ export class RmService {
         .select('rm.id')
         .where('rm.po_id = :poId', { poId })
         .andWhere('rm.status IN (:...statuses)', { statuses: targetStatuses });
-      if (isOwner) {
+      if (!isAdmin && !isDesigner) {
         qb.andWhere('rm.created_by_id = :userId', { userId: user.userId });
       }
       qb.setLock('pessimistic_write');
@@ -886,6 +884,7 @@ export class RmService {
       const draftsToLock = await qb.getMany();
       console.log('[DEBUG] submitDraftRmByPo lock acquired');
 
+      const ownerCond = (!isAdmin && !isDesigner) ? { createdById: user.userId } : {};
       const drafts = await queryRunner.manager.find(RmRequest, {
          where: { poId, status: In(targetStatuses), ...ownerCond },
          relations: { salesOrderComponent: true, items: true }
@@ -987,11 +986,8 @@ export class RmService {
   }
 
   async getMine(user: any) {
-    const isOwner = user.role === UserRole.DESIGNER;
-    const ownerCond = isOwner ? { createdById: user.userId } : {};
-
+    // Both ADMIN and DESIGNER see all PO requisitions in My Requisitions
     const requests = await this.rmRepo.find({
-      where: ownerCond,
       relations: { salesOrderComponent: { purchaseOrder: true }, items: true },
       order: { updatedAt: 'DESC' }
     });
@@ -1175,7 +1171,7 @@ export class RmService {
   async deleteRm(id: string, user: any) {
     const rm = await this.rmRepo.findOne({ where: { id }, relations: { salesOrderComponent: true } });
     if (!rm) throw new NotFoundException('RM not found');
-    if (user && user.role === UserRole.DESIGNER && rm.createdById !== user.userId) {
+    if (user && user.role !== UserRole.ADMIN && user.role !== UserRole.DESIGNER) {
       throw new NotFoundException('RM not found');
     }
 
@@ -1231,11 +1227,8 @@ export class RmService {
       throw new NotFoundException(`No RM requisitions found for Purchase Order "${poId}".`);
     }
 
-    if (user && user.role === UserRole.DESIGNER) {
-      const unauthorized = rms.some((r) => r.createdById !== user.userId);
-      if (unauthorized) {
-        throw new BadRequestException('You can only delete requisitions you created.');
-      }
+    if (user && user.role !== UserRole.ADMIN && user.role !== UserRole.DESIGNER) {
+      throw new BadRequestException('You do not have permission to delete these requisitions.');
     }
 
     const scIds = rms.map((r) => r.scId || r.salesOrderComponent?.id).filter(Boolean);
@@ -1279,7 +1272,7 @@ export class RmService {
   async deleteRmItem(id: string, itemId: string, user: any) {
     const rm = await this.rmRepo.findOne({ where: { id } });
     if (!rm) throw new NotFoundException('RM not found');
-    if (user.role === UserRole.DESIGNER && rm.createdById !== user.userId) throw new NotFoundException('RM not found');
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.DESIGNER) throw new NotFoundException('RM not found');
     StateMachineValidator.assertRmDraft(rm.status, 'delete RM item');
 
     const item = await this.rmItemRepo.findOne({ where: { id: itemId, rmFormId: id } });
@@ -1292,7 +1285,7 @@ export class RmService {
   async updateRmItem(id: string, itemId: string, dto: any, user: any) {
     const rm = await this.rmRepo.findOne({ where: { id } });
     if (!rm) throw new NotFoundException('RM not found');
-    if (user.role === UserRole.DESIGNER && rm.createdById !== user.userId) throw new NotFoundException('RM not found');
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.DESIGNER) throw new NotFoundException('RM not found');
     if (user.role !== UserRole.ADMIN) {
       StateMachineValidator.assertRmDraft(rm.status, 'update RM item');
     }
