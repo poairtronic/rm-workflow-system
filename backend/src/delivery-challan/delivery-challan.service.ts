@@ -2142,8 +2142,11 @@ export class DeliveryChallanService {
 
     const isSplChallan =
       challan.type === DeliveryChallanType.SPL_PROCESS ||
-      challan.type === 'SPL_PROCESS' ||
-      !!challan.poNumber;
+      challan.type === 'SPL_PROCESS';
+
+    const topPoNumber = isSplChallan
+      ? challan.poNumber || (isReworkMode ? (targetReworkItems[0]?.poNumber || (targetReworkItems[0] as any)?.po?.poNumber) : null) || null
+      : null;
 
     const resolvedProcessType =
       (isReworkMode ? 'REWORK PROCESSING' : null) ||
@@ -2178,7 +2181,7 @@ export class DeliveryChallanService {
       dcType: challan.type,
       dcTypeLabel: isReworkMode ? 'SUPPLIER DC (REWORK)' : 'SUPPLIER DC',
       date: challan.dispatchDate || challan.createdAt,
-      poNumber: challan.poNumber || (isReworkMode ? (targetReworkItems[0]?.poNumber || (targetReworkItems[0] as any)?.po?.poNumber) : null) || null,
+      poNumber: topPoNumber,
       layoutNumber: challan.layoutNumber || null,
       mercIndentNumber: challan.mercIndentNumber || null,
       processType: resolvedProcessType,
@@ -2203,7 +2206,7 @@ export class DeliveryChallanService {
         actualReturnDate: challan.actualReturnDate ?? null,
         notes: challan.notes ?? null,
         processName: resolvedProcessType,
-        poNumber: challan.poNumber || (isReworkMode ? (targetReworkItems[0]?.poNumber || (targetReworkItems[0] as any)?.po?.poNumber) : null) || null,
+        poNumber: topPoNumber,
         layoutNumber: challan.layoutNumber || null,
         mercIndentNumber: challan.mercIndentNumber || null,
       },

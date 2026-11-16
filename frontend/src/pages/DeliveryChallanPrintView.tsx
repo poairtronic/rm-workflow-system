@@ -81,15 +81,13 @@ export function DeliveryChallanPrintView() {
   const challan = dc.challan || {};
   const references = dc.references || {};
   
+  const rawType = String(dc.dcType || challan.type || dc.type || '').trim().toUpperCase();
   const isSpl =
-    dc.dcType === 'SPL_PROCESS' ||
-    challan.type === 'SPL_PROCESS' ||
-    dc.type === 'SPL_PROCESS' ||
-    !!dc.poNumber ||
-    !!challan.poNumber ||
-    !!references.poNumber ||
-    (dc.lineItems && dc.lineItems.some((it: any) => it.poNumber || (it.partNumber && it.partNumber.includes('PO')) || it.poPartLabel)) ||
-    (dc.items && dc.items.some((it: any) => it.poNumber || (it.partNo && it.partNo.includes('PO')) || it.poPartLabel));
+    rawType === 'SPL_PROCESS' ||
+    rawType === 'TYPE_3' ||
+    rawType === 'TYPE 3' ||
+    rawType === 'TYPE 3 (SPL)' ||
+    rawType === 'TYPE 3: SPL';
 
   // Flatten line items from groups or lineItems
   let displayItems: Array<{
@@ -444,11 +442,20 @@ export function DeliveryChallanPrintView() {
                     </div>
                   </div>
                   
-                  <div className="p-2 border-b border-black flex justify-between items-center text-[11px]">
-                    <span className="text-slate-700">{isSpl ? 'PO No. :' : 'W. No. :'}</span>
-                    <span className="font-medium text-slate-900">
-                      {isSpl ? (dc.poNumber || challan.poNumber || references.poNumber || (dc.lineItems && dc.lineItems[0]?.poNumber) || '—') : '—'}
-                    </span>
+                  <div className="p-2 border-b border-black flex justify-between items-center text-[11px] min-h-[33px]">
+                    {isSpl ? (
+                      <>
+                        <span className="text-slate-700">PO No. :</span>
+                        <span className="font-bold text-slate-900 font-mono">
+                          {dc.poNumber || challan.poNumber || references.poNumber || (dc.lineItems && dc.lineItems[0]?.poNumber) || '—'}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-transparent select-none">&nbsp;</span>
+                        <span className="text-transparent select-none">&nbsp;</span>
+                      </>
+                    )}
                   </div>
                   
                   <div className="p-2 text-center text-[11px] font-bold uppercase tracking-wider text-slate-800 bg-white flex-1 flex items-center justify-center">
