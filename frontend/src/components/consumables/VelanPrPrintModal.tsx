@@ -114,10 +114,6 @@ export function VelanPrPrintModal({
 
   const safeItems = Array.isArray(items) ? items.filter(Boolean) : [];
 
-  // Ensure at least 6 ruled rows for authentic physical requisition slip look
-  const minimumRows = 6;
-  const emptyRowsCount = Math.max(0, minimumRows - safeItems.length);
-
   // Total estimated requisition value (using purchaseQty if specified for stores buffer, otherwise requestedQty)
   const totalEstimatedAmount = safeItems.reduce((sum, item) => {
     const price = item.isNewVendor && item.newVendorPrice != null
@@ -129,10 +125,22 @@ export function VelanPrPrintModal({
     return sum + (isNaN(price) ? 0 : price) * (qty > 0 ? qty : 1);
   }, 0);
 
+  // Chunk items into sheets of 10 items per page (fits authentic A4 portrait layout perfectly)
+  const ITEMS_PER_PAGE = 10;
+  const pages: ConsumableLineItemRecord[][] = [];
+  if (safeItems.length === 0) {
+    pages.push([]);
+  } else {
+    for (let i = 0; i < safeItems.length; i += ITEMS_PER_PAGE) {
+      pages.push(safeItems.slice(i, i + ITEMS_PER_PAGE));
+    }
+  }
+  const totalPages = pages.length;
+
   return (
     <div
       id="velan-pr-modal-container"
-      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 print:p-0 print:bg-white print:static print:overflow-visible"
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-xs flex justify-center items-start p-4 sm:p-6 pt-16 sm:pt-20 pb-16 print:p-0 print:pt-0 print:pb-0 print:bg-white print:static print:overflow-visible print:block"
     >
       {/* Print Specific CSS to enforce full A4 portrait, isolate requisition slip & hide web app chrome */}
       <style>{`
@@ -141,6 +149,9 @@ export function VelanPrPrintModal({
           margin: 6mm 8mm;
         }
         @media print {
+          *, *:before, *:after {
+            box-sizing: border-box !important;
+          }
           /* Hide background SPA application layout */
           body > * {
             visibility: hidden !important;
@@ -150,31 +161,43 @@ export function VelanPrPrintModal({
             visibility: visible !important;
           }
           #velan-pr-modal-container {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            min-height: 100% !important;
+            position: static !important;
+            display: block !important;
             margin: 0 !important;
             padding: 0 !important;
             background: #ffffff !important;
-            z-index: 999999 !important;
+            overflow: visible !important;
+            height: auto !important;
+            min-height: 0 !important;
           }
-          #velan-pr-slip {
+          .velan-pr-sheet {
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
             padding: 6mm 8mm !important;
             box-shadow: none !important;
             border: 1.5px solid #000000 !important;
+            box-sizing: border-box !important;
+            page-break-before: auto !important;
+            page-break-after: always !important;
+            break-after: page !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
+            min-height: 275mm !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
+          }
+          .velan-pr-sheet:last-child {
+            page-break-after: auto !important;
+            break-after: auto !important;
           }
           html, body {
             background: #ffffff !important;
             color: #000000 !important;
             margin: 0 !important;
             padding: 0 !important;
+            overflow: visible !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -186,6 +209,11 @@ export function VelanPrPrintModal({
 
       {/* Top Floating Action Bar (Hidden during print) */}
       <div className="fixed top-4 right-4 z-50 flex items-center gap-2 print:hidden bg-slate-900/90 p-2 rounded-xl border border-slate-700 shadow-2xl print-hide">
+        {totalPages > 1 && (
+          <span className="text-xs font-semibold text-slate-300 px-2.5 py-1 bg-slate-800 rounded-md border border-slate-700">
+            {totalPages} Sheets ({safeItems.length} Items)
+          </span>
+        )}
         <Button
           variant="primary"
           size="sm"
@@ -205,263 +233,305 @@ export function VelanPrPrintModal({
         </button>
       </div>
 
-      {/* Printable Sheet Container */}
-      <div
-        id="velan-pr-slip"
-        className="w-full max-w-4xl bg-white text-black p-8 sm:p-10 shadow-2xl rounded-lg print:shadow-none print:rounded-none print:w-full print:max-w-none print:p-6 print:m-0 border border-slate-300 print:border-black font-sans"
-        style={{ minHeight: '260mm' }}
-      >
-        {/* ========================================================= */}
-        {/* HEADER BLOCK (Physical Velan Metrology Requisition Pad)   */}
-        {/* ========================================================= */}
-        <div className="border border-black p-3 mb-4">
-          <div className="flex items-center justify-between">
-            {/* Left: Logo */}
-            <div className="w-24 flex items-center justify-start">
-              <VelanLogo width={68} height={52} color="#1E3A8A" />
-            </div>
+      {/* Printable Sheets Container */}
+      <div className="w-full max-w-4xl flex flex-col items-center gap-8 print:gap-0 print:block">
+        {pages.map((pageItems, pageIdx) => {
+          const pageNumber = pageIdx + 1;
+          const isLastPage = pageNumber === totalPages;
+          // Ensure at least 6 ruled rows on single-sheet or 3 on last-sheet for authentic physical requisition slip look
+          const emptyRowsCount = totalPages === 1
+            ? Math.max(0, 6 - pageItems.length)
+            : isLastPage
+            ? Math.max(0, 3 - pageItems.length)
+            : 0;
 
-            {/* Center: Title Hierarchy matching Physical Pad */}
-            <div className="text-center flex-1 px-2">
-              <h1 className="text-2xl font-black tracking-wider text-black uppercase font-serif">
-                VELAN METROLOGY
-              </h1>
-              <h2 className="text-base font-bold text-black mt-0.5">
-                Purchase Requisition
-              </h2>
-              <p className="text-sm font-semibold text-black mt-0.5">
-                Cash / Credit
-              </p>
-            </div>
+          return (
+            <div
+              key={`pr-sheet-${pageIdx}`}
+              id={pageIdx === 0 ? 'velan-pr-slip' : undefined}
+              className="velan-pr-sheet w-full max-w-4xl bg-white text-black p-8 sm:p-10 shadow-2xl rounded-lg print:shadow-none print:rounded-none print:w-full print:max-w-none print:p-6 print:m-0 border border-slate-300 print:border-black font-sans flex flex-col justify-between"
+              style={{ minHeight: '260mm' }}
+            >
+              <div>
+                {/* ========================================================= */}
+                {/* HEADER BLOCK (Physical Velan Metrology Requisition Pad)   */}
+                {/* ========================================================= */}
+                <div className="border border-black p-3 mb-4">
+                  <div className="flex items-center justify-between">
+                    {/* Left: Logo */}
+                    <div className="w-24 flex items-center justify-start">
+                      <VelanLogo width={68} height={52} color="#1E3A8A" />
+                    </div>
 
-            {/* Right: Date & PR Number */}
-            <div className="w-36 text-right flex flex-col justify-center text-xs space-y-1 font-sans">
-              <div className="flex items-center justify-end gap-1.5">
-                <span className="font-semibold text-black">Date :</span>
-                <span className="font-mono font-bold text-black">
-                  {formattedDate}
-                </span>
-              </div>
-              <div className="flex items-center justify-end gap-1.5">
-                <span className="font-semibold text-black">PR. No. :</span>
-                <span className="font-mono font-bold text-lg text-black">
-                  {prNumber}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+                    {/* Center: Title Hierarchy matching Physical Pad */}
+                    <div className="text-center flex-1 px-2">
+                      <h1 className="text-2xl font-black tracking-wider text-black uppercase font-serif">
+                        VELAN METROLOGY
+                      </h1>
+                      <h2 className="text-base font-bold text-black mt-0.5">
+                        Purchase Requisition
+                      </h2>
+                      <p className="text-sm font-semibold text-black mt-0.5">
+                        Cash / Credit
+                      </p>
+                    </div>
 
-        {/* ========================================================= */}
-        {/* LINE ITEMS TABLE                                          */}
-        {/* ========================================================= */}
-        <div className="border border-black mb-6">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-100 border-b-2 border-black font-bold uppercase tracking-wider text-[11px]">
-                <th className="py-2.5 px-2 border-r border-black w-10 text-center">S.No.</th>
-                <th className="py-2.5 px-3 border-r border-black w-60">Description of Goods / Item</th>
-                <th className="py-2.5 px-2 border-r border-black w-24 text-right">Req. Stock</th>
-                <th className="py-2.5 px-3 border-r border-black">Supplier / Vendor Details</th>
-                <th className="py-2.5 px-2 border-r border-black w-24 text-right">Approx Price</th>
-                <th className="py-2.5 px-3 border-r border-black w-36">End User (Bay / Machine)</th>
-                <th className="py-2.5 px-2 w-28">Requested By</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-black font-medium">
-              {safeItems.map((item, index) => {
-                const isNewVendor = item.isNewVendor;
-                const hasVendor = item.vendorName || item.newVendorName;
-
-                return (
-                  <tr key={item.id || index} className="align-top">
-                    {/* S.No */}
-                    <td className="py-2 px-2 border-r border-black text-center font-mono font-bold">
-                      {index + 1}
-                    </td>
-
-                    {/* Description */}
-                    <td className="py-2 px-3 border-r border-black">
-                      <span className="font-bold text-black block leading-snug">
-                        {item.description}
-                      </span>
-                      {item.productCode && (
-                        <span className="text-[10px] text-slate-600 font-mono block">
-                          Code: {item.productCode}
+                    {/* Right: Date, PR Number & Sheet Count */}
+                    <div className="w-40 text-right flex flex-col justify-center text-xs space-y-1 font-sans">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <span className="font-semibold text-black">Date :</span>
+                        <span className="font-mono font-bold text-black">
+                          {formattedDate}
                         </span>
-                      )}
-                      {item.isNewProduct && (
-                        <span className="text-[10px] font-bold text-slate-800 uppercase italic">
-                          (New Product Addition)
+                      </div>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <span className="font-semibold text-black">PR. No. :</span>
+                        <span className="font-mono font-bold text-lg text-black">
+                          {prNumber}
                         </span>
+                      </div>
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-end gap-1.5 text-[11px] font-bold text-slate-800">
+                          <span>Sheet {pageNumber} of {totalPages}</span>
+                        </div>
                       )}
-                    </td>
+                    </div>
+                  </div>
+                </div>
 
-                    {/* Qty & UOM (Required Stock / Store Indent) */}
-                    <td className="py-2 px-2 border-r border-black text-right font-mono font-bold">
-                      {(() => {
-                        const indentQty = Number(item.purchaseQty ?? item.requestedQty ?? 0);
-                        const prodReqQty = Number(item.requestedQty || 0);
-                        const hasSafetyIncrease = item.purchaseQty != null && Number(item.purchaseQty) !== prodReqQty;
+                {/* ========================================================= */}
+                {/* LINE ITEMS TABLE                                          */}
+                {/* ========================================================= */}
+                <div className="border border-black mb-4">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-100 border-b-2 border-black font-bold uppercase tracking-wider text-[11px]">
+                        <th className="py-2.5 px-2 border-r border-black w-10 text-center">S.No.</th>
+                        <th className="py-2.5 px-3 border-r border-black w-60">Description of Goods / Item</th>
+                        <th className="py-2.5 px-2 border-r border-black w-24 text-right">Req. Stock</th>
+                        <th className="py-2.5 px-3 border-r border-black">Supplier / Vendor Details</th>
+                        <th className="py-2.5 px-2 border-r border-black w-24 text-right">Approx Price</th>
+                        <th className="py-2.5 px-3 border-r border-black w-36">End User (Bay / Machine)</th>
+                        <th className="py-2.5 px-2 w-28">Requested By</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-black font-medium">
+                      {pageItems.map((item, itemIdx) => {
+                        const sNo = pageIdx * ITEMS_PER_PAGE + itemIdx + 1;
+                        const isNewVendor = item.isNewVendor;
+                        const hasVendor = item.vendorName || item.newVendorName;
 
-                        if (indentQty > 0) {
-                          return (
-                            <div>
-                              <span>{indentQty}</span> <span className="text-[10px] text-slate-700">{item.uom || 'NOS'}</span>
-                              {hasSafetyIncrease && (
-                                <span className="text-[10px] text-slate-500 font-sans block font-normal leading-tight">
-                                  (Prod Req: {prodReqQty} {item.uom || 'NOS'})
+                        return (
+                          <tr key={item.id || sNo} className="align-top">
+                            {/* S.No */}
+                            <td className="py-2 px-2 border-r border-black text-center font-mono font-bold">
+                              {sNo}
+                            </td>
+
+                            {/* Description */}
+                            <td className="py-2 px-3 border-r border-black">
+                              <span className="font-bold text-black block leading-snug">
+                                {item.description}
+                              </span>
+                              {item.productCode && (
+                                <span className="text-[10px] text-slate-600 font-mono block">
+                                  Code: {item.productCode}
                                 </span>
                               )}
-                            </div>
-                          );
-                        }
-                        return <span className="text-[10px] italic text-slate-500">Inquiry (0)</span>;
-                      })()}
-                    </td>
+                              {item.isNewProduct && (
+                                <span className="text-[10px] font-bold text-slate-800 uppercase italic">
+                                  (New Product Addition)
+                                </span>
+                              )}
+                            </td>
 
-                    {/* Supplier / Vendor Details */}
-                    <td className="py-2 px-3 border-r border-black text-[11px]">
-                      {isNewVendor ? (
-                        <div className="space-y-0.5 text-[10px] leading-tight">
-                          <span className="font-bold text-black block">
-                            (a) Name: {item.newVendorName || '—'}
-                          </span>
-                          {item.newVendorAddress && (
-                            <span className="text-slate-700 block">
-                              (b) Addr: {item.newVendorAddress}
-                            </span>
-                          )}
-                          {item.newVendorMobile && (
-                            <span className="text-slate-700 block font-mono">
-                              (c) Mob: {item.newVendorMobile}
-                            </span>
-                          )}
-                        </div>
-                      ) : hasVendor ? (
-                        <span className="font-bold text-black block">
-                          {item.vendorName}
+                            {/* Qty & UOM (Required Stock / Store Indent) */}
+                            <td className="py-2 px-2 border-r border-black text-right font-mono font-bold">
+                              {(() => {
+                                const indentQty = Number(item.purchaseQty ?? item.requestedQty ?? 0);
+                                const prodReqQty = Number(item.requestedQty || 0);
+                                const hasSafetyIncrease = item.purchaseQty != null && Number(item.purchaseQty) !== prodReqQty;
+
+                                if (indentQty > 0) {
+                                  return (
+                                    <div>
+                                      <span>{indentQty}</span> <span className="text-[10px] text-slate-700">{item.uom || 'NOS'}</span>
+                                      {hasSafetyIncrease && (
+                                        <span className="text-[10px] text-slate-500 font-sans block font-normal leading-tight">
+                                          (Prod Req: {prodReqQty} {item.uom || 'NOS'})
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                }
+                                return <span className="text-[10px] italic text-slate-500">Inquiry (0)</span>;
+                              })()}
+                            </td>
+
+                            {/* Supplier / Vendor Details */}
+                            <td className="py-2 px-3 border-r border-black text-[11px]">
+                              {isNewVendor ? (
+                                <div className="space-y-0.5 text-[10px] leading-tight">
+                                  <span className="font-bold text-black block">
+                                    (a) Name: {item.newVendorName || '—'}
+                                  </span>
+                                  {item.newVendorAddress && (
+                                    <span className="text-slate-700 block">
+                                      (b) Addr: {item.newVendorAddress}
+                                    </span>
+                                  )}
+                                  {item.newVendorMobile && (
+                                    <span className="text-slate-700 block font-mono">
+                                      (c) Mob: {item.newVendorMobile}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : hasVendor ? (
+                                <span className="font-bold text-black block">
+                                  {item.vendorName}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 italic">Open Market / Stores Choice</span>
+                              )}
+                            </td>
+
+                            {/* Approx Price */}
+                            <td className="py-2 px-2 border-r border-black text-right font-mono font-bold">
+                              {isNewVendor && item.newVendorPrice ? (
+                                `₹${Number(item.newVendorPrice).toFixed(2)}`
+                              ) : item.unitPrice ? (
+                                `₹${Number(item.unitPrice).toFixed(2)}`
+                              ) : (
+                                '—'
+                              )}
+                            </td>
+
+                            {/* End User */}
+                            <td className="py-2 px-3 border-r border-black text-[11px]">
+                              {item.endUserInVelan || 'General Plant Use'}
+                            </td>
+
+                            {/* Requested By */}
+                            <td className="py-2 px-2 text-[11px]">
+                              {item.requestedBy || 'Production'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+
+                      {/* Blank Filler Rows for Physical Pad Layout */}
+                      {Array.from({ length: emptyRowsCount }).map((_, fIdx) => (
+                        <tr key={`filler-${fIdx}`} className="h-8 border-t border-slate-200">
+                          <td className="border-r border-black text-center text-slate-300 font-mono text-[10px]">
+                            {pageItems.length + fIdx + 1}
+                          </td>
+                          <td className="border-r border-black" />
+                          <td className="border-r border-black" />
+                          <td className="border-r border-black" />
+                          <td className="border-r border-black" />
+                          <td className="border-r border-black" />
+                          <td />
+                        </tr>
+                      ))}
+                    </tbody>
+
+                    {/* Total Row on Last Page */}
+                    {isLastPage && totalEstimatedAmount > 0 && (
+                      <tfoot>
+                        <tr className="border-t-2 border-black bg-slate-100 font-bold">
+                          <td colSpan={4} className="py-2 px-3 border-r border-black text-right uppercase tracking-wider text-[11px]">
+                            Total Approx / Quoted Requisition Value:
+                          </td>
+                          <td className="py-2 px-2 border-r border-black text-right font-mono font-black text-xs text-black">
+                            ₹{totalEstimatedAmount.toFixed(2)}
+                          </td>
+                          <td colSpan={2} className="py-2 px-3 text-[10px] text-slate-600 italic">
+                            Excl. GST & Delivery Charges
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+
+                {/* Continued Banner on non-last page */}
+                {!isLastPage && (
+                  <div className="py-2 px-3 border border-black bg-slate-50 text-center font-bold text-xs text-slate-800 tracking-wider">
+                    [ Continued on Sheet {pageNumber + 1} of {totalPages} ]
+                  </div>
+                )}
+              </div>
+
+              <div>
+                {/* ========================================================= */}
+                {/* SIGNATURE & APPROVAL BLOCK (on Last Page)                 */}
+                {/* ========================================================= */}
+                {isLastPage ? (
+                  <div className="border-2 border-black p-3 sm:p-4 mt-4 bg-slate-50/50">
+                    <div className="grid grid-cols-3 gap-6 text-center">
+                      {/* Prepared By */}
+                      <div className="border-r border-black pr-4">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-8">
+                          Prepared By
                         </span>
-                      ) : (
-                        <span className="text-slate-400 italic">Open Market / Stores Choice</span>
-                      )}
-                    </td>
+                        <div className="border-t border-black pt-1">
+                          <span className="font-bold text-xs block text-black">
+                            {preparedBy || items[0]?.requestedBy || 'Production User'}
+                          </span>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider block">
+                            Requester / Store Keeper
+                          </span>
+                        </div>
+                      </div>
 
-                    {/* Approx Price */}
-                    <td className="py-2 px-2 border-r border-black text-right font-mono font-bold">
-                      {isNewVendor && item.newVendorPrice ? (
-                        `₹${Number(item.newVendorPrice).toFixed(2)}`
-                      ) : item.unitPrice ? (
-                        `₹${Number(item.unitPrice).toFixed(2)}`
-                      ) : (
-                        '—'
-                      )}
-                    </td>
+                      {/* Verified By */}
+                      <div className="border-r border-black pr-4">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-8">
+                          Verified By
+                        </span>
+                        <div className="border-t border-black pt-1">
+                          <span className="font-bold text-xs block text-black">
+                            {verifiedBy || 'Stores In-Charge'}
+                          </span>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider block">
+                            Stores Verification & Stock Check
+                          </span>
+                        </div>
+                      </div>
 
-                    {/* End User */}
-                    <td className="py-2 px-3 border-r border-black text-[11px]">
-                      {item.endUserInVelan || 'General Plant Use'}
-                    </td>
+                      {/* Approved By */}
+                      <div>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-8">
+                          Approved By
+                        </span>
+                        <div className="border-t border-black pt-1">
+                          <span className="font-bold text-xs block text-black">
+                            {approvedBy || 'Plant / Purchase Manager'}
+                          </span>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider block">
+                            Commercial & Budget Authority
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 py-2 border-t border-black">
+                    <span>Sheet {pageNumber} of {totalPages}</span>
+                    <span className="italic">Signatures & Total Authorization on Sheet {totalPages}</span>
+                  </div>
+                )}
 
-                    {/* Requested By */}
-                    <td className="py-2 px-2 text-[11px]">
-                      {item.requestedBy || 'Production'}
-                    </td>
-                  </tr>
-                );
-              })}
-
-              {/* Blank Filler Rows for Physical Pad Layout */}
-              {Array.from({ length: emptyRowsCount }).map((_, fIdx) => (
-                <tr key={`filler-${fIdx}`} className="h-8 border-t border-slate-200">
-                  <td className="border-r border-black text-center text-slate-300 font-mono text-[10px]">
-                    {safeItems.length + fIdx + 1}
-                  </td>
-                  <td className="border-r border-black" />
-                  <td className="border-r border-black" />
-                  <td className="border-r border-black" />
-                  <td className="border-r border-black" />
-                  <td className="border-r border-black" />
-                  <td />
-                </tr>
-              ))}
-            </tbody>
-            {totalEstimatedAmount > 0 && (
-              <tfoot>
-                <tr className="border-t-2 border-black bg-slate-100 font-bold">
-                  <td colSpan={4} className="py-2 px-3 border-r border-black text-right uppercase tracking-wider text-[11px]">
-                    Total Approx / Quoted Requisition Value:
-                  </td>
-                  <td className="py-2 px-2 border-r border-black text-right font-mono font-black text-xs text-black">
-                    ₹{totalEstimatedAmount.toFixed(2)}
-                  </td>
-                  <td colSpan={2} className="py-2 px-3 text-[10px] text-slate-600 italic">
-                    Excl. GST & Delivery Charges
-                  </td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </div>
-
-        {/* ========================================================= */}
-        {/* SIGNATURE & APPROVAL BLOCK                                */}
-        {/* ========================================================= */}
-        <div className="border-2 border-black p-4 mt-8 bg-slate-50/50">
-          <div className="grid grid-cols-3 gap-6 text-center">
-            {/* Prepared By */}
-            <div className="border-r border-black pr-4">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-8">
-                Prepared By
-              </span>
-              <div className="border-t border-black pt-1">
-                <span className="font-bold text-xs block text-black">
-                  {preparedBy || items[0]?.requestedBy || 'Production User'}
-                </span>
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider block">
-                  Requester / Store Keeper
-                </span>
+                {/* Footer Note */}
+                <div className="mt-3 pt-2 border-t border-slate-300 flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                  <span>VELAN METROLOGY • FORM REF: VM-PR-REV-04</span>
+                  <span>{totalPages > 1 ? `Sheet ${pageNumber} of ${totalPages} • ` : ''}Printed on: {safeFormatDate(new Date())}</span>
+                  <span>Single-Copy Shop Floor Authorized Voucher</span>
+                </div>
               </div>
             </div>
-
-            {/* Verified By */}
-            <div className="border-r border-black pr-4">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-8">
-                Verified By
-              </span>
-              <div className="border-t border-black pt-1">
-                <span className="font-bold text-xs block text-black">
-                  {verifiedBy || 'Stores In-Charge'}
-                </span>
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider block">
-                  Stores Verification & Stock Check
-                </span>
-              </div>
-            </div>
-
-            {/* Approved By */}
-            <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-8">
-                Approved By
-              </span>
-              <div className="border-t border-black pt-1">
-                <span className="font-bold text-xs block text-black">
-                  {approvedBy || 'Plant / Purchase Manager'}
-                </span>
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider block">
-                  Commercial & Budget Authority
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer Note */}
-        <div className="mt-4 pt-2 border-t border-slate-300 flex items-center justify-between text-[10px] text-slate-500 font-mono">
-          <span>VELAN METROLOGY • FORM REF: VM-PR-REV-04</span>
-          <span>Printed on: {safeFormatDate(new Date())}</span>
-          <span>Single-Copy Shop Floor Authorized Voucher</span>
-        </div>
+          );
+        })}
       </div>
     </div>
   );
