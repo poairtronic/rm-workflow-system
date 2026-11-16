@@ -1725,8 +1725,6 @@ export class DeliveryChallanService {
     page?: number;
     offset?: number;
   }) {
-    const skip = filters?.offset ?? (filters?.page && filters.page > 0 ? (filters.page - 1) * 50 : 0);
-
     const qb = this.challanRepo
       .createQueryBuilder('dc')
       .leftJoinAndSelect('dc.vendor', 'vendor')
@@ -1775,9 +1773,13 @@ export class DeliveryChallanService {
         'reworkItem.rejectedQty',
         'reworkItem.originalVendorId',
       ])
-      .orderBy('dc.createdAt', 'DESC')
-      .take(50)
-      .skip(skip);
+      .orderBy('dc.createdAt', 'DESC');
+
+    // Only paginate when page or offset is explicitly provided by the caller
+    if (filters?.page !== undefined || filters?.offset !== undefined) {
+      const skip = filters?.offset ?? (filters?.page && filters.page > 0 ? (filters.page - 1) * 50 : 0);
+      qb.take(50).skip(skip);
+    }
 
     if (filters?.vendorId) {
       qb.andWhere('dc.vendorId = :vendorId', { vendorId: filters.vendorId });
@@ -3068,7 +3070,6 @@ export class DeliveryChallanService {
     page?: number;
     offset?: number;
   }): Promise<{ items: any[]; kpis: any }> {
-    const skip = filters?.offset ?? (filters?.page && filters.page > 0 ? (filters.page - 1) * 50 : 0);
     const qb = this.challanRepo.createQueryBuilder('dc')
       .leftJoinAndSelect('dc.vendor', 'vendor')
       .leftJoinAndSelect('dc.process', 'process')
@@ -3145,9 +3146,13 @@ export class DeliveryChallanService {
         'reworkVendor.id',
         'reworkVendor.name',
       ])
-      .take(50)
-      .skip(skip)
       .orderBy('dc.dispatchDate', 'DESC');
+
+    // Only paginate when page or offset is explicitly provided by the caller
+    if (filters?.page !== undefined || filters?.offset !== undefined) {
+      const skip = filters?.offset ?? (filters?.page && filters.page > 0 ? (filters.page - 1) * 50 : 0);
+      qb.take(50).skip(skip);
+    }
 
     if (filters?.type && filters.type !== 'ALL') {
       qb.andWhere('dc.type = :type', { type: filters.type });
