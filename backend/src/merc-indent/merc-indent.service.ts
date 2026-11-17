@@ -220,6 +220,26 @@ export class MercIndentService implements OnModuleInit {
               line.name = incoming.name;
               itemChanged = true;
             }
+            const incLength = incoming.lengthMm != null ? Number(incoming.lengthMm) : ((incoming as any).length != null ? Number((incoming as any).length) : null);
+            if (incLength != null && (line.lengthMm == null || Number(line.lengthMm) !== incLength)) {
+              line.lengthMm = incLength;
+              itemChanged = true;
+            }
+            const incDiameter = incoming.diameterMm != null ? Number(incoming.diameterMm) : ((incoming as any).diameter != null ? Number((incoming as any).diameter) : null);
+            if (incDiameter != null && (line.diameterMm == null || Number(line.diameterMm) !== incDiameter)) {
+              line.diameterMm = incDiameter;
+              itemChanged = true;
+            }
+            const incWidth = incoming.widthMm != null ? Number(incoming.widthMm) : ((incoming as any).width != null ? Number((incoming as any).width) : null);
+            if (incWidth != null && (line.widthMm == null || Number(line.widthMm) !== incWidth)) {
+              line.widthMm = incWidth;
+              itemChanged = true;
+            }
+            const incHeight = incoming.heightMm != null ? Number(incoming.heightMm) : ((incoming as any).height != null ? Number((incoming as any).height) : null);
+            if (incHeight != null && (line.heightMm == null || Number(line.heightMm) !== incHeight)) {
+              line.heightMm = incHeight;
+              itemChanged = true;
+            }
             if (itemChanged) {
               await this.mercIndentLineItemRepo.save(line);
             }
@@ -264,10 +284,10 @@ export class MercIndentService implements OnModuleInit {
           name: item.name,
           material: item.material || null,
           shape: item.shape || null,
-          lengthMm: item.lengthMm != null ? Number(item.lengthMm) : null,
-          widthMm: item.widthMm != null ? Number(item.widthMm) : null,
-          heightMm: item.heightMm != null ? Number(item.heightMm) : null,
-          diameterMm: item.diameterMm != null ? Number(item.diameterMm) : null,
+          lengthMm: item.lengthMm != null ? Number(item.lengthMm) : (item.length != null ? Number(item.length) : null),
+          widthMm: item.widthMm != null ? Number(item.widthMm) : (item.width != null ? Number(item.width) : null),
+          heightMm: item.heightMm != null ? Number(item.heightMm) : (item.height != null ? Number(item.height) : null),
+          diameterMm: item.diameterMm != null ? Number(item.diameterMm) : (item.diameter != null ? Number(item.diameter) : null),
           quantityRequired: Number(item.quantityRequired),
           quantityIssued: 0,
           unit: item.unit || null,
@@ -492,6 +512,10 @@ export class MercIndentService implements OnModuleInit {
       const currentStock = item.rmProductId ? (stockMap.get(item.rmProductId) || 0) : 0;
       return {
         ...item,
+        lengthMm: item.lengthMm != null ? Number(item.lengthMm) : null,
+        widthMm: item.widthMm != null ? Number(item.widthMm) : null,
+        heightMm: item.heightMm != null ? Number(item.heightMm) : null,
+        diameterMm: item.diameterMm != null ? Number(item.diameterMm) : null,
         currentStock,
       };
     });
@@ -1324,6 +1348,46 @@ export class MercIndentService implements OnModuleInit {
               if (hasChanges) {
                 await this.mercIndentPendingRepo.save(exists);
                 updatedCount++;
+              }
+
+              // Also sync line item dimensions (lengthMm, diameterMm, etc.) for existing indents
+              if (Array.isArray(item.lineItems)) {
+                const existingLines = await this.mercIndentLineItemRepo.find({
+                  where: { mercIndentPendingId: exists.id },
+                });
+                for (const line of existingLines) {
+                  const incoming = item.lineItems.find((d: any) => d.mercItemId === line.mercItemId);
+                  if (incoming) {
+                    let itemChanged = false;
+                    const incLength = incoming.lengthMm != null ? Number(incoming.lengthMm) : ((incoming as any).length != null ? Number((incoming as any).length) : null);
+                    if (incLength != null && (line.lengthMm == null || Number(line.lengthMm) !== incLength)) {
+                      line.lengthMm = incLength;
+                      itemChanged = true;
+                    }
+                    const incDiameter = incoming.diameterMm != null ? Number(incoming.diameterMm) : ((incoming as any).diameter != null ? Number((incoming as any).diameter) : null);
+                    if (incDiameter != null && (line.diameterMm == null || Number(line.diameterMm) !== incDiameter)) {
+                      line.diameterMm = incDiameter;
+                      itemChanged = true;
+                    }
+                    const incWidth = incoming.widthMm != null ? Number(incoming.widthMm) : ((incoming as any).width != null ? Number((incoming as any).width) : null);
+                    if (incWidth != null && (line.widthMm == null || Number(line.widthMm) !== incWidth)) {
+                      line.widthMm = incWidth;
+                      itemChanged = true;
+                    }
+                    const incHeight = incoming.heightMm != null ? Number(incoming.heightMm) : ((incoming as any).height != null ? Number((incoming as any).height) : null);
+                    if (incHeight != null && (line.heightMm == null || Number(line.heightMm) !== incHeight)) {
+                      line.heightMm = incHeight;
+                      itemChanged = true;
+                    }
+                    if (!line.shape && incoming.shape) {
+                      line.shape = incoming.shape;
+                      itemChanged = true;
+                    }
+                    if (itemChanged) {
+                      await this.mercIndentLineItemRepo.save(line);
+                    }
+                  }
+                }
               }
 
               // RECONCILIATION: Check if RM has this indent marked as ISSUED or PARTIAL,

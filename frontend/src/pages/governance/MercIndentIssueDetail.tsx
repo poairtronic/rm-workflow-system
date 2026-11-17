@@ -424,6 +424,9 @@ export function MercIndentIssueDetail() {
     }
     // RAW_MATERIAL — build from dimension fields
     if (item.diameterMm && Number(item.diameterMm) > 0) {
+      if (item.lengthMm && Number(item.lengthMm) > 0) {
+        return `Ø ${item.diameterMm} mm × ${item.lengthMm} mm`;
+      }
       return `Ø ${item.diameterMm} mm`;
     }
     const parts: string[] = [];

@@ -39,7 +39,15 @@ export class MercLineItemDto {
 
   @IsOptional()
   @IsNumber()
+  length?: number;
+
+  @IsOptional()
+  @IsNumber()
   widthMm?: number;
+
+  @IsOptional()
+  @IsNumber()
+  width?: number;
 
   @IsOptional()
   @IsNumber()
@@ -47,7 +55,15 @@ export class MercLineItemDto {
 
   @IsOptional()
   @IsNumber()
+  height?: number;
+
+  @IsOptional()
+  @IsNumber()
   diameterMm?: number;
+
+  @IsOptional()
+  @IsNumber()
+  diameter?: number;
 
   @IsNumber()
   @Min(0.001)
