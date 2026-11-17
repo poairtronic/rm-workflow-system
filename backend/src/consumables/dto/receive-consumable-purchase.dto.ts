@@ -6,6 +6,7 @@ import {
   IsString,
   IsArray,
   Min,
+  ValidateIf,
 } from 'class-validator';
 
 export class ReceiveConsumablePurchaseDto {
@@ -31,6 +32,7 @@ export class ReceiveConsumablePurchaseDto {
   autoIssue?: boolean;
 
   @IsOptional()
+  @ValidateIf((o) => o.autoIssue === true && o.issueQty !== undefined && o.issueQty !== null)
   @IsNumber()
   @Min(0.001, { message: 'Issue quantity must be greater than zero.' })
   issueQty?: number;

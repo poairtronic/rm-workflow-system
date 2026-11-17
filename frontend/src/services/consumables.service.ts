@@ -215,14 +215,16 @@ export const consumablesApi = {
   async receivePurchase(items: ReceiveItemPayload | ReceiveItemPayload[]): Promise<any> {
     const list = Array.isArray(items) ? items : [items];
     const target = list[0];
-    const payload = {
+    const payload: any = {
       itemId: target?.itemId || target?.lineItemId,
       realReceivedQty: Number(target?.realReceivedQty || 0),
       binId: target?.binId,
       autoIssue: Boolean(target?.autoIssue),
-      issueQty: target?.issueQty != null ? Number(target.issueQty) : undefined,
       items: list,
     };
+    if (target?.autoIssue && target?.issueQty != null && Number(target.issueQty) > 0) {
+      payload.issueQty = Number(target.issueQty);
+    }
     return api.post<any>('/api/consumables/purchase/receive', payload);
   },
 

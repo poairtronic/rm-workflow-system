@@ -395,18 +395,19 @@ export function ConsumablePurchaseStoreWorkspace() {
 
     setReceivingSubmit(true);
     try {
-      const issueQty = autoIssueOnReceive ? Number(deliveryToProductionQty) : 0;
-      await consumablesApi.receivePurchase([
-        {
-          lineItemId: receiveModalItem.id,
-          realReceivedQty: Number(realReceivedQty),
-          binId: selectedTargetBinId,
-          autoIssue: autoIssueOnReceive,
-          issueQty,
-        },
-      ]);
+      const issueQty = autoIssueOnReceive ? Number(deliveryToProductionQty) : undefined;
+      const receivePayload: any = {
+        lineItemId: receiveModalItem.id,
+        realReceivedQty: Number(realReceivedQty),
+        binId: selectedTargetBinId,
+        autoIssue: autoIssueOnReceive,
+      };
+      if (autoIssueOnReceive && issueQty != null && issueQty > 0) {
+        receivePayload.issueQty = issueQty;
+      }
+      await consumablesApi.receivePurchase([receivePayload]);
 
-      const retainedInStore = Math.max(0, realReceivedQty - issueQty);
+      const retainedInStore = Math.max(0, realReceivedQty - (issueQty || 0));
       toast.success(
         autoIssueOnReceive
           ? `Inwarded ${realReceivedQty} ${receiveModalItem.uom} to bin: ${issueQty} ${receiveModalItem.uom} issued to Production, ${retainedInStore} ${receiveModalItem.uom} retained in stores inventory!`
