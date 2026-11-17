@@ -23,6 +23,8 @@ import {
 } from './workflow-notification.service.js';
 import { NotificationRecipientService } from './notification-recipient.service.js';
 import { NotificationsGateway } from './notifications.gateway.js';
+import { NotificationPreferenceService } from './notification-preference.service.js';
+import { EmailSkipLogService } from './email-skip-log.service.js';
 
 export interface CommunicationEventResult {
   inAppNotifications: Notification[];
@@ -71,6 +73,11 @@ export const PERMITTED_EMAIL_CONFIG: Record<
   // Consumables SLA and Fulfillment alerts (Admin controllable)
   CONSUMABLE_RECEIPT_OVERDUE: { allowedRoles: ['STORES', 'ADMIN'], recipientType: 'ROLES' },
   CONSUMABLE_PARTIALLY_ISSUED_OVERDUE: { allowedRoles: ['STORES', 'ADMIN', 'PRODUCTION'], recipientType: 'ROLES' },
+  // Phase 5: Overdue alert sweeps
+  MATERIAL_ISSUE_OVERDUE_24H: { allowedRoles: ['STORES', 'GENERAL_MANAGER'], recipientType: 'ROLES' },
+  DC_PENDING_2_DAYS: { allowedRoles: ['STORES', 'SENIOR_MANAGER'], recipientType: 'ROLES' },
+  DC_QC_PENDING_24H: { allowedRoles: ['STORES', 'SENIOR_MANAGER'], recipientType: 'ROLES' },
+  CONSUMABLE_PENDING_2_DAYS: { allowedRoles: ['STORES', 'ADMIN'], recipientType: 'ROLES' },
   // Diagnostic test email for admin verification
   TEST_EMAIL: {
     allowedRoles: ['ADMIN', 'STORES', 'PRODUCTION', 'DESIGNER', 'SENIOR_MANAGER', 'GENERAL_MANAGER'],
@@ -98,6 +105,8 @@ export class CommunicationService {
     @Optional() emailIdempotencyService?: EmailIdempotencyService,
     @Optional() recipientService?: NotificationRecipientService,
     @Optional() private readonly notificationsGateway?: NotificationsGateway,
+    @Optional() private readonly notificationPreferenceService?: NotificationPreferenceService,
+    @Optional() private readonly emailSkipLogService?: EmailSkipLogService,
   ) {
     this.templateService = templateService || new TemplateService();
     this.emailIdempotencyService = emailIdempotencyService || new EmailIdempotencyService();
@@ -238,6 +247,11 @@ export class CommunicationService {
         actorUserId,
         specificTargetUserId,
       });
+      if (targetUsers.length === 0 && PERMITTED_EMAIL_CONFIG[input.eventType]?.recipientType === 'ROLES') {
+        targetUsers = await this.recipientService.findActiveUsersByRoles(
+          PERMITTED_EMAIL_CONFIG[input.eventType].allowedRoles,
+        );
+      }
     } catch (recipientErr: any) {
       this.logger.error(`Recipient resolution failed for event "${input.eventType}": ${recipientErr?.message || recipientErr}`);
       return { inAppNotifications: [], emailJobs: [] };
@@ -620,6 +634,90 @@ export class CommunicationService {
           actorUserId,
         });
 
+      // Phase 5: Overdue Alert Sweeps
+      case 'MATERIAL_ISSUE_OVERDUE_24H':
+        return this.orchestrateChannelDelivery({
+          eventType: 'MATERIAL_ISSUE_OVERDUE_24H',
+          targetUsers,
+          targetEntity: 'MATERIAL_ISSUE',
+          targetId: input.entityId,
+          title: `OVERDUE: Raw Material Issue Pending (>24h) - ${input.metadata?.rmNumber || input.entityId}`,
+          message: `RM Request ${input.metadata?.rmNumber || input.entityId} has been approved for over ${input.metadata?.hoursOverdue ?? 24} hours and is not yet issued to production.`,
+          templateKey: 'MATERIAL_ISSUE_OVERDUE_24H',
+          subject: `[V-SMART] OVERDUE: Raw Material Issue Pending (>24h) - ${input.metadata?.rmNumber || input.entityId}`,
+          payload: {
+            rmNumber: input.metadata?.rmNumber,
+            hoursOverdue: input.metadata?.hoursOverdue,
+            reviewedAt: input.metadata?.reviewedAt,
+            designerName: input.metadata?.designerName,
+            actionUrl: input.metadata?.actionUrl,
+          },
+          actorUserId,
+        });
+
+      case 'DC_PENDING_2_DAYS':
+        return this.orchestrateChannelDelivery({
+          eventType: 'DC_PENDING_2_DAYS',
+          targetUsers,
+          targetEntity: 'DELIVERY_CHALLAN',
+          targetId: input.entityId,
+          title: `OVERDUE: Challan ${input.metadata?.challanNumber || input.entityId} Not Returned (>2 Days)`,
+          message: `Delivery Challan ${input.metadata?.challanNumber || input.entityId} dispatched to vendor ${input.metadata?.vendorName || 'N/A'} was created ${input.metadata?.daysPending ?? 2} days ago and is not fully returned.`,
+          templateKey: 'DC_PENDING_2_DAYS',
+          subject: `[V-SMART] OVERDUE: Delivery Challan Not Returned (>2 Days) - ${input.metadata?.challanNumber || input.entityId}`,
+          payload: {
+            challanNumber: input.metadata?.challanNumber,
+            vendorName: input.metadata?.vendorName,
+            dispatchDate: input.metadata?.dispatchDate,
+            createdAt: input.metadata?.createdAt,
+            daysPending: input.metadata?.daysPending,
+            actionUrl: input.metadata?.actionUrl,
+          },
+          actorUserId,
+        });
+
+      case 'CONSUMABLE_PENDING_2_DAYS':
+        return this.orchestrateChannelDelivery({
+          eventType: 'CONSUMABLE_PENDING_2_DAYS',
+          targetUsers,
+          targetEntity: 'CONSUMABLE_REQUEST',
+          targetId: input.entityId,
+          title: `OVERDUE: Consumable Request Open (>2 Days) - ${input.metadata?.requestCode || input.entityId}`,
+          message: `Consumable Request ${input.metadata?.requestCode || input.entityId} was created ${input.metadata?.daysPending ?? 2} days ago and is still pending completion.`,
+          templateKey: 'CONSUMABLE_PENDING_2_DAYS',
+          subject: `[V-SMART] OVERDUE: Consumable Request Open (>2 Days) - ${input.metadata?.requestCode || input.entityId}`,
+          payload: {
+            requestCode: input.metadata?.requestCode,
+            requestedBy: input.metadata?.requestedBy,
+            createdAt: input.metadata?.createdAt,
+            daysPending: input.metadata?.daysPending,
+            itemsCount: input.metadata?.itemsCount,
+            actionUrl: input.metadata?.actionUrl,
+          },
+          actorUserId,
+        });
+
+      case 'DC_QC_PENDING_24H':
+        return this.orchestrateChannelDelivery({
+          eventType: 'DC_QC_PENDING_24H',
+          targetUsers,
+          targetEntity: 'DELIVERY_CHALLAN',
+          targetId: input.entityId,
+          title: `QC OVERDUE: Challan ${input.metadata?.challanNumber || input.entityId} items waiting in QC (>24h)`,
+          message: `Delivery Challan ${input.metadata?.challanNumber || input.entityId} has ${input.metadata?.itemsCount ?? 1} item(s) pending QC inspection for >24 hours.`,
+          templateKey: 'DC_QC_PENDING_24H',
+          subject: `[V-SMART] QC INSPECTION OVERDUE (>24h): Delivery Challan ${input.metadata?.challanNumber || input.entityId}`,
+          payload: {
+            challanNumber: input.metadata?.challanNumber,
+            vendorName: input.metadata?.vendorName,
+            itemsTableHtml: input.metadata?.itemsTableHtml,
+            itemsCount: input.metadata?.itemsCount,
+            hoursPending: input.metadata?.hoursPending,
+            actionUrl: input.metadata?.actionUrl,
+          },
+          actorUserId,
+        });
+
       default:
         this.logger.warn(`Unsupported communication event type: ${input.eventType}`);
         return { inAppNotifications: [], emailJobs: [] };
@@ -713,31 +811,123 @@ export class CommunicationService {
       return { inAppNotifications, emailJobs };
     }
 
+    // Resolve authorized recipients for this specific email event
+    const mode = this.notificationPreferenceService
+      ? await this.notificationPreferenceService.getMode()
+      : (process.env.EMAIL_PREFS_V2_MODE?.trim().toUpperCase() as 'OFF' | 'SHADOW' | 'ON') || 'OFF';
+
     const globalEmailEnabled = await this.notificationsService.getGlobalWorkflowEmailEnabled();
     if (!globalEmailEnabled) {
       this.logger.log(`Global workflow email is disabled. Skipping email jobs for event "${params.eventType}".`);
+      try {
+        await this.emailSkipLogService?.logSkips([
+          {
+            eventCode: params.eventType,
+            reason: 'GLOBAL_OFF',
+            entityId: params.targetId,
+            mode,
+          },
+        ]);
+      } catch (err: any) {
+        this.logger.warn(`Failed to log GLOBAL_OFF skip: ${err?.message || err}`);
+      }
       return { inAppNotifications, emailJobs };
     }
 
-    if (params.eventType === 'CONSUMABLE_RECEIPT_OVERDUE' || params.eventType === 'CONSUMABLE_PARTIALLY_ISSUED_OVERDUE') {
+    if (
+      params.eventType === 'CONSUMABLE_RECEIPT_OVERDUE' ||
+      params.eventType === 'CONSUMABLE_PARTIALLY_ISSUED_OVERDUE' ||
+      params.eventType === 'CONSUMABLE_PENDING_2_DAYS'
+    ) {
       const consumableEmailEnabled = await this.notificationsService.getConsumableEmailAlertsEnabled();
       if (!consumableEmailEnabled) {
         this.logger.log(`Consumable email alerts are turned OFF by Admin. Skipping email dispatch for "${params.eventType}".`);
+        try {
+          await this.emailSkipLogService?.logSkips([
+            {
+              eventCode: params.eventType,
+              reason: 'CONSUMABLE_GATE_OFF',
+              entityId: params.targetId,
+              mode,
+            },
+          ]);
+        } catch (err: any) {
+          this.logger.warn(`Failed to log CONSUMABLE_GATE_OFF skip: ${err?.message || err}`);
+        }
         return { inAppNotifications, emailJobs };
       }
     }
 
-    // Resolve authorized recipients for this specific email event
     let emailRecipients: User[] = [];
-    if (emailRule.recipientType === 'ROLES') {
-      const roleUsers = await this.recipientService.findActiveUsersByRoles(emailRule.allowedRoles);
-      // Exclude actor if specified so the person taking the action doesn't get self-notified
-      emailRecipients = roleUsers.filter(
-        (u) => u && u.isActive && (!params.actorUserId || u.id !== params.actorUserId),
-      );
+
+    if (mode === 'ON') {
+      let resolved: User[] | null = null;
+      try {
+        if (this.notificationPreferenceService) {
+          resolved = await this.notificationPreferenceService.resolveRecipients(
+            params.eventType,
+            params.actorUserId,
+          );
+          if (resolved !== null && typeof this.notificationPreferenceService.resolveRecipientsDetailed === 'function') {
+            const detailed = await this.notificationPreferenceService.resolveRecipientsDetailed(
+              params.eventType,
+              params.actorUserId,
+            );
+            if (detailed?.skipped && detailed.skipped.length > 0) {
+              const skipEntries = detailed.skipped.map((s) => ({
+                eventCode: params.eventType,
+                recipientUserId: s.user.id,
+                recipientName: s.user.name,
+                recipientEmail: s.user.email,
+                reason: s.reason,
+                entityId: params.targetId,
+                mode,
+              }));
+              try {
+                await this.emailSkipLogService?.logSkips(skipEntries);
+              } catch (logErr: any) {
+                this.logger.warn(`Failed to log user skips: ${logErr?.message || logErr}`);
+              }
+            }
+          }
+        }
+      } catch (err: any) {
+        this.logger.error(
+          `NotificationPreferenceService failed for event "${params.eventType}", falling back to legacy recipient resolution: ${err?.message || err}`,
+        );
+        resolved = null;
+      }
+
+      if (resolved !== null) {
+        emailRecipients = resolved;
+      } else {
+        emailRecipients = await this.resolveLegacyEmailRecipients(params, emailRule, uniqueTargetUsers);
+      }
+    } else if (mode === 'SHADOW') {
+      // Old logic decides who gets email (unchanged)
+      emailRecipients = await this.resolveLegacyEmailRecipients(params, emailRule, uniqueTargetUsers);
+
+      try {
+        if (this.notificationPreferenceService) {
+          const newRecipients = await this.notificationPreferenceService.resolveRecipients(
+            params.eventType,
+            params.actorUserId,
+          );
+          const oldEmails = emailRecipients.map((u) => u.email).filter(Boolean).sort();
+          const newEmails = (newRecipients ?? emailRecipients).map((u) => u.email).filter(Boolean).sort();
+          const match = JSON.stringify(oldEmails) === JSON.stringify(newEmails);
+          this.logger.log(
+            `[EMAIL_PREFS_SHADOW] event=${params.eventType} old=[${oldEmails.join(', ')}] new=[${newEmails.join(', ')}] match=${match}`,
+          );
+        }
+      } catch (shadowErr: any) {
+        this.logger.error(
+          `[EMAIL_PREFS_SHADOW] Shadow resolver failed for event ${params.eventType}: ${shadowErr?.message || shadowErr}`,
+        );
+      }
     } else {
-      // Direct recipient (e.g. PASSWORD_RESET or specific user)
-      emailRecipients = uniqueTargetUsers;
+      // mode === 'OFF': old logic only. No new queries.
+      emailRecipients = await this.resolveLegacyEmailRecipients(params, emailRule, uniqueTargetUsers);
     }
 
     if (emailRecipients.length === 0) {
@@ -750,36 +940,31 @@ export class CommunicationService {
     await Promise.all(
       emailRecipients.map(async (user) => {
         try {
-          const isUserAllowed = await this.notificationsService.getUserWorkflowEmailEnabled(user.id);
-          if (isUserAllowed) {
-            // Use TemplateService to render template content safely
-            const rendered = this.templateService.render(params.templateKey, {
-              recipientName: user.name,
-              ...params.payload,
-            });
+          // Use TemplateService to render template content safely
+          const rendered = this.templateService.render(params.templateKey, {
+            recipientName: user.name,
+            ...params.payload,
+          });
 
-            const idempotencyKey = this.emailIdempotencyService.generateKey({
-              eventType: params.eventType,
-              entityId: params.targetId,
-              recipientUserId: user.id,
-            });
-            const job = await this.emailQueueService.enqueueJob({
-              recipientEmail: user.email,
-              recipientUserId: user.id,
-              recipientName: user.name,
-              eventType: params.eventType,
-              templateKey: rendered.templateKey,
-              subject: rendered.subject,
-              bodyText: rendered.text,
-              bodyHtml: rendered.html,
-              payload: params.payload,
-              idempotencyKey,
-            });
-            if (job) {
-              emailJobs.push(job);
-            }
-          } else {
-            this.logger.log(`Workflow email suppressed for recipient ${user.id} (${user.email}) due to user preferences.`);
+          const idempotencyKey = this.emailIdempotencyService.generateKey({
+            eventType: params.eventType,
+            entityId: params.targetId,
+            recipientUserId: user.id,
+          });
+          const job = await this.emailQueueService.enqueueJob({
+            recipientEmail: user.email,
+            recipientUserId: user.id,
+            recipientName: user.name,
+            eventType: params.eventType,
+            templateKey: rendered.templateKey,
+            subject: rendered.subject,
+            bodyText: rendered.text,
+            bodyHtml: rendered.html,
+            payload: params.payload,
+            idempotencyKey,
+          });
+          if (job) {
+            emailJobs.push(job);
           }
         } catch (emailErr: any) {
           this.logger.error(`Email job enqueuing failed for recipient ${user.id}: ${emailErr?.message || emailErr}`);
@@ -788,6 +973,47 @@ export class CommunicationService {
     );
 
     return { inAppNotifications, emailJobs };
+  }
+
+  /**
+   * Legacy recipient resolution logic used in OFF mode, SHADOW mode, and fallback.
+   */
+  private async resolveLegacyEmailRecipients(
+    params: { eventType: string; actorUserId?: string },
+    emailRule: { allowedRoles: string[]; recipientType: 'ROLES' | 'USER' },
+    uniqueTargetUsers: User[],
+  ): Promise<User[]> {
+    let rawRecipients: User[] = [];
+    if (emailRule.recipientType === 'ROLES') {
+      const roleUsers = await this.recipientService.findActiveUsersByRoles(emailRule.allowedRoles);
+      // Exclude actor if specified so the person taking the action doesn't get self-notified
+      rawRecipients = roleUsers.filter(
+        (u) => u && u.isActive && (!params.actorUserId || u.id !== params.actorUserId),
+      );
+    } else {
+      // Direct recipient (e.g. PASSWORD_RESET or specific user)
+      rawRecipients = uniqueTargetUsers;
+    }
+
+    const eligibleRecipients: User[] = [];
+    for (const user of rawRecipients) {
+      try {
+        const isUserAllowed = await this.notificationsService.getUserWorkflowEmailEnabled(user.id);
+        if (isUserAllowed) {
+          eligibleRecipients.push(user);
+        } else {
+          this.logger.log(
+            `Workflow email suppressed for recipient ${user.id} (${user.email}) due to user preferences.`,
+          );
+        }
+      } catch (err: any) {
+        this.logger.warn(
+          `Failed checking workflow email preference for user ${user.id}: ${err?.message || err}`,
+        );
+        eligibleRecipients.push(user);
+      }
+    }
+    return eligibleRecipients;
   }
 
   async notifyRmSubmitted(event: RmSubmittedEventPayload): Promise<CommunicationEventResult> {

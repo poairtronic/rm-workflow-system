@@ -611,6 +611,176 @@ export class TemplateService {
         };
       },
     },
+
+    MATERIAL_ISSUE_OVERDUE_24H: {
+      key: 'MATERIAL_ISSUE_OVERDUE_24H',
+      requiredVars: ['rmNumber'],
+      allowedVars: ['recipientName', 'rmNumber', 'hoursOverdue', 'reviewedAt', 'designerName', 'itemsSummary', 'actionUrl'],
+      render: (vars, escape) => {
+        const rm = escape(vars.rmNumber || 'N/A');
+        const hours = vars.hoursOverdue !== undefined ? vars.hoursOverdue : '24+';
+        const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
+        const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
+        const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const link = vars.actionUrl || `${baseUrl}/stores/rm-issue`;
+        return {
+          subject: `[V-SMART] OVERDUE: Raw Material Issue Pending (>24h) - ${vars.rmNumber || 'RM Request'}`,
+          text: `${name}ALERT: Approved RM Request ${vars.rmNumber || 'N/A'} has not been issued to Production for over ${hours} hours.\nPlease review and issue material at: ${link}`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+              <div style="background: #dc2626; color: white; padding: 16px 24px;">
+                <h2 style="margin: 0; font-size: 18px;">⚠️ Material Issue Overdue Alert</h2>
+              </div>
+              <div style="padding: 24px;">
+                ${htmlName}
+                <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+                  Approved Raw Material Requisition <strong>${rm}</strong> has been waiting for material issue for <strong>${hours} hours</strong> without fulfillment.
+                </p>
+                <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 13px; color: #991b1b;">
+                  <p style="margin: 0 0 8px;"><strong>RM Request:</strong> ${rm}</p>
+                  <p style="margin: 0 0 8px;"><strong>Approved At:</strong> ${escape(vars.reviewedAt || 'N/A')}</p>
+                  <p style="margin: 0 0 8px;"><strong>Designer:</strong> ${escape(vars.designerName || 'N/A')}</p>
+                  <p style="margin: 0;"><strong>Hours Waiting:</strong> ${hours}h</p>
+                </div>
+                <p style="margin-top: 20px;">
+                  <a href="${link}" style="background: #dc2626; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-size: 14px; display: inline-block;">
+                    View &amp; Issue Material &rarr;
+                  </a>
+                </p>
+              </div>
+            </div>
+          `,
+        };
+      },
+    },
+
+    DC_PENDING_2_DAYS: {
+      key: 'DC_PENDING_2_DAYS',
+      requiredVars: ['challanNumber'],
+      allowedVars: ['recipientName', 'challanNumber', 'vendorName', 'dispatchDate', 'createdAt', 'daysPending', 'actionUrl'],
+      render: (vars, escape) => {
+        const cn = escape(vars.challanNumber || 'N/A');
+        const vendor = escape(vars.vendorName || 'N/A');
+        const days = vars.daysPending !== undefined ? vars.daysPending : '2+';
+        const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
+        const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
+        const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const link = vars.actionUrl || `${baseUrl}/dispatch/movements`;
+        return {
+          subject: `[V-SMART] OVERDUE: Delivery Challan Not Returned (>2 Days) - ${vars.challanNumber || 'DC'}`,
+          text: `${name}ALERT: Delivery Challan ${vars.challanNumber || 'N/A'} was created ${days} days ago and has not been fully returned by vendor ${vars.vendorName || 'N/A'}.\nTrack challan status at: ${link}`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+              <div style="background: #ea580c; color: white; padding: 16px 24px;">
+                <h2 style="margin: 0; font-size: 18px;">🚚 Delivery Challan Open Return Alert</h2>
+              </div>
+              <div style="padding: 24px;">
+                ${htmlName}
+                <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+                  Delivery Challan <strong>${cn}</strong> dispatched to vendor <strong>${vendor}</strong> was created <strong>${days} days ago</strong> and remains open (not fully returned).
+                </p>
+                <div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 13px; color: #9a3412;">
+                  <p style="margin: 0 0 8px;"><strong>Challan Number:</strong> ${cn}</p>
+                  <p style="margin: 0 0 8px;"><strong>Vendor:</strong> ${vendor}</p>
+                  <p style="margin: 0 0 8px;"><strong>Dispatch Date:</strong> ${escape(vars.dispatchDate || 'N/A')}</p>
+                  <p style="margin: 0;"><strong>Days Open:</strong> ${days} days</p>
+                </div>
+                <p style="margin-top: 20px;">
+                  <a href="${link}" style="background: #ea580c; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-size: 14px; display: inline-block;">
+                    View Delivery Challan &rarr;
+                  </a>
+                </p>
+              </div>
+            </div>
+          `,
+        };
+      },
+    },
+
+    CONSUMABLE_PENDING_2_DAYS: {
+      key: 'CONSUMABLE_PENDING_2_DAYS',
+      requiredVars: ['requestCode'],
+      allowedVars: ['recipientName', 'requestCode', 'requestedBy', 'createdAt', 'daysPending', 'itemsCount', 'actionUrl'],
+      render: (vars, escape) => {
+        const req = escape(vars.requestCode || 'N/A');
+        const by = escape(vars.requestedBy || 'N/A');
+        const days = vars.daysPending !== undefined ? vars.daysPending : '2+';
+        const items = vars.itemsCount !== undefined ? vars.itemsCount : 'N/A';
+        const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
+        const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
+        const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const link = vars.actionUrl || `${baseUrl}/consumables/requests`;
+        return {
+          subject: `[V-SMART] OVERDUE: Consumable Request Open (>2 Days) - ${vars.requestCode || 'Request'}`,
+          text: `${name}ALERT: Consumable Request ${vars.requestCode || 'N/A'} created ${days} days ago by ${vars.requestedBy || 'N/A'} is still pending completion.\nView requests at: ${link}`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+              <div style="background: #d97706; color: white; padding: 16px 24px;">
+                <h2 style="margin: 0; font-size: 18px;">📦 Consumable Request Pending Alert</h2>
+              </div>
+              <div style="padding: 24px;">
+                ${htmlName}
+                <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+                  Consumable Request <strong>${req}</strong> created <strong>${days} days ago</strong> by <strong>${by}</strong> has not reached completed fulfillment.
+                </p>
+                <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 13px; color: #92400e;">
+                  <p style="margin: 0 0 8px;"><strong>Request Code:</strong> ${req}</p>
+                  <p style="margin: 0 0 8px;"><strong>Requested By:</strong> ${by}</p>
+                  <p style="margin: 0 0 8px;"><strong>Created Date:</strong> ${escape(vars.createdAt || 'N/A')}</p>
+                  <p style="margin: 0;"><strong>Line Items Pending:</strong> ${items}</p>
+                </div>
+                <p style="margin-top: 20px;">
+                  <a href="${link}" style="background: #d97706; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-size: 14px; display: inline-block;">
+                    View Consumable Requests &rarr;
+                  </a>
+                </p>
+              </div>
+            </div>
+          `,
+        };
+      },
+    },
+
+    DC_QC_PENDING_24H: {
+      key: 'DC_QC_PENDING_24H',
+      requiredVars: ['challanNumber'],
+      allowedVars: ['recipientName', 'challanNumber', 'vendorName', 'itemsTableHtml', 'itemsCount', 'hoursPending', 'actionUrl'],
+      render: (vars, escape) => {
+        const cn = escape(vars.challanNumber || 'N/A');
+        const vendor = escape(vars.vendorName || 'N/A');
+        const count = vars.itemsCount !== undefined ? vars.itemsCount : 1;
+        const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
+        const htmlName = vars.recipientName ? `<p>Hello ${escape(vars.recipientName)},</p>` : '';
+        const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const link = vars.actionUrl || `${baseUrl}/dispatch/returns`;
+        const tableHtml = vars.itemsTableHtml || `<p>${count} item(s) pending QC inspection.</p>`;
+        return {
+          subject: `[V-SMART] QC INSPECTION OVERDUE (>24h): Delivery Challan ${vars.challanNumber || 'DC'}`,
+          text: `${name}ALERT: Delivery Challan ${vars.challanNumber || 'N/A'} from vendor ${vars.vendorName || 'N/A'} has ${count} inwarded item(s) waiting for QC inspection for over 24 hours.\nInspect items at: ${link}`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 650px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+              <div style="background: #7c3aed; color: white; padding: 16px 24px;">
+                <h2 style="margin: 0; font-size: 18px;">🔍 Quality Check (QC) Inspection Overdue Alert</h2>
+              </div>
+              <div style="padding: 24px;">
+                ${htmlName}
+                <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+                  Delivery Challan <strong>${cn}</strong> from vendor <strong>${vendor}</strong> has items inwarded at dock that have been pending Quality Check inspection for <strong>&gt;24 hours</strong>:
+                </p>
+                <div style="margin: 16px 0;">
+                  ${tableHtml}
+                </div>
+                <p style="margin-top: 20px;">
+                  <a href="${link}" style="background: #7c3aed; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-size: 14px; display: inline-block;">
+                    Open QC Inspection Screen &rarr;
+                  </a>
+                </p>
+              </div>
+            </div>
+          `,
+        };
+      },
+    },
   };
 
   /**

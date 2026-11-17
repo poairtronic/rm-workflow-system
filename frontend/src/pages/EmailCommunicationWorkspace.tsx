@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { emailCommunicationApi } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { RoleRulesPanel } from '../components/emailPreferences/RoleRulesPanel';
 import { PageHeader } from '../components/ui';
 import {
   Mail,
@@ -19,6 +21,11 @@ import {
 } from 'lucide-react';
 
 export function EmailCommunicationWorkspace() {
+  const { currentUser } = useAuth();
+  const isRulesAuthorized =
+    currentUser?.role === 'ADMIN' || currentUser?.role === 'GENERAL_MANAGER';
+  const [activeTab, setActiveTab] = useState<'delivery' | 'rules'>('delivery');
+
   const [metrics, setMetrics] = useState<any | null>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [totalLogs, setTotalLogs] = useState(0);
@@ -207,6 +214,40 @@ export function EmailCommunicationWorkspace() {
         }
       />
 
+      {/* Tabs (Visible to ADMIN and GENERAL_MANAGER) */}
+      {isRulesAuthorized && (
+        <div className="flex items-center gap-6 border-b border-slate-200 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={() => setActiveTab('delivery')}
+            className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === 'delivery'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            Delivery Logs & Queue
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('rules')}
+            className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === 'rules'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            <Mail className="w-4 h-4" />
+            Notification Rules
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'rules' && isRulesAuthorized ? (
+        <RoleRulesPanel isReadOnly={currentUser?.role !== 'ADMIN'} />
+      ) : (
+        <>
         {/* 4 Stat Cards - Matches Screenshot 1 */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
           {/* 1. System Health */}
@@ -456,6 +497,8 @@ export function EmailCommunicationWorkspace() {
             </div>
           </div>
         </div>
+        </>
+      )}
 
       {/* Test Email Modal */}
       {isTestModalOpen && (

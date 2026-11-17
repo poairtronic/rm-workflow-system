@@ -82,6 +82,12 @@ import { ConsumableRequestItem } from '../consumables/entities/consumable-reques
 import { MercIndentPending } from '../merc-indent/entities/merc-indent-pending.entity.js';
 import { MercIndentLineItem } from '../merc-indent/entities/merc-indent-line-item.entity.js';
 import { EcrMaterialPending } from '../ecr-issues/entities/ecr-material-pending.entity.js';
+import { NotificationEvent } from '../notifications/entities/notification-event.entity.js';
+import { RoleEmailSetting } from '../notifications/entities/role-email-setting.entity.js';
+import { UserEmailOverride } from '../notifications/entities/user-email-override.entity.js';
+import { EmailSettingAudit } from '../notifications/entities/email-setting-audit.entity.js';
+import { EmailAlertWatch } from '../alert-sweeps/entities/email-alert-watch.entity.js';
+import { EmailSkipLog } from '../notifications/entities/email-skip-log.entity.js';
 export const ALL_ENTITIES = [
   Role,
   User,
@@ -142,6 +148,12 @@ export const ALL_ENTITIES = [
   MercIndentPending,
   MercIndentLineItem,
   EcrMaterialPending,
+  NotificationEvent,
+  RoleEmailSetting,
+  UserEmailOverride,
+  EmailSettingAudit,
+  EmailAlertWatch,
+  EmailSkipLog,
 ];
 
 const dbUrl =

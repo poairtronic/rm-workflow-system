@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { userMasterApi } from '../services/userMaster.service';
+import { emailPreferencesApi } from '../services/emailPreferencesApi';
 import type {
   UserMasterDto,
   CreateUserMasterDto,
@@ -22,6 +23,7 @@ import type { ColumnDef } from '../components/ui';
 import { Plus, Shield, Mail, Calendar, ArrowLeft, KeyRound, Trash2, SlidersHorizontal } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { UserAccessDrawer } from '../components/access-control/UserAccessDrawer';
+import { UserEmailPreferencesDrawer } from '../components/emailPreferences/UserEmailPreferencesDrawer';
 import { RolePermissionMatrixModal } from '../components/access-control/RolePermissionMatrixModal';
 
 const SYSTEM_ROLES: { value: UserRoleType; label: string; desc: string }[] = [
@@ -67,8 +69,32 @@ export function UserMasterWorkspace() {
   // Access Control Drawer State
   const [accessDrawerTarget, setAccessDrawerTarget] = useState<UserMasterDto | null>(null);
 
+  // Email Preferences Drawer State
+  const [emailPrefsTarget, setEmailPrefsTarget] = useState<UserMasterDto | null>(null);
+
   // Role Permission Matrix Modal State
   const [isRoleMatrixOpen, setIsRoleMatrixOpen] = useState(false);
+
+  const isEmailPrefsAuthorized =
+    currentUser?.role === 'ADMIN' || currentUser?.role === 'GENERAL_MANAGER';
+
+  // Single query for email preferences override counts across all users
+  const {
+    data: emailUserSummaries = [],
+    refetch: refetchEmailSummaries,
+  } = useQuery({
+    queryKey: ['email-prefs-user-summaries'],
+    queryFn: () => emailPreferencesApi.getUsers(),
+    enabled: isEmailPrefsAuthorized,
+  });
+
+  const overrideCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const s of emailUserSummaries) {
+      map.set(s.id, s.overrideCount);
+    }
+    return map;
+  }, [emailUserSummaries]);
 
   // Fetch Users
   const {
@@ -329,18 +355,45 @@ export function UserMasterWorkspace() {
     },
     {
       key: 'accessControl',
-      header: 'Access Permissions',
-      render: (u) => (
-        <button
-          type="button"
-          onClick={() => setAccessDrawerTarget(u)}
-          className="text-xs px-2.5 py-1.5 rounded-md font-semibold bg-blue-50 dark:bg-indigo-500/10 border border-blue-200 dark:border-indigo-500/30 text-blue-700 dark:text-indigo-400 hover:bg-blue-100 dark:hover:bg-indigo-500/20 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
-          title="Configure module visibility and permissions for this user"
-        >
-          <Shield className="w-3.5 h-3.5 text-blue-600 dark:text-indigo-400" />
-          <span>Manage Access</span>
-        </button>
-      ),
+      header: 'Access & Notifications',
+      render: (u) => {
+        const overrideCount = overrideCountMap.get(u.id) || 0;
+        return (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setAccessDrawerTarget(u)}
+              className="text-xs px-2.5 py-1.5 rounded-md font-semibold bg-blue-50 dark:bg-indigo-500/10 border border-blue-200 dark:border-indigo-500/30 text-blue-700 dark:text-indigo-400 hover:bg-blue-100 dark:hover:bg-indigo-500/20 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              title="Configure module visibility and permissions for this user"
+            >
+              <Shield className="w-3.5 h-3.5 text-blue-600 dark:text-indigo-400" />
+              <span>Manage Access</span>
+            </button>
+
+            {isEmailPrefsAuthorized && (
+              <button
+                type="button"
+                disabled={!u.isActive}
+                onClick={() => setEmailPrefsTarget(u)}
+                className={`text-xs px-2.5 py-1.5 rounded-md font-semibold border transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer ${
+                  !u.isActive
+                    ? 'border-gray-200 text-gray-400 bg-gray-50 dark:bg-slate-800/40 dark:border-slate-700 dark:text-slate-500 cursor-not-allowed opacity-60'
+                    : 'bg-purple-50 dark:bg-purple-500/10 border-purple-200 dark:border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-500/20'
+                }`}
+                title={!u.isActive ? 'User is inactive' : 'Configure email notification preferences'}
+              >
+                <Mail className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                <span>Email Preferences</span>
+                {overrideCount > 0 && (
+                  <span className="text-[10px] bg-purple-200 dark:bg-purple-800 text-purple-900 dark:text-purple-100 font-bold px-1.5 py-0.5 rounded-full ml-0.5">
+                    {overrideCount} custom
+                  </span>
+                )}
+              </button>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'createdAt',
@@ -613,6 +666,17 @@ export function UserMasterWorkspace() {
         user={accessDrawerTarget}
         isOpen={!!accessDrawerTarget}
         onClose={() => setAccessDrawerTarget(null)}
+      />
+
+      {/* User Email Preferences SlideOver Drawer */}
+      <UserEmailPreferencesDrawer
+        user={emailPrefsTarget}
+        isOpen={!!emailPrefsTarget}
+        onClose={() => setEmailPrefsTarget(null)}
+        isReadOnly={currentUser?.role !== 'ADMIN'}
+        onSaved={() => {
+          refetchEmailSummaries();
+        }}
       />
 
       {/* Role Permission Matrix Modal */}

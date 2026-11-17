@@ -42,6 +42,7 @@ import { ConsumablesModule } from './consumables/consumables.module.js';
 import { ReworkModule } from './rework/rework.module.js';
 import { EcrIssuesModule } from './ecr-issues/ecr-issues.module.js';
 import { MercIndentModule } from './merc-indent/merc-indent.module.js';
+import { AlertSweepModule } from './alert-sweeps/alert-sweeps.module.js';
 
 @Module({
   imports: [
@@ -54,7 +55,9 @@ import { MercIndentModule } from './merc-indent/merc-indent.module.js';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         const dbUrl =
+          configService.get<string>('DATABASE_URL_DIRECT') ||
           configService.get<string>('DATABASE_URL') ||
+          process.env.DATABASE_URL_DIRECT ||
           process.env.DATABASE_URL ||
           'postgresql://postgres:postgres@localhost:5432/rm_workflow_db';
         const isSsl =
@@ -129,6 +132,7 @@ import { MercIndentModule } from './merc-indent/merc-indent.module.js';
     ReworkModule,
     EcrIssuesModule,
     MercIndentModule,
+    AlertSweepModule,
   ],
 
   controllers: [AppController],
