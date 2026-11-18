@@ -25,6 +25,7 @@ import type {
   ConsumableApprovalConfig,
 } from '../types/consumables.types';
 import { RejectReasonModal } from '../components/consumables/RejectReasonModal';
+import { PageHeader } from '../components/ui/PageHeader';
 
 type ApprovalTab = 'PENDING' | 'APPROVED' | 'REJECTED';
 
@@ -221,12 +222,12 @@ export const ConsumableApprovalsWorkspace: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 p-6 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6 w-full pb-12">
       {/* Page Title & Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex flex-wrap items-center gap-2.5">
-            <CheckCircle2 className="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
+      <PageHeader
+        title={
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <CheckCircle2 className="w-6 h-6 sm:w-7 sm:h-7 text-indigo-600 dark:text-indigo-400" />
             <span>Senior Manager Approvals</span>
             <span
               className={`text-xs px-2.5 py-0.5 rounded-full font-bold border ${
@@ -237,41 +238,40 @@ export const ConsumableApprovalsWorkspace: React.FC = () => {
             >
               {configData?.mode === 'ON' ? 'Mode: ON (Active)' : 'Mode: OFF (Standby)'}
             </span>
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Review, approve, and authorize consumable requests before store issuance or purchase requisition.
-          </p>
-        </div>
+          </div>
+        }
+        subtitle="Review, approve, and authorize consumable requests before store issuance or purchase requisition."
+        actionSlot={
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            {isAdminOrGm && (
+              <button
+                type="button"
+                onClick={handleToggleMode}
+                disabled={isTogglingMode}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg border transition-colors shadow-2xs cursor-pointer ${
+                  configData?.mode === 'ON'
+                    ? 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+                    : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700'
+                }`}
+                title="Quick Toggle SM Approval Mode"
+              >
+                <Power className="w-3.5 h-3.5" />
+                <span>{isTogglingMode ? 'Updating...' : configData?.mode === 'ON' ? 'Turn OFF Approvals' : 'Turn ON Approvals'}</span>
+              </button>
+            )}
 
-        <div className="flex items-center gap-2.5">
-          {isAdminOrGm && (
             <button
               type="button"
-              onClick={handleToggleMode}
-              disabled={isTogglingMode}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg border transition-colors shadow-2xs cursor-pointer ${
-                configData?.mode === 'ON'
-                  ? 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
-                  : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700'
-              }`}
-              title="Quick Toggle SM Approval Mode"
+              onClick={() => invalidateAll()}
+              disabled={isFetching}
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-white dark:bg-[#161a2e] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60 shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
             >
-              <Power className="w-3.5 h-3.5" />
-              <span>{isTogglingMode ? 'Updating...' : configData?.mode === 'ON' ? 'Turn OFF Approvals' : 'Turn ON Approvals'}</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
             </button>
-          )}
-
-          <button
-            type="button"
-            onClick={() => invalidateAll()}
-            disabled={isFetching}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-white dark:bg-[#161a2e] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60 shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
-          </button>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       {/* Mode OFF Alert Banner */}
       {configData?.mode === 'OFF' && (
