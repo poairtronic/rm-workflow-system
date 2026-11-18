@@ -9,6 +9,7 @@ import { DeliveryChallanController } from './delivery-challan.controller.js';
 import { DeliveryChallanService } from './delivery-challan.service.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
+import { EmailModule } from '../email/email.module.js';
 import { UploadedFile } from '../files/entities/uploaded-file.entity.js';
 import { Attachment } from '../attachments/entities/attachment.entity.js';
 import { PdfGeneratorService } from '../reports/pdf/pdf-generator.service.js';
@@ -31,6 +32,7 @@ import { MercIndentLineItem } from '../merc-indent/entities/merc-indent-line-ite
     ]),
     AuthModule,
     NotificationsModule,
+    EmailModule,
     FilesModule,
   ],
   controllers: [DeliveryChallanController],

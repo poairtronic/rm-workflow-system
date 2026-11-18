@@ -17,6 +17,7 @@ import {
 } from './interfaces/email-provider.interface.js';
 import { EmailJob } from './entities/email-job.entity.js';
 import { EmailJobStatus } from './enums/email-job-status.enum.js';
+import { GmailApiProvider } from './providers/gmail-api.provider.js';
 import * as os from 'node:os';
 
 @Injectable()
@@ -33,6 +34,7 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
   public shutdownTimeoutMs: number = 10000;
   public sendIntervalMs: number = 3000;
   public dailyLimit: number = 400;
+  public priorityReserve: number = 100;
   public pausedUntil: Date | null = null;
 
   private isRunning: boolean = false;
@@ -97,6 +99,11 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
           process.env.EMAIL_DAILY_LIMIT ||
           this.dailyLimit,
       );
+      this.priorityReserve = Number(
+        this.configService.get('EMAIL_PRIORITY_RESERVE') ||
+          process.env.EMAIL_PRIORITY_RESERVE ||
+          this.priorityReserve,
+      );
       this.currentPollIntervalMs = this.pollIntervalMs;
     }
   }
@@ -122,6 +129,52 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
   async onModuleInit(): Promise<void> {
     if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
       this.isEnabled = false;
+    }
+
+    // Startup Guard: Dev / Prod Quota Isolation
+    const nodeEnv = (
+      this.configService?.get<string>('NODE_ENV') ||
+      process.env.NODE_ENV ||
+      'development'
+    ).toLowerCase();
+
+    const isGmailProvider =
+      this.emailProvider instanceof GmailApiProvider ||
+      (this.emailProvider as any)?.constructor?.name === 'GmailApiProvider';
+
+    const providerType = isGmailProvider ? 'GMAIL-API' : 'TEST';
+    const identityLabel = isGmailProvider
+      ? ((this.emailProvider as any)?.senderEmail || process.env.GMAIL_SENDER_EMAIL || 'GMAIL-API')
+      : 'mock-in-memory';
+
+    this.logger.log(
+      `EmailWorkerService startup [Provider: ${providerType}, Identity: ${identityLabel}, NODE_ENV: ${nodeEnv}]`,
+    );
+
+    if (nodeEnv === 'production' && !isGmailProvider) {
+      this.logger.error(
+        `[CRITICAL CONFIG ERROR] TEST PROVIDER ACTIVE IN PRODUCTION! NODE_ENV is "${nodeEnv}" but provider is "${providerType}". Real emails will NOT be sent!`,
+      );
+    }
+
+    if (nodeEnv !== 'production' && isGmailProvider) {
+      const allowReal =
+        String(
+          this.configService?.get<string | boolean>('ALLOW_REAL_EMAIL_IN_DEV') ??
+            process.env.ALLOW_REAL_EMAIL_IN_DEV ??
+            'false',
+        ).toLowerCase() === 'true';
+
+      if (!allowReal) {
+        this.isEnabled = false;
+        this.logger.warn(
+          `[DEV_QUOTA_GUARD] EmailWorkerService startup BLOCKED: GMAIL-API provider selected in non-production environment (NODE_ENV=${nodeEnv}). Refusing to start worker without explicit ALLOW_REAL_EMAIL_IN_DEV=true override.`,
+        );
+      } else {
+        this.logger.warn(
+          `[DEV_QUOTA_GUARD] WARNING: ALLOW_REAL_EMAIL_IN_DEV=true is active. EmailWorkerService is starting with live GMAIL-API provider in non-production environment (NODE_ENV=${nodeEnv}). Real emails will be sent and production quota will be consumed.`,
+        );
+      }
     }
 
     if (this.isEnabled) {
@@ -217,6 +270,7 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
     }
 
     // 2. Check Daily Budget Guard (EMAIL_DAILY_LIMIT, default 400 in last 24h)
+    let maxPriorityToClaim: number | undefined = undefined;
     if (this.dailyLimit > 0) {
       try {
         const sentLast24h = await this.emailQueueService.getSentCountLast24Hours();
@@ -230,6 +284,13 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
           );
           this.pausedUntil = resumeAt;
           return 0;
+        } else if (sentLast24h >= this.dailyLimit - this.priorityReserve) {
+          // Reserve capacity: digest/priority-9 jobs may only use budget up to dailyLimit - priorityReserve.
+          // Workflow jobs can use all of it.
+          this.logger.warn(
+            `Daily email budget nearing reserve line (${sentLast24h}/${this.dailyLimit}, reserve: ${this.priorityReserve}). Holding priority-9 digest alerts.`,
+          );
+          maxPriorityToClaim = 8;
         }
       } catch (budgetErr) {
         this.logger.warn(`Failed checking daily email budget: ${this.sanitizeLog(String(budgetErr))}`);
@@ -259,6 +320,7 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
       const claimedJobs = await this.emailQueueService.claimJobs(
         this.batchSize,
         this.workerId,
+        maxPriorityToClaim,
       );
 
       if (!claimedJobs || claimedJobs.length === 0) {

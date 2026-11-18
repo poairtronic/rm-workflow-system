@@ -88,6 +88,8 @@ import { UserEmailOverride } from '../notifications/entities/user-email-override
 import { EmailSettingAudit } from '../notifications/entities/email-setting-audit.entity.js';
 import { EmailAlertWatch } from '../alert-sweeps/entities/email-alert-watch.entity.js';
 import { EmailSkipLog } from '../notifications/entities/email-skip-log.entity.js';
+import { AlertNotificationState } from '../email/entities/alert-notification-state.entity.js';
+import { DigestShadowLog } from '../email/entities/digest-shadow-log.entity.js';
 export const ALL_ENTITIES = [
   Role,
   User,
@@ -154,6 +156,8 @@ export const ALL_ENTITIES = [
   EmailSettingAudit,
   EmailAlertWatch,
   EmailSkipLog,
+  AlertNotificationState,
+  DigestShadowLog,
 ];
 
 const dbUrl =

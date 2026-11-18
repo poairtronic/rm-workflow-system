@@ -51,7 +51,7 @@ export class EmailJob {
   @Column({ type: 'varchar', length: 50, default: EmailJobStatus.PENDING })
   status!: EmailJobStatus;
 
-  @Column({ type: 'integer', default: 100 })
+  @Column({ type: 'smallint', default: 5, nullable: true })
   priority!: number;
 
   @Column({ type: 'integer', default: 0 })

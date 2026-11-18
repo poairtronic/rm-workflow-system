@@ -15,6 +15,7 @@ import { ConsumablesService } from './consumables.service.js';
 import { ConsumablesController } from './consumables.controller.js';
 
 import { NotificationsModule } from '../notifications/notifications.module.js';
+import { EmailModule } from '../email/email.module.js';
 import { PdfGeneratorService } from '../reports/pdf/pdf-generator.service.js';
 import { FilesModule } from '../files/files.module.js';
 
@@ -32,6 +33,7 @@ import { FilesModule } from '../files/files.module.js';
       StockTransaction,
     ]),
     NotificationsModule,
+    EmailModule,
     FilesModule,
   ],
   controllers: [ConsumablesController],

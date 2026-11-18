@@ -363,6 +363,7 @@ export class AuthService {
         recipientUserId: user.id,
         eventType: 'PASSWORD_RESET',
         templateKey: 'PASSWORD_RESET',
+        priority: 1,
         subject: '[V-SMART] Password Reset Request',
         payload: {
           resetUrl,

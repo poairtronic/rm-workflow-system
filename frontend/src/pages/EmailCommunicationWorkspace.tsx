@@ -19,6 +19,7 @@ import {
   Send,
   X,
   Calendar,
+  AlertTriangle,
 } from 'lucide-react';
 
 export function EmailCommunicationWorkspace() {
@@ -219,6 +220,19 @@ export function EmailCommunicationWorkspace() {
         }
       />
 
+      {metrics?.testProviderInProduction && (
+        <div className="bg-red-50 border-2 border-red-500 rounded-2xl p-4 flex items-center justify-between text-red-900 shadow-sm animate-pulse">
+          <div className="flex items-center space-x-3">
+            <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0" />
+            <div>
+              <h4 className="font-bold text-sm tracking-wide uppercase text-red-700">TEST PROVIDER ACTIVE IN PRODUCTION</h4>
+              <p className="text-xs text-red-800 font-medium">Real emails are NOT being dispatched! Check EMAIL_PROVIDER_TYPE and credentials.</p>
+            </div>
+          </div>
+          <span className="text-xs font-bold bg-red-600 text-white px-3 py-1 rounded-full uppercase tracking-wider">CRITICAL</span>
+        </div>
+      )}
+
       {/* Tabs (Visible to ADMIN and GENERAL_MANAGER) */}
       {isRulesAuthorized && (
         <div className="flex items-center gap-6 border-b border-slate-200 dark:border-slate-800">
@@ -342,6 +356,72 @@ export function EmailCommunicationWorkspace() {
             </div>
             <p className="text-xs text-slate-400 mt-1 font-medium">
               logged in delivery audit ledger
+            </p>
+          </div>
+        </div>
+
+        {/* Priority Lanes, Quota & Alert Digest Governance */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+              <span>Priority Lanes (Queue)</span>
+              <span className="text-[10px] font-normal text-slate-400">P1 &gt; P5 &gt; P9</span>
+            </div>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">P1 Workflow</span>
+                <span className="font-bold text-slate-800">{metrics?.queueByPriority?.workflowPriority1 || 0}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">P5 Standard</span>
+                <span className="font-bold text-slate-800">{metrics?.queueByPriority?.standardPriority5 || 0}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">P9 Sweep/Digest</span>
+                <span className="font-bold text-slate-800">{metrics?.queueByPriority?.digestPriority9 || 0}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+              24h Daily Budget & Reserve
+            </div>
+            <div className="text-2xl font-black text-slate-900 tracking-tight">
+              {metrics?.sentLast24h || 0} <span className="text-sm font-normal text-slate-400">/ {metrics?.dailyLimit || 400}</span>
+            </div>
+            {metrics?.providerIdentityLabel && (
+              <div className="text-[11px] font-medium text-indigo-600 bg-indigo-50/60 px-1.5 py-0.5 rounded mt-1 truncate" title={metrics.providerIdentityLabel}>
+                {metrics.providerIdentityLabel}
+              </div>
+            )}
+            <div className="text-xs text-slate-500 mt-2 space-y-0.5">
+              <p>Reserve for P1: <span className="font-semibold text-slate-700">{metrics?.priorityReserve || 100}</span> slots</p>
+              <p>Digest cap: <span className="font-semibold text-slate-700">{(metrics?.dailyLimit || 400) - (metrics?.priorityReserve || 100)}</span> sends/24h</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+              Digests Dispatched (24h)
+            </div>
+            <div className="text-2xl font-black text-purple-600 tracking-tight">
+              {metrics?.digestsSentLast24h || 0}
+            </div>
+            <p className="text-xs text-slate-400 mt-2 font-medium">
+              Consolidated multi-item alert digests
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+              Cooldown Suppressed (24h)
+            </div>
+            <div className="text-2xl font-black text-emerald-600 tracking-tight">
+              {metrics?.cooldownSuppressedCount || 0}
+            </div>
+            <p className="text-xs text-slate-400 mt-2 font-medium">
+              Redundant repeat alerts prevented
             </p>
           </div>
         </div>

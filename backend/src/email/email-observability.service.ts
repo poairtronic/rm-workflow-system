@@ -1,4 +1,4 @@
-import { Injectable, Optional, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Optional, Inject, forwardRef, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThanOrEqual } from 'typeorm';
 import { EmailJob } from './entities/email-job.entity.js';
@@ -16,6 +16,14 @@ export interface EmailQueueObservabilitySummary {
   sentToday: number;
   sentLast24h: number;
   dailyLimit: number;
+  priorityReserve?: number;
+  queueByPriority?: {
+    workflowPriority1: number;
+    standardPriority5: number;
+    digestPriority9: number;
+  };
+  digestsSentLast24h?: number;
+  cooldownSuppressedCount?: number;
   successRate: number;
   pausedUntil: string | null;
   total: number;
@@ -32,11 +40,14 @@ export interface EmailQueueObservabilitySummary {
   } | null;
   systemHealth: 'HEALTHY' | 'DEGRADED';
   providerStatus: string;
+  providerIdentityLabel?: string;
+  testProviderInProduction?: boolean;
   timestamp: string;
 }
 
 @Injectable()
 export class EmailObservabilityService {
+  private readonly logger = new Logger(EmailObservabilityService.name);
   private readonly auditService: EmailAuditService;
 
   constructor(
@@ -248,6 +259,66 @@ export class EmailObservabilityService {
       ? Math.round((summaryMap.sent / totalDecided) * 100)
       : (isHealthy ? 100 : 0);
 
+    // 5. Queue breakdown by priority (active queue: pending, processing, retrying)
+    let queueByPriority = { workflowPriority1: 0, standardPriority5: 0, digestPriority9: 0 };
+    try {
+      const qb = this.emailJobRepository.createQueryBuilder('job');
+      if (typeof qb?.select === 'function') {
+        const pRows = await qb
+          .select('COUNT(CASE WHEN COALESCE(job.priority, 5) <= 1 THEN 1 END)', 'p1')
+          .addSelect('COUNT(CASE WHEN COALESCE(job.priority, 5) > 1 AND COALESCE(job.priority, 5) <= 5 THEN 1 END)', 'p5')
+          .addSelect('COUNT(CASE WHEN COALESCE(job.priority, 5) >= 9 THEN 1 END)', 'p9')
+          .where('job.status IN (:...statuses)', {
+            statuses: [EmailJobStatus.PENDING, EmailJobStatus.RETRYING, EmailJobStatus.PROCESSING],
+          })
+          .getRawOne<{ p1: string; p5: string; p9: string }>();
+        if (pRows) {
+          queueByPriority = {
+            workflowPriority1: parseInt(pRows.p1, 10) || 0,
+            standardPriority5: parseInt(pRows.p5, 10) || 0,
+            digestPriority9: parseInt(pRows.p9, 10) || 0,
+          };
+        }
+      }
+    } catch {
+      // Fallback
+    }
+
+    // 6. Digests sent in last 24h
+    let digestsSentLast24h = 0;
+    try {
+      const qb = this.emailJobRepository.createQueryBuilder('job');
+      if (typeof qb?.where === 'function' && typeof qb?.getCount === 'function') {
+        digestsSentLast24h = await qb
+          .where('job.status = :status', { status: EmailJobStatus.SENT })
+          .andWhere('(job.template_key = :templateKey OR job.priority = 9)', { templateKey: 'ALERT_DIGEST' })
+          .andWhere('COALESCE(job.sent_at, job.created_at) >= :since', {
+            since: new Date(Date.now() - 24 * 60 * 60 * 1000),
+          })
+          .getCount();
+      }
+    } catch {
+      // Fallback
+    }
+
+    // 7. Items suppressed by cooldown in last 24h
+    let cooldownSuppressedCount = 0;
+    try {
+      if (typeof this.emailJobRepository.query === 'function') {
+        const skipResult = await this.emailJobRepository.query(`
+          SELECT COUNT(*)::int as count 
+          FROM "email_skip_log" 
+          WHERE "reason" = 'COOLDOWN' 
+            AND "created_at" >= NOW() - INTERVAL '24 hours'
+        `);
+        if (skipResult && skipResult[0]) {
+          cooldownSuppressedCount = parseInt(skipResult[0].count, 10) || 0;
+        }
+      }
+    } catch {
+      // Fallback
+    }
+
     return {
       pending: summaryMap.pending,
       processing: summaryMap.processing,
@@ -257,11 +328,39 @@ export class EmailObservabilityService {
       sentToday,
       sentLast24h,
       dailyLimit: this.emailWorkerService?.dailyLimit || 400,
+      priorityReserve: this.emailWorkerService?.priorityReserve ?? 100,
+      queueByPriority,
+      digestsSentLast24h,
+      cooldownSuppressedCount,
       successRate,
       pausedUntil: pausedUntilStr,
       total: totalJobs,
       systemHealth,
       providerStatus,
+      testProviderInProduction: (() => {
+        const nodeEnv = (process.env.NODE_ENV || 'development').toLowerCase();
+        const isTestProvider =
+          (process.env.EMAIL_PROVIDER_TYPE || '').toLowerCase() === 'test' ||
+          !process.env.GMAIL_CLIENT_ID;
+        return nodeEnv === 'production' && isTestProvider;
+      })(),
+      providerIdentityLabel: (() => {
+        const nodeEnv = (process.env.NODE_ENV || 'development').toLowerCase();
+        const isTestProvider =
+          (process.env.EMAIL_PROVIDER_TYPE || '').toLowerCase() === 'test' ||
+          !process.env.GMAIL_CLIENT_ID;
+        if (nodeEnv === 'production' && isTestProvider) {
+          this.logger.error(
+            '[CRITICAL CONFIG ERROR] TEST PROVIDER ACTIVE IN PRODUCTION! Real emails are NOT being dispatched!',
+          );
+          return 'TEST PROVIDER ACTIVE IN PRODUCTION';
+        }
+        return isTestProvider
+          ? 'TEST-PROVIDER (mock)'
+          : (process.env.GMAIL_SENDER_EMAIL
+              ? `GMAIL-API (${process.env.GMAIL_SENDER_EMAIL})`
+              : 'GMAIL-API');
+      })(),
       lastSuccessfulSend,
       lastFailure,
       timestamp: new Date().toISOString(),

@@ -25,6 +25,7 @@ import { NotificationRecipientService } from './notification-recipient.service.j
 import { NotificationsGateway } from './notifications.gateway.js';
 import { NotificationPreferenceService } from './notification-preference.service.js';
 import { EmailSkipLogService } from './email-skip-log.service.js';
+import { resolveEventPriority } from '../email/constants/email-priorities.js';
 
 export interface CommunicationEventResult {
   inAppNotifications: Notification[];
@@ -415,6 +416,7 @@ export class CommunicationService {
             minimumInventory: input.metadata?.minimumInventory,
             deficit: input.metadata?.deficit,
             uom: input.metadata?.uom,
+            isSweep: input.metadata?.isSweep,
           },
         });
       }
@@ -437,6 +439,7 @@ export class CommunicationService {
             minimumInventory: input.metadata?.minimumInventory,
             deficit: input.metadata?.deficit,
             uom: input.metadata?.uom,
+            isSweep: input.metadata?.isSweep,
           },
         });
       }
@@ -962,6 +965,7 @@ export class CommunicationService {
             bodyHtml: rendered.html,
             payload: params.payload,
             idempotencyKey,
+            priority: resolveEventPriority(params.eventType, params.payload),
           });
           if (job) {
             emailJobs.push(job);

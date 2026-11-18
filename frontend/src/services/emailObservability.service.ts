@@ -9,6 +9,14 @@ export interface EmailQueueObservabilitySummary {
   sentToday: number;
   sentLast24h?: number;
   dailyLimit?: number;
+  priorityReserve?: number;
+  queueByPriority?: {
+    workflowPriority1: number;
+    standardPriority5: number;
+    digestPriority9: number;
+  };
+  digestsSentLast24h?: number;
+  cooldownSuppressedCount?: number;
   successRate?: number;
   pausedUntil?: string | null;
   total: number;
@@ -25,6 +33,8 @@ export interface EmailQueueObservabilitySummary {
   } | null;
   systemHealth?: 'HEALTHY' | 'DEGRADED';
   providerStatus?: string;
+  providerIdentityLabel?: string;
+  testProviderInProduction?: boolean;
   timestamp: string;
 }
 

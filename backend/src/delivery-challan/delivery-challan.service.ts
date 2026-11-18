@@ -17,6 +17,7 @@ import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import { StockTransaction, TransactionType } from '../inventory/entities/stock-transaction.entity.js';
 import { Vendor } from '../vendor/entities/vendor.entity.js';
 import { CommunicationService } from '../notifications/communication.service.js';
+import { AlertDigestService, AlertDigestItem } from '../email/alert-digest.service.js';
 import { RmItem } from '../rm/entities/rm-item.entity.js';
 import { SalesOrderComponent } from '../sc/entities/sc.entity.js';
 import { Product } from '../inventory/entities/product.entity.js';
@@ -93,6 +94,7 @@ export class DeliveryChallanService {
     @Optional()
     @InjectRepository(MercIndentLineItem)
     private readonly mercIndentLineItemRepo?: Repository<MercIndentLineItem>,
+    @Optional() private readonly alertDigestService?: AlertDigestService,
   ) {}
 
   /**
@@ -3803,6 +3805,10 @@ export class DeliveryChallanService {
       let reachedCount = 0;
       let overdueCount = 0;
 
+      const digestMode = this.alertDigestService ? await this.alertDigestService.getMode() : 'OFF';
+      const overdueDigestItems: AlertDigestItem[] = [];
+      const approachingDigestItems: AlertDigestItem[] = [];
+
       for (const dc of activeChallans) {
         if (!dc.expectedReturnDate) continue;
         const expectedDate = new Date(dc.expectedReturnDate);
@@ -3814,36 +3820,78 @@ export class DeliveryChallanService {
           // Crossed expected return date -> OVERDUE
           overdueCount++;
           const daysOverdue = Math.max(1, Math.ceil((now.getTime() - expectedDate.getTime()) / (1000 * 60 * 60 * 24)));
-          await this.communicationService.sendEvent({
-            eventType: 'DC_OVERDUE',
+
+          overdueDigestItems.push({
+            entityId: dc.id,
             entityType: 'DELIVERY_CHALLAN',
-            entityId: `${dc.id}_overdue_${todayStr}`,
+            itemRef: dc.challanNumber,
+            ageOrOverdue: `${daysOverdue} days overdue`,
+            ownerOrVendor: dc.vendor?.name || 'N/A',
+            directLink: '/dispatch/delivery-challan',
             metadata: {
-              challanNumber: dc.challanNumber,
-              vendorName: dc.vendor?.name || 'N/A',
               expectedReturnDate: expectedDateStr,
               daysOverdue,
             },
-          }).catch((err) => {
-            this.logger.error(`Failed to dispatch DC_OVERDUE for ${dc.challanNumber}: ${err?.message || err}`);
           });
+
+          if (digestMode === 'OFF' || digestMode === 'SHADOW') {
+            await this.communicationService.sendEvent({
+              eventType: 'DC_OVERDUE',
+              entityType: 'DELIVERY_CHALLAN',
+              entityId: `${dc.id}_overdue_${todayStr}`,
+              metadata: {
+                challanNumber: dc.challanNumber,
+                vendorName: dc.vendor?.name || 'N/A',
+                expectedReturnDate: expectedDateStr,
+                daysOverdue,
+              },
+            }).catch((err) => {
+              this.logger.error(`Failed to dispatch DC_OVERDUE for ${dc.challanNumber}: ${err?.message || err}`);
+            });
+          }
         } else if (expectedDate.getTime() - now.getTime() <= 24 * 60 * 60 * 1000) {
           // Reached expected return date (due today / within 24h) -> SLA Approaching
           reachedCount++;
           const hoursRemaining = Math.max(0, Math.round((expectedDate.getTime() - now.getTime()) / (1000 * 60 * 60)));
-          await this.communicationService.sendEvent({
-            eventType: 'DC_APPROACHING_SLA',
+
+          approachingDigestItems.push({
+            entityId: dc.id,
             entityType: 'DELIVERY_CHALLAN',
-            entityId: `${dc.id}_reached_${todayStr}`,
+            itemRef: dc.challanNumber,
+            ageOrOverdue: `${hoursRemaining}h remaining`,
+            ownerOrVendor: dc.vendor?.name || 'N/A',
+            directLink: '/dispatch/delivery-challan',
             metadata: {
-              challanNumber: dc.challanNumber,
-              vendorName: dc.vendor?.name || 'N/A',
               expectedReturnDate: expectedDateStr,
               hoursRemaining,
             },
-          }).catch((err) => {
-            this.logger.error(`Failed to dispatch DC_APPROACHING_SLA for ${dc.challanNumber}: ${err?.message || err}`);
           });
+
+          if (digestMode === 'OFF' || digestMode === 'SHADOW') {
+            await this.communicationService.sendEvent({
+              eventType: 'DC_APPROACHING_SLA',
+              entityType: 'DELIVERY_CHALLAN',
+              entityId: `${dc.id}_reached_${todayStr}`,
+              metadata: {
+                challanNumber: dc.challanNumber,
+                vendorName: dc.vendor?.name || 'N/A',
+                expectedReturnDate: expectedDateStr,
+                hoursRemaining,
+              },
+            }).catch((err) => {
+              this.logger.error(`Failed to dispatch DC_APPROACHING_SLA for ${dc.challanNumber}: ${err?.message || err}`);
+            });
+          }
+        }
+      }
+
+      // If SHADOW or ON, invoke AlertDigestService
+      if ((digestMode === 'SHADOW' || digestMode === 'ON') && this.alertDigestService) {
+        if (overdueDigestItems.length > 0) {
+          await this.alertDigestService.buildDigests('DC_OVERDUE', overdueDigestItems);
+        }
+        if (approachingDigestItems.length > 0) {
+          await this.alertDigestService.buildDigests('DC_APPROACHING_SLA', approachingDigestItems);
         }
       }
 

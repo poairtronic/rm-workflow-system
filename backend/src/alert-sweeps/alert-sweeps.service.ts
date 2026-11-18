@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In, LessThanOrEqual, MoreThan } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -11,6 +11,7 @@ import { ConsumableRequestItem, ConsumableItemStatus } from '../consumables/enti
 import { RmRequest, RmRequestStatus } from '../rm/entities/rm-request.entity.js';
 import { MaterialIssue } from '../material-issue/entities/material-issue.entity.js';
 import { CommunicationService } from '../notifications/communication.service.js';
+import { AlertDigestService, AlertDigestItem } from '../email/alert-digest.service.js';
 
 export interface SweepConfigDef {
   eventCode: string;
@@ -92,6 +93,8 @@ export class AlertSweepService {
     private readonly materialIssueRepo: Repository<MaterialIssue>,
     private readonly communicationService: CommunicationService,
     private readonly dataSource: DataSource,
+    @Optional()
+    private readonly alertDigestService?: AlertDigestService,
   ) {}
 
   /**
@@ -204,27 +207,54 @@ export class AlertSweepService {
       .take(20)
       .getMany();
 
+    const digestMode = this.alertDigestService ? await this.alertDigestService.getMode() : 'OFF';
+    const digestItems: AlertDigestItem[] = [];
+
     let dispatchedCount = 0;
     for (const rm of overdueRmList) {
       const refTime = rm.reviewedAt ? new Date(rm.reviewedAt).getTime() : new Date(rm.createdAt).getTime();
       const hoursOverdue = Math.max(thresholdHours, Math.floor((now.getTime() - refTime) / (1000 * 60 * 60)));
       const rmNumber = rm.salesOrderComponent?.scNumber || rm.id.slice(0, 8);
 
-      try {
-        await this.communicationService.sendEvent({
-          eventType: 'MATERIAL_ISSUE_OVERDUE_24H',
-          entityType: 'MATERIAL_ISSUE',
-          entityId: `${rm.id}_issue_${todayStr}`,
-          metadata: {
-            rmNumber,
-            hoursOverdue,
-            reviewedAt: rm.reviewedAt ? rm.reviewedAt.toISOString() : rm.createdAt.toISOString(),
-            designerName: rm.createdBy?.name || 'Designer',
-          },
-        });
-        dispatchedCount++;
-      } catch (err: any) {
-        this.logger.error(`Failed to dispatch MATERIAL_ISSUE_OVERDUE_24H for RM "${rm.id}": ${err?.message || err}`);
+      digestItems.push({
+        entityId: rm.id,
+        entityType: 'MATERIAL_ISSUE',
+        itemRef: rmNumber,
+        ageOrOverdue: `${hoursOverdue}h overdue`,
+        ownerOrVendor: rm.createdBy?.name || 'Designer',
+        directLink: '/stores/issue',
+        metadata: {
+          rmNumber,
+          hoursOverdue,
+          reviewedAt: rm.reviewedAt ? rm.reviewedAt.toISOString() : rm.createdAt.toISOString(),
+          designerName: rm.createdBy?.name || 'Designer',
+        },
+      });
+
+      if (digestMode === 'OFF' || digestMode === 'SHADOW') {
+        try {
+          await this.communicationService.sendEvent({
+            eventType: 'MATERIAL_ISSUE_OVERDUE_24H',
+            entityType: 'MATERIAL_ISSUE',
+            entityId: `${rm.id}_issue_${todayStr}`,
+            metadata: {
+              rmNumber,
+              hoursOverdue,
+              reviewedAt: rm.reviewedAt ? rm.reviewedAt.toISOString() : rm.createdAt.toISOString(),
+              designerName: rm.createdBy?.name || 'Designer',
+            },
+          });
+          dispatchedCount++;
+        } catch (err: any) {
+          this.logger.error(`Failed to dispatch MATERIAL_ISSUE_OVERDUE_24H for RM "${rm.id}": ${err?.message || err}`);
+        }
+      }
+    }
+
+    if ((digestMode === 'SHADOW' || digestMode === 'ON') && this.alertDigestService && digestItems.length > 0) {
+      const digestJobs = await this.alertDigestService.buildDigests('MATERIAL_ISSUE_OVERDUE_24H', digestItems);
+      if (digestMode === 'ON') {
+        dispatchedCount = digestJobs.length;
       }
     }
 
@@ -257,27 +287,55 @@ export class AlertSweepService {
       take: 20,
     });
 
+    const digestMode = this.alertDigestService ? await this.alertDigestService.getMode() : 'OFF';
+    const digestItems: AlertDigestItem[] = [];
+
     let dispatchedCount = 0;
     for (const dc of overdueDcs) {
       const elapsedMs = now.getTime() - new Date(dc.createdAt).getTime();
       const daysPending = Math.max(1, Math.floor(elapsedMs / (1000 * 60 * 60 * 24)));
 
-      try {
-        await this.communicationService.sendEvent({
-          eventType: 'DC_PENDING_2_DAYS',
-          entityType: 'DELIVERY_CHALLAN',
-          entityId: `${dc.id}_pending_${todayStr}`,
-          metadata: {
-            challanNumber: dc.challanNumber,
-            vendorName: dc.vendor?.name || 'N/A',
-            dispatchDate: dc.dispatchDate ? new Date(dc.dispatchDate).toISOString().split('T')[0] : 'N/A',
-            createdAt: dc.createdAt ? new Date(dc.createdAt).toISOString().split('T')[0] : 'N/A',
-            daysPending,
-          },
-        });
-        dispatchedCount++;
-      } catch (err: any) {
-        this.logger.error(`Failed to dispatch DC_PENDING_2_DAYS for DC "${dc.challanNumber}": ${err?.message || err}`);
+      digestItems.push({
+        entityId: dc.id,
+        entityType: 'DELIVERY_CHALLAN',
+        itemRef: dc.challanNumber,
+        ageOrOverdue: `${daysPending} days pending`,
+        ownerOrVendor: dc.vendor?.name || 'N/A',
+        directLink: '/dispatch/delivery-challan',
+        metadata: {
+          challanNumber: dc.challanNumber,
+          vendorName: dc.vendor?.name || 'N/A',
+          dispatchDate: dc.dispatchDate ? new Date(dc.dispatchDate).toISOString().split('T')[0] : 'N/A',
+          createdAt: dc.createdAt ? new Date(dc.createdAt).toISOString().split('T')[0] : 'N/A',
+          daysPending,
+        },
+      });
+
+      if (digestMode === 'OFF' || digestMode === 'SHADOW') {
+        try {
+          await this.communicationService.sendEvent({
+            eventType: 'DC_PENDING_2_DAYS',
+            entityType: 'DELIVERY_CHALLAN',
+            entityId: `${dc.id}_pending_${todayStr}`,
+            metadata: {
+              challanNumber: dc.challanNumber,
+              vendorName: dc.vendor?.name || 'N/A',
+              dispatchDate: dc.dispatchDate ? new Date(dc.dispatchDate).toISOString().split('T')[0] : 'N/A',
+              createdAt: dc.createdAt ? new Date(dc.createdAt).toISOString().split('T')[0] : 'N/A',
+              daysPending,
+            },
+          });
+          dispatchedCount++;
+        } catch (err: any) {
+          this.logger.error(`Failed to dispatch DC_PENDING_2_DAYS for DC "${dc.challanNumber}": ${err?.message || err}`);
+        }
+      }
+    }
+
+    if ((digestMode === 'SHADOW' || digestMode === 'ON') && this.alertDigestService && digestItems.length > 0) {
+      const digestJobs = await this.alertDigestService.buildDigests('DC_PENDING_2_DAYS', digestItems);
+      if (digestMode === 'ON') {
+        dispatchedCount = digestJobs.length;
       }
     }
 
@@ -318,28 +376,56 @@ export class AlertSweepService {
       .take(20)
       .getMany();
 
+    const digestMode = this.alertDigestService ? await this.alertDigestService.getMode() : 'OFF';
+    const digestItems: AlertDigestItem[] = [];
+
     let dispatchedCount = 0;
     for (const req of pendingRequests) {
       const elapsedMs = now.getTime() - new Date(req.createdAt).getTime();
       const daysPending = Math.max(1, Math.floor(elapsedMs / (1000 * 60 * 60 * 24)));
       const pendingItemsCount = req.items.filter((i) => nonTerminalStatuses.includes(i.status)).length;
 
-      try {
-        await this.communicationService.sendEvent({
-          eventType: 'CONSUMABLE_PENDING_2_DAYS',
-          entityType: 'CONSUMABLE_REQUEST',
-          entityId: `${req.id}_pending_${todayStr}`,
-          metadata: {
-            requestCode: req.requestCode,
-            requestedBy: req.requestedBy || 'N/A',
-            createdAt: req.createdAt ? new Date(req.createdAt).toISOString().split('T')[0] : 'N/A',
-            daysPending,
-            itemsCount: pendingItemsCount,
-          },
-        });
-        dispatchedCount++;
-      } catch (err: any) {
-        this.logger.error(`Failed to dispatch CONSUMABLE_PENDING_2_DAYS for request "${req.requestCode}": ${err?.message || err}`);
+      digestItems.push({
+        entityId: req.id,
+        entityType: 'CONSUMABLE_REQUEST',
+        itemRef: req.requestCode,
+        ageOrOverdue: `${daysPending} days pending (${pendingItemsCount} items)`,
+        ownerOrVendor: req.requestedBy || 'N/A',
+        directLink: '/consumables/requests',
+        metadata: {
+          requestCode: req.requestCode,
+          requestedBy: req.requestedBy || 'N/A',
+          createdAt: req.createdAt ? new Date(req.createdAt).toISOString().split('T')[0] : 'N/A',
+          daysPending,
+          itemsCount: pendingItemsCount,
+        },
+      });
+
+      if (digestMode === 'OFF' || digestMode === 'SHADOW') {
+        try {
+          await this.communicationService.sendEvent({
+            eventType: 'CONSUMABLE_PENDING_2_DAYS',
+            entityType: 'CONSUMABLE_REQUEST',
+            entityId: `${req.id}_pending_${todayStr}`,
+            metadata: {
+              requestCode: req.requestCode,
+              requestedBy: req.requestedBy || 'N/A',
+              createdAt: req.createdAt ? new Date(req.createdAt).toISOString().split('T')[0] : 'N/A',
+              daysPending,
+              itemsCount: pendingItemsCount,
+            },
+          });
+          dispatchedCount++;
+        } catch (err: any) {
+          this.logger.error(`Failed to dispatch CONSUMABLE_PENDING_2_DAYS for request "${req.requestCode}": ${err?.message || err}`);
+        }
+      }
+    }
+
+    if ((digestMode === 'SHADOW' || digestMode === 'ON') && this.alertDigestService && digestItems.length > 0) {
+      const digestJobs = await this.alertDigestService.buildDigests('CONSUMABLE_PENDING_2_DAYS', digestItems);
+      if (digestMode === 'ON') {
+        dispatchedCount = digestJobs.length;
       }
     }
 
@@ -446,59 +532,84 @@ export class AlertSweepService {
       .sort((a, b) => a.oldestFirstSeenAt - b.oldestFirstSeenAt)
       .slice(0, 20);
 
+    const digestMode = this.alertDigestService ? await this.alertDigestService.getMode() : 'OFF';
+    const digestItems: AlertDigestItem[] = [];
+
     let dispatchedCount = 0;
     for (const { dc, items } of sortedChallans) {
-      // Build HTML table for aggregated items
-      const rowsHtml = items
-        .map((it) => {
-          const watch = watchMap.get(it.id);
-          const hours = watch
-            ? Math.max(thresholdHours, Math.floor((now.getTime() - new Date(watch.firstSeenAt).getTime()) / (1000 * 60 * 60)))
-            : thresholdHours;
-          const name = it.partName || it.product?.name || it.partNumber || 'DC Part';
-          return `
-            <tr>
-              <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">${it.partNumber || 'N/A'}</td>
-              <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">${name}</td>
-              <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 700; color: #7c3aed;">${it.qcPendingQty}</td>
-              <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #dc2626; font-weight: 600;">${hours}h</td>
-            </tr>
-          `;
-        })
-        .join('');
+      digestItems.push({
+        entityId: dc.id,
+        entityType: 'DELIVERY_CHALLAN',
+        itemRef: dc.challanNumber,
+        ageOrOverdue: `${items.length} item(s) in QC (>24h)`,
+        ownerOrVendor: dc.vendor?.name || 'N/A',
+        directLink: '/dock/receipt',
+        metadata: {
+          challanNumber: dc.challanNumber,
+          itemsCount: items.length,
+        },
+      });
 
-      const itemsTableHtml = `
-        <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px;">
-          <thead>
-            <tr style="background: #f8fafc; color: #475569; border-bottom: 2px solid #e2e8f0;">
-              <th style="padding: 8px 12px;">Part Number</th>
-              <th style="padding: 8px 12px;">Description</th>
-              <th style="padding: 8px 12px; text-align: right;">Pending QC Qty</th>
-              <th style="padding: 8px 12px; text-align: right;">Time in QC</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml}
-          </tbody>
-        </table>
-      `;
+      if (digestMode === 'OFF' || digestMode === 'SHADOW') {
+        // Build HTML table for aggregated items
+        const rowsHtml = items
+          .map((it) => {
+            const watch = watchMap.get(it.id);
+            const hours = watch
+              ? Math.max(thresholdHours, Math.floor((now.getTime() - new Date(watch.firstSeenAt).getTime()) / (1000 * 60 * 60)))
+              : thresholdHours;
+            const name = it.partName || it.product?.name || it.partNumber || 'DC Part';
+            return `
+              <tr>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">${it.partNumber || 'N/A'}</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">${name}</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 700; color: #7c3aed;">${it.qcPendingQty}</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #dc2626; font-weight: 600;">${hours}h</td>
+              </tr>
+            `;
+          })
+          .join('');
 
-      try {
-        await this.communicationService.sendEvent({
-          eventType: 'DC_QC_PENDING_24H',
-          entityType: 'DELIVERY_CHALLAN',
-          entityId: `${dc.id}_qc_${todayStr}`,
-          metadata: {
-            challanNumber: dc.challanNumber,
-            vendorName: dc.vendor?.name || 'N/A',
-            itemsTableHtml,
-            itemsCount: items.length,
-            hoursPending: thresholdHours,
-          },
-        });
-        dispatchedCount++;
-      } catch (err: any) {
-        this.logger.error(`Failed to dispatch DC_QC_PENDING_24H for DC "${dc.challanNumber}": ${err?.message || err}`);
+        const itemsTableHtml = `
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px;">
+            <thead>
+              <tr style="background: #f8fafc; color: #475569; border-bottom: 2px solid #e2e8f0;">
+                <th style="padding: 8px 12px;">Part Number</th>
+                <th style="padding: 8px 12px;">Description</th>
+                <th style="padding: 8px 12px; text-align: right;">Pending QC Qty</th>
+                <th style="padding: 8px 12px; text-align: right;">Time in QC</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        `;
+
+        try {
+          await this.communicationService.sendEvent({
+            eventType: 'DC_QC_PENDING_24H',
+            entityType: 'DELIVERY_CHALLAN',
+            entityId: `${dc.id}_qc_${todayStr}`,
+            metadata: {
+              challanNumber: dc.challanNumber,
+              vendorName: dc.vendor?.name || 'N/A',
+              itemsTableHtml,
+              itemsCount: items.length,
+              hoursPending: thresholdHours,
+            },
+          });
+          dispatchedCount++;
+        } catch (err: any) {
+          this.logger.error(`Failed to dispatch DC_QC_PENDING_24H for DC "${dc.challanNumber}": ${err?.message || err}`);
+        }
+      }
+    }
+
+    if ((digestMode === 'SHADOW' || digestMode === 'ON') && this.alertDigestService && digestItems.length > 0) {
+      const digestJobs = await this.alertDigestService.buildDigests('DC_QC_PENDING_24H', digestItems);
+      if (digestMode === 'ON') {
+        dispatchedCount = digestJobs.length;
       }
     }
 

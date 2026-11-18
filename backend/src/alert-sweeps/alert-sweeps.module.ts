@@ -10,6 +10,7 @@ import { ConsumableRequestItem } from '../consumables/entities/consumable-reques
 import { RmRequest } from '../rm/entities/rm-request.entity.js';
 import { MaterialIssue } from '../material-issue/entities/material-issue.entity.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
+import { EmailModule } from '../email/email.module.js';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
       MaterialIssue,
     ]),
     forwardRef(() => NotificationsModule),
+    EmailModule,
   ],
   providers: [AlertSweepService],
   exports: [AlertSweepService],

@@ -43,6 +43,7 @@ export class MslAlertService {
    */
   async evaluateAndAlertProduct(
     productId: string,
+    isSweep: boolean = false,
   ): Promise<MslAlertEvaluationResult> {
     const result = await this.mslCalculationService.checkProductMsl(productId);
     if (!result || result.minimumInventory <= 0) {
@@ -115,6 +116,7 @@ export class MslAlertService {
               deficit: result.deficit,
               alertId: savedAlert?.id,
               uom: result.uom,
+              isSweep,
             },
           });
         } catch (commErr: any) {
@@ -202,7 +204,7 @@ export class MslAlertService {
 
     for (const r of calcResults) {
       if (r.minimumInventory > 0) {
-        const evalResult = await this.evaluateAndAlertProduct(r.productId);
+        const evalResult = await this.evaluateAndAlertProduct(r.productId, true);
         evaluationResults.push(evalResult);
       }
     }

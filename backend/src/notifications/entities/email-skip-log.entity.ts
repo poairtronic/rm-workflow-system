@@ -11,7 +11,10 @@ export type EmailSkipReason =
   | 'LEGACY_USER_OFF'
   | 'ACTOR'
   | 'GLOBAL_OFF'
-  | 'CONSUMABLE_GATE_OFF';
+  | 'CONSUMABLE_GATE_OFF'
+  | 'COOLDOWN'
+  | 'PREF_OFF'
+  | 'NO_RECIPIENT';
 
 @Entity('email_skip_log')
 export class EmailSkipLog {

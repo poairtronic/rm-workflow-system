@@ -40,6 +40,7 @@ import { PrintPrDto } from './dto/print-pr.dto.js';
 import { QueryConsumableItemsDto } from './dto/query-consumables.dto.js';
 import { CommunicationService } from '../notifications/communication.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { AlertDigestService, AlertDigestItem } from '../email/alert-digest.service.js';
 
 export const STANDARD_CONSUMABLE_ITEMS: string[] = [
   'Gloves',
@@ -158,6 +159,7 @@ export class ConsumablesService implements OnModuleInit {
     private readonly transactionRepo: Repository<StockTransaction>,
     @Optional() private readonly communicationService?: CommunicationService,
     @Optional() private readonly notificationsService?: NotificationsService,
+    @Optional() private readonly alertDigestService?: AlertDigestService,
   ) {}
 
   /**
@@ -1487,6 +1489,10 @@ export class ConsumablesService implements OnModuleInit {
       let overdueReceiptCount = 0;
       let partiallyIssuedCount = 0;
 
+      const digestMode = this.alertDigestService ? await this.alertDigestService.getMode() : 'OFF';
+      const receiptOverdueDigestItems: AlertDigestItem[] = [];
+      const partiallyIssuedDigestItems: AlertDigestItem[] = [];
+
       for (const item of pendingItems) {
         // --- CHECK A: NOT RECEIVED WITHIN 24 HOURS OF CREATION ---
         const isNotReceived =
@@ -1503,25 +1509,42 @@ export class ConsumablesService implements OnModuleInit {
           if (elapsedHours >= 24) {
             overdueReceiptCount++;
             const pendingQty = Number(item.purchaseQty ?? item.requestedQty ?? 0);
-            try {
-              await this.communicationService.sendEvent({
-                eventType: 'CONSUMABLE_RECEIPT_OVERDUE',
-                entityType: 'CONSUMABLE_REQUEST_ITEM',
-                entityId: `${item.id}_${todayStr}`, // Unique key per day ensures no flood
-                metadata: {
-                  description: item.description,
-                  prNumber: item.prNumber ? `PR. No. ${item.prNumber}` : 'N/A',
-                  requestCode: item.request?.requestCode || 'N/A',
-                  hoursElapsed: elapsedHours,
-                  vendorName: item.newVendorName || item.vendorName || item.vendor?.name || 'Open Sourcing',
-                  purchaseQty: pendingQty,
-                  requestedQty: item.requestedQty,
-                  uom: item.uom,
-                  endUser: item.endUserInVelan || 'Plant Floor',
-                },
-              });
-            } catch (err: any) {
-              this.logger.error(`Failed to dispatch 24h receipt overdue alert for item ${item.id}: ${err?.message}`);
+
+            receiptOverdueDigestItems.push({
+              entityId: item.id,
+              entityType: 'CONSUMABLE_REQUEST_ITEM',
+              itemRef: item.prNumber ? `PR. No. ${item.prNumber} (${item.description})` : item.description,
+              ageOrOverdue: `${elapsedHours}h overdue`,
+              ownerOrVendor: item.newVendorName || item.vendorName || item.vendor?.name || 'Open Sourcing',
+              directLink: '/consumables/purchase-store',
+              metadata: {
+                purchaseQty: pendingQty,
+                requestedQty: item.requestedQty,
+                uom: item.uom,
+              },
+            });
+
+            if (digestMode === 'OFF' || digestMode === 'SHADOW') {
+              try {
+                await this.communicationService.sendEvent({
+                  eventType: 'CONSUMABLE_RECEIPT_OVERDUE',
+                  entityType: 'CONSUMABLE_REQUEST_ITEM',
+                  entityId: `${item.id}_${todayStr}`, // Unique key per day ensures no flood
+                  metadata: {
+                    description: item.description,
+                    prNumber: item.prNumber ? `PR. No. ${item.prNumber}` : 'N/A',
+                    requestCode: item.request?.requestCode || 'N/A',
+                    hoursElapsed: elapsedHours,
+                    vendorName: item.newVendorName || item.vendorName || item.vendor?.name || 'Open Sourcing',
+                    purchaseQty: pendingQty,
+                    requestedQty: item.requestedQty,
+                    uom: item.uom,
+                    endUser: item.endUserInVelan || 'Plant Floor',
+                  },
+                });
+              } catch (err: any) {
+                this.logger.error(`Failed to dispatch 24h receipt overdue alert for item ${item.id}: ${err?.message}`);
+              }
             }
           }
         }
@@ -1534,25 +1557,51 @@ export class ConsumablesService implements OnModuleInit {
         if (isPartiallyIssued && alertSettings.consumablePartiallyIssuedAlertsEnabled) {
           partiallyIssuedCount++;
           const remainingQty = Math.max(0, Number(item.requestedQty) - Number(item.issuedQty || 0));
-          try {
-            await this.communicationService.sendEvent({
-              eventType: 'CONSUMABLE_PARTIALLY_ISSUED_OVERDUE',
-              entityType: 'CONSUMABLE_REQUEST_ITEM',
-              entityId: `${item.id}_part_${todayStr}`,
-              metadata: {
-                description: item.description,
-                prNumber: item.prNumber ? `PR. No. ${item.prNumber}` : 'N/A',
-                requestCode: item.request?.requestCode || 'N/A',
-                issuedQty: item.issuedQty,
-                requestedQty: item.requestedQty,
-                remainingQty,
-                uom: item.uom,
-                endUser: item.endUserInVelan || 'Plant Floor',
-              },
-            });
-          } catch (err: any) {
-            this.logger.error(`Failed to dispatch partially issued alert for item ${item.id}: ${err?.message}`);
+
+          partiallyIssuedDigestItems.push({
+            entityId: item.id,
+            entityType: 'CONSUMABLE_REQUEST_ITEM',
+            itemRef: item.prNumber ? `PR. No. ${item.prNumber} (${item.description})` : item.description,
+            ageOrOverdue: `Rem: ${remainingQty} ${item.uom || 'NOS'}`,
+            ownerOrVendor: item.endUserInVelan || 'Plant Floor',
+            directLink: '/consumables/requests',
+            metadata: {
+              issuedQty: item.issuedQty,
+              requestedQty: item.requestedQty,
+            },
+          });
+
+          if (digestMode === 'OFF' || digestMode === 'SHADOW') {
+            try {
+              await this.communicationService.sendEvent({
+                eventType: 'CONSUMABLE_PARTIALLY_ISSUED_OVERDUE',
+                entityType: 'CONSUMABLE_REQUEST_ITEM',
+                entityId: `${item.id}_part_${todayStr}`,
+                metadata: {
+                  description: item.description,
+                  prNumber: item.prNumber ? `PR. No. ${item.prNumber}` : 'N/A',
+                  requestCode: item.request?.requestCode || 'N/A',
+                  issuedQty: item.issuedQty,
+                  requestedQty: item.requestedQty,
+                  remainingQty,
+                  uom: item.uom,
+                  endUser: item.endUserInVelan || 'Plant Floor',
+                },
+              });
+            } catch (err: any) {
+              this.logger.error(`Failed to dispatch partially issued alert for item ${item.id}: ${err?.message}`);
+            }
           }
+        }
+      }
+
+      // If SHADOW or ON, invoke AlertDigestService
+      if ((digestMode === 'SHADOW' || digestMode === 'ON') && this.alertDigestService) {
+        if (receiptOverdueDigestItems.length > 0) {
+          await this.alertDigestService.buildDigests('CONSUMABLE_RECEIPT_OVERDUE', receiptOverdueDigestItems);
+        }
+        if (partiallyIssuedDigestItems.length > 0) {
+          await this.alertDigestService.buildDigests('CONSUMABLE_PARTIALLY_ISSUED_OVERDUE', partiallyIssuedDigestItems);
         }
       }
 

@@ -8,6 +8,7 @@ import {
   UseGuards,
   Inject,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -30,6 +31,7 @@ import { EmailJobStatus } from './enums/email-job-status.enum.js';
 import { EmailProvider as EmailProviderEnum } from './enums/email-provider.enum.js';
 import { GmailApiProvider } from './providers/gmail-api.provider.js';
 import { TestSendEmailDto } from './dto/test-send-email.dto.js';
+import { AlertDigestService, DigestFirstRunPreviewResult } from './alert-digest.service.js';
 
 @Controller('api/email')
 export class EmailController {
@@ -41,7 +43,23 @@ export class EmailController {
     @InjectRepository(EmailJob)
     private readonly emailJobRepo: Repository<EmailJob>,
     private readonly gmailProvider: GmailApiProvider,
+    private readonly alertDigestService?: AlertDigestService,
   ) {}
+
+  /**
+   * Surge Preview: First ALERT_DIGEST_MODE=ON run preview.
+   * Computes what the first run would produce with an EMPTY cooldown state.
+   * Completely read-only: does not write to DB and sends no emails.
+   */
+  @Get('preview-first-digest-run')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.GENERAL_MANAGER, UserRole.SENIOR_MANAGER)
+  async previewFirstDigestRun(): Promise<DigestFirstRunPreviewResult | null> {
+    if (!this.alertDigestService) {
+      return null;
+    }
+    return this.alertDigestService.previewCurrentOpenItemsFirstRun();
+  }
 
   /**
    * Primary Read-Only Email Queue Observability Endpoint.
@@ -133,9 +151,31 @@ export class EmailController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   async retryJob(@Param('id') jobId: string) {
+    const job = await this.emailJobRepo.findOne({ where: { id: jobId } });
+    if (!job) {
+      throw new NotFoundException(`EmailJob with ID ${jobId} not found`);
+    }
+
+    // Preserve existing priority (never reset to 5)
+    job.priority = job.priority ?? 5;
+    job.status = EmailJobStatus.PENDING;
+    job.nextRetryAt = null;
+    job.lockedAt = null;
+    job.lockedBy = null;
+    job.lastError = null;
+    if (job.attempts >= job.maxAttempts) {
+      job.attempts = Math.max(0, job.maxAttempts - 1);
+    }
+
+    const saved = await this.emailJobRepo.save(job);
     return {
       success: true,
       message: `Job ${jobId} queued for retry`,
+      job: {
+        id: saved.id,
+        status: saved.status,
+        priority: saved.priority,
+      },
     };
   }
 
@@ -170,6 +210,7 @@ export class EmailController {
       subject,
       eventType: 'TEST_EMAIL',
       templateKey: 'SYSTEM_TEST_EMAIL',
+      priority: 5,
       bodyText,
       bodyHtml: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;">

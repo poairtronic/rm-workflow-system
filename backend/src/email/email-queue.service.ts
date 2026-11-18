@@ -27,6 +27,7 @@ export const PERMITTED_EMAIL_EVENT_TYPES = new Set([
   'DC_PENDING_2_DAYS',
   'CONSUMABLE_PENDING_2_DAYS',
   'DC_QC_PENDING_24H',
+  'ALERT_DIGEST',
 ]);
 
 @Injectable()
@@ -138,7 +139,7 @@ export class EmailQueueService {
       status: EmailJobStatus.PENDING,
       attempts: 0,
       maxAttempts: Math.min(Math.max(1, jobData.maxAttempts ?? 3), 5),
-      priority: jobData.priority ?? 100,
+      priority: jobData.priority ?? 5,
       provider: EmailProvider.GMAIL_API,
       lockedAt: null,
       lockedBy: null,
@@ -167,9 +168,11 @@ export class EmailQueueService {
 
   /**
    * Atomically claims up to batchSize eligible jobs using SELECT ... FOR UPDATE SKIP LOCKED.
+   * Prioritizes priority ASC (1=workflow, 5=default, 9=digest), then created_at ASC.
+   * Optional maxPriority filter reserves capacity for high-priority lanes.
    * Increments attempt count upon claim.
    */
-  async claimJobs(batchSize: number = 10, workerId: string): Promise<EmailJob[]> {
+  async claimJobs(batchSize: number = 10, workerId: string, maxPriority?: number): Promise<EmailJob[]> {
     if (batchSize <= 0) {
       return [];
     }
@@ -179,6 +182,9 @@ export class EmailQueueService {
     await queryRunner.startTransaction();
 
     try {
+      const priorityFilter =
+        maxPriority !== undefined ? `AND COALESCE("priority", 5) <= ${Number(maxPriority)}` : '';
+
       // Step 1: Select and lock eligible job IDs atomically using FOR UPDATE SKIP LOCKED
       const selectedRows: Array<{ id: string }> = await queryRunner.query(
         `
@@ -186,7 +192,8 @@ export class EmailQueueService {
         FROM "email_jobs"
         WHERE ("status" = $1 OR "status" = $2)
           AND ("next_retry_at" IS NULL OR "next_retry_at" <= NOW())
-        ORDER BY "priority" DESC, "created_at" ASC, "id" ASC
+          ${priorityFilter}
+        ORDER BY COALESCE("priority", 5) ASC, "created_at" ASC, "id" ASC
         LIMIT $3
         FOR UPDATE SKIP LOCKED
         `,
