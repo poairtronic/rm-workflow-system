@@ -177,8 +177,10 @@ export function DeliveryChallanPrintView() {
     dc.items?.[0]?.processName ||
     '';
   const dcNumber = challan.challanNumber || dc.dcNumber || 'SDC/2627/0001';
-  const rawNotes = challan.notes || dc.remarks || dc.notes || 'HT AND RETURN';
-  const notes = rawNotes.replace(/^\[BATCH:[^\]]+\]\s*/i, '').trim() || 'HT AND RETURN';
+  const rawNotes = challan.remarks || dc.remarks || challan.notes || dc.notes || '';
+  const notes = typeof rawNotes === 'string'
+    ? rawNotes.replace(/^\[BATCH:[^\]]+\]\s*/i, '').trim()
+    : '';
 
   // Format vendor address lines
   const formatVendorAddress = (rawAddress?: string) => {

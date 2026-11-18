@@ -135,6 +135,7 @@ describe('Delivery Challan Comprehensive Inward/Outward Audit & Variation Report
 
     const mockQb: any = {
       leftJoinAndSelect: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
       orderBy: vi.fn().mockReturnThis(),
       andWhere: vi.fn().mockReturnThis(),
       getMany: vi.fn().mockResolvedValue([mockChallan1, mockChallan2]),

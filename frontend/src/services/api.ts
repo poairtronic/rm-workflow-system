@@ -504,6 +504,7 @@ export const deliveryChallanApi = {
       processName: resolvedProcessName,
       dispatchDate: new Date().toISOString(),
       notes: data.notes || '',
+      remarks: data.remarks || '',
       items: data.items.map((i: any) => ({
         productId: i.productId || undefined,
         rmItemId: i.rmItemId || (i.scItemId && i.scItemId !== 'sc_assembly' ? i.scItemId : undefined),

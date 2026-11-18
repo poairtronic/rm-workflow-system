@@ -423,4 +423,64 @@ describe('Phase DCL.3: Regression Suite (Type 2, Inward, QC, Closure, Movements)
     expect(movements.find((m: any) => m.id === 'm-1').status).toBe(DcMovementStatus.PARTIAL_RETURNED);
     expect(movements.find((m: any) => m.id === 'm-2').status).toBe(DcMovementStatus.RETURNED);
   });
+
+  it('Regression 6: creates Type 2 DC with custom remarks, persisting remarks and reflecting them on printable DC', async () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 2);
+
+    const mockStockBalance = {
+      id: 'sb-2',
+      productId: 'prod-billet-2',
+      binId: 'bin-main-2',
+      currentQuantity: 50,
+    };
+
+    const mockSbQb: any = {
+      setLock: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      andWhere: vi.fn().mockReturnThis(),
+      getOne: vi.fn().mockResolvedValue(mockStockBalance),
+    };
+    managerStockRepo.createQueryBuilder.mockReturnValue(mockSbQb);
+
+    mockQueryRunner.manager.query.mockResolvedValueOnce([{ max_seq: '0' }]);
+    mockChallanRepo.findOne.mockResolvedValue({
+      id: 'dc-gen-id',
+      challanNumber: 'SDC/2627/0052',
+      type: DeliveryChallanType.GENERAL_INVENTORY_OUTWARD,
+      status: DeliveryChallanStatus.DISPATCHED,
+      notes: 'Internal testing notes',
+      remarks: 'FOR BRAZZING AND RETURN',
+    });
+
+    const result = await service.createType2Challan(
+      {
+        type: DeliveryChallanType.GENERAL_INVENTORY_OUTWARD,
+        vendorId: 'vendor-1',
+        dispatchDate: futureDate.toISOString(),
+        notes: 'Internal testing notes',
+        remarks: 'FOR BRAZZING AND RETURN',
+        processName: 'FOR BRAZZING AND RETURN',
+        items: [
+          {
+            productId: 'prod-billet-2',
+            binId: 'bin-main-2',
+            outputProductId: 'prod-shaft-2',
+            quantityDispatched: 10,
+            expectedOutputQuantity: 10,
+          },
+        ],
+      } as any,
+      'test-user-id',
+    );
+
+    expect(result).toBeDefined();
+    expect(mockQueryRunner.manager.create).toHaveBeenCalledWith(
+      DeliveryChallan,
+      expect.objectContaining({
+        notes: 'Internal testing notes',
+        remarks: 'FOR BRAZZING AND RETURN',
+      }),
+    );
+  });
 });

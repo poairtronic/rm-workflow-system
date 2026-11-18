@@ -42,6 +42,10 @@ export class CreateDeliveryChallanDto {
   @IsOptional()
   notes?: string;
 
+  @IsString()
+  @IsOptional()
+  remarks?: string;
+
   @ValidateNested({ each: true })
   @Type(() => DeliveryChallanItemDto)
   @ArrayMinSize(1)

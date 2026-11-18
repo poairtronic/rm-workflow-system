@@ -30,6 +30,7 @@ export interface PrintableChallanMeta {
   expectedReturnDate: Date | null;
   actualReturnDate: Date | null;
   notes: string | null;
+  remarks?: string | null;
   processName?: string | null;
   poNumber?: string | null;
   layoutNumber?: string | null;

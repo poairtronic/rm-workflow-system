@@ -52,6 +52,7 @@ export function Type2DispatchView() {
       vendorId: '',
       processName: 'STOCK CONVERSION',
       notes: '',
+      remarks: '',
       scBlocks: [{
         scId: null,
         processId: null,
@@ -76,6 +77,7 @@ export function Type2DispatchView() {
   const items = watch('scBlocks')?.[0]?.items || [];
   const vendorId = watch('vendorId');
   const notes = watch('notes');
+  const remarks = watch('remarks');
   const selectedVendor = sortedVendorList?.find((v: any) => v.id === vendorId);
 
   const isFormValid = isValid && items.length > 0;
@@ -104,6 +106,8 @@ export function Type2DispatchView() {
       const payload = {
         ...data,
         processName: customProcessName,
+        notes: data.notes?.trim() || '',
+        remarks: data.remarks?.trim() || '',
         items: data.scBlocks[0].items.map((item: any, idx: number) => ({
           ...item,
           partNumber: item.partNumber || `DC2-${String(idx + 1).padStart(3, '0')}`,
@@ -208,15 +212,30 @@ export function Type2DispatchView() {
                   </p>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Notes <span className="text-xs text-slate-400 font-normal">(Optional)</span>
-                </label>
-                <textarea
-                  {...register('notes')}
-                  placeholder="E.g., R&D Testing, Machine Maintenance (Optional)..."
-                  className="w-full min-h-20 p-3.5 rounded-lg bg-white border border-slate-200 text-base sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Notes <span className="text-xs text-slate-400 font-normal">(Optional)</span>
+                  </label>
+                  <textarea
+                    {...register('notes')}
+                    placeholder="E.g., R&D Testing, Machine Maintenance (Optional)..."
+                    className="w-full min-h-20 p-3.5 rounded-lg bg-white border border-slate-200 text-base sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Remarks <span className="text-xs text-slate-400 font-normal">(Optional)</span>
+                  </label>
+                  <textarea
+                    {...register('remarks')}
+                    placeholder="Enter remarks printed directly in Remarks section on physical DC..."
+                    className="w-full min-h-20 p-3.5 rounded-lg bg-white border border-slate-200 text-base sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
+                  />
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Printed directly in the Remarks section on the physical DC.
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -283,6 +302,10 @@ export function Type2DispatchView() {
                   <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
                     <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Purpose / Notes</p>
                     <p className="text-sm text-slate-800">{notes || 'No notes provided'}</p>
+                  </div>
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg sm:col-span-2">
+                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">DC Remarks (Printed on DC)</p>
+                    <p className="text-sm font-bold text-slate-900">{remarks || 'No remarks (will be blank on DC)'}</p>
                   </div>
                 </div>
 

@@ -84,6 +84,9 @@ export class DeliveryChallan {
   @Column({ type: 'text', nullable: true })
   notes?: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  remarks?: string | null;
+
   @Column({ name: 'created_by_id', type: 'uuid', nullable: true })
   createdById?: string | null;
 

@@ -301,6 +301,7 @@ export class DeliveryChallanService {
         dispatchDate: new Date(dto.dispatchDate),
         expectedReturnDate,
         notes: dto.notes,
+        remarks: dto.remarks || null,
         createdById: userId,
         status: DeliveryChallanStatus.DISPATCHED,
       });
@@ -532,7 +533,8 @@ export class DeliveryChallanService {
         processName: resolvedProcessName,
         dispatchDate: new Date(dto.dispatchDate),
         expectedReturnDate: dto.expectedReturnDate ? new Date(dto.expectedReturnDate) : null,
-        notes: dto.notes,
+        notes: dto.notes || null,
+        remarks: dto.remarks || null,
         createdById: userId,
         status: DeliveryChallanStatus.DISPATCHED,
       });
@@ -2230,7 +2232,7 @@ export class DeliveryChallanService {
       layoutNumber: challan.layoutNumber || null,
       mercIndentNumber: challan.mercIndentNumber || null,
       processType: resolvedProcessType,
-      remarks: challan.notes ?? '',
+      remarks: challan.remarks || challan.notes || '',
       items,
 
       companyName: companyInfo.name,
@@ -2250,6 +2252,7 @@ export class DeliveryChallanService {
         expectedReturnDate: challan.expectedReturnDate ?? null,
         actualReturnDate: challan.actualReturnDate ?? null,
         notes: challan.notes ?? null,
+        remarks: challan.remarks ?? null,
         processName: resolvedProcessType,
         poNumber: topPoNumber,
         layoutNumber: challan.layoutNumber || null,
