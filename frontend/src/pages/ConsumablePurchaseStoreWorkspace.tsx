@@ -171,6 +171,11 @@ export function ConsumablePurchaseStoreWorkspace() {
         accessor: (item) => item.productCode || '-',
       },
       {
+        header: 'Approval Status',
+        key: 'approvalStatus',
+        accessor: (item) => item.approvalStatus || 'APPROVED',
+      },
+      {
         header: 'Category Track',
         key: 'itemCategoryTrack',
         accessor: (item) =>
@@ -246,10 +251,13 @@ export function ConsumablePurchaseStoreWorkspace() {
     setLoading(true);
     try {
       const [items, binList] = await Promise.all([
-        consumablesApi.getLineItems(),
+        consumablesApi.getLineItems({ approvedOnly: true }),
         consumablesApi.getWarehouseBins(),
       ]);
-      setAllItems(items || []);
+      const approvedOnlyItems = (items || []).filter(
+        (i) => !i.approvalStatus || i.approvalStatus === 'APPROVED'
+      );
+      setAllItems(approvedOnlyItems);
       setBins(binList || []);
       if (binList && binList.length > 0) {
         setSelectedTargetBinId((prev) => prev || binList[0].id);
@@ -266,7 +274,9 @@ export function ConsumablePurchaseStoreWorkspace() {
   // --- SELECTION HELPERS FOR PR PRINT ---
   const handleSelectAllVisible = (checked: boolean) => {
     if (checked) {
-      const visibleIds = purchaseQueueItems.map((i) => i.id);
+      const visibleIds = purchaseQueueItems
+        .filter((i) => !i.approvalStatus || i.approvalStatus === 'APPROVED')
+        .map((i) => i.id);
       setSelectedIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
     } else {
       const visibleIds = new Set(purchaseQueueItems.map((i) => i.id));
@@ -275,6 +285,11 @@ export function ConsumablePurchaseStoreWorkspace() {
   };
 
   const handleToggleSelect = (id: string) => {
+    const item = allItems.find((i) => i.id === id);
+    if (item && item.approvalStatus && item.approvalStatus !== 'APPROVED') {
+      toast.error('Only approved items can be selected for PR printing.');
+      return;
+    }
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
@@ -282,6 +297,10 @@ export function ConsumablePurchaseStoreWorkspace() {
 
   // --- TRIGGER INDENT PREVIEW & EDIT FOR SINGLE LINE ITEM ---
   const handlePrintSingleItem = (item: ConsumableLineItemRecord) => {
+    if (item.approvalStatus && item.approvalStatus !== 'APPROVED') {
+      toast.error('Cannot print PR slip for unapproved item.');
+      return;
+    }
     setIndentEditItems([item]);
     setIndentEditModalOpen(true);
   };
@@ -340,6 +359,10 @@ export function ConsumablePurchaseStoreWorkspace() {
 
   // --- RECEIVE PURCHASE SUBMISSION ---
   const handleOpenReceiveModal = async (item: ConsumableLineItemRecord) => {
+    if (item.approvalStatus && item.approvalStatus !== 'APPROVED') {
+      toast.error('Cannot receive purchase for unapproved item.');
+      return;
+    }
     setReceiveModalItem(item);
     const req = Number(item.requestedQty) || 0;
     const rec = Number(item.realReceivedQty) || 0;
@@ -436,6 +459,10 @@ export function ConsumablePurchaseStoreWorkspace() {
 
   // --- STORE ISSUE TO PRODUCTION SUBMISSION ---
   const handleOpenIssueModal = async (item: ConsumableLineItemRecord) => {
+    if (item.approvalStatus && item.approvalStatus !== 'APPROVED') {
+      toast.error('Cannot issue unapproved item to production.');
+      return;
+    }
     setIssueModalItem(item);
     const req = Number(item.requestedQty) || 0;
     const currentIssued = Number(item.issuedQty) || 0;
@@ -551,6 +578,9 @@ export function ConsumablePurchaseStoreWorkspace() {
   // Sub-Module 2A: In-Stock Queue
   const inStockItems = useMemo(() => {
     return allItems.filter((item) => {
+      const isApproved = !item.approvalStatus || item.approvalStatus === 'APPROVED';
+      if (!isApproved) return false;
+
       const isStockTrack =
         item.itemCategoryTrack === 'STOCK_ITEM' ||
         item.status === 'PURCHASE_RECEIVED' ||
@@ -579,6 +609,9 @@ export function ConsumablePurchaseStoreWorkspace() {
     const q = searchQuery.trim().toLowerCase();
 
     return allItems.filter((item) => {
+      const isApproved = !item.approvalStatus || item.approvalStatus === 'APPROVED';
+      if (!isApproved) return false;
+
       const isPurchaseTrack = item.itemCategoryTrack === 'NON_STOCK_OR_NEW';
       if (!isPurchaseTrack) return false;
 
@@ -620,9 +653,11 @@ export function ConsumablePurchaseStoreWorkspace() {
     });
   }, [allItems, purchaseStatusFilter, searchQuery]);
 
-  // Key KPI Metrics
+  // Key KPI Metrics (Over approved lines only)
   const readyForIssueCount = useMemo(
     () => allItems.filter((i) => {
+      const isApproved = !i.approvalStatus || i.approvalStatus === 'APPROVED';
+      if (!isApproved) return false;
       const isStockTrack =
         i.itemCategoryTrack === 'STOCK_ITEM' ||
         i.status === 'PURCHASE_RECEIVED' ||
@@ -636,6 +671,8 @@ export function ConsumablePurchaseStoreWorkspace() {
 
   const openPurchaseCount = useMemo(
     () => allItems.filter((i) => {
+      const isApproved = !i.approvalStatus || i.approvalStatus === 'APPROVED';
+      if (!isApproved) return false;
       if (i.itemCategoryTrack !== 'NON_STOCK_OR_NEW') return false;
       const isFull = (i.status === 'ISSUED_TO_PRODUCTION' || i.status === 'RECEIVED_BY_PRODUCTION') && Number(i.issuedQty || 0) >= Number(i.requestedQty || 0);
       return !isFull;
@@ -645,6 +682,8 @@ export function ConsumablePurchaseStoreWorkspace() {
 
   const partiallyIssuedCount = useMemo(
     () => allItems.filter((i) => {
+      const isApproved = !i.approvalStatus || i.approvalStatus === 'APPROVED';
+      if (!isApproved) return false;
       const isPart = i.status === 'PARTIALLY_ISSUED' || (Number(i.issuedQty || 0) > 0 && Number(i.issuedQty || 0) < Number(i.requestedQty || 0));
       return isPart;
     }).length,
@@ -653,6 +692,8 @@ export function ConsumablePurchaseStoreWorkspace() {
 
   const dispatchedCount = useMemo(
     () => allItems.filter((i) => {
+      const isApproved = !i.approvalStatus || i.approvalStatus === 'APPROVED';
+      if (!isApproved) return false;
       const isFull = (i.status === 'ISSUED_TO_PRODUCTION' || i.status === 'RECEIVED_BY_PRODUCTION') && Number(i.issuedQty || 0) >= Number(i.requestedQty || 0);
       return isFull;
     }).length,

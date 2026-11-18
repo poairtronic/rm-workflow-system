@@ -24,6 +24,9 @@ export const EVENT_PRIORITY_MAP: Record<string, number> = {
   DC_RETURNED: 1,
   DC_CLOSED: 1,
   PASSWORD_RESET: 1,
+  CONSUMABLE_APPROVAL_REQUESTED: 1,
+  CONSUMABLE_APPROVED: 1,
+  CONSUMABLE_REJECTED: 1,
 
   // Priority 5: Administrative, diagnostic & event-driven stock triggers
   TEST_EMAIL: 5,

@@ -12,6 +12,7 @@ import { ConsumableRequest } from './consumable-request.entity.js';
 import { Product } from '../../inventory/entities/product.entity.js';
 import { Vendor } from '../../vendor/entities/vendor.entity.js';
 import { Bin } from '../../inventory/entities/bin.entity.js';
+import { User } from '../../users/entities/user.entity.js';
 
 export enum ConsumableItemTrack {
   STOCK_ITEM = 'STOCK_ITEM',
@@ -26,6 +27,12 @@ export enum ConsumableItemStatus {
   PARTIALLY_ISSUED = 'PARTIALLY_ISSUED',
   ISSUED_TO_PRODUCTION = 'ISSUED_TO_PRODUCTION',
   RECEIVED_BY_PRODUCTION = 'RECEIVED_BY_PRODUCTION',
+}
+
+export enum ConsumableApprovalStatus {
+  PENDING_SM_APPROVAL = 'PENDING_SM_APPROVAL',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
 }
 
 @Entity('consumable_request_items')
@@ -218,6 +225,52 @@ export class ConsumableRequestItem {
     nullable: true,
   })
   productionReceivedById?: string | null;
+
+  @Index('idx_cri_approval_status')
+  @Column({
+    name: 'approval_status',
+    type: 'enum',
+    enum: ConsumableApprovalStatus,
+    enumName: 'consumable_approval_status_enum',
+    nullable: true,
+  })
+  approvalStatus?: ConsumableApprovalStatus | null;
+
+  @Column({ name: 'approved_by_id', type: 'uuid', nullable: true })
+  approvedById?: string | null;
+
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'approved_by_id' })
+  approvedBy?: User | null;
+
+  @Index('idx_cri_approved_at')
+  @Column({
+    name: 'approved_at',
+    type: 'timestamp with time zone',
+    nullable: true,
+  })
+  approvedAt?: Date | null;
+
+  @Column({ name: 'rejected_by_id', type: 'uuid', nullable: true })
+  rejectedById?: string | null;
+
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'rejected_by_id' })
+  rejectedBy?: User | null;
+
+  @Column({
+    name: 'rejected_at',
+    type: 'timestamp with time zone',
+    nullable: true,
+  })
+  rejectedAt?: Date | null;
+
+  @Column({ name: 'rejection_reason', type: 'text', nullable: true })
+  rejectionReason?: string | null;
+
+  @Index('idx_cri_approval_batch_id')
+  @Column({ name: 'approval_batch_id', type: 'uuid', nullable: true })
+  approvalBatchId?: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
   createdAt!: Date;

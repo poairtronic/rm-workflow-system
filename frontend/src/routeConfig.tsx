@@ -23,6 +23,7 @@ import {
   ClipboardList,
   Wrench,
   Layers,
+  CheckSquare,
 } from 'lucide-react';
 import type { UserRole } from './contexts/AuthContext';
 
@@ -144,6 +145,9 @@ export const ConsumableRequestsWorkspace = lazy(() =>
 export const ConsumablePurchaseStoreWorkspace = lazy(() =>
   import('./pages/ConsumablePurchaseStoreWorkspace').then((m) => ({ default: m.ConsumablePurchaseStoreWorkspace })),
 );
+export const ConsumableApprovalsWorkspace = lazy(() =>
+  import('./pages/ConsumableApprovalsWorkspace').then((m) => ({ default: m.ConsumableApprovalsWorkspace })),
+);
 
 export interface RouteConfig {
   name: string;
@@ -188,6 +192,7 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   // CONSUMABLES
   { name: 'Consumable Requests', path: '/consumables/requests', icon: ShoppingCart, roles: ['PRODUCTION', 'STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER', 'DESIGNER'], component: ConsumableRequestsWorkspace, isSidebar: true, group: 'CONSUMABLES', moduleKey: 'consumables_requests' },
   { name: 'Purchase & Store Consumables', path: '/consumables/purchase-store', icon: ClipboardList, roles: ['STORES', 'ADMIN', 'SENIOR_MANAGER', 'GENERAL_MANAGER'], component: ConsumablePurchaseStoreWorkspace, isSidebar: true, group: 'CONSUMABLES', moduleKey: 'consumables_purchase_store' },
+  { name: 'SM Approvals', path: '/consumables/approvals', icon: CheckSquare, roles: ['SENIOR_MANAGER', 'ADMIN'], component: ConsumableApprovalsWorkspace, isSidebar: true, group: 'CONSUMABLES', moduleKey: 'consumables_approval' },
 
   // DELIVERY CHALLAN
   { name: 'DC Type 1 (Process)', path: '/dispatch/delivery-challan/type-1', icon: Box, roles: ['STORES', 'ADMIN'], component: Type1DispatchWorkspace, isSidebar: true, group: 'DELIVERY CHALLAN', moduleKey: 'dc_type1' },

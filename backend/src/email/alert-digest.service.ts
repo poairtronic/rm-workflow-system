@@ -573,15 +573,16 @@ export class AlertDigestService {
     const sweepEvents: Array<{ eventCode: string; items: AlertDigestItem[] }> = [];
 
     try {
-      // 1. Consumable receipt overdue (>24h from creation, not received)
+      // 1. Consumable receipt overdue (>24h from approval/creation, not received)
       const consumableReceiptOverdue = await this.dataSource.query(`
         SELECT cri.id, 'CONSUMABLE_REQUEST_ITEM' as "entityType",
                COALESCE(cri.description, cri.id::text) as "itemRef",
-               cri.created_at as "createdAt"
+               COALESCE(cri.approved_at, cri.created_at) as "createdAt"
         FROM consumable_request_items cri
         WHERE cri.status IN ('OPEN', 'PURCHASE_REQUESTED', 'PARTIALLY_ISSUED', 'READY_FOR_ISSUE')
           AND cri.purchase_received_at IS NULL
-          AND cri.created_at <= NOW() - INTERVAL '24 hours'
+          AND (cri.approval_status IS NULL OR cri.approval_status = 'APPROVED')
+          AND COALESCE(cri.approved_at, cri.created_at) <= NOW() - INTERVAL '24 hours'
       `).catch(() => []);
 
       sweepEvents.push({
@@ -656,8 +657,9 @@ export class AlertDigestService {
         SELECT DISTINCT cr.id, 'CONSUMABLE_REQUEST' as "entityType", cr.request_code as "itemRef"
         FROM consumable_requests cr
         INNER JOIN consumable_request_items cri ON cri.request_id = cr.id
-        WHERE cr.created_at <= NOW() - INTERVAL '48 hours'
+        WHERE COALESCE(cri.approved_at, cr.created_at) <= NOW() - INTERVAL '48 hours'
           AND cri.status IN ('OPEN', 'PURCHASE_REQUESTED', 'PURCHASE_RECEIVED', 'READY_FOR_ISSUE', 'PARTIALLY_ISSUED')
+          AND (cri.approval_status IS NULL OR cri.approval_status = 'APPROVED')
       `).catch(() => []);
 
       sweepEvents.push({

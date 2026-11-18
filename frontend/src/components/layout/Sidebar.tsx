@@ -6,6 +6,7 @@ import { ecrIssuesService } from '../../services/ecrIssues.service';
 import type { EcrIssuePending } from '../../types/ecrIssues.types';
 import { mercIndentService } from '../../services/mercIndent.service';
 import type { MercIndentSummary } from '../../types/mercIndent.types';
+import { consumablesApi } from '../../services/consumables.service';
 import { LogOut, X } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -158,6 +159,26 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     return isMercAllowed ? (mercIndents || []).filter((i) => i.status === 'PENDING' || i.status === 'PARTIAL').length : 0;
   }, [mercIndents, isMercAllowed]);
 
+  // Fetch pending count from GET /api/consumables/approvals/pending-count
+  const isConsumableApprovalAllowed = Boolean(
+    currentUser &&
+      (currentUser.role === 'SENIOR_MANAGER' || currentUser.role === 'ADMIN') &&
+      isPathAllowedForUser('/consumables/approvals', currentUser),
+  );
+
+  const { data: consumableApprovalCountData } = useQuery<{ count: number }>({
+    queryKey: ['consumables-pending-approval-count'],
+    queryFn: () => consumablesApi.getPendingApprovalCount(),
+    enabled: isConsumableApprovalAllowed,
+    refetchInterval: 60000,
+    staleTime: 30000,
+    retry: false,
+  });
+
+  const pendingConsumableApprovalCount = isConsumableApprovalAllowed
+    ? consumableApprovalCountData?.count || 0
+    : 0;
+
   // Update badge when socket event arrives
   useEffect(() => {
     if (!currentUser) return;
@@ -288,6 +309,11 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                       {item.path === '/governance/merc-indents' && pendingMercCount > 0 && (
                         <span className="ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
                           {pendingMercCount}
+                        </span>
+                      )}
+                      {item.path === '/consumables/approvals' && pendingConsumableApprovalCount > 0 && (
+                        <span className="ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                          {pendingConsumableApprovalCount}
                         </span>
                       )}
                     </NavLink>

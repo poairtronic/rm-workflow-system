@@ -13,6 +13,8 @@ import {
   Sparkles,
   Printer,
   AlertTriangle,
+  RotateCcw,
+  XCircle,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
@@ -72,7 +74,7 @@ export function ConsumableRequestsWorkspace() {
   // Production Tracking & Receipt Queue (Sub-Module 1B)
   const [lineItems, setLineItems] = useState<ConsumableLineItemRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'READY_FOR_RECEIPT' | 'OPEN' | 'CLOSED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'READY_FOR_RECEIPT' | 'OPEN' | 'PENDING_APPROVAL' | 'REJECTED' | 'CLOSED'>('ALL');
   const [viewingPrItems, setViewingPrItems] = useState<ConsumableLineItemRecord[] | null>(null);
 
   // Initialize requester name from current user
@@ -319,6 +321,70 @@ export function ConsumableRequestsWorkspace() {
     }
   };
 
+  // --- RE-RAISE REJECTED ITEM IN REQUEST BUILDER ---
+  const handleReRaise = (item: ConsumableLineItemRecord) => {
+    setActiveTab('BUILDER');
+    setEndUserInVelan(item.endUserInVelan || '');
+    setRequestedBy(item.requestedBy || currentUser?.name || '');
+    setRemarks(`Re-raised from ${item.requestCode || 'CR'}`);
+    setDraftItems([
+      {
+        tempId: `row-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        isNewProduct: Boolean(item.isNewProduct),
+        productId: item.productId || '',
+        productCode: item.productCode || '',
+        baseProductName: item.description || '',
+        specification: '',
+        description: item.description || '',
+        uom: item.uom || 'NOS',
+        requestedQty: Number(item.requestedQty) || 1,
+        stockAvailableAtRequest: 0,
+        vendorId: item.vendorId || undefined,
+        vendorName: item.vendorName || undefined,
+        unitPrice: item.unitPrice ? Number(item.unitPrice) : undefined,
+        isNewVendor: Boolean(item.isNewVendor),
+        newVendorName: item.newVendorName || undefined,
+        newVendorAddress: item.newVendorAddress || undefined,
+        newVendorMobile: item.newVendorMobile || undefined,
+        newVendorPrice: item.newVendorPrice ? Number(item.newVendorPrice) : undefined,
+      },
+    ]);
+    toast.success(`Form pre-filled to re-raise item from ${item.requestCode || 'CR'}`);
+  };
+
+  // Group lines by request for derived header-level status
+  const requestLinesMap = useMemo(() => {
+    const map = new Map<string, ConsumableLineItemRecord[]>();
+    for (const item of lineItems) {
+      const key = item.requestCode || item.requestId || 'UNKNOWN';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(item);
+    }
+    return map;
+  }, [lineItems]);
+
+  const getDerivedRequestStatus = (items: ConsumableLineItemRecord[]) => {
+    if (!items || items.length === 0) return { label: 'Approved', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300' };
+    const statuses = items.map((i) => i.approvalStatus || 'APPROVED');
+    const allPending = statuses.every((s) => s === 'PENDING_SM_APPROVAL');
+    if (allPending) {
+      return { label: 'Pending Approval', color: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-300' };
+    }
+    const allApproved = statuses.every((s) => s === 'APPROVED');
+    if (allApproved) {
+      return { label: 'Approved', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300' };
+    }
+    const allRejected = statuses.every((s) => s === 'REJECTED');
+    if (allRejected) {
+      return { label: 'Rejected', color: 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-300' };
+    }
+    const hasPending = statuses.some((s) => s === 'PENDING_SM_APPROVAL');
+    if (hasPending) {
+      return { label: 'Partially Approved', color: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-300' };
+    }
+    return { label: 'Approved (Partial Rejections)', color: 'bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border border-purple-300' };
+  };
+
   // Partition catalog into standard particulars (1 to 34) and custom/newly created products
   const { standardProducts, customProducts } = useMemo(() => {
     const stdMap = new Map<string, number>();
@@ -372,7 +438,16 @@ export function ConsumableRequestsWorkspace() {
         return item.status === 'ISSUED_TO_PRODUCTION';
       }
       if (statusFilter === 'OPEN') {
-        return ['OPEN', 'PURCHASE_REQUESTED', 'PURCHASE_RECEIVED', 'READY_FOR_ISSUE', 'PARTIALLY_ISSUED'].includes(item.status);
+        return (
+          ['OPEN', 'PURCHASE_REQUESTED', 'PURCHASE_RECEIVED', 'READY_FOR_ISSUE', 'PARTIALLY_ISSUED'].includes(item.status) &&
+          (!item.approvalStatus || item.approvalStatus === 'APPROVED')
+        );
+      }
+      if (statusFilter === 'PENDING_APPROVAL') {
+        return item.approvalStatus === 'PENDING_SM_APPROVAL';
+      }
+      if (statusFilter === 'REJECTED') {
+        return item.approvalStatus === 'REJECTED';
       }
       if (statusFilter === 'CLOSED') {
         return item.status === 'RECEIVED_BY_PRODUCTION';
@@ -381,22 +456,36 @@ export function ConsumableRequestsWorkspace() {
     });
   }, [lineItems, searchQuery, statusFilter]);
 
-  // Summary counts
-  const readyForReceiptCount = useMemo(
-    () => lineItems.filter((i) => i.status === 'ISSUED_TO_PRODUCTION').length,
+  // Approved lines subset for KPIs (When everything is APPROVED, equals today's 43/0/43/15)
+  const approvedLines = useMemo(
+    () => lineItems.filter((i) => !i.approvalStatus || i.approvalStatus === 'APPROVED'),
     [lineItems]
   );
-  const inStockTrackCount = useMemo(
-    () => lineItems.filter((i) => i.itemCategoryTrack === 'STOCK_ITEM').length,
+
+  const totalApprovedCount = useMemo(() => approvedLines.length, [approvedLines]);
+  const inStockApprovedCount = useMemo(
+    () => approvedLines.filter((i) => i.itemCategoryTrack === 'STOCK_ITEM').length,
+    [approvedLines]
+  );
+  const purchaseApprovedCount = useMemo(
+    () => approvedLines.filter((i) => i.itemCategoryTrack === 'NON_STOCK_OR_NEW').length,
+    [approvedLines]
+  );
+  const readyForReceiptApprovedCount = useMemo(
+    () => approvedLines.filter((i) => i.status === 'ISSUED_TO_PRODUCTION').length,
+    [approvedLines]
+  );
+  const pendingApprovalCount = useMemo(
+    () => lineItems.filter((i) => i.approvalStatus === 'PENDING_SM_APPROVAL').length,
     [lineItems]
   );
-  const nonStockTrackCount = useMemo(
-    () => lineItems.filter((i) => i.itemCategoryTrack === 'NON_STOCK_OR_NEW').length,
+  const rejectedCount = useMemo(
+    () => lineItems.filter((i) => i.approvalStatus === 'REJECTED').length,
     [lineItems]
   );
   const closedCount = useMemo(
-    () => lineItems.filter((i) => i.status === 'RECEIVED_BY_PRODUCTION').length,
-    [lineItems]
+    () => approvedLines.filter((i) => i.status === 'RECEIVED_BY_PRODUCTION').length,
+    [approvedLines]
   );
 
   return (
@@ -422,9 +511,9 @@ export function ConsumableRequestsWorkspace() {
             >
               <PackageCheck className="w-4 h-4" />
               Receipt Queue
-              {readyForReceiptCount > 0 && (
+              {readyForReceiptApprovedCount > 0 && (
                 <span className="ml-1 px-1.5 py-0.2 text-[11px] font-bold rounded-full bg-emerald-500 text-white animate-pulse">
-                  {readyForReceiptCount}
+                  {readyForReceiptApprovedCount}
                 </span>
               )}
             </Button>
@@ -433,14 +522,14 @@ export function ConsumableRequestsWorkspace() {
       />
 
       {/* KPI Stats Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card className="p-4 border-l-4 border-l-indigo-500">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Total Items</span>
             <Layers className="w-4 h-4 text-indigo-500" />
           </div>
-          <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{lineItems.length}</p>
-          <span className="text-[11px] text-slate-400">All requested consumables</span>
+          <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{totalApprovedCount}</p>
+          <span className="text-[11px] text-slate-400">All approved consumables</span>
         </Card>
 
         <Card className="p-4 border-l-4 border-l-purple-500">
@@ -448,16 +537,16 @@ export function ConsumableRequestsWorkspace() {
             <span className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">In-Stock Track</span>
             <CheckCircle2 className="w-4 h-4 text-purple-500" />
           </div>
-          <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{inStockTrackCount}</p>
+          <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{inStockApprovedCount}</p>
           <span className="text-[11px] text-slate-400">Stock available at request</span>
         </Card>
 
-        <Card className="p-4 border-l-4 border-l-amber-500">
+        <Card className="p-4 border-l-4 border-l-blue-500">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Purchase Track</span>
-            <Clock className="w-4 h-4 text-amber-500" />
+            <Clock className="w-4 h-4 text-blue-500" />
           </div>
-          <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{nonStockTrackCount}</p>
+          <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{purchaseApprovedCount}</p>
           <span className="text-[11px] text-slate-400">Out-of-stock / New items</span>
         </Card>
 
@@ -466,8 +555,26 @@ export function ConsumableRequestsWorkspace() {
             <span className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Ready to Receive</span>
             <PackageCheck className="w-4 h-4 text-emerald-500" />
           </div>
-          <p className="text-2xl font-bold mt-1 text-emerald-600 dark:text-emerald-400">{readyForReceiptCount}</p>
+          <p className="text-2xl font-bold mt-1 text-emerald-600 dark:text-emerald-400">{readyForReceiptApprovedCount}</p>
           <span className="text-[11px] text-slate-400">Awaiting shop-floor acknowledgment</span>
+        </Card>
+
+        <Card className="p-4 border-l-4 border-l-amber-500">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Pending Approval</span>
+            <Clock className="w-4 h-4 text-amber-500" />
+          </div>
+          <p className="text-2xl font-bold mt-1 text-amber-600 dark:text-amber-400">{pendingApprovalCount}</p>
+          <span className="text-[11px] text-slate-400">Awaiting SM review</span>
+        </Card>
+
+        <Card className="p-4 border-l-4 border-l-rose-500">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Rejected</span>
+            <XCircle className="w-4 h-4 text-rose-500" />
+          </div>
+          <p className="text-2xl font-bold mt-1 text-rose-600 dark:text-rose-400">{rejectedCount}</p>
+          <span className="text-[11px] text-slate-400">Rejected by SM</span>
         </Card>
       </div>
 
@@ -1015,7 +1122,7 @@ export function ConsumableRequestsWorkspace() {
                 onClick={() => setStatusFilter('ALL')}
                 className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${
                   statusFilter === 'ALL'
-                    ? 'bg-indigo-600 text-white'
+                    ? 'bg-indigo-600 text-white font-bold'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
                 }`}
               >
@@ -1026,29 +1133,51 @@ export function ConsumableRequestsWorkspace() {
                 onClick={() => setStatusFilter('READY_FOR_RECEIPT')}
                 className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1 ${
                   statusFilter === 'READY_FOR_RECEIPT'
-                    ? 'bg-emerald-600 text-white'
+                    ? 'bg-emerald-600 text-white font-bold'
                     : 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200'
                 }`}
               >
-                Ready to Receive ({readyForReceiptCount})
+                Ready to Receive ({readyForReceiptApprovedCount})
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter('OPEN')}
-                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${
+                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1 ${
                   statusFilter === 'OPEN'
-                    ? 'bg-amber-600 text-white'
+                    ? 'bg-blue-600 text-white font-bold'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
                 }`}
               >
-                In Progress
+                Open ({approvedLines.filter((i) => ['OPEN', 'PURCHASE_REQUESTED', 'PURCHASE_RECEIVED', 'READY_FOR_ISSUE', 'PARTIALLY_ISSUED'].includes(i.status)).length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('PENDING_APPROVAL')}
+                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1 ${
+                  statusFilter === 'PENDING_APPROVAL'
+                    ? 'bg-amber-600 text-white font-bold'
+                    : 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-200'
+                }`}
+              >
+                Pending Approval ({pendingApprovalCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('REJECTED')}
+                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1 ${
+                  statusFilter === 'REJECTED'
+                    ? 'bg-rose-600 text-white font-bold'
+                    : 'bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-200'
+                }`}
+              >
+                Rejected ({rejectedCount})
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter('CLOSED')}
                 className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${
                   statusFilter === 'CLOSED'
-                    ? 'bg-slate-700 text-white'
+                    ? 'bg-slate-700 text-white font-bold'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
                 }`}
               >
@@ -1066,6 +1195,7 @@ export function ConsumableRequestsWorkspace() {
                   <th className="py-3 px-3">Item Description</th>
                   <th className="py-3 px-3">End User / Bay</th>
                   <th className="py-3 px-3">Track</th>
+                  <th className="py-3 px-3">Approval</th>
                   <th className="py-3 px-3 font-mono text-right">Req. Qty</th>
                   <th className="py-3 px-3 font-mono text-right">Issued Qty</th>
                   <th className="py-3 px-3">Current Status</th>
@@ -1075,14 +1205,14 @@ export function ConsumableRequestsWorkspace() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                 {loadingItems ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400">
+                    <td colSpan={9} className="py-8 text-center text-slate-400">
                       <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-indigo-500" />
                       Loading consumable line items...
                     </td>
                   </tr>
                 ) : filteredLineItems.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400">
+                    <td colSpan={9} className="py-8 text-center text-slate-400">
                       No consumable line items match your current filter.
                     </td>
                   </tr>
@@ -1090,6 +1220,8 @@ export function ConsumableRequestsWorkspace() {
                   filteredLineItems.map((item) => {
                     const isIssued = item.status === 'ISSUED_TO_PRODUCTION';
                     const isReceived = item.status === 'RECEIVED_BY_PRODUCTION';
+                    const reqItems = requestLinesMap.get(item.requestCode || item.requestId || '') || [item];
+                    const derived = getDerivedRequestStatus(reqItems);
 
                     return (
                       <tr
@@ -1102,7 +1234,10 @@ export function ConsumableRequestsWorkspace() {
                       >
                         {/* Request Code */}
                         <td className="py-3 px-3 font-mono font-semibold text-slate-900 dark:text-white">
-                          {item.requestCode || 'CR-NEW'}
+                          <span className="block">{item.requestCode || 'CR-NEW'}</span>
+                          <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold mt-1 ${derived.color}`}>
+                            {derived.label}
+                          </span>
                           {item.prNumber && (
                             <button
                               type="button"
@@ -1149,6 +1284,36 @@ export function ConsumableRequestsWorkspace() {
                           )}
                         </td>
 
+                        {/* Approval Status */}
+                        <td className="py-3 px-3">
+                          {item.approvalStatus === 'PENDING_SM_APPROVAL' ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/50 flex items-center gap-1 w-fit">
+                              <Clock className="w-2.5 h-2.5 text-amber-600" />
+                              Pending SM
+                            </span>
+                          ) : item.approvalStatus === 'REJECTED' ? (
+                            <div className="space-y-0.5">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300/50 flex items-center gap-1 w-fit">
+                                <XCircle className="w-2.5 h-2.5 text-rose-600" />
+                                Rejected
+                              </span>
+                              {item.rejectionReason && (
+                                <p
+                                  className="text-[10px] text-rose-600 dark:text-rose-400 italic max-w-[140px] truncate"
+                                  title={`Reason: ${item.rejectionReason}${item.rejectedAt ? ` (at ${new Date(item.rejectedAt).toLocaleString()})` : ''}`}
+                                >
+                                  "{item.rejectionReason}"
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300/50 flex items-center gap-1 w-fit">
+                              <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                              Approved
+                            </span>
+                          )}
+                        </td>
+
                         {/* Requested Qty */}
                         <td className="py-3 px-3 font-mono text-right font-semibold text-slate-700 dark:text-slate-300">
                           {Number(item.requestedQty || 0)} {item.uom}
@@ -1181,51 +1346,66 @@ export function ConsumableRequestsWorkspace() {
                           )}
                         </td>
 
-                          {/* Action Column */}
-                          <td className="py-3 px-3 text-center">
-                            <div className="flex items-center justify-center gap-1.5">
-                              {isIssued ? (
-                                <Button
-                                  variant="primary"
-                                  size="sm"
-                                  disabled={actionInProgressId === item.id}
-                                  onClick={() => handleConfirmReceive(item)}
-                                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs mx-auto cursor-pointer"
-                                >
-                                  {actionInProgressId === item.id ? (
-                                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                  ) : (
-                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                  )}
-                                  Confirm Received
-                                </Button>
-                              ) : item.status === 'PARTIALLY_ISSUED' ? (
-                                <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
-                                  Partial Delivery ({item.issuedQty}/{item.requestedQty})
+                        {/* Action Column */}
+                        <td className="py-3 px-3 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {item.approvalStatus === 'REJECTED' ? (
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => handleReRaise(item)}
+                                className="bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 font-bold text-xs flex items-center gap-1 shadow-xs mx-auto cursor-pointer"
+                                title="Re-raise this rejected item in the Request Builder"
+                              >
+                                <RotateCcw className="w-3 h-3" />
+                                Re-raise
+                              </Button>
+                            ) : item.approvalStatus === 'PENDING_SM_APPROVAL' ? (
+                              <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                                Awaiting SM Approval
+                              </span>
+                            ) : isIssued ? (
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                disabled={actionInProgressId === item.id}
+                                onClick={() => handleConfirmReceive(item)}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs mx-auto cursor-pointer"
+                              >
+                                {actionInProgressId === item.id ? (
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                )}
+                                Confirm Received
+                              </Button>
+                            ) : item.status === 'PARTIALLY_ISSUED' ? (
+                              <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                                Partial Delivery ({item.issuedQty}/{item.requestedQty})
+                              </span>
+                            ) : isReceived ? (
+                              <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                                Handover Verified
+                              </span>
+                            ) : (
+                              <div className="inline-flex items-center gap-1.5">
+                                <span className="text-[11px] text-slate-400">
+                                  Stores in progress
                                 </span>
-                              ) : isReceived ? (
-                                <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                                  Handover Verified
-                                </span>
-                              ) : (
-                                <div className="inline-flex items-center gap-1.5">
-                                  <span className="text-[11px] text-slate-400">
-                                    Stores in progress
-                                  </span>
-                                  {Number(item.issuedQty || 0) === 0 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setDeleteItemModal(item)}
-                                      className="p-1 rounded text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                                      title="Delete this line item"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </td>
+                                {Number(item.issuedQty || 0) === 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeleteItemModal(item)}
+                                    className="p-1 rounded text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                                    title="Delete this line item"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     );
                   })

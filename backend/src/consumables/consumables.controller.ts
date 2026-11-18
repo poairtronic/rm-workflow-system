@@ -13,7 +13,7 @@ import {
   Optional,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ConsumablesService } from './consumables.service.js';
 import { PdfGeneratorService } from '../reports/pdf/pdf-generator.service.js';
@@ -24,6 +24,10 @@ import { PrintPrDto } from './dto/print-pr.dto.js';
 import { CreateConsumablePoDto } from './dto/create-consumable-po.dto.js';
 import { BulkDeleteConsumableItemsDto } from './dto/bulk-delete-consumable-items.dto.js';
 import { QueryConsumableItemsDto } from './dto/query-consumables.dto.js';
+import { BulkApproveConsumablesDto } from './dto/bulk-approve-consumables.dto.js';
+import { BulkRejectConsumablesDto } from './dto/bulk-reject-consumables.dto.js';
+import { QueryConsumableApprovalsDto } from './dto/query-consumable-approvals.dto.js';
+import { UpdateConsumableApprovalConfigDto } from './dto/update-consumable-approval-config.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
@@ -58,6 +62,89 @@ export class ConsumablesController {
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     return this.consumablesService.createRequest(dto, userId);
+  }
+
+  /**
+   * Phase P2: Bulk approve pending consumable request line items.
+   * Allowed roles: SENIOR_MANAGER, ADMIN
+   */
+  @Post('approvals/bulk-approve')
+  @Roles(UserRole.SENIOR_MANAGER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Bulk approve pending consumable request line items' })
+  async bulkApprove(
+    @Body() dto: BulkApproveConsumablesDto,
+    @Req() req: any,
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    return this.consumablesService.bulkApprove(dto, userId);
+  }
+
+  /**
+   * Phase P2: Bulk reject pending consumable request line items with mandatory reason.
+   * Allowed roles: SENIOR_MANAGER, ADMIN
+   */
+  @Post('approvals/bulk-reject')
+  @Roles(UserRole.SENIOR_MANAGER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Bulk reject pending consumable request line items' })
+  async bulkReject(
+    @Body() dto: BulkRejectConsumablesDto,
+    @Req() req: any,
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    return this.consumablesService.bulkReject(dto, userId);
+  }
+
+  /**
+   * Phase P2: Get count of consumable items pending Senior Manager approval (for badge).
+   * Allowed roles: SENIOR_MANAGER, ADMIN
+   */
+  @Get('approvals/pending-count')
+  @Roles(UserRole.SENIOR_MANAGER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get count of consumable items pending approval' })
+  async getPendingCount() {
+    return this.consumablesService.getPendingApprovalsCount();
+  }
+
+  /**
+   * Phase P2: Get current consumable SM approval configuration mode and scope.
+   */
+  @Get('approvals/config')
+  @Roles(
+    UserRole.SENIOR_MANAGER,
+    UserRole.ADMIN,
+    UserRole.STORES,
+    UserRole.PRODUCTION,
+    UserRole.GENERAL_MANAGER,
+  )
+  @ApiOperation({ summary: 'Get consumable SM approval mode and scope configuration' })
+  async getApprovalConfig() {
+    return this.consumablesService.getApprovalConfig();
+  }
+
+  /**
+   * Update consumable SM approval configuration mode and scope.
+   * Allowed roles: ADMIN, GENERAL_MANAGER
+   */
+  @Patch('approvals/config')
+  @Roles(UserRole.ADMIN, UserRole.GENERAL_MANAGER)
+  @ApiOperation({ summary: 'Update consumable SM approval mode and scope configuration' })
+  async updateApprovalConfig(
+    @Body() dto: UpdateConsumableApprovalConfigDto,
+    @Req() req: any,
+  ) {
+    const actorId = req.user?.userId || req.user?.email || 'ADMIN';
+    return this.consumablesService.setApprovalConfig(dto.mode, dto.scope, actorId);
+  }
+
+  /**
+   * Phase P2: Query consumable request line items by approval status, track, search, dates.
+   * Allowed roles: SENIOR_MANAGER, ADMIN
+   */
+  @Get('approvals')
+  @Roles(UserRole.SENIOR_MANAGER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Query consumable request items for SM approval workflow' })
+  async queryApprovals(@Query() query: QueryConsumableApprovalsDto) {
+    return this.consumablesService.queryApprovals(query);
   }
 
   /**

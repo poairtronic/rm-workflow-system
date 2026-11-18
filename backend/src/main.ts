@@ -44,6 +44,14 @@ async function bootstrap() {
     expressApp.set('trust proxy', 1);
 
     // Health check endpoint for Render / uptime monitors
+    expressApp.get('/api/health', (_req: any, res: any) => {
+      res.status(200).json({
+        status: 'ok',
+        service: 'v-smart-backend',
+        timestamp: new Date().toISOString(),
+      });
+    });
+
     expressApp.get('/health', (_req: any, res: any) => {
       res.status(200).json({
         status: 'ok',

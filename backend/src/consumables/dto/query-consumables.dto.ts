@@ -9,6 +9,7 @@ import { Type } from 'class-transformer';
 import {
   ConsumableItemTrack,
   ConsumableItemStatus,
+  ConsumableApprovalStatus,
 } from '../entities/consumable-request-item.entity.js';
 
 export class QueryConsumableItemsDto {
@@ -19,6 +20,14 @@ export class QueryConsumableItemsDto {
   @IsOptional()
   @IsEnum(ConsumableItemStatus)
   status?: ConsumableItemStatus;
+
+  @IsOptional()
+  @IsEnum(ConsumableApprovalStatus)
+  approvalStatus?: ConsumableApprovalStatus;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  approvedOnly?: boolean;
 
   @IsOptional()
   @IsString()

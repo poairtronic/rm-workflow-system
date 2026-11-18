@@ -781,6 +781,285 @@ export class TemplateService {
         };
       },
     },
+
+    CONSUMABLE_APPROVAL_REQUESTED: {
+      key: 'CONSUMABLE_APPROVAL_REQUESTED',
+      requiredVars: ['requestCode'],
+      allowedVars: ['recipientName', 'requestCode', 'requestedBy', 'pendingLinesCount', 'items', 'itemsTableHtml', 'actionUrl'],
+      render: (vars, escape) => {
+        const req = escape(vars.requestCode || 'N/A');
+        const by = escape(vars.requestedBy || 'N/A');
+        const count = vars.pendingLinesCount !== undefined ? vars.pendingLinesCount : (Array.isArray(vars.items) ? vars.items.length : 1);
+        const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
+        const htmlName = vars.recipientName ? `<p>Hello <strong>${escape(vars.recipientName)}</strong>,</p>` : '';
+        const baseUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0].trim();
+        const link = vars.actionUrl || `${baseUrl}/consumables/approvals`;
+
+        let tableHtml = vars.itemsTableHtml || '';
+        let tableText = '';
+
+        if (!tableHtml && Array.isArray(vars.items) && vars.items.length > 0) {
+          const displayItems = vars.items.slice(0, 50);
+          const overflowCount = vars.items.length - displayItems.length;
+
+          const rowsHtml = displayItems.map((item: any) => `
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 12px; font-weight: 600; color: #1e293b;">${escape(item.requestCode || vars.requestCode || 'N/A')}</td>
+              <td style="padding: 8px 12px; color: #334155;">${escape(item.description || 'N/A')}</td>
+              <td style="padding: 8px 12px; color: #334155; text-align: right;">${escape(String(item.requestedQty ?? 'N/A'))} ${escape(item.uom || '')}</td>
+              <td style="padding: 8px 12px; color: #64748b;">${escape(item.endUserInVelan || 'Plant Floor')}</td>
+            </tr>
+          `).join('');
+
+          const overflowRowHtml = overflowCount > 0
+            ? `<tr><td colspan="4" style="text-align: center; color: #64748b; font-style: italic; padding: 10px; background: #f8fafc;">+ ${overflowCount} more items...</td></tr>`
+            : '';
+
+          tableHtml = `
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; margin: 16px 0; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;">
+              <thead>
+                <tr style="background-color: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 11px; text-transform: uppercase;">
+                  <th style="padding: 8px 12px;">Request Code</th>
+                  <th style="padding: 8px 12px;">Item Description</th>
+                  <th style="padding: 8px 12px; text-align: right;">Qty</th>
+                  <th style="padding: 8px 12px;">Bay / End User</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+                ${overflowRowHtml}
+              </tbody>
+            </table>
+          `;
+
+          tableText = displayItems.map((item: any) =>
+            `- ${item.description || 'N/A'} | Qty: ${item.requestedQty ?? 'N/A'} ${item.uom || ''} | Bay: ${item.endUserInVelan || 'Plant Floor'}`
+          ).join('\n');
+          if (overflowCount > 0) {
+            tableText += `\n+ ${overflowCount} more items...`;
+          }
+        }
+
+        return {
+          subject: `[V-SMART] ACTION REQUIRED: Consumable Approval Requested - ${vars.requestCode || 'Requisition'}`,
+          text: `${name}ACTION REQUIRED: Consumable Requisition ${req} created by ${by} requires your managerial approval (${count} pending line item(s)).\n\nItems Pending Approval:\n${tableText}\n\nReview and authorize at: ${link}`,
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 650px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+              <div style="background: linear-gradient(135deg, #d97706 0%, #b45309 100%); padding: 20px 24px; color: #ffffff;">
+                <h2 style="margin: 0; font-size: 18px; font-weight: 800; letter-spacing: 0.5px;">🔔 CONSUMABLE REQUISITION APPROVAL REQUIRED</h2>
+                <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.95;">Senior Manager & Admin Governance Gate</p>
+              </div>
+              <div style="padding: 24px;">
+                ${htmlName}
+                <p style="color: #334155; font-size: 14px; line-height: 1.6; margin-top: 0;">
+                  Consumable Requisition <strong>${req}</strong> raised by <strong>${by}</strong> contains <strong>${count}</strong> item(s) awaiting managerial authorization:
+                </p>
+                ${tableHtml}
+                <div style="margin-top: 24px; text-align: center;">
+                  <a href="${link}" style="background: #d97706; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 600; display: inline-block;">
+                    Review & Authorize in SM Approvals &rarr;
+                  </a>
+                </div>
+              </div>
+            </div>
+          `,
+        };
+      },
+    },
+
+    CONSUMABLE_APPROVED: {
+      key: 'CONSUMABLE_APPROVED',
+      requiredVars: ['itemsCount'],
+      allowedVars: ['recipientName', 'batchId', 'itemsCount', 'items', 'itemsTableHtml', 'actionUrl', 'recipientRole', 'switchedCount'],
+      render: (vars, escape) => {
+        const count = vars.itemsCount !== undefined ? vars.itemsCount : (Array.isArray(vars.items) ? vars.items.length : 1);
+        const switchedCount = Number(vars.switchedCount || 0);
+        const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
+        const htmlName = vars.recipientName ? `<p>Hello <strong>${escape(vars.recipientName)}</strong>,</p>` : '';
+        const baseUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0].trim();
+        const defaultLink = vars.recipientRole === 'STORES'
+          ? `${baseUrl}/consumables/purchase-store`
+          : `${baseUrl}/consumables/requests`;
+        const link = vars.actionUrl || defaultLink;
+
+        let tableHtml = vars.itemsTableHtml || '';
+        let tableText = '';
+
+        if (!tableHtml && Array.isArray(vars.items) && vars.items.length > 0) {
+          const displayItems = vars.items.slice(0, 50);
+          const overflowCount = vars.items.length - displayItems.length;
+
+          const rowsHtml = displayItems.map((item: any) => {
+            const isSwitched = Boolean(item.isSwitchedToPurchase);
+            const trackLabel = isSwitched
+              ? '<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">Purchase Track (Stock Depleted)</span>'
+              : (item.itemCategoryTrack === 'STOCK_ITEM'
+                  ? '<span style="background: #ecfdf5; color: #065f46; padding: 2px 6px; border-radius: 4px; font-size: 11px;">In-Stock Store</span>'
+                  : '<span style="background: #eff6ff; color: #1e40af; padding: 2px 6px; border-radius: 4px; font-size: 11px;">Purchase Track</span>');
+
+            return `
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 8px 12px; font-weight: 600; color: #1e293b;">${escape(item.requestCode || 'N/A')}</td>
+                <td style="padding: 8px 12px; color: #334155;">${escape(item.description || 'N/A')}</td>
+                <td style="padding: 8px 12px; color: #334155; text-align: right;">${escape(String(item.requestedQty ?? 'N/A'))} ${escape(item.uom || '')}</td>
+                <td style="padding: 8px 12px; color: #64748b;">${escape(item.endUserInVelan || 'Plant Floor')}</td>
+                <td style="padding: 8px 12px;">${trackLabel}</td>
+              </tr>
+            `;
+          }).join('');
+
+          const overflowRowHtml = overflowCount > 0
+            ? `<tr><td colspan="5" style="text-align: center; color: #64748b; font-style: italic; padding: 10px; background: #f8fafc;">+ ${overflowCount} more items...</td></tr>`
+            : '';
+
+          tableHtml = `
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; margin: 16px 0; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;">
+              <thead>
+                <tr style="background-color: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 11px; text-transform: uppercase;">
+                  <th style="padding: 8px 12px;">Request Code</th>
+                  <th style="padding: 8px 12px;">Item Description</th>
+                  <th style="padding: 8px 12px; text-align: right;">Qty</th>
+                  <th style="padding: 8px 12px;">Bay / End User</th>
+                  <th style="padding: 8px 12px;">Track</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+                ${overflowRowHtml}
+              </tbody>
+            </table>
+          `;
+
+          tableText = displayItems.map((item: any) =>
+            `- [${item.requestCode || 'N/A'}] ${item.description || 'N/A'} | Qty: ${item.requestedQty ?? 'N/A'} ${item.uom || ''} | Track: ${item.isSwitchedToPurchase ? 'Purchase Track (Stock Depleted)' : (item.itemCategoryTrack || 'Standard')} | Bay: ${item.endUserInVelan || 'Plant Floor'}`
+          ).join('\n');
+          if (overflowCount > 0) {
+            tableText += `\n+ ${overflowCount} more items...`;
+          }
+        }
+
+        const switchedBannerHtml = switchedCount > 0
+          ? `<div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 12px 16px; margin: 16px 0; font-size: 13px; color: #92400e;">
+               <strong>⚠️ Track Switching Notice:</strong> ${switchedCount} item(s) had available store stock depleted during approval and were dynamically routed to the <strong>Purchase Track</strong> for procurement.
+             </div>`
+          : '';
+
+        const switchedBannerText = switchedCount > 0
+          ? `NOTE: ${switchedCount} item(s) had store stock depleted and were automatically switched to the Purchase Track.\n\n`
+          : '';
+
+        return {
+          subject: `[V-SMART] APPROVED: Consumable Request Items Approved (${count} item${count > 1 ? 's' : ''})`,
+          text: `${name}NOTIFICATION: ${count} consumable line item(s) have been APPROVED by Senior Management.\n\n${switchedBannerText}Approved Items:\n${tableText}\n\nTrack progress at: ${link}`,
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 680px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+              <div style="background: linear-gradient(135deg, #059669 0%, #047857 100%); padding: 20px 24px; color: #ffffff;">
+                <h2 style="margin: 0; font-size: 18px; font-weight: 800; letter-spacing: 0.5px;">✅ CONSUMABLE REQUISITION ITEMS APPROVED</h2>
+                <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.95;">Fulfillment Authorization Confirmed</p>
+              </div>
+              <div style="padding: 24px;">
+                ${htmlName}
+                <p style="color: #334155; font-size: 14px; line-height: 1.6; margin-top: 0;">
+                  Senior Management has authorized the following <strong>${count}</strong> consumable line item(s):
+                </p>
+                ${switchedBannerHtml}
+                ${tableHtml}
+                <div style="margin-top: 24px; text-align: center;">
+                  <a href="${link}" style="background: #059669; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 600; display: inline-block;">
+                    View Fulfillment Queue &rarr;
+                  </a>
+                </div>
+              </div>
+            </div>
+          `,
+        };
+      },
+    },
+
+    CONSUMABLE_REJECTED: {
+      key: 'CONSUMABLE_REJECTED',
+      requiredVars: ['itemsCount'],
+      allowedVars: ['recipientName', 'batchId', 'itemsCount', 'items', 'itemsTableHtml', 'actionUrl', 'rejectionReason'],
+      render: (vars, escape) => {
+        const count = vars.itemsCount !== undefined ? vars.itemsCount : (Array.isArray(vars.items) ? vars.items.length : 1);
+        const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
+        const htmlName = vars.recipientName ? `<p>Hello <strong>${escape(vars.recipientName)}</strong>,</p>` : '';
+        const baseUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0].trim();
+        const link = vars.actionUrl || `${baseUrl}/consumables/requests`;
+
+        let tableHtml = vars.itemsTableHtml || '';
+        let tableText = '';
+
+        if (!tableHtml && Array.isArray(vars.items) && vars.items.length > 0) {
+          const displayItems = vars.items.slice(0, 50);
+          const overflowCount = vars.items.length - displayItems.length;
+
+          const rowsHtml = displayItems.map((item: any) => `
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 12px; font-weight: 600; color: #1e293b;">${escape(item.requestCode || 'N/A')}</td>
+              <td style="padding: 8px 12px; color: #334155;">${escape(item.description || 'N/A')}</td>
+              <td style="padding: 8px 12px; color: #334155; text-align: right;">${escape(String(item.requestedQty ?? 'N/A'))} ${escape(item.uom || '')}</td>
+              <td style="padding: 8px 12px; color: #64748b;">${escape(item.endUserInVelan || 'Plant Floor')}</td>
+              <td style="padding: 8px 12px; color: #b91c1c; font-weight: 500;">${escape(item.rejectionReason || vars.rejectionReason || 'Not approved')}</td>
+            </tr>
+          `).join('');
+
+          const overflowRowHtml = overflowCount > 0
+            ? `<tr><td colspan="5" style="text-align: center; color: #64748b; font-style: italic; padding: 10px; background: #f8fafc;">+ ${overflowCount} more items...</td></tr>`
+            : '';
+
+          tableHtml = `
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; margin: 16px 0; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;">
+              <thead>
+                <tr style="background-color: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 11px; text-transform: uppercase;">
+                  <th style="padding: 8px 12px;">Request Code</th>
+                  <th style="padding: 8px 12px;">Item Description</th>
+                  <th style="padding: 8px 12px; text-align: right;">Qty</th>
+                  <th style="padding: 8px 12px;">Bay / End User</th>
+                  <th style="padding: 8px 12px;">Rejection Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+                ${overflowRowHtml}
+              </tbody>
+            </table>
+          `;
+
+          tableText = displayItems.map((item: any) =>
+            `- [${item.requestCode || 'N/A'}] ${item.description || 'N/A'} | Qty: ${item.requestedQty ?? 'N/A'} ${item.uom || ''} | Reason: ${item.rejectionReason || vars.rejectionReason || 'Not approved'}`
+          ).join('\n');
+          if (overflowCount > 0) {
+            tableText += `\n+ ${overflowCount} more items...`;
+          }
+        }
+
+        return {
+          subject: `[V-SMART] REJECTED: Consumable Request Line Items Not Approved (${count} item${count > 1 ? 's' : ''})`,
+          text: `${name}NOTICE: The following ${count} consumable line item(s) were REJECTED by Senior Management.\n\nRejected Items:\n${tableText}\n\nYou may review details or re-raise with corrected parameters at: ${link}`,
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 680px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+              <div style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); padding: 20px 24px; color: #ffffff;">
+                <h2 style="margin: 0; font-size: 18px; font-weight: 800; letter-spacing: 0.5px;">❌ CONSUMABLE REQUISITION ITEMS REJECTED</h2>
+                <p style="margin: 6px 0 0; font-size: 13px; opacity: 0.95;">Managerial Rejection Notification</p>
+              </div>
+              <div style="padding: 24px;">
+                ${htmlName}
+                <p style="color: #334155; font-size: 14px; line-height: 1.6; margin-top: 0;">
+                  Senior Management has <strong>not approved</strong> the following <strong>${count}</strong> item(s). Specific feedback has been recorded for each line below:
+                </p>
+                ${tableHtml}
+                <div style="margin-top: 24px; text-align: center;">
+                  <a href="${link}" style="background: #dc2626; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 600; display: inline-block;">
+                    Open Requisition Workspace / Re-raise &rarr;
+                  </a>
+                </div>
+              </div>
+            </div>
+          `,
+        };
+      },
+    },
   };
 
   /**

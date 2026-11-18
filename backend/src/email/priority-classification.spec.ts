@@ -28,6 +28,9 @@ describe('Priority Matrix & Pre-Deploy Safety Specifications', () => {
       expect(EVENT_PRIORITY_MAP['PASSWORD_RESET']).toBe(1);
       expect(EVENT_PRIORITY_MAP['RM_SUBMITTED']).toBe(1);
       expect(EVENT_PRIORITY_MAP['MATERIAL_ISSUED']).toBe(1);
+      expect(EVENT_PRIORITY_MAP['CONSUMABLE_APPROVAL_REQUESTED']).toBe(1);
+      expect(EVENT_PRIORITY_MAP['CONSUMABLE_APPROVED']).toBe(1);
+      expect(EVENT_PRIORITY_MAP['CONSUMABLE_REJECTED']).toBe(1);
       expect(EVENT_PRIORITY_MAP['TEST_EMAIL']).toBe(5);
       expect(EVENT_PRIORITY_MAP['CONSUMABLE_RECEIPT_OVERDUE']).toBe(9);
       expect(EVENT_PRIORITY_MAP['DC_OVERDUE']).toBe(9);

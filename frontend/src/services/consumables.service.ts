@@ -6,6 +6,12 @@ import type {
   ConsumableLineItemRecord,
   ConsumableItemStatus,
   ConsumableItemTrack,
+  ConsumableApprovalStatus,
+  ConsumableApprovalQueryParams,
+  ConsumableApprovalQueryResponse,
+  BulkApproveResponse,
+  BulkRejectResponse,
+  ConsumableApprovalConfig,
 } from '../types/consumables.types';
 
 export interface BinOption {
@@ -153,11 +159,15 @@ export const consumablesApi = {
     track?: ConsumableItemTrack;
     status?: ConsumableItemStatus;
     search?: string;
+    approvedOnly?: boolean;
+    approvalStatus?: ConsumableApprovalStatus;
   }): Promise<ConsumableLineItemRecord[]> {
     const q = new URLSearchParams();
     if (params?.track) q.append('track', params.track);
     if (params?.status) q.append('status', params.status);
     if (params?.search) q.append('search', params.search);
+    if (params?.approvedOnly) q.append('approvedOnly', 'true');
+    if (params?.approvalStatus) q.append('approvalStatus', params.approvalStatus);
 
     const queryStr = q.toString() ? `?${q.toString()}` : '';
     const res = await api.get<any>(`/api/consumables/line-items${queryStr}`);
@@ -296,4 +306,59 @@ export const consumablesApi = {
   async deleteRequest(requestId: string): Promise<any> {
     return api.delete<any>(`/api/consumables/requests/${requestId}`);
   },
+
+  /**
+   * Phase P2/P3: Fetches pending approval count for sidebar badge and tabs
+   */
+  async getPendingApprovalCount(): Promise<{ count: number }> {
+    return api.get<{ count: number }>('/api/consumables/approvals/pending-count');
+  },
+
+  /**
+   * Phase P2/P3: Fetches current approval configuration mode and scope
+   */
+  async getApprovalConfig(): Promise<ConsumableApprovalConfig> {
+    return api.get<ConsumableApprovalConfig>('/api/consumables/approvals/config');
+  },
+
+  /**
+   * Updates consumable SM approval mode ('ON' | 'OFF') and scope ('ALL' | 'PURCHASE_ONLY')
+   */
+  async updateApprovalConfig(data: { mode: 'OFF' | 'ON'; scope?: 'ALL' | 'PURCHASE_ONLY' }): Promise<ConsumableApprovalConfig> {
+    return api.patch<ConsumableApprovalConfig>('/api/consumables/approvals/config', data);
+  },
+
+  /**
+   * Phase P2/P3: Queries consumable items by approval status, track, search, dates
+   */
+  async queryApprovals(params: ConsumableApprovalQueryParams = {}): Promise<ConsumableApprovalQueryResponse> {
+    const query = new URLSearchParams();
+    if (params.status) query.set('status', params.status);
+    if (params.search) query.set('search', params.search);
+    if (params.track) query.set('track', params.track);
+    if (params.from) query.set('from', params.from);
+    if (params.to) query.set('to', params.to);
+    if (params.page) query.set('page', params.page.toString());
+    if (params.pageSize) query.set('pageSize', params.pageSize.toString());
+
+    const qs = query.toString();
+    const endpoint = `/api/consumables/approvals${qs ? `?${qs}` : ''}`;
+    return api.get<ConsumableApprovalQueryResponse>(endpoint);
+  },
+
+  /**
+   * Phase P2/P3: Bulk approves selected consumable items (up to 200)
+   */
+  async bulkApprove(itemIds: string[]): Promise<BulkApproveResponse> {
+    return api.post<BulkApproveResponse>('/api/consumables/approvals/bulk-approve', { itemIds });
+  },
+
+  /**
+   * Phase P2/P3: Bulk rejects selected consumable items with mandatory reason
+   */
+  async bulkReject(itemIds: string[], rejectionReason: string): Promise<BulkRejectResponse> {
+    return api.post<BulkRejectResponse>('/api/consumables/approvals/bulk-reject', { itemIds, rejectionReason });
+  },
 };
+
+export const consumablesService = consumablesApi;

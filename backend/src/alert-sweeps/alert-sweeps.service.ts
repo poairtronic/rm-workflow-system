@@ -7,7 +7,7 @@ import { SystemSetting } from '../notifications/entities/system-setting.entity.j
 import { DeliveryChallan, DeliveryChallanStatus } from '../delivery-challan/entities/delivery-challan.entity.js';
 import { DeliveryChallanItem } from '../delivery-challan/entities/delivery-challan-item.entity.js';
 import { ConsumableRequest } from '../consumables/entities/consumable-request.entity.js';
-import { ConsumableRequestItem, ConsumableItemStatus } from '../consumables/entities/consumable-request-item.entity.js';
+import { ConsumableRequestItem, ConsumableItemStatus, ConsumableApprovalStatus } from '../consumables/entities/consumable-request-item.entity.js';
 import { RmRequest, RmRequestStatus } from '../rm/entities/rm-request.entity.js';
 import { MaterialIssue } from '../material-issue/entities/material-issue.entity.js';
 import { CommunicationService } from '../notifications/communication.service.js';
@@ -370,8 +370,11 @@ export class AlertSweepService {
     const pendingRequests = await this.consumableRequestRepo
       .createQueryBuilder('req')
       .innerJoinAndSelect('req.items', 'item')
-      .where('req.created_at <= :cutoff', { cutoff })
+      .where('COALESCE(item.approved_at, req.created_at) <= :cutoff', { cutoff })
       .andWhere('item.status IN (:...statuses)', { statuses: nonTerminalStatuses })
+      .andWhere('(item.approval_status IS NULL OR item.approval_status = :approvedStatus)', {
+        approvedStatus: ConsumableApprovalStatus.APPROVED,
+      })
       .orderBy('req.created_at', 'ASC')
       .take(20)
       .getMany();
@@ -381,9 +384,21 @@ export class AlertSweepService {
 
     let dispatchedCount = 0;
     for (const req of pendingRequests) {
-      const elapsedMs = now.getTime() - new Date(req.createdAt).getTime();
+      const activeApprovedItems = req.items.filter(
+        (i) =>
+          nonTerminalStatuses.includes(i.status) &&
+          (!i.approvalStatus || i.approvalStatus === ConsumableApprovalStatus.APPROVED),
+      );
+      if (activeApprovedItems.length === 0) continue;
+
+      const earliestTime = Math.min(
+        ...activeApprovedItems.map((i) =>
+          new Date(i.approvedAt || i.createdAt || req.createdAt).getTime(),
+        ),
+      );
+      const elapsedMs = now.getTime() - earliestTime;
       const daysPending = Math.max(1, Math.floor(elapsedMs / (1000 * 60 * 60 * 24)));
-      const pendingItemsCount = req.items.filter((i) => nonTerminalStatuses.includes(i.status)).length;
+      const pendingItemsCount = activeApprovedItems.length;
 
       digestItems.push({
         entityId: req.id,
@@ -705,8 +720,11 @@ export class AlertSweepService {
         const qb = this.consumableRequestRepo
           .createQueryBuilder('req')
           .innerJoin('req.items', 'item')
-          .where('req.created_at <= :cutoff', { cutoff })
+          .where('COALESCE(item.approved_at, req.created_at) <= :cutoff', { cutoff })
           .andWhere('item.status IN (:...statuses)', { statuses: nonTerminalStatuses })
+          .andWhere('(item.approval_status IS NULL OR item.approval_status = :approvedStatus)', {
+            approvedStatus: ConsumableApprovalStatus.APPROVED,
+          })
           .groupBy('req.id')
           .orderBy('req.created_at', 'ASC');
 
@@ -714,14 +732,25 @@ export class AlertSweepService {
         const sampleRecords = await this.consumableRequestRepo
           .createQueryBuilder('req')
           .innerJoinAndSelect('req.items', 'item')
-          .where('req.created_at <= :cutoff', { cutoff })
+          .where('COALESCE(item.approved_at, req.created_at) <= :cutoff', { cutoff })
           .andWhere('item.status IN (:...statuses)', { statuses: nonTerminalStatuses })
+          .andWhere('(item.approval_status IS NULL OR item.approval_status = :approvedStatus)', {
+            approvedStatus: ConsumableApprovalStatus.APPROVED,
+          })
           .orderBy('req.created_at', 'ASC')
           .take(20)
           .getMany();
 
         const sample: SweepPreviewItem[] = sampleRecords.map((req) => {
-          const hoursPending = Math.floor((now.getTime() - new Date(req.createdAt).getTime()) / (1000 * 60 * 60));
+          const activeApprovedItems = req.items.filter(
+            (i) =>
+              nonTerminalStatuses.includes(i.status) &&
+              (!i.approvalStatus || i.approvalStatus === ConsumableApprovalStatus.APPROVED),
+          );
+          const earliestTime = activeApprovedItems.length > 0
+            ? Math.min(...activeApprovedItems.map((i) => new Date(i.approvedAt || i.createdAt || req.createdAt).getTime()))
+            : new Date(req.createdAt).getTime();
+          const hoursPending = Math.floor((now.getTime() - earliestTime) / (1000 * 60 * 60));
           return {
             id: req.id,
             referenceNumber: req.requestCode,
@@ -729,7 +758,7 @@ export class AlertSweepService {
             details: {
               requestedBy: req.requestedBy || 'N/A',
               createdAt: req.createdAt.toISOString(),
-              pendingItemsCount: req.items.filter((i) => nonTerminalStatuses.includes(i.status)).length,
+              pendingItemsCount: activeApprovedItems.length,
             },
           };
         });

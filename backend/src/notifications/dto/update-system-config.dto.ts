@@ -47,6 +47,14 @@ export class NotificationsConfigDto {
   @IsOptional()
   @IsBoolean()
   consumablePartiallyIssuedAlertsEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  consumableSmApprovalEnabled?: boolean;
+
+  @IsOptional()
+  @IsString()
+  consumableSmApprovalScope?: 'ALL' | 'PURCHASE_ONLY';
 }
 
 export class RegionalConfigDto {

@@ -96,9 +96,10 @@ async function seed() {
   }
 
   const connectionString = process.env.DATABASE_URL_DIRECT || process.env.DATABASE_URL;
+  const isSsl = connectionString.includes('sslmode=require') || (!connectionString.includes('localhost') && !connectionString.includes('127.0.0.1'));
   const client = new pg.Client({
     connectionString,
-    ssl: { rejectUnauthorized: false },
+    ssl: isSsl ? { rejectUnauthorized: false } : false,
   });
 
   await client.connect();

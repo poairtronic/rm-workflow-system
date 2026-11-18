@@ -148,6 +148,76 @@ export interface ConsumableLineItemRecord {
   issuedAt?: string | null;
   productionReceivedAt?: string | null;
   productionReceivedById?: string | null;
+  approvalStatus?: ConsumableApprovalStatus | null;
+  approvedById?: string | null;
+  approvedAt?: string | null;
+  rejectedById?: string | null;
+  rejectedAt?: string | null;
+  rejectionReason?: string | null;
+  approvalBatchId?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export type ConsumableApprovalStatus = 'PENDING_SM_APPROVAL' | 'APPROVED' | 'REJECTED';
+
+export interface ConsumableApprovalItem {
+  id: string;
+  requestCode: string | null;
+  description: string;
+  productCode: string | null;
+  itemCategoryTrack: ConsumableItemTrack;
+  status: ConsumableItemStatus;
+  requestedQty: number;
+  uom: string;
+  unitPrice: number | null;
+  estimatedTotal: number | null;
+  requestedBy: string | null;
+  endUserInVelan: string | null;
+  createdAt: string;
+  approvalStatus: ConsumableApprovalStatus;
+  approvedById: string | null;
+  approvedBy: { id: string; name: string; email: string } | null;
+  approvedAt: string | null;
+  rejectedById: string | null;
+  rejectedBy: { id: string; name: string; email: string } | null;
+  rejectedAt: string | null;
+  rejectionReason: string | null;
+  approvalBatchId: string | null;
+}
+
+export interface ConsumableApprovalQueryParams {
+  status?: string;
+  search?: string;
+  track?: ConsumableItemTrack;
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ConsumableApprovalQueryResponse {
+  items: ConsumableApprovalItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface BulkApproveResponse {
+  batchId: string;
+  approvedCount: number;
+  ignoredCount: number;
+  switchedToPurchase: Array<{ id: string; description: string }>;
+}
+
+export interface BulkRejectResponse {
+  batchId: string;
+  rejectedCount: number;
+  ignoredCount: number;
+}
+
+export interface ConsumableApprovalConfig {
+  mode: 'OFF' | 'ON';
+  scope: 'ALL' | 'PURCHASE_ONLY';
 }

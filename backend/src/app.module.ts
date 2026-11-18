@@ -78,6 +78,7 @@ import { AlertSweepModule } from './alert-sweeps/alert-sweeps.module.js';
           autoLoadEntities: true,
           synchronize: (() => {
             if (process.env.NODE_ENV === 'production') return false;
+            if (process.env.TYPEORM_SYNC === 'false') return false;
             if (process.env.TYPEORM_SYNC === 'true') {
               console.warn('WARNING: TYPEORM_SYNC is enabled — never use in production');
             }

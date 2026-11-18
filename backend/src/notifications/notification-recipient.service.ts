@@ -171,6 +171,21 @@ export class NotificationRecipientService {
         monitoringRoles = [];
         break;
 
+      case 'CONSUMABLE_APPROVAL_REQUESTED':
+        primaryRoles = [UserRole.SENIOR_MANAGER, UserRole.ADMIN];
+        monitoringRoles = [];
+        break;
+
+      case 'CONSUMABLE_APPROVED':
+        primaryRoles = [UserRole.STORES];
+        monitoringRoles = [];
+        break;
+
+      case 'CONSUMABLE_REJECTED':
+        primaryRoles = [];
+        monitoringRoles = [];
+        break;
+
       default:
         this.logger.warn(`Unknown/unsupported event type "${eventType}". Returning empty recipient list.`);
         return [];

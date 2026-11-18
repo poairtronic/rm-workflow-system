@@ -50,6 +50,12 @@ describe('CommunicationService & Recipient Parity (Phase 2)', () => {
     'DC_QC_PENDING_24H',
     'CONSUMABLE_PENDING_2_DAYS',
   ];
+  const phase5ApprovalEvents = [
+    'CONSUMABLE_APPROVAL_REQUESTED',
+    'CONSUMABLE_APPROVED',
+    'CONSUMABLE_REJECTED',
+  ];
+  const allConfigurableEvents = [...sixteenEvents, ...phase5ApprovalEvents];
   const twelveEvents = sixteenEvents;
 
   let commService: CommunicationService;
@@ -130,7 +136,7 @@ describe('CommunicationService & Recipient Parity (Phase 2)', () => {
 
     notificationEventRepoMock = {
       findOne: vi.fn().mockImplementation(async ({ where }: any) => {
-        if (twelveEvents.includes(where.code)) {
+        if (allConfigurableEvents.includes(where.code)) {
           return { code: where.code, isConfigurable: true };
         }
         return null;
@@ -193,7 +199,7 @@ describe('CommunicationService & Recipient Parity (Phase 2)', () => {
 
       for (const key of configurableKeys) {
         const canonical = EVENT_ALIAS_MAP[key] || key;
-        expect(twelveEvents).toContain(canonical);
+        expect(allConfigurableEvents).toContain(canonical);
       }
     });
   });

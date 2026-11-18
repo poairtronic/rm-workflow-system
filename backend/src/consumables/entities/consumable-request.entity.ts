@@ -5,9 +5,12 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToOne,
+  JoinColumn,
   Index,
 } from 'typeorm';
 import type { ConsumableRequestItem } from './consumable-request-item.entity.js';
+import { User } from '../../users/entities/user.entity.js';
 
 export enum ConsumablePaymentMode {
   CASH = 'CASH',
@@ -36,6 +39,13 @@ export class ConsumableRequest {
 
   @Column({ name: 'requested_by', type: 'varchar', length: 150 })
   requestedBy!: string;
+
+  @Column({ name: 'created_by_user_id', type: 'uuid', nullable: true })
+  createdByUserId?: string | null;
+
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'created_by_user_id' })
+  createdByUser?: User | null;
 
   @Column({ name: 'prepared_by', type: 'varchar', length: 150, nullable: true })
   preparedBy?: string | null;

@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import {
   Injectable,
   NotFoundException,
@@ -6,6 +7,7 @@ import {
   Optional,
   OnModuleInit,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In, Like, Raw } from 'typeorm';
@@ -18,6 +20,7 @@ import {
   ConsumableRequestItem,
   ConsumableItemTrack,
   ConsumableItemStatus,
+  ConsumableApprovalStatus,
 } from './entities/consumable-request-item.entity.js';
 import { Product } from '../inventory/entities/product.entity.js';
 import { ProductCategory } from '../inventory/entities/product-category.entity.js';
@@ -38,9 +41,15 @@ import { ReceiveConsumablePurchaseDto } from './dto/receive-consumable-purchase.
 import { IssueConsumableToProductionDto } from './dto/issue-to-production.dto.js';
 import { PrintPrDto } from './dto/print-pr.dto.js';
 import { QueryConsumableItemsDto } from './dto/query-consumables.dto.js';
+import { BulkApproveConsumablesDto } from './dto/bulk-approve-consumables.dto.js';
+import { BulkRejectConsumablesDto } from './dto/bulk-reject-consumables.dto.js';
+import { QueryConsumableApprovalsDto } from './dto/query-consumable-approvals.dto.js';
 import { CommunicationService } from '../notifications/communication.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { SystemSetting } from '../notifications/entities/system-setting.entity.js';
 import { AlertDigestService, AlertDigestItem } from '../email/alert-digest.service.js';
+import { AuditService } from '../audit/audit.service.js';
+import { ConsumablesBatchNotificationService } from './consumables-batch-notification.service.js';
 
 export const STANDARD_CONSUMABLE_ITEMS: string[] = [
   'Gloves',
@@ -160,7 +169,141 @@ export class ConsumablesService implements OnModuleInit {
     @Optional() private readonly communicationService?: CommunicationService,
     @Optional() private readonly notificationsService?: NotificationsService,
     @Optional() private readonly alertDigestService?: AlertDigestService,
+    @Optional() private readonly configService?: ConfigService,
+    @Optional() private readonly auditService?: AuditService,
+    @Optional() private readonly batchNotificationService?: ConsumablesBatchNotificationService,
   ) {}
+
+  /**
+   * Phase P2: Reads CONSUMABLE_SM_APPROVAL_MODE (OFF|ON, default OFF) and
+   * CONSUMABLE_SM_APPROVAL_SCOPE (ALL|PURCHASE_ONLY, default ALL).
+   * Checks database system_settings first, then falls back to environment variables.
+   * Invalid values fall back to OFF/ALL with a logged warning.
+   */
+  async getApprovalConfig(): Promise<{ mode: 'OFF' | 'ON'; scope: 'ALL' | 'PURCHASE_ONLY' }> {
+    let dbMode: string | null = null;
+    let dbScope: string | null = null;
+
+    try {
+      if (this.dataSource && this.dataSource.isInitialized) {
+        const settingRepo = this.dataSource.getRepository(SystemSetting);
+        const settings = await settingRepo.find({
+          where: [
+            { key: 'CONSUMABLE_SM_APPROVAL_MODE' },
+            { key: 'CONSUMABLE_SM_APPROVAL_SCOPE' },
+          ],
+        });
+        for (const s of settings) {
+          if (s.key === 'CONSUMABLE_SM_APPROVAL_MODE') dbMode = s.value;
+          if (s.key === 'CONSUMABLE_SM_APPROVAL_SCOPE') dbScope = s.value;
+        }
+      }
+    } catch {
+      // Non-blocking fallback
+    }
+
+    // In automated unit/e2e test runner, prefer process.env if explicitly set
+    const isTestEnv = process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST);
+    const envMode = process.env.CONSUMABLE_SM_APPROVAL_MODE;
+    const envScope = process.env.CONSUMABLE_SM_APPROVAL_SCOPE;
+
+    const rawMode = (
+      (isTestEnv && envMode !== undefined ? envMode : (dbMode || envMode)) ||
+      this.configService?.get<string>('CONSUMABLE_SM_APPROVAL_MODE') ||
+      'OFF'
+    ).trim().toUpperCase();
+
+    const rawScope = (
+      (isTestEnv && envScope !== undefined ? envScope : (dbScope || envScope)) ||
+      this.configService?.get<string>('CONSUMABLE_SM_APPROVAL_SCOPE') ||
+      'ALL'
+    ).trim().toUpperCase();
+
+    let mode: 'OFF' | 'ON' = 'OFF';
+    if (rawMode === 'ON' || rawMode === 'TRUE') {
+      mode = 'ON';
+    } else if (rawMode !== 'OFF' && rawMode !== 'FALSE' && rawMode !== '') {
+      this.logger.warn(
+        `[SM-APPROVAL-CONFIG] Invalid CONSUMABLE_SM_APPROVAL_MODE "${rawMode}". Falling back to OFF.`,
+      );
+    }
+
+    let scope: 'ALL' | 'PURCHASE_ONLY' = 'ALL';
+    if (rawScope === 'PURCHASE_ONLY') {
+      scope = 'PURCHASE_ONLY';
+    } else if (rawScope !== 'ALL' && rawScope !== '') {
+      this.logger.warn(
+        `[SM-APPROVAL-CONFIG] Invalid CONSUMABLE_SM_APPROVAL_SCOPE "${rawScope}". Falling back to ALL.`,
+      );
+    }
+
+    return { mode, scope };
+  }
+
+  /**
+   * Updates consumable SM approval configuration in system_settings table.
+   * Allowed for ADMIN and GENERAL_MANAGER.
+   */
+  async setApprovalConfig(
+    mode: 'OFF' | 'ON',
+    scope?: 'ALL' | 'PURCHASE_ONLY',
+    actorId?: string,
+  ): Promise<{ mode: 'OFF' | 'ON'; scope: 'ALL' | 'PURCHASE_ONLY' }> {
+    const settingRepo = this.dataSource.getRepository(SystemSetting);
+
+    let modeSetting = await settingRepo.findOne({ where: { key: 'CONSUMABLE_SM_APPROVAL_MODE' } });
+    if (!modeSetting) {
+      modeSetting = settingRepo.create({
+        key: 'CONSUMABLE_SM_APPROVAL_MODE',
+        value: mode,
+        updatedBy: actorId || 'ADMIN',
+      });
+    } else {
+      modeSetting.value = mode;
+      if (actorId) modeSetting.updatedBy = actorId;
+    }
+    await settingRepo.save(modeSetting);
+
+    if (scope) {
+      let scopeSetting = await settingRepo.findOne({ where: { key: 'CONSUMABLE_SM_APPROVAL_SCOPE' } });
+      if (!scopeSetting) {
+        scopeSetting = settingRepo.create({
+          key: 'CONSUMABLE_SM_APPROVAL_SCOPE',
+          value: scope,
+          updatedBy: actorId || 'ADMIN',
+        });
+      } else {
+        scopeSetting.value = scope;
+        if (actorId) scopeSetting.updatedBy = actorId;
+      }
+      await settingRepo.save(scopeSetting);
+    }
+
+    // Keep process.env in sync for immediate consistency
+    process.env.CONSUMABLE_SM_APPROVAL_MODE = mode;
+    if (scope) {
+      process.env.CONSUMABLE_SM_APPROVAL_SCOPE = scope;
+    }
+
+    this.logger.log(`[SM-APPROVAL-CONFIG] Configuration updated: MODE=${mode}, SCOPE=${scope || 'ALL'} by ${actorId || 'ADMIN'}`);
+
+    if (this.auditService) {
+      try {
+        await this.auditService.logEvent({
+          entityName: 'ApplicationSetting',
+          entityId: 'ConsumableSmApprovalConfig',
+          actionType: 'UPDATE',
+          actorId,
+          newValues: { mode, scope: scope || 'ALL' },
+          metadata: { mode, scope: scope || 'ALL' },
+        });
+      } catch {
+        // Non-blocking
+      }
+    }
+
+    return await this.getApprovalConfig();
+  }
 
   /**
    * Helper: Ensures 'CONSUMABLES' category and 'General Consumables' family exist.
@@ -222,22 +365,25 @@ export class ConsumablesService implements OnModuleInit {
     const currentYear = new Date().getFullYear();
     const prefix = `CR-${currentYear}-`;
 
-    const latest = await this.requestRepo.findOne({
+    const allRequests = await this.requestRepo.find({
       where: { requestCode: Like(`${prefix}%`) },
-      order: { requestCode: 'DESC' },
+      select: { requestCode: true },
     });
 
-    let nextSeq = 1;
-    if (latest && latest.requestCode) {
-      const parts = latest.requestCode.split('-');
-      if (parts.length === 3) {
-        const lastSeq = parseInt(parts[2], 10);
-        if (!isNaN(lastSeq)) {
-          nextSeq = lastSeq + 1;
+    let maxSeq = 0;
+    for (const req of allRequests) {
+      if (req.requestCode) {
+        const parts = req.requestCode.split('-');
+        if (parts.length >= 3) {
+          const seq = parseInt(parts[parts.length - 1], 10);
+          if (!isNaN(seq) && seq > maxSeq) {
+            maxSeq = seq;
+          }
         }
       }
     }
 
+    const nextSeq = maxSeq + 1;
     return `${prefix}${String(nextSeq).padStart(4, '0')}`;
   }
 
@@ -310,6 +456,7 @@ export class ConsumablesService implements OnModuleInit {
       paymentMode: dto.paymentMode || ConsumablePaymentMode.CASH,
       endUserInVelan: dto.endUserInVelan || null,
       requestedBy: dto.requestedBy,
+      createdByUserId: userId || null,
       preparedBy: dto.preparedBy || null,
       verifiedBy: dto.verifiedBy || null,
       approvedBy: dto.approvedBy || null,
@@ -435,6 +582,26 @@ export class ConsumablesService implements OnModuleInit {
         status = ConsumableItemStatus.OPEN;
       }
 
+      // 4. SM Approval Flag & Scope Evaluation (Phase P2)
+      const { mode, scope } = await this.getApprovalConfig();
+      let approvalStatus: ConsumableApprovalStatus = ConsumableApprovalStatus.APPROVED;
+      let approvedAt: Date | null = new Date();
+
+      if (mode === 'ON') {
+        if (scope === 'ALL') {
+          approvalStatus = ConsumableApprovalStatus.PENDING_SM_APPROVAL;
+          approvedAt = null;
+        } else if (scope === 'PURCHASE_ONLY') {
+          if (itemCategoryTrack === ConsumableItemTrack.STOCK_ITEM) {
+            approvalStatus = ConsumableApprovalStatus.APPROVED;
+            approvedAt = new Date();
+          } else {
+            approvalStatus = ConsumableApprovalStatus.PENDING_SM_APPROVAL;
+            approvedAt = null;
+          }
+        }
+      }
+
       const lineItem = this.itemRepo.create({
         requestId: savedRequest.id,
         productId: product.id,
@@ -458,6 +625,8 @@ export class ConsumablesService implements OnModuleInit {
         endUserInVelan: itemDto.endUserInVelan || dto.endUserInVelan || null,
         requestedBy: itemDto.requestedBy || dto.requestedBy,
         status,
+        approvalStatus,
+        approvedAt,
       });
 
       lineItems.push(lineItem);
@@ -468,7 +637,367 @@ export class ConsumablesService implements OnModuleInit {
       `[CONSUMABLE REQUEST CREATED] Code: ${savedRequest.requestCode}, Items: ${savedRequest.items.length}`,
     );
 
+    // Phase P5: Dispatch notification to approvers (SENIOR_MANAGER and ADMIN) if MODE=ON and >= 1 pending line
+    if (this.batchNotificationService) {
+      try {
+        await this.batchNotificationService.notifyApprovalRequested(
+          savedRequest,
+          savedRequest.items,
+          userId,
+        );
+      } catch (notifyErr: any) {
+        this.logger.warn(`Failed to dispatch approval requested notification: ${notifyErr?.message || notifyErr}`);
+      }
+    }
+
     return this.findOneRequest(savedRequest.id);
+  }
+
+  /**
+   * Phase P2: Bulk approves up to 200 consumable request line items in a single transaction.
+   * Optimistic guard: only items in PENDING_SM_APPROVAL status are modified.
+   * For STOCK_ITEM lines, re-checks live stock availability with an in-batch running tally.
+   * If stock is depleted, switches line to NON_STOCK_OR_NEW (OPEN) and creates an audit entry.
+   */
+  async bulkApprove(
+    dto: BulkApproveConsumablesDto,
+    approverId?: string,
+  ): Promise<{
+    batchId: string;
+    approvedCount: number;
+    ignoredCount: number;
+    switchedToPurchase: Array<{ id: string; description: string }>;
+  }> {
+    if (!dto.itemIds || dto.itemIds.length === 0) {
+      throw new BadRequestException('At least 1 item ID must be provided');
+    }
+    if (dto.itemIds.length > 200) {
+      throw new BadRequestException('Cannot approve more than 200 items in a single batch');
+    }
+
+    const batchId = randomUUID();
+    const switchedToPurchase: Array<{ id: string; description: string }> = [];
+    let approvedCount = 0;
+    let ignoredCount = 0;
+    const effectiveApproverId = approverId || (await this.resolveEffectiveUserId(approverId));
+
+    await this.dataSource.transaction(async (manager) => {
+      const items = await manager
+        .createQueryBuilder(ConsumableRequestItem, 'item')
+        .setLock('pessimistic_write')
+        .where('item.id IN (:...ids)', { ids: dto.itemIds })
+        .andWhere('item.approval_status = :pendingStatus', {
+          pendingStatus: ConsumableApprovalStatus.PENDING_SM_APPROVAL,
+        })
+        .getMany();
+
+      const foundPendingIds = new Set(items.map((i) => i.id));
+      ignoredCount = dto.itemIds.length - foundPendingIds.size;
+
+      if (items.length === 0) {
+        return;
+      }
+
+      const now = new Date();
+      const batchAllocatedMap = new Map<string, number>();
+
+      for (const item of items) {
+        if (item.itemCategoryTrack === ConsumableItemTrack.STOCK_ITEM && item.productId) {
+          const balances = await manager.find(StockBalance, {
+            where: { productId: item.productId },
+          });
+          const liveStock = balances.reduce(
+            (sum, b) => sum + (Number(b.currentQuantity) || 0),
+            0,
+          );
+          const allocatedSoFar = batchAllocatedMap.get(item.productId) || 0;
+          const availableStock = liveStock - allocatedSoFar;
+          const requestedQty = Number(item.requestedQty) || 0;
+
+          if (availableStock < requestedQty) {
+            const oldTrack = item.itemCategoryTrack;
+            const oldStatus = item.status;
+            item.itemCategoryTrack = ConsumableItemTrack.NON_STOCK_OR_NEW;
+            item.status = ConsumableItemStatus.OPEN;
+
+            switchedToPurchase.push({ id: item.id, description: item.description });
+
+            if (this.auditService) {
+              await this.auditService.logEvent({
+                entityName: 'CONSUMABLE_REQUEST_ITEM',
+                entityId: item.id,
+                actionType: 'CONSUMABLE_TRACK_SWITCHED',
+                actorId: effectiveApproverId,
+                oldValues: { itemCategoryTrack: oldTrack, status: oldStatus },
+                newValues: { itemCategoryTrack: ConsumableItemTrack.NON_STOCK_OR_NEW, status: ConsumableItemStatus.OPEN },
+                metadata: {
+                  batchId,
+                  reason: 'Insufficient stock during approval re-check',
+                  liveStock,
+                  allocatedSoFar,
+                  requestedQty,
+                },
+              }).catch((err) => this.logger.warn(`Audit log failed: ${err?.message}`));
+            }
+          } else {
+            batchAllocatedMap.set(item.productId, allocatedSoFar + requestedQty);
+          }
+        }
+
+        item.approvalStatus = ConsumableApprovalStatus.APPROVED;
+        item.approvedById = effectiveApproverId;
+        item.approvedAt = now;
+        item.approvalBatchId = batchId;
+
+        if (this.auditService) {
+          await this.auditService.logEvent({
+            entityName: 'CONSUMABLE_REQUEST_ITEM',
+            entityId: item.id,
+            actionType: 'CONSUMABLE_APPROVED',
+            actorId: effectiveApproverId,
+            oldValues: { approvalStatus: ConsumableApprovalStatus.PENDING_SM_APPROVAL },
+            newValues: {
+              approvalStatus: ConsumableApprovalStatus.APPROVED,
+              approvedAt: now,
+              approvalBatchId: batchId,
+              itemCategoryTrack: item.itemCategoryTrack,
+            },
+            metadata: { batchId },
+          }).catch((err) => this.logger.warn(`Audit log failed: ${err?.message}`));
+        }
+      }
+
+      await manager.save(ConsumableRequestItem, items);
+      approvedCount = items.length;
+    });
+
+    // Phase P5: Batch notification dispatched AFTER commit inside try/catch
+    if (this.batchNotificationService && approvedCount > 0) {
+      try {
+        await this.batchNotificationService.notifyBulkApproved(batchId, dto.itemIds, {
+          approverId: effectiveApproverId,
+          switchedToPurchase,
+        });
+      } catch (notifyErr: any) {
+        this.logger.warn(`Failed to dispatch bulk approve notifications: ${notifyErr?.message || notifyErr}`);
+      }
+    }
+
+    return {
+      batchId,
+      approvedCount,
+      ignoredCount,
+      switchedToPurchase,
+    };
+  }
+
+  /**
+   * Phase P2: Bulk rejects up to 200 consumable request line items with a mandatory reason.
+   * Optimistic guard: only items in PENDING_SM_APPROVAL status are modified.
+   */
+  async bulkReject(
+    dto: BulkRejectConsumablesDto,
+    rejecterId?: string,
+  ): Promise<{
+    batchId: string;
+    rejectedCount: number;
+    ignoredCount: number;
+  }> {
+    if (!dto.itemIds || dto.itemIds.length === 0) {
+      throw new BadRequestException('At least 1 item ID must be provided');
+    }
+    if (dto.itemIds.length > 200) {
+      throw new BadRequestException('Cannot reject more than 200 items in a single batch');
+    }
+    if (!dto.rejectionReason || dto.rejectionReason.trim().length < 5) {
+      throw new BadRequestException('Rejection reason must be at least 5 characters long');
+    }
+
+    const batchId = randomUUID();
+    const reason = dto.rejectionReason.trim();
+    let rejectedCount = 0;
+    let ignoredCount = 0;
+    const effectiveRejecterId = rejecterId || (await this.resolveEffectiveUserId(rejecterId));
+
+    await this.dataSource.transaction(async (manager) => {
+      const items = await manager
+        .createQueryBuilder(ConsumableRequestItem, 'item')
+        .setLock('pessimistic_write')
+        .where('item.id IN (:...ids)', { ids: dto.itemIds })
+        .andWhere('item.approval_status = :pendingStatus', {
+          pendingStatus: ConsumableApprovalStatus.PENDING_SM_APPROVAL,
+        })
+        .getMany();
+
+      const foundPendingIds = new Set(items.map((i) => i.id));
+      ignoredCount = dto.itemIds.length - foundPendingIds.size;
+
+      if (items.length === 0) {
+        return;
+      }
+
+      const now = new Date();
+
+      for (const item of items) {
+        item.approvalStatus = ConsumableApprovalStatus.REJECTED;
+        item.rejectedById = effectiveRejecterId;
+        item.rejectedAt = now;
+        item.rejectionReason = reason;
+        item.approvalBatchId = batchId;
+
+        if (this.auditService) {
+          await this.auditService.logEvent({
+            entityName: 'CONSUMABLE_REQUEST_ITEM',
+            entityId: item.id,
+            actionType: 'CONSUMABLE_REJECTED',
+            actorId: effectiveRejecterId,
+            oldValues: { approvalStatus: ConsumableApprovalStatus.PENDING_SM_APPROVAL },
+            newValues: {
+              approvalStatus: ConsumableApprovalStatus.REJECTED,
+              rejectedAt: now,
+              rejectionReason: reason,
+              approvalBatchId: batchId,
+            },
+            metadata: { batchId, rejectionReason: reason },
+          }).catch((err) => this.logger.warn(`Audit log failed: ${err?.message}`));
+        }
+      }
+
+      await manager.save(ConsumableRequestItem, items);
+      rejectedCount = items.length;
+    });
+
+    // Phase P5: Batch notification dispatched AFTER commit inside try/catch
+    if (this.batchNotificationService && rejectedCount > 0) {
+      try {
+        await this.batchNotificationService.notifyBulkRejected(batchId, dto.itemIds, {
+          rejecterId: effectiveRejecterId,
+          rejectionReason: reason,
+        });
+      } catch (notifyErr: any) {
+        this.logger.warn(`Failed to dispatch bulk reject notifications: ${notifyErr?.message || notifyErr}`);
+      }
+    }
+
+    return {
+      batchId,
+      rejectedCount,
+      ignoredCount,
+    };
+  }
+
+  /**
+   * Phase P2: Queries consumable line items for Senior Manager approval views.
+   * Supports filtering by approval status, track, search query, date ranges, and pagination.
+   */
+  async queryApprovals(dto: QueryConsumableApprovalsDto) {
+    const page = Math.max(1, Number(dto.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(dto.pageSize) || 25));
+    const skip = (page - 1) * pageSize;
+
+    const qb = this.itemRepo
+      .createQueryBuilder('item')
+      .leftJoinAndSelect('item.request', 'request')
+      .leftJoinAndSelect('item.product', 'product')
+      .leftJoinAndSelect('item.approvedBy', 'approvedBy')
+      .leftJoinAndSelect('item.rejectedBy', 'rejectedBy');
+
+    const statusParam = (dto.status || 'PENDING').trim().toUpperCase();
+    if (statusParam === 'PENDING' || statusParam === 'PENDING_SM_APPROVAL') {
+      qb.andWhere('item.approval_status = :pendingStatus', {
+        pendingStatus: ConsumableApprovalStatus.PENDING_SM_APPROVAL,
+      });
+    } else if (statusParam === 'APPROVED') {
+      qb.andWhere('item.approval_status = :approvedStatus', {
+        approvedStatus: ConsumableApprovalStatus.APPROVED,
+      });
+    } else if (statusParam === 'REJECTED') {
+      qb.andWhere('item.approval_status = :rejectedStatus', {
+        rejectedStatus: ConsumableApprovalStatus.REJECTED,
+      });
+    }
+
+    if (dto.track) {
+      qb.andWhere('item.item_category_track = :track', { track: dto.track });
+    }
+
+    if (dto.search && dto.search.trim()) {
+      const term = `%${dto.search.trim()}%`;
+      qb.andWhere(
+        '(item.description ILIKE :term OR item.product_code ILIKE :term OR request.request_code ILIKE :term OR request.requested_by ILIKE :term OR item.requested_by ILIKE :term)',
+        { term },
+      );
+    }
+
+    if (dto.from) {
+      qb.andWhere('item.created_at >= :from', { from: new Date(dto.from) });
+    }
+    if (dto.to) {
+      const toDate = new Date(dto.to);
+      if (dto.to.length === 10) {
+        toDate.setHours(23, 59, 59, 999);
+      }
+      qb.andWhere('item.created_at <= :to', { to: toDate });
+    }
+
+    qb.orderBy('item.created_at', 'DESC')
+      .skip(skip)
+      .take(pageSize);
+
+    const [items, total] = await qb.getManyAndCount();
+
+    const mapped = items.map((item) => {
+      const unitPrice = item.unitPrice != null ? Number(item.unitPrice) : null;
+      const requestedQty = Number(item.requestedQty) || 0;
+      const estimatedTotal = unitPrice != null ? Number((unitPrice * requestedQty).toFixed(2)) : null;
+
+      return {
+        id: item.id,
+        requestCode: item.request?.requestCode || null,
+        description: item.description,
+        productCode: item.productCode || item.product?.code || null,
+        itemCategoryTrack: item.itemCategoryTrack,
+        status: item.status,
+        requestedQty,
+        uom: item.uom,
+        unitPrice,
+        estimatedTotal,
+        requestedBy: item.request?.requestedBy || item.requestedBy || null,
+        endUserInVelan: item.request?.endUserInVelan || item.endUserInVelan || null,
+        createdAt: item.createdAt,
+        approvalStatus: item.approvalStatus,
+        approvedById: item.approvedById,
+        approvedBy: item.approvedBy
+          ? { id: item.approvedBy.id, name: item.approvedBy.name, email: item.approvedBy.email }
+          : null,
+        approvedAt: item.approvedAt,
+        rejectedById: item.rejectedById,
+        rejectedBy: item.rejectedBy
+          ? { id: item.rejectedBy.id, name: item.rejectedBy.name, email: item.rejectedBy.email }
+          : null,
+        rejectedAt: item.rejectedAt,
+        rejectionReason: item.rejectionReason,
+        approvalBatchId: item.approvalBatchId,
+      };
+    });
+
+    return {
+      items: mapped,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  /**
+   * Phase P2: Get count of consumable items pending Senior Manager approval (for badge).
+   */
+  async getPendingApprovalsCount(): Promise<{ count: number }> {
+    const count = await this.itemRepo.count({
+      where: { approvalStatus: ConsumableApprovalStatus.PENDING_SM_APPROVAL },
+    });
+    return { count };
   }
 
   /**
@@ -499,6 +1028,20 @@ export class ConsumablesService implements OnModuleInit {
 
     if (items.length === 0) {
       throw new NotFoundException('None of the specified line items were found.');
+    }
+
+    // Phase P2: SM Approval Gate - Unapproved lines cannot be printed into PR (NULL counts as APPROVED)
+    const unapprovedItems = items.filter(
+      (i) =>
+        i.approvalStatus !== null &&
+        i.approvalStatus !== undefined &&
+        i.approvalStatus !== ConsumableApprovalStatus.APPROVED,
+    );
+    if (unapprovedItems.length > 0) {
+      const ids = unapprovedItems.map((i) => i.id).join(', ');
+      throw new BadRequestException(
+        `Cannot print PR for unapproved consumable line items: [${ids}] (Status: ${unapprovedItems[0].approvalStatus}). Approval is required before purchase requisition.`,
+      );
     }
 
     // Verify items eligibility: must be OPEN or already have an assigned PR number
@@ -664,6 +1207,17 @@ export class ConsumablesService implements OnModuleInit {
       throw new NotFoundException(`Line item "${resolvedItemId}" was not found.`);
     }
 
+    // Phase P2: SM Approval Gate - Unapproved lines cannot be received (NULL counts as APPROVED)
+    if (
+      item.approvalStatus !== null &&
+      item.approvalStatus !== undefined &&
+      item.approvalStatus !== ConsumableApprovalStatus.APPROVED
+    ) {
+      throw new BadRequestException(
+        `Cannot receive purchase for unapproved consumable line "${item.id}" (Status: ${item.approvalStatus}).`,
+      );
+    }
+
     if (
       item.status !== ConsumableItemStatus.PURCHASE_REQUESTED &&
       item.status !== ConsumableItemStatus.OPEN
@@ -827,6 +1381,17 @@ export class ConsumablesService implements OnModuleInit {
       throw new NotFoundException(`Line item "${itemId}" was not found.`);
     }
 
+    // Phase P2: SM Approval Gate - Unapproved lines cannot be issued to production (NULL counts as APPROVED)
+    if (
+      item.approvalStatus !== null &&
+      item.approvalStatus !== undefined &&
+      item.approvalStatus !== ConsumableApprovalStatus.APPROVED
+    ) {
+      throw new BadRequestException(
+        `Cannot issue to production for unapproved consumable line "${item.id}" (Status: ${item.approvalStatus}).`,
+      );
+    }
+
     if (
       item.status !== ConsumableItemStatus.READY_FOR_ISSUE &&
       item.status !== ConsumableItemStatus.PURCHASE_RECEIVED &&
@@ -979,6 +1544,13 @@ export class ConsumablesService implements OnModuleInit {
       throw new NotFoundException(`Consumable line item "${id}" was not found.`);
     }
 
+    // Phase P2: Rejected items cannot be deleted directly
+    if (item.approvalStatus === ConsumableApprovalStatus.REJECTED) {
+      throw new BadRequestException(
+        `Rejected consumable line item "${id}" cannot be deleted. Rejected records are preserved for audit history.`,
+      );
+    }
+
     const issuedQty = Number(item.issuedQty || 0);
     if (issuedQty > 0) {
       throw new BadRequestException(
@@ -1072,6 +1644,16 @@ export class ConsumablesService implements OnModuleInit {
     deletedIds: string[];
     errors: { id: string; error: string }[];
   }> {
+    // Phase P2: Reject upfront if any item is REJECTED
+    const items = await this.itemRepo.find({ where: { id: In(itemIds) } });
+    const rejectedItems = items.filter((i) => i.approvalStatus === ConsumableApprovalStatus.REJECTED);
+    if (rejectedItems.length > 0) {
+      const rejectedIds = rejectedItems.map((i) => i.id).join(', ');
+      throw new BadRequestException(
+        `Cannot delete rejected consumable line items: [${rejectedIds}]. Rejected records are preserved for audit history.`,
+      );
+    }
+
     const deletedIds: string[] = [];
     const errors: { id: string; error: string }[] = [];
 
@@ -1218,6 +1800,16 @@ export class ConsumablesService implements OnModuleInit {
 
     if (query.track) {
       qb.andWhere('item.itemCategoryTrack = :track', { track: query.track });
+    }
+
+    if (query.approvedOnly) {
+      qb.andWhere('(item.approvalStatus IS NULL OR item.approvalStatus = :approvedStatus)', {
+        approvedStatus: ConsumableApprovalStatus.APPROVED,
+      });
+    } else if (query.approvalStatus) {
+      qb.andWhere('item.approvalStatus = :approvalStatus', {
+        approvalStatus: query.approvalStatus,
+      });
     }
 
     if (query.status) {
@@ -1494,7 +2086,12 @@ export class ConsumablesService implements OnModuleInit {
       const partiallyIssuedDigestItems: AlertDigestItem[] = [];
 
       for (const item of pendingItems) {
-        // --- CHECK A: NOT RECEIVED WITHIN 24 HOURS OF CREATION ---
+        // Exclude lines that are not approved (treat NULL as APPROVED for legacy rows)
+        if (item.approvalStatus && item.approvalStatus !== ConsumableApprovalStatus.APPROVED) {
+          continue;
+        }
+
+        // --- CHECK A: NOT RECEIVED WITHIN 24 HOURS OF APPROVAL / CREATION ---
         const isNotReceived =
           !item.purchaseReceivedAt &&
           (item.status === ConsumableItemStatus.OPEN ||
@@ -1502,8 +2099,8 @@ export class ConsumablesService implements OnModuleInit {
             (Number(item.realReceivedQty || 0) === 0 && item.itemCategoryTrack === ConsumableItemTrack.NON_STOCK_OR_NEW));
 
         if (isNotReceived && alertSettings.consumableReceiptOverdueAlertsEnabled) {
-          const itemCreatedAt = new Date(item.createdAt);
-          const elapsedMs = now.getTime() - itemCreatedAt.getTime();
+          const effectiveDate = item.approvedAt ? new Date(item.approvedAt) : new Date(item.createdAt);
+          const elapsedMs = now.getTime() - effectiveDate.getTime();
           const elapsedHours = Math.floor(elapsedMs / (1000 * 60 * 60));
 
           if (elapsedHours >= 24) {

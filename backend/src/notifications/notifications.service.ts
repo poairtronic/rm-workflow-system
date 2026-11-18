@@ -29,6 +29,8 @@ export interface SystemConfigPayload {
     consumableEmailAlertsEnabled?: boolean;
     consumableReceiptOverdueAlertsEnabled?: boolean;
     consumablePartiallyIssuedAlertsEnabled?: boolean;
+    consumableSmApprovalEnabled?: boolean;
+    consumableSmApprovalScope?: 'ALL' | 'PURCHASE_ONLY';
   };
   regional?: {
     timezone?: string;
@@ -404,6 +406,14 @@ export class NotificationsService {
         consumableEmailAlertsEnabled: parseBool(CONSUMABLE_EMAIL_ALERTS_KEY, true),
         consumableReceiptOverdueAlertsEnabled: parseBool(CONSUMABLE_RECEIPT_OVERDUE_ALERTS_KEY, true),
         consumablePartiallyIssuedAlertsEnabled: parseBool(CONSUMABLE_PARTIALLY_ISSUED_ALERTS_KEY, true),
+        consumableSmApprovalEnabled:
+          map.get('CONSUMABLE_SM_APPROVAL_MODE') === 'ON' ||
+          (!map.has('CONSUMABLE_SM_APPROVAL_MODE') && process.env.CONSUMABLE_SM_APPROVAL_MODE === 'ON'),
+        consumableSmApprovalScope: (
+          map.get('CONSUMABLE_SM_APPROVAL_SCOPE') ||
+          process.env.CONSUMABLE_SM_APPROVAL_SCOPE ||
+          'ALL'
+        ) as 'ALL' | 'PURCHASE_ONLY',
       },
       regional: {
         timezone: map.get('APP_TIMEZONE') || 'Asia/Kolkata (IST)',
@@ -459,6 +469,15 @@ export class NotificationsService {
       }
       if (typeof payload.notifications.consumablePartiallyIssuedAlertsEnabled === 'boolean') {
         toSave[CONSUMABLE_PARTIALLY_ISSUED_ALERTS_KEY] = String(payload.notifications.consumablePartiallyIssuedAlertsEnabled);
+      }
+      if (typeof payload.notifications.consumableSmApprovalEnabled === 'boolean') {
+        const modeVal = payload.notifications.consumableSmApprovalEnabled ? 'ON' : 'OFF';
+        toSave['CONSUMABLE_SM_APPROVAL_MODE'] = modeVal;
+        process.env.CONSUMABLE_SM_APPROVAL_MODE = modeVal;
+      }
+      if (payload.notifications.consumableSmApprovalScope) {
+        toSave['CONSUMABLE_SM_APPROVAL_SCOPE'] = payload.notifications.consumableSmApprovalScope;
+        process.env.CONSUMABLE_SM_APPROVAL_SCOPE = payload.notifications.consumableSmApprovalScope;
       }
     }
 

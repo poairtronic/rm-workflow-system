@@ -10,14 +10,19 @@ import { Vendor } from '../vendor/entities/vendor.entity.js';
 import { Bin } from '../inventory/entities/bin.entity.js';
 import { StockBalance } from '../inventory/entities/stock-balance.entity.js';
 import { StockTransaction } from '../inventory/entities/stock-transaction.entity.js';
+import { User } from '../users/entities/user.entity.js';
+import { Role } from '../roles/entities/role.entity.js';
+import { SystemSetting } from '../notifications/entities/system-setting.entity.js';
 
 import { ConsumablesService } from './consumables.service.js';
+import { ConsumablesBatchNotificationService } from './consumables-batch-notification.service.js';
 import { ConsumablesController } from './consumables.controller.js';
 
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { EmailModule } from '../email/email.module.js';
 import { PdfGeneratorService } from '../reports/pdf/pdf-generator.service.js';
 import { FilesModule } from '../files/files.module.js';
+import { AuditModule } from '../audit/audit.module.js';
 
 @Module({
   imports: [
@@ -31,14 +36,18 @@ import { FilesModule } from '../files/files.module.js';
       Bin,
       StockBalance,
       StockTransaction,
+      User,
+      Role,
+      SystemSetting,
     ]),
     NotificationsModule,
     forwardRef(() => EmailModule),
     FilesModule,
+    AuditModule,
   ],
   controllers: [ConsumablesController],
-  providers: [ConsumablesService, PdfGeneratorService],
-  exports: [ConsumablesService],
+  providers: [ConsumablesService, PdfGeneratorService, ConsumablesBatchNotificationService],
+  exports: [ConsumablesService, ConsumablesBatchNotificationService],
 })
 export class ConsumablesModule {}
 

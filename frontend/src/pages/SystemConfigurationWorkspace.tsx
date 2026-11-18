@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { systemSettingsApi } from '../services/api';
+import { consumablesApi } from '../services/consumables.service';
 import { PageHeader } from '../components/ui';
 import { applyTheme, applyDensity } from '../utils/theme';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,6 +16,7 @@ import {
   Save,
   Trash2,
   AlertTriangle,
+  ShieldCheck,
 } from 'lucide-react';
 
 export function SystemConfigurationWorkspace() {
@@ -39,6 +41,9 @@ export function SystemConfigurationWorkspace() {
   const [consumableEmailAlerts, setConsumableEmailAlerts] = useState(true);
   const [consumableReceiptOverdueAlerts, setConsumableReceiptOverdueAlerts] = useState(true);
   const [consumablePartiallyIssuedAlerts, setConsumablePartiallyIssuedAlerts] = useState(true);
+  const [consumableSmApprovalEnabled, setConsumableSmApprovalEnabled] = useState(false);
+  const [consumableSmApprovalScope, setConsumableSmApprovalScope] = useState<'ALL' | 'PURCHASE_ONLY'>('ALL');
+  const [togglingApprovalMode, setTogglingApprovalMode] = useState(false);
 
   // Regional
   const [timezone, setTimezone] = useState('Asia/Kolkata (IST)');
@@ -75,6 +80,8 @@ export function SystemConfigurationWorkspace() {
           setConsumableEmailAlerts(res.notifications.consumableEmailAlertsEnabled ?? true);
           setConsumableReceiptOverdueAlerts(res.notifications.consumableReceiptOverdueAlertsEnabled ?? true);
           setConsumablePartiallyIssuedAlerts(res.notifications.consumablePartiallyIssuedAlertsEnabled ?? true);
+          setConsumableSmApprovalEnabled(res.notifications.consumableSmApprovalEnabled ?? false);
+          setConsumableSmApprovalScope(res.notifications.consumableSmApprovalScope || 'ALL');
         }
         if (res.regional) {
           setTimezone(res.regional.timezone || 'Asia/Kolkata (IST)');
@@ -115,6 +122,8 @@ export function SystemConfigurationWorkspace() {
           consumableEmailAlertsEnabled: consumableEmailAlerts,
           consumableReceiptOverdueAlertsEnabled: consumableReceiptOverdueAlerts,
           consumablePartiallyIssuedAlertsEnabled: consumablePartiallyIssuedAlerts,
+          consumableSmApprovalEnabled,
+          consumableSmApprovalScope,
         },
         regional: {
           timezone,
@@ -132,6 +141,28 @@ export function SystemConfigurationWorkspace() {
       toast.error('Failed to update system configuration.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleQuickToggleApprovalMode = async () => {
+    const nextEnabled = !consumableSmApprovalEnabled;
+    const nextMode = nextEnabled ? 'ON' : 'OFF';
+    setTogglingApprovalMode(true);
+    try {
+      await consumablesApi.updateApprovalConfig({
+        mode: nextMode,
+        scope: consumableSmApprovalScope,
+      });
+      setConsumableSmApprovalEnabled(nextEnabled);
+      toast.success(
+        nextEnabled
+          ? 'SM Approval Engine is now ACTIVE (Mode: ON)!'
+          : 'SM Approval Engine is now STANDBY (Mode: OFF).'
+      );
+    } catch {
+      toast.error('Failed to update SM Approval Mode.');
+    } finally {
+      setTogglingApprovalMode(false);
     }
   };
 
@@ -451,10 +482,89 @@ export function SystemConfigurationWorkspace() {
                 />
               </button>
             </div>
+
+            {/* Consumable SM Approval Engine Master Toggle */}
+            <div
+              className={`p-5 rounded-xl border transition-all ${
+                consumableSmApprovalEnabled
+                  ? 'bg-indigo-50/70 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-800/80 shadow-xs'
+                  : 'bg-amber-50/70 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/60 shadow-xs'
+              }`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <ShieldCheck
+                      className={`w-5 h-5 ${
+                        consumableSmApprovalEnabled ? 'text-indigo-600 dark:text-indigo-400' : 'text-amber-600 dark:text-amber-400'
+                      }`}
+                    />
+                    <span className="text-sm font-bold text-slate-900 dark:text-white">
+                      Senior Manager Consumable Approval (SM Approval Engine)
+                    </span>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 text-[11px] font-black rounded-full border ${
+                        consumableSmApprovalEnabled
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-700'
+                          : 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-700'
+                      }`}
+                    >
+                      {consumableSmApprovalEnabled ? 'ACTIVE (Mode: ON)' : 'STANDBY (Mode: OFF)'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed">
+                    {consumableSmApprovalEnabled
+                      ? 'Mandatory Senior Manager review is ACTIVE. Newly raised consumable requests enter the Senior Manager queue and will NOT enter Store or Purchase fulfillment queues until authorized.'
+                      : 'Approval engine is in STANDBY. Newly raised consumable requests are automatically grandfathered and approved upon creation without Senior Manager gating.'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3 self-end sm:self-center">
+                  <button
+                    type="button"
+                    onClick={handleQuickToggleApprovalMode}
+                    disabled={togglingApprovalMode}
+                    className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      consumableSmApprovalEnabled ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+                    }`}
+                    title={consumableSmApprovalEnabled ? 'Click to Turn OFF' : 'Click to Turn ON'}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        consumableSmApprovalEnabled ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* Scope Selection */}
+              <div className="mt-3.5 pt-3 border-t border-slate-200/70 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <span className="text-slate-600 dark:text-slate-400 font-medium">
+                  Approval Enforcement Scope:
+                </span>
+                <select
+                  value={consumableSmApprovalScope}
+                  onChange={(e) => setConsumableSmApprovalScope(e.target.value as 'ALL' | 'PURCHASE_ONLY')}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                >
+                  <option value="ALL">ALL (In-Stock & Purchase Requests require SM approval)</option>
+                  <option value="PURCHASE_ONLY">PURCHASE_ONLY (Only Purchase Track requires SM approval)</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           {/* Pill summary badges */}
           <div className="flex flex-wrap items-center gap-3 mt-6 pt-4 border-t border-slate-100">
+            <span
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                consumableSmApprovalEnabled ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              SM Approvals: {consumableSmApprovalEnabled ? 'Mode ON' : 'Mode OFF'}
+            </span>
             <span
               className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
                 globalEmail ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'

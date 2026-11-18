@@ -79,6 +79,10 @@ export const PERMITTED_EMAIL_CONFIG: Record<
   DC_PENDING_2_DAYS: { allowedRoles: ['STORES', 'SENIOR_MANAGER'], recipientType: 'ROLES' },
   DC_QC_PENDING_24H: { allowedRoles: ['STORES', 'SENIOR_MANAGER'], recipientType: 'ROLES' },
   CONSUMABLE_PENDING_2_DAYS: { allowedRoles: ['STORES', 'ADMIN'], recipientType: 'ROLES' },
+  // Phase P5: Consumable Senior Manager Approval Notifications
+  CONSUMABLE_APPROVAL_REQUESTED: { allowedRoles: ['SENIOR_MANAGER', 'ADMIN'], recipientType: 'ROLES' },
+  CONSUMABLE_APPROVED: { allowedRoles: ['STORES'], recipientType: 'ROLES' },
+  CONSUMABLE_REJECTED: { allowedRoles: [], recipientType: 'USER' },
   // Diagnostic test email for admin verification
   TEST_EMAIL: {
     allowedRoles: ['ADMIN', 'STORES', 'PRODUCTION', 'DESIGNER', 'SENIOR_MANAGER', 'GENERAL_MANAGER'],
@@ -718,6 +722,48 @@ export class CommunicationService {
             hoursPending: input.metadata?.hoursPending,
             actionUrl: input.metadata?.actionUrl,
           },
+          actorUserId,
+        });
+
+      case 'CONSUMABLE_APPROVAL_REQUESTED':
+        return this.orchestrateChannelDelivery({
+          eventType: 'CONSUMABLE_APPROVAL_REQUESTED',
+          targetUsers,
+          targetEntity: 'CONSUMABLE_REQUEST',
+          targetId: input.entityId,
+          title: `Consumable Approval Requested: ${input.metadata?.requestCode || input.entityId}`,
+          message: `Consumable Request ${input.metadata?.requestCode || input.entityId} requires Senior Manager approval.`,
+          templateKey: 'CONSUMABLE_APPROVAL_REQUESTED',
+          subject: `[V-SMART] ACTION REQUIRED: Consumable Approval Requested - ${input.metadata?.requestCode || input.entityId}`,
+          payload: { ...input.metadata },
+          actorUserId,
+        });
+
+      case 'CONSUMABLE_APPROVED':
+        return this.orchestrateChannelDelivery({
+          eventType: 'CONSUMABLE_APPROVED',
+          targetUsers,
+          targetEntity: 'CONSUMABLE_APPROVAL_BATCH',
+          targetId: input.entityId,
+          title: `Consumable Request Items Approved`,
+          message: `Consumable items have been approved by Senior Manager.`,
+          templateKey: 'CONSUMABLE_APPROVED',
+          subject: `[V-SMART] APPROVED: Consumable Request Line Items Approved`,
+          payload: { ...input.metadata },
+          actorUserId,
+        });
+
+      case 'CONSUMABLE_REJECTED':
+        return this.orchestrateChannelDelivery({
+          eventType: 'CONSUMABLE_REJECTED',
+          targetUsers,
+          targetEntity: 'CONSUMABLE_APPROVAL_BATCH',
+          targetId: input.entityId,
+          title: `Consumable Request Items Rejected`,
+          message: `Consumable items have been rejected by Senior Manager.`,
+          templateKey: 'CONSUMABLE_REJECTED',
+          subject: `[V-SMART] REJECTED: Consumable Request Line Items Not Approved`,
+          payload: { ...input.metadata },
           actorUserId,
         });
 

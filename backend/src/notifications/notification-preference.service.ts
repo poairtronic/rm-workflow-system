@@ -243,4 +243,78 @@ export class NotificationPreferenceService {
     const detailed = await this.resolveRecipientsDetailed(eventType, actorUserId);
     return detailed ? detailed.recipients : null;
   }
+
+  /**
+   * Evaluates whether a specific user is eligible to receive an email for an event,
+   * respecting overrides, legacy preferences, and role settings.
+   */
+  async isUserEligibleForEvent(
+    userOrId: User | string,
+    eventType: string,
+  ): Promise<{ eligible: boolean; reason?: string; user?: User }> {
+    const normalizedCode = EVENT_ALIAS_MAP[eventType] || eventType;
+
+    let user: User | null = null;
+    if (typeof userOrId === 'string') {
+      user = await this.userRepository.findOne({
+        where: { id: userOrId },
+        relations: { role: true },
+      });
+    } else {
+      user = userOrId;
+      if (!user.role && user.roleId) {
+        user =
+          (await this.userRepository.findOne({
+            where: { id: user.id },
+            relations: { role: true },
+          })) || user;
+      }
+    }
+
+    if (!user || !user.isActive) {
+      return { eligible: false, reason: 'INACTIVE', user: user || undefined };
+    }
+
+    const mode = await this.getMode();
+
+    if (mode === 'OFF') {
+      const disabledPref = await this.userPrefRepository.findOne({
+        where: { userId: user.id, workflowEmailEnabled: false },
+      });
+      if (disabledPref) {
+        return { eligible: false, reason: 'PREF_OFF', user };
+      }
+      return { eligible: true, user };
+    }
+
+    const [override, legacyDisabled, roleSetting] = await Promise.all([
+      this.userEmailOverrideRepository.findOne({
+        where: { userId: user.id, eventCode: normalizedCode },
+      }),
+      this.userPrefRepository.findOne({
+        where: { userId: user.id, workflowEmailEnabled: false },
+      }),
+      user.roleId
+        ? this.roleEmailSettingRepository.findOne({
+            where: { roleId: user.roleId, eventCode: normalizedCode },
+          })
+        : null,
+    ]);
+
+    const decision = evaluateUserPreference({
+      overrideState: override?.state,
+      legacyEmailOff: Boolean(legacyDisabled),
+      roleEnabled: roleSetting ? roleSetting.enabled : true,
+    });
+
+    if (decision.effective) {
+      return { eligible: true, user };
+    }
+
+    return {
+      eligible: false,
+      reason: 'PREF_OFF',
+      user,
+    };
+  }
 }
