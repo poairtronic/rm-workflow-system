@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { ConsumablesService } from './consumables.service.js';
-import { ConsumableRequest } from './entities/consumable-request.entity.js';
+import { ConsumableRequest, ConsumablePaymentMode } from './entities/consumable-request.entity.js';
 import {
   ConsumableRequestItem,
   ConsumableItemTrack,
@@ -220,6 +220,7 @@ describe('Phase P2: Consumables Senior Manager Approval Engine', () => {
 
       await service.createRequest(
         {
+          paymentMode: ConsumablePaymentMode.CASH,
           requestedBy: 'operator-1',
           items: [
             {
@@ -257,6 +258,7 @@ describe('Phase P2: Consumables Senior Manager Approval Engine', () => {
 
       await service.createRequest(
         {
+          paymentMode: ConsumablePaymentMode.CASH,
           requestedBy: 'senior-mgr-1',
           items: [
             { description: 'Drill Bit 10mm', productId: 'prod-stock-1', requestedQty: 2 },
@@ -294,6 +296,7 @@ describe('Phase P2: Consumables Senior Manager Approval Engine', () => {
 
       await service.createRequest(
         {
+          paymentMode: ConsumablePaymentMode.CASH,
           requestedBy: 'operator-1',
           items: [
             { description: 'Drill Bit 10mm', productId: 'prod-stock-1', requestedQty: 2 }, // Stock: 10 -> STOCK_ITEM
@@ -580,7 +583,7 @@ describe('Phase P2: Consumables Senior Manager Approval Engine', () => {
       });
 
       await expect(
-        service.issueToProduction('item-iss-1', { issuedQty: 1, binId: 'bin-1' }),
+        service.issueToProduction('item-iss-1', { issueQty: 1, binId: 'bin-1' }),
       ).rejects.toThrow(BadRequestException);
     });
   });
