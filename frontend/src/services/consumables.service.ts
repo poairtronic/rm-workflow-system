@@ -275,4 +275,25 @@ export const consumablesApi = {
   }> {
     return api.post<any>('/api/consumables/check-sla-alerts', {});
   },
+
+  /**
+   * Deletes a single consumable line item
+   */
+  async deleteLineItem(itemId: string): Promise<any> {
+    return api.delete<any>(`/api/consumables/line-items/${itemId}`);
+  },
+
+  /**
+   * Bulk deletes multiple consumable line items
+   */
+  async bulkDeleteLineItems(itemIds: string[]): Promise<any> {
+    return api.post<any>('/api/consumables/line-items/bulk-delete', { itemIds });
+  },
+
+  /**
+   * Deletes an entire consumable request document if none of its items are issued
+   */
+  async deleteRequest(requestId: string): Promise<any> {
+    return api.delete<any>(`/api/consumables/requests/${requestId}`);
+  },
 };

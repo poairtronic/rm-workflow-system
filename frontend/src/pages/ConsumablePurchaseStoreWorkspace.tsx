@@ -10,6 +10,8 @@ import {
   Send,
   Building2,
   Bell,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
@@ -120,6 +122,11 @@ export function ConsumablePurchaseStoreWorkspace() {
 
   // Consumables SLA Alert Settings Modal State
   const [alertSettingsModalOpen, setAlertSettingsModalOpen] = useState(false);
+
+  // Delete line item modal & state
+  const [deleteItemModal, setDeleteItemModal] = useState<ConsumableLineItemRecord | null>(null);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [deletingSubmit, setDeletingSubmit] = useState(false);
 
   // Comprehensive Export Columns with Creation Timestamp
   const consumableExportColumns: ExportColumn<ConsumableLineItemRecord>[] = useMemo(
@@ -503,6 +510,43 @@ export function ConsumablePurchaseStoreWorkspace() {
     }
   };
 
+  // --- DELETE LINE ITEM HANDLERS ---
+  const handleExecuteDeleteSingle = async () => {
+    if (!deleteItemModal) return;
+    setDeletingSubmit(true);
+    try {
+      const res = await consumablesApi.deleteLineItem(deleteItemModal.id);
+      toast.success(res?.message || `Line item "${deleteItemModal.description}" deleted successfully.`);
+      setDeleteItemModal(null);
+      setSelectedIds((prev) => prev.filter((id) => id !== deleteItemModal.id));
+      await loadData();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to delete line item');
+    } finally {
+      setDeletingSubmit(false);
+    }
+  };
+
+  const handleExecuteBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setDeletingSubmit(true);
+    try {
+      const res = await consumablesApi.bulkDeleteLineItems(selectedIds);
+      if (res?.success) {
+        toast.success(`Successfully deleted ${res.deletedCount} line item(s).`);
+      } else {
+        toast.error(`Deleted ${res?.deletedCount || 0} item(s), ${res?.errors?.length || 0} failed.`);
+      }
+      setIsBulkDeleting(false);
+      setSelectedIds([]);
+      await loadData();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to bulk delete line items');
+    } finally {
+      setDeletingSubmit(false);
+    }
+  };
+
   // --- FILTERED QUEUES ---
   // Sub-Module 2A: In-Stock Queue
   const inStockItems = useMemo(() => {
@@ -883,34 +927,48 @@ export function ConsumablePurchaseStoreWorkspace() {
                           </div>
                         </td>
                         <td className="py-3.5 px-3.5 text-center align-middle">
-                          {isFullyIssued ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-md">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                              Dispatched
-                            </span>
-                          ) : isPartial ? (
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() => handleOpenIssueModal(item)}
-                              disabled={actionLoadingId === item.id}
-                              className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs mx-auto cursor-pointer px-3 py-1.5"
-                            >
-                              <Send className="w-3.5 h-3.5" />
-                              Issue Remaining ({remainingQty} {item.uom})
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() => handleOpenIssueModal(item)}
-                              disabled={actionLoadingId === item.id}
-                              className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs mx-auto cursor-pointer px-3 py-1.5"
-                            >
-                              <Send className="w-3.5 h-3.5" />
-                              Issue to Production
-                            </Button>
-                          )}
+                          <div className="flex items-center justify-center gap-1.5">
+                            {isFullyIssued ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-md">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                                Dispatched
+                              </span>
+                            ) : isPartial ? (
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => handleOpenIssueModal(item)}
+                                disabled={actionLoadingId === item.id}
+                                className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs mx-auto cursor-pointer px-3 py-1.5"
+                              >
+                                <Send className="w-3.5 h-3.5" />
+                                Issue Remaining ({remainingQty} {item.uom})
+                              </Button>
+                            ) : (
+                              <>
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={() => handleOpenIssueModal(item)}
+                                  disabled={actionLoadingId === item.id}
+                                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer px-3 py-1.5"
+                                >
+                                  <Send className="w-3.5 h-3.5" />
+                                  Issue to Production
+                                </Button>
+                                {Number(item.issuedQty || 0) === 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeleteItemModal(item)}
+                                    className="p-1.5 rounded text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                                    title="Delete this line item"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -943,17 +1001,28 @@ export function ConsumablePurchaseStoreWorkspace() {
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Batch Print Button */}
+              {/* Batch Actions */}
               {selectedIds.length > 0 && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => handlePrintSelectedPr()}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center gap-1.5 shadow-sm animate-pulse cursor-pointer"
-                >
-                  <Printer className="w-4 h-4" />
-                  Print Selected PR ({selectedIds.length})
-                </Button>
+                <>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handlePrintSelectedPr()}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center gap-1.5 shadow-sm animate-pulse cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Print Selected PR ({selectedIds.length})
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => setIsBulkDeleting(true)}
+                    className="bg-rose-600 hover:bg-rose-700 text-white font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete Selected ({selectedIds.length})
+                  </Button>
+                </>
               )}
 
               <Button
@@ -1382,6 +1451,18 @@ export function ConsumablePurchaseStoreWorkspace() {
                                 Issue to Floor
                               </Button>
                             )}
+
+                            {/* Delete Line Item action (for any unissued item) */}
+                            {Number(item.issuedQty || 0) === 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setDeleteItemModal(item)}
+                                className="p-1 rounded text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                                title="Delete this line item"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1729,6 +1810,160 @@ export function ConsumablePurchaseStoreWorkspace() {
         onClose={() => setAlertSettingsModalOpen(false)}
         onSaved={loadData}
       />
+
+      {/* ============================================================ */}
+      {/* DELETE SINGLE LINE ITEM CONFIRMATION MODAL                   */}
+      {/* ============================================================ */}
+      {deleteItemModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Delete Line Item?
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  This action permanently removes the line item from the queue.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Item Description:</span>
+                <span className="font-bold text-slate-900 dark:text-white">{deleteItemModal.description}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Requested Qty:</span>
+                <span className="font-mono font-semibold text-slate-900 dark:text-white">
+                  {deleteItemModal.requestedQty} {deleteItemModal.uom}
+                </span>
+              </div>
+              {deleteItemModal.prNumber && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">PR Number:</span>
+                  <span className="font-mono text-indigo-600 dark:text-indigo-400 font-semibold">
+                    PR #{deleteItemModal.prNumber}
+                  </span>
+                </div>
+              )}
+              {deleteItemModal.requestCode && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Request Code:</span>
+                  <span className="font-mono text-slate-700 dark:text-slate-300">
+                    {deleteItemModal.requestCode}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {Number(deleteItemModal.realReceivedQty || 0) > 0 && (
+              <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-300">
+                <p className="font-semibold flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5" /> Note on Inventory:
+                </p>
+                <p className="mt-0.5">
+                  {deleteItemModal.realReceivedQty} {deleteItemModal.uom} previously inwarded to bin will be automatically deducted from inventory.
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setDeleteItemModal(null)}
+                disabled={deletingSubmit}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                size="sm"
+                onClick={handleExecuteDeleteSingle}
+                disabled={deletingSubmit}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                {deletingSubmit ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Confirm Delete
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* BULK DELETE CONFIRMATION MODAL                               */}
+      {/* ============================================================ */}
+      {isBulkDeleting && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Delete {selectedIds.length} Line Item(s)?
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Are you sure you want to delete all {selectedIds.length} selected items?
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              Only unissued items will be deleted. Any unissued stock inwarded into warehouse bins will be reversed.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsBulkDeleting(false)}
+                disabled={deletingSubmit}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                size="sm"
+                onClick={handleExecuteBulkDelete}
+                disabled={deletingSubmit}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                {deletingSubmit ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete {selectedIds.length} Item(s)
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

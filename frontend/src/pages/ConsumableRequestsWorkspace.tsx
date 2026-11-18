@@ -12,6 +12,7 @@ import {
   Layers,
   Sparkles,
   Printer,
+  AlertTriangle,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
@@ -38,6 +39,8 @@ export function ConsumableRequestsWorkspace() {
   const [submitting, setSubmitting] = useState(false);
   const [loadingItems, setLoadingItems] = useState(false);
   const [actionInProgressId, setActionInProgressId] = useState<string | null>(null);
+  const [deleteItemModal, setDeleteItemModal] = useState<ConsumableLineItemRecord | null>(null);
+  const [deletingSubmit, setDeletingSubmit] = useState(false);
 
   // Master lookup data
   const [catalog, setCatalog] = useState<ProductCatalogItem[]>([]);
@@ -297,6 +300,22 @@ export function ConsumableRequestsWorkspace() {
       toast.error(err?.message || 'Failed to confirm receipt of item');
     } finally {
       setActionInProgressId(null);
+    }
+  };
+
+  // --- DELETE UNISSUED LINE ITEM ---
+  const handleExecuteDelete = async () => {
+    if (!deleteItemModal) return;
+    setDeletingSubmit(true);
+    try {
+      const res = await consumablesApi.deleteLineItem(deleteItemModal.id);
+      toast.success(res?.message || `Line item "${deleteItemModal.description}" deleted.`);
+      setDeleteItemModal(null);
+      await loadLineItems();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to delete line item');
+    } finally {
+      setDeletingSubmit(false);
     }
   };
 
@@ -1162,37 +1181,51 @@ export function ConsumableRequestsWorkspace() {
                           )}
                         </td>
 
-                        {/* Action Column */}
-                        <td className="py-3 px-3 text-center">
-                          {isIssued ? (
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              disabled={actionInProgressId === item.id}
-                              onClick={() => handleConfirmReceive(item)}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs mx-auto cursor-pointer"
-                            >
-                              {actionInProgressId === item.id ? (
-                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          {/* Action Column */}
+                          <td className="py-3 px-3 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              {isIssued ? (
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  disabled={actionInProgressId === item.id}
+                                  onClick={() => handleConfirmReceive(item)}
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs mx-auto cursor-pointer"
+                                >
+                                  {actionInProgressId === item.id ? (
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                  )}
+                                  Confirm Received
+                                </Button>
+                              ) : item.status === 'PARTIALLY_ISSUED' ? (
+                                <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                                  Partial Delivery ({item.issuedQty}/{item.requestedQty})
+                                </span>
+                              ) : isReceived ? (
+                                <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                                  Handover Verified
+                                </span>
                               ) : (
-                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <div className="inline-flex items-center gap-1.5">
+                                  <span className="text-[11px] text-slate-400">
+                                    Stores in progress
+                                  </span>
+                                  {Number(item.issuedQty || 0) === 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setDeleteItemModal(item)}
+                                      className="p-1 rounded text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                                      title="Delete this line item"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
                               )}
-                              Confirm Received
-                            </Button>
-                          ) : item.status === 'PARTIALLY_ISSUED' ? (
-                            <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
-                              Partial Delivery ({item.issuedQty}/{item.requestedQty})
-                            </span>
-                          ) : isReceived ? (
-                            <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                              Handover Verified
-                            </span>
-                          ) : (
-                            <span className="text-[11px] text-slate-400">
-                              Stores in progress
-                            </span>
-                          )}
-                        </td>
+                            </div>
+                          </td>
                       </tr>
                     );
                   })
@@ -1214,6 +1247,80 @@ export function ConsumableRequestsWorkspace() {
           items={viewingPrItems}
           preparedBy={viewingPrItems[0].requestedBy}
         />
+      )}
+
+      {/* Delete Single Line Item Confirmation Modal */}
+      {deleteItemModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Delete Line Item?
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  This action permanently removes the line item from the request.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Item Description:</span>
+                <span className="font-bold text-slate-900 dark:text-white">{deleteItemModal.description}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Requested Qty:</span>
+                <span className="font-mono font-semibold text-slate-900 dark:text-white">
+                  {deleteItemModal.requestedQty} {deleteItemModal.uom}
+                </span>
+              </div>
+              {deleteItemModal.prNumber && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">PR Number:</span>
+                  <span className="font-mono text-indigo-600 dark:text-indigo-400 font-semibold">
+                    PR #{deleteItemModal.prNumber}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setDeleteItemModal(null)}
+                disabled={deletingSubmit}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                size="sm"
+                onClick={handleExecuteDelete}
+                disabled={deletingSubmit}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                {deletingSubmit ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Confirm Delete
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

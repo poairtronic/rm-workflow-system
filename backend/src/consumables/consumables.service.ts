@@ -953,6 +953,230 @@ export class ConsumablesService implements OnModuleInit {
   }
 
   /**
+   * Delete a single consumable line item.
+   * If stock was already received into a bin (realReceivedQty > 0) but not yet issued to production (issuedQty === 0),
+   * this safely reverses the bin stock balance and records an atomic STOCK_OUT ledger reversal.
+   * If issuedQty > 0, deletion is blocked because goods have physically left stores.
+   * If this line item was the only item in its parent ConsumableRequest, the parent request is cleanly removed.
+   */
+  async deleteLineItem(
+    id: string,
+    userId?: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    deletedItemId: string;
+    requestDeleted: boolean;
+  }> {
+    const item = await this.itemRepo.findOne({
+      where: { id },
+      relations: { request: true },
+    });
+
+    if (!item) {
+      throw new NotFoundException(`Consumable line item "${id}" was not found.`);
+    }
+
+    const issuedQty = Number(item.issuedQty || 0);
+    if (issuedQty > 0) {
+      throw new BadRequestException(
+        'Cannot delete line item: Material has already been issued to production.',
+      );
+    }
+
+    const realReceivedQty = Number(item.realReceivedQty || 0);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const effectiveUserId = await this.resolveEffectiveUserId(userId);
+
+      // If item was already inwarded to a bin, reverse the stock
+      if (realReceivedQty > 0 && item.binId && item.productId) {
+        const balance = await queryRunner.manager.findOne(StockBalance, {
+          where: { productId: item.productId, binId: item.binId },
+        });
+
+        const currentBalance = Number(balance?.currentQuantity) || 0;
+        if (!balance || currentBalance < realReceivedQty) {
+          throw new BadRequestException(
+            `Cannot delete line item: Stock balance in bin (${currentBalance}) is less than received quantity (${realReceivedQty}). Stock may have already been moved or consumed.`,
+          );
+        }
+
+        balance.currentQuantity = currentBalance - realReceivedQty;
+        await queryRunner.manager.save(balance);
+
+        const reversalTx = queryRunner.manager.create(StockTransaction, {
+          productId: item.productId,
+          sourceBinId: item.binId,
+          transactionType: TransactionType.STOCK_OUT,
+          quantity: realReceivedQty,
+          referenceType: 'CONSUMABLE_DELETION',
+          referenceId: item.id,
+          reason: `Reversal of purchase receipt for deleted consumable item: ${item.description || item.id}`,
+          createdById: effectiveUserId,
+        });
+        await queryRunner.manager.save(reversalTx);
+      }
+
+      const requestId = item.requestId;
+
+      // Delete the line item
+      await queryRunner.manager.delete(ConsumableRequestItem, { id: item.id });
+
+      // Check if parent request is now empty
+      let requestDeleted = false;
+      if (requestId) {
+        const remainingCount = await queryRunner.manager.count(ConsumableRequestItem, {
+          where: { requestId },
+        });
+        if (remainingCount === 0) {
+          await queryRunner.manager.delete(ConsumableRequest, { id: requestId });
+          requestDeleted = true;
+        }
+      }
+
+      await queryRunner.commitTransaction();
+
+      this.logger.log(
+        `[CONSUMABLES-DELETE] Line item "${item.description}" (${id}) deleted successfully. Request deleted: ${requestDeleted}`,
+      );
+
+      return {
+        success: true,
+        message: `Consumable line item "${item.description || id}" was deleted successfully.`,
+        deletedItemId: id,
+        requestDeleted,
+      };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  /**
+   * Bulk delete multiple consumable line items.
+   */
+  async bulkDeleteLineItems(
+    itemIds: string[],
+    userId?: string,
+  ): Promise<{
+    success: boolean;
+    deletedCount: number;
+    deletedIds: string[];
+    errors: { id: string; error: string }[];
+  }> {
+    const deletedIds: string[] = [];
+    const errors: { id: string; error: string }[] = [];
+
+    for (const id of itemIds) {
+      try {
+        await this.deleteLineItem(id, userId);
+        deletedIds.push(id);
+      } catch (err: any) {
+        errors.push({ id, error: err?.message || 'Failed to delete line item' });
+      }
+    }
+
+    return {
+      success: errors.length === 0,
+      deletedCount: deletedIds.length,
+      deletedIds,
+      errors,
+    };
+  }
+
+  /**
+   * Delete an entire consumable request document if none of its items have been issued.
+   */
+  async deleteRequest(
+    id: string,
+    userId?: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    deletedRequestId: string;
+    deletedItemsCount: number;
+  }> {
+    const request = await this.requestRepo.findOne({
+      where: { id },
+      relations: { items: true },
+    });
+
+    if (!request) {
+      throw new NotFoundException(`Consumable request "${id}" was not found.`);
+    }
+
+    const issuedItems = (request.items || []).filter((it) => Number(it.issuedQty || 0) > 0);
+    if (issuedItems.length > 0) {
+      throw new BadRequestException(
+        `Cannot delete request "${request.requestCode}": ${issuedItems.length} item(s) have already been issued to production.`,
+      );
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const effectiveUserId = await this.resolveEffectiveUserId(userId);
+
+      // Revert stock for any items that were received
+      for (const it of request.items || []) {
+        const realQty = Number(it.realReceivedQty || 0);
+        if (realQty > 0 && it.binId && it.productId) {
+          const balance = await queryRunner.manager.findOne(StockBalance, {
+            where: { productId: it.productId, binId: it.binId },
+          });
+          const currentBalance = Number(balance?.currentQuantity) || 0;
+          if (balance && currentBalance >= realQty) {
+            balance.currentQuantity = currentBalance - realQty;
+            await queryRunner.manager.save(balance);
+
+            const reversalTx = queryRunner.manager.create(StockTransaction, {
+              productId: it.productId,
+              sourceBinId: it.binId,
+              transactionType: TransactionType.STOCK_OUT,
+              quantity: realQty,
+              referenceType: 'CONSUMABLE_DELETION',
+              referenceId: it.id,
+              reason: `Reversal of purchase receipt for deleted request ${request.requestCode}`,
+              createdById: effectiveUserId,
+            });
+            await queryRunner.manager.save(reversalTx);
+          }
+        }
+      }
+
+      const count = request.items?.length || 0;
+      await queryRunner.manager.delete(ConsumableRequestItem, { requestId: request.id });
+      await queryRunner.manager.delete(ConsumableRequest, { id: request.id });
+
+      await queryRunner.commitTransaction();
+
+      this.logger.log(
+        `[CONSUMABLES-DELETE] Request "${request.requestCode}" (${id}) and ${count} line item(s) deleted.`,
+      );
+
+      return {
+        success: true,
+        message: `Consumable request "${request.requestCode}" and its ${count} item(s) were deleted successfully.`,
+        deletedRequestId: id,
+        deletedItemsCount: count,
+      };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  /**
    * Queries all consumable requests with header details and line item counts.
    */
   async findAllRequests(): Promise<ConsumableRequest[]> {

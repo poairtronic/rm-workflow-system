@@ -150,6 +150,8 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
           findOne: vi.fn(),
           create: vi.fn().mockImplementation((_entity, d) => ({ ...d })),
           save: vi.fn().mockImplementation((d) => Promise.resolve(d)),
+          delete: vi.fn().mockResolvedValue({ affected: 1 }),
+          count: vi.fn().mockResolvedValue(0),
         },
       }),
     } as any;
@@ -867,6 +869,123 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
       expect(catalog).toBeDefined();
       expect(Array.isArray(catalog)).toBe(true);
       expect(productRepo.find).toHaveBeenCalled();
+    });
+
+    it('CNS-SVC-024: should delete an unissued consumable line item and remove empty parent request', async () => {
+      const mockItem = {
+        id: 'item-del-1',
+        requestId: 'cr-del-1',
+        description: 'Test Gloves',
+        requestedQty: 10,
+        issuedQty: 0,
+        realReceivedQty: 0,
+        status: ConsumableItemStatus.OPEN_PR_PENDING,
+      } as any;
+      (itemRepo.findOne as any).mockResolvedValueOnce(mockItem);
+
+      const res = await service.deleteLineItem('item-del-1', 'user-admin-uuid');
+      expect(res.success).toBe(true);
+      expect(res.deletedItemId).toBe('item-del-1');
+      expect(res.requestDeleted).toBe(true);
+    });
+
+    it('CNS-SVC-025: should reject line item deletion if material is already issued', async () => {
+      const mockItem = {
+        id: 'item-del-2',
+        requestId: 'cr-del-2',
+        description: 'Already Issued Item',
+        requestedQty: 5,
+        issuedQty: 2,
+        status: ConsumableItemStatus.PARTIALLY_ISSUED,
+      } as any;
+      (itemRepo.findOne as any).mockResolvedValueOnce(mockItem);
+
+      await expect(service.deleteLineItem('item-del-2')).rejects.toThrow(BadRequestException);
+    });
+
+    it('CNS-SVC-026: should revert bin stock balance when deleting an inwarded but unissued item', async () => {
+      const mockItem = {
+        id: 'item-del-3',
+        requestId: 'cr-del-3',
+        productId: 'prod-uuid-1',
+        binId: 'bin-uuid-1',
+        description: 'Received Drill Bit',
+        requestedQty: 4,
+        realReceivedQty: 4,
+        issuedQty: 0,
+        status: ConsumableItemStatus.PURCHASE_RECEIVED,
+      } as any;
+      (itemRepo.findOne as any).mockResolvedValueOnce(mockItem);
+
+      const mockBalance = {
+        id: 'bal-1',
+        productId: 'prod-uuid-1',
+        binId: 'bin-uuid-1',
+        currentQuantity: 10,
+      };
+
+      const queryRunner = (dataSource.createQueryRunner as any)();
+      queryRunner.manager.findOne.mockResolvedValueOnce(mockBalance);
+
+      const res = await service.deleteLineItem('item-del-3', 'user-admin-uuid');
+      expect(res.success).toBe(true);
+      expect(mockBalance.currentQuantity).toBe(6);
+      expect(queryRunner.manager.save).toHaveBeenCalledWith(mockBalance);
+    });
+
+    it('CNS-SVC-027: should bulk delete items and collect successes', async () => {
+      const mockItemA = {
+        id: 'item-bulk-1',
+        requestId: 'cr-bulk-1',
+        description: 'Item A',
+        issuedQty: 0,
+        realReceivedQty: 0,
+      } as any;
+      const mockItemB = {
+        id: 'item-bulk-2',
+        requestId: 'cr-bulk-1',
+        description: 'Item B',
+        issuedQty: 0,
+        realReceivedQty: 0,
+      } as any;
+
+      (itemRepo.findOne as any)
+        .mockResolvedValueOnce(mockItemA)
+        .mockResolvedValueOnce(mockItemB);
+
+      const res = await service.bulkDeleteLineItems(['item-bulk-1', 'item-bulk-2'], 'user-admin-uuid');
+      expect(res.success).toBe(true);
+      expect(res.deletedCount).toBe(2);
+      expect(res.deletedIds).toEqual(['item-bulk-1', 'item-bulk-2']);
+    });
+
+    it('CNS-SVC-028: should delete whole request if none of its items are issued', async () => {
+      const mockRequest = {
+        id: 'req-full-del',
+        requestCode: 'CR-2026-DEL',
+        items: [
+          { id: 'item-1', issuedQty: 0, realReceivedQty: 0 },
+          { id: 'item-2', issuedQty: 0, realReceivedQty: 0 },
+        ],
+      } as any;
+      (requestRepo.findOne as any).mockResolvedValueOnce(mockRequest);
+
+      const res = await service.deleteRequest('req-full-del', 'user-admin-uuid');
+      expect(res.success).toBe(true);
+      expect(res.deletedItemsCount).toBe(2);
+    });
+
+    it('CNS-SVC-029: should reject deleting whole request if any item has been issued', async () => {
+      const mockRequest = {
+        id: 'req-issued',
+        requestCode: 'CR-2026-ERR',
+        items: [
+          { id: 'item-1', issuedQty: 1, realReceivedQty: 1 },
+        ],
+      } as any;
+      (requestRepo.findOne as any).mockResolvedValueOnce(mockRequest);
+
+      await expect(service.deleteRequest('req-issued', 'user-admin-uuid')).rejects.toThrow(BadRequestException);
     });
   });
 });

@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -21,6 +22,7 @@ import { ReceiveConsumablePurchaseDto } from './dto/receive-consumable-purchase.
 import { IssueConsumableToProductionDto } from './dto/issue-to-production.dto.js';
 import { PrintPrDto } from './dto/print-pr.dto.js';
 import { CreateConsumablePoDto } from './dto/create-consumable-po.dto.js';
+import { BulkDeleteConsumableItemsDto } from './dto/bulk-delete-consumable-items.dto.js';
 import { QueryConsumableItemsDto } from './dto/query-consumables.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
@@ -285,6 +287,69 @@ export class ConsumablesController {
   ) {
     const userId = req.user?.userId || req.user?.id || req.user?.sub;
     return this.consumablesService.confirmProductionReceipt(id, userId);
+  }
+
+  /**
+   * Bulk delete consumable line items.
+   * Allowed roles: PRODUCTION, STORES, ADMIN, SENIOR_MANAGER, GENERAL_MANAGER
+   */
+  @Post('line-items/bulk-delete')
+  @Roles(
+    UserRole.PRODUCTION,
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+  )
+  @ApiOperation({ summary: 'Bulk delete consumable line items' })
+  async bulkDeleteLineItems(
+    @Body() dto: BulkDeleteConsumableItemsDto,
+    @Req() req: any,
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    return this.consumablesService.bulkDeleteLineItems(dto.itemIds, userId);
+  }
+
+  /**
+   * Delete a single consumable line item.
+   * Allowed roles: PRODUCTION, STORES, ADMIN, SENIOR_MANAGER, GENERAL_MANAGER
+   */
+  @Delete('line-items/:id')
+  @Roles(
+    UserRole.PRODUCTION,
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+  )
+  @ApiOperation({ summary: 'Delete a single consumable line item' })
+  async deleteLineItem(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: any,
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    return this.consumablesService.deleteLineItem(id, userId);
+  }
+
+  /**
+   * Delete an entire consumable request document if none of its items are issued.
+   * Allowed roles: PRODUCTION, STORES, ADMIN, SENIOR_MANAGER, GENERAL_MANAGER
+   */
+  @Delete('requests/:id')
+  @Roles(
+    UserRole.PRODUCTION,
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+  )
+  @ApiOperation({ summary: 'Delete an entire consumable request document' })
+  async deleteRequest(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: any,
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    return this.consumablesService.deleteRequest(id, userId);
   }
 
   /**
