@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class UpdateDcItemsPartNumberToScName1793500000000 implements MigrationInterface {
+  name = 'UpdateDcItemsPartNumberToScName1793500000000';
+
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       UPDATE delivery_challan_items dci

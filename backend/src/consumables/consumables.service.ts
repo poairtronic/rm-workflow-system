@@ -994,10 +994,17 @@ export class ConsumablesService implements OnModuleInit {
    * Phase P2: Get count of consumable items pending Senior Manager approval (for badge).
    */
   async getPendingApprovalsCount(): Promise<{ count: number }> {
-    const count = await this.itemRepo.count({
-      where: { approvalStatus: ConsumableApprovalStatus.PENDING_SM_APPROVAL },
-    });
-    return { count };
+    try {
+      const count = await this.itemRepo.count({
+        where: { approvalStatus: ConsumableApprovalStatus.PENDING_SM_APPROVAL },
+      });
+      return { count };
+    } catch (err: any) {
+      if (err?.message?.includes('approval_status') || err?.code === '42703') {
+        return { count: 0 };
+      }
+      throw err;
+    }
   }
 
   /**

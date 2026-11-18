@@ -152,6 +152,8 @@ export class InitialSchema1700000000000 implements MigrationInterface {
       CREATE INDEX "idx_rm_items_form_id" ON "rm_items"("rm_form_id");
       CREATE INDEX "idx_rm_items_sc_id" ON "rm_items"("sc_id");
       CREATE INDEX "idx_rm_items_material" ON "rm_items"("material");
+    `);
+
     // 10. RM Item Snapshots / Revisions Table (Preserves historical requested vs designer revision state)
     await queryRunner.query(`
       CREATE TABLE "rm_item_snapshots" (

@@ -181,34 +181,34 @@ describe('Phase P2: Consumables Senior Manager Approval Engine', () => {
   });
 
   describe('1. Configuration & Mode/Scope Evaluation', () => {
-    it('defaults to mode=OFF and scope=ALL when variables are empty', () => {
+    it('defaults to mode=OFF and scope=ALL when variables are empty', async () => {
       mockConfigService.get = vi.fn().mockReturnValue(undefined);
       delete process.env.CONSUMABLE_SM_APPROVAL_MODE;
       delete process.env.CONSUMABLE_SM_APPROVAL_SCOPE;
 
-      const config = service.getApprovalConfig();
+      const config = await service.getApprovalConfig();
       expect(config).toEqual({ mode: 'OFF', scope: 'ALL' });
     });
 
-    it('falls back to OFF and ALL on invalid configuration values with warning', () => {
+    it('falls back to OFF and ALL on invalid configuration values with warning', async () => {
       mockConfigService.get = vi.fn((key) => {
         if (key === 'CONSUMABLE_SM_APPROVAL_MODE') return 'INVALID_MODE';
         if (key === 'CONSUMABLE_SM_APPROVAL_SCOPE') return 'PARTIAL';
         return null;
       });
 
-      const config = service.getApprovalConfig();
+      const config = await service.getApprovalConfig();
       expect(config).toEqual({ mode: 'OFF', scope: 'ALL' });
     });
 
-    it('correctly parses ON and PURCHASE_ONLY', () => {
+    it('correctly parses ON and PURCHASE_ONLY', async () => {
       mockConfigService.get = vi.fn((key) => {
         if (key === 'CONSUMABLE_SM_APPROVAL_MODE') return 'ON';
         if (key === 'CONSUMABLE_SM_APPROVAL_SCOPE') return 'PURCHASE_ONLY';
         return null;
       });
 
-      const config = service.getApprovalConfig();
+      const config = await service.getApprovalConfig();
       expect(config).toEqual({ mode: 'ON', scope: 'PURCHASE_ONLY' });
     });
   });

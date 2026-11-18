@@ -7,6 +7,7 @@ import compression from 'compression';
 import { AppModule } from './app.module.js';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter.js';
 import { IoAdapter } from '@nestjs/platform-socket.io';
+import { runStartupMigrations } from './database/run-migrations.js';
 
 process.on('unhandledRejection', (reason) => {
   console.error('[V-SMART Backend] Unhandled Rejection:', reason);
@@ -37,6 +38,9 @@ function sanitizePayload(obj: any): any {
 
 async function bootstrap() {
   try {
+    // Run automated schema migrations before initializing application modules
+    await runStartupMigrations();
+
     const app = await NestFactory.create(AppModule);
 
     // Trust proxy for accurate client IP resolution behind reverse proxies (Render)
