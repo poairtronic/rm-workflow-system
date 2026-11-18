@@ -35,6 +35,9 @@ export class MercIndentPending {
   @Column({ name: 'merc_current_state', type: 'varchar' })
   mercCurrentState!: string;
 
+  @Column({ name: 'is_deleted', type: 'boolean', default: false })
+  isDeleted!: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 

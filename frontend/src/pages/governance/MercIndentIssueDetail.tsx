@@ -17,6 +17,7 @@ import {
   User,
   Hash,
   Boxes,
+  Trash2,
 } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -417,6 +418,37 @@ export function MercIndentIssueDetail() {
     }
   };
 
+  // Handle deleting a line item
+  const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
+  const handleDeleteItem = async (item: MercIndentFullDetail['lineItems'][0]) => {
+    if (!indent || !item) return;
+    const confirmed = window.confirm(
+      `Are you sure you want to delete line item "${item.name}" from this indent?\nThis item will be removed from material requirements.`
+    );
+    if (!confirmed) return;
+
+    setDeletingItemId(item.id);
+    try {
+      const res = await mercIndentService.deleteMercLineItem(indent.id, item.id);
+      if (res.indentDeleted) {
+        toast.success('Line item deleted. Indent has no remaining items and was removed.');
+        await queryClient.invalidateQueries({ queryKey: ['merc-indents'] });
+        navigate('/governance/merc-indents');
+      } else {
+        toast.success(`Line item "${item.name}" deleted successfully.`);
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['merc-indents'] }),
+          refetch(),
+        ]);
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to delete line item';
+      toast.error(msg);
+    } finally {
+      setDeletingItemId(null);
+    }
+  };
+
   // Helper: Dimensions display — build from actual dimension fields
   const getDimensionDisplay = (item: MercLineItem | MercIndentFullDetail['lineItems'][0]): string => {
     if (item.itemType === 'BROUGHT_OUT') {
@@ -659,29 +691,41 @@ export function MercIndentIssueDetail() {
                   </td>
                   <td className="py-3 px-3 text-center">{renderStatusBadge(item.status)}</td>
                   <td className="py-3 px-3 text-center">
-                    {isFullyIssued ? (
-                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium inline-flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Issued
-                      </span>
-                    ) : (
-                      <div className="flex items-center justify-center gap-1.5">
-                        <a
-                          href={`#line-item-${item.id}`}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition-colors"
-                        >
-                          Issue
-                        </a>
-                        <button
-                          type="button"
-                          onClick={() => handleShortCloseItem(item)}
-                          disabled={formStates[item.id]?.shortClosing}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 cursor-pointer transition-colors"
-                          title="Short Close (Mark as Issued without extra stock deduction)"
-                        >
-                          Short Close
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex items-center justify-center gap-1.5">
+                      {isFullyIssued ? (
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium inline-flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Issued
+                        </span>
+                      ) : (
+                        <>
+                          <a
+                            href={`#line-item-${item.id}`}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition-colors"
+                          >
+                            Issue
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => handleShortCloseItem(item)}
+                            disabled={formStates[item.id]?.shortClosing}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 cursor-pointer transition-colors"
+                            title="Short Close (Mark as Issued without extra stock deduction)"
+                          >
+                            Short Close
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteItem(item)}
+                        disabled={deletingItemId === item.id}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer transition-colors"
+                        title="Delete line item"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -820,7 +864,19 @@ export function MercIndentIssueDetail() {
                     </span>
                   </div>
 
-                  <div>{renderStatusBadge(item.status)}</div>
+                  <div className="flex items-center gap-2">
+                    {renderStatusBadge(item.status)}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteItem(item)}
+                      disabled={deletingItemId === item.id}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/60 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                      title="Delete this line item"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete Item
+                    </button>
+                  </div>
                 </div>
               </div>
 

@@ -71,6 +71,9 @@ export class MercIndentLineItem {
   @Column({ type: 'varchar', default: 'PENDING' })
   status!: string;
 
+  @Column({ name: 'is_deleted', type: 'boolean', default: false })
+  isDeleted!: boolean;
+
   @Column({ name: 'rm_product_id', type: 'uuid', nullable: true })
   rmProductId?: string | null;
 

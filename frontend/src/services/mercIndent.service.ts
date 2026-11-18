@@ -99,6 +99,29 @@ export const mercIndentService = {
     return api.post(`/api/merc-indents/${id}/close`);
   },
 
+  deleteMercLineItem: async (
+    id: string,
+    itemId: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    indentDeleted: boolean;
+    remainingItems?: number;
+  }> => {
+    const res = await api.delete<any>(`/api/merc-indents/${id}/items/${itemId}`);
+    return res?.data !== undefined ? res.data : res;
+  },
+
+  deleteMercIndent: async (
+    id: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> => {
+    const res = await api.delete<any>(`/api/merc-indents/${id}`);
+    return res?.data !== undefined ? res.data : res;
+  },
+
   createAndStockProduct: async (
     payload: CreateMercProductPayload,
   ): Promise<{

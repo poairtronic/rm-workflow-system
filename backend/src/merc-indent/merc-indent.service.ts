@@ -100,6 +100,7 @@ export class MercIndentService implements OnModuleInit {
         ALTER TABLE "merc_indent_pending" ADD COLUMN IF NOT EXISTS "customer_name" VARCHAR;
         ALTER TABLE "merc_indent_pending" ADD COLUMN IF NOT EXISTS "layout_number" VARCHAR;
         ALTER TABLE "merc_indent_pending" ADD COLUMN IF NOT EXISTS "merc_current_state" VARCHAR DEFAULT 'STORES_PENDING';
+        ALTER TABLE "merc_indent_pending" ADD COLUMN IF NOT EXISTS "is_deleted" BOOLEAN DEFAULT false;
       `);
 
       await this.dataSource.query(`
@@ -143,6 +144,7 @@ export class MercIndentService implements OnModuleInit {
         ALTER TABLE "merc_indent_line_items" ADD COLUMN IF NOT EXISTS "rm_bin_id" UUID;
         ALTER TABLE "merc_indent_line_items" ADD COLUMN IF NOT EXISTS "issued_at" TIMESTAMP;
         ALTER TABLE "merc_indent_line_items" ADD COLUMN IF NOT EXISTS "issued_by_id" UUID;
+        ALTER TABLE "merc_indent_line_items" ADD COLUMN IF NOT EXISTS "is_deleted" BOOLEAN DEFAULT false;
       `);
 
       try {
@@ -413,12 +415,13 @@ export class MercIndentService implements OnModuleInit {
   async getAll(): Promise<any[]> {
     try {
       const records = await this.mercIndentPendingRepo.find({
+        where: { isDeleted: false },
         order: { createdAt: 'DESC' },
         relations: { lineItems: true },
       });
 
       return records.map((r) => {
-        const items = r.lineItems || [];
+        const items = (r.lineItems || []).filter((i) => !i.isDeleted);
         const totalItems = items.length;
         const issuedItems = items.filter((i) => i.status === 'ISSUED').length;
 
@@ -441,10 +444,11 @@ export class MercIndentService implements OnModuleInit {
           SELECT p.id, p.indent_number AS "indentNumber", p.po_number AS "poNumber",
                  p.customer_name AS "customerName", p.layout_number AS "layoutNumber",
                  p.status, p.created_at AS "createdAt",
-                 COUNT(li.id) AS "totalItems",
-                 COUNT(CASE WHEN li.status = 'ISSUED' THEN 1 END) AS "issuedItems"
+                 COUNT(CASE WHEN COALESCE(li.is_deleted, false) = false AND li.id IS NOT NULL THEN 1 END) AS "totalItems",
+                 COUNT(CASE WHEN COALESCE(li.is_deleted, false) = false AND li.status = 'ISSUED' THEN 1 END) AS "issuedItems"
           FROM "merc_indent_pending" p
           LEFT JOIN "merc_indent_line_items" li ON li.merc_indent_pending_id = p.id
+          WHERE COALESCE(p.is_deleted, false) = false
           GROUP BY p.id, p.indent_number, p.po_number, p.customer_name, p.layout_number, p.status, p.created_at
           ORDER BY p.created_at DESC
         `);
@@ -472,7 +476,7 @@ export class MercIndentService implements OnModuleInit {
    */
   async getOne(id: string): Promise<any> {
     const record = await this.mercIndentPendingRepo.findOne({
-      where: { id },
+      where: { id, isDeleted: false },
       relations: {
         lineItems: {
           rmProduct: true,
@@ -490,6 +494,9 @@ export class MercIndentService implements OnModuleInit {
     if (!record) {
       throw new NotFoundException(`MERC indent record not found with id "${id}"`);
     }
+
+    // Filter out deleted line items
+    record.lineItems = (record.lineItems || []).filter((i) => !i.isDeleted);
 
     const productIdsWithRm = (record.lineItems || [])
       .map((item) => item.rmProductId)
@@ -532,7 +539,7 @@ export class MercIndentService implements OnModuleInit {
    */
   async getFullDetail(id: string): Promise<any> {
     const record = await this.mercIndentPendingRepo.findOne({
-      where: { id },
+      where: { id, isDeleted: false },
       relations: {
         lineItems: {
           rmProduct: true,
@@ -550,6 +557,9 @@ export class MercIndentService implements OnModuleInit {
     if (!record) {
       throw new NotFoundException(`MERC indent record not found with id "${id}"`);
     }
+
+    // Filter out deleted line items
+    record.lineItems = (record.lineItems || []).filter((i) => !i.isDeleted);
 
     // 1. Bulk fetch all active products
     const allProducts = await this.productRepo.find({
@@ -702,8 +712,8 @@ export class MercIndentService implements OnModuleInit {
   async getItemDetail(id: string, itemId: string): Promise<MercIndentItemDetailResponse> {
     const lineItem = await this.mercIndentLineItemRepo.findOne({
       where: [
-        { id: itemId, mercIndentPendingId: id },
-        { id: itemId },
+        { id: itemId, mercIndentPendingId: id, isDeleted: false },
+        { id: itemId, isDeleted: false },
       ],
       relations: {
         rmProduct: true,
@@ -845,8 +855,8 @@ export class MercIndentService implements OnModuleInit {
       // 1. Fetch line item with pessimistic write lock
       const foundItem = await queryRunner.manager.findOne(MercIndentLineItem, {
         where: [
-          { id: itemId, mercIndentPendingId: id },
-          { id: itemId },
+          { id: itemId, mercIndentPendingId: id, isDeleted: false },
+          { id: itemId, isDeleted: false },
         ],
         lock: { mode: 'pessimistic_write' },
       });
@@ -943,7 +953,7 @@ export class MercIndentService implements OnModuleInit {
 
       // 6. Recount all line items for this merc_indent_pending
       const allItems = await queryRunner.manager.find(MercIndentLineItem, {
-        where: { mercIndentPendingId: pendingRecord.id },
+        where: { mercIndentPendingId: pendingRecord.id, isDeleted: false },
       });
 
       const allIssued = allItems.every((item) => item.status === 'ISSUED');
@@ -1561,6 +1571,131 @@ export class MercIndentService implements OnModuleInit {
       success: true,
       message: `MERC indent ${pendingRecord.indentNumber} marked as ISSUED`,
       indent: pendingRecord,
+    };
+  }
+
+  /**
+   * Soft-deletes a single line item from a MERC indent.
+   * If all active line items in the indent are deleted, marks the parent indent as deleted.
+   * Otherwise, recalculates the parent indent's status based on remaining items.
+   */
+  async deleteLineItem(
+    indentId: string,
+    itemId: string,
+    currentUser?: any,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    indentDeleted: boolean;
+    remainingItems: number;
+  }> {
+    const lineItem = await this.mercIndentLineItemRepo.findOne({
+      where: [
+        { id: itemId, mercIndentPendingId: indentId, isDeleted: false },
+        { id: itemId, isDeleted: false },
+      ],
+    });
+
+    if (!lineItem) {
+      throw new NotFoundException(`Line item "${itemId}" not found or already deleted`);
+    }
+
+    const parentId = lineItem.mercIndentPendingId || indentId;
+    const parentIndent = await this.mercIndentPendingRepo.findOne({
+      where: { id: parentId },
+    });
+
+    if (!parentIndent) {
+      throw new NotFoundException(`Parent MERC indent record not found for line item "${itemId}"`);
+    }
+
+    lineItem.isDeleted = true;
+    await this.mercIndentLineItemRepo.save(lineItem);
+    this.logger.log(`Deleted MERC indent line item "${itemId}" (${lineItem.name}) by user ${currentUser?.id || 'Unknown'}`);
+
+    // Query remaining non-deleted line items
+    const remainingItems = await this.mercIndentLineItemRepo.find({
+      where: { mercIndentPendingId: parentId, isDeleted: false },
+    });
+
+    let indentDeleted = false;
+    if (remainingItems.length === 0) {
+      // If no active line items remain in this indent, mark the indent as deleted as well
+      parentIndent.isDeleted = true;
+      parentIndent.status = 'CANCELLED';
+      await this.mercIndentPendingRepo.save(parentIndent);
+      indentDeleted = true;
+      this.logger.log(`MERC indent "${parentIndent.indentNumber}" has no remaining line items; marked as deleted.`);
+    } else {
+      // Recalculate parent indent status
+      const allIssued = remainingItems.every((item) => item.status === 'ISSUED');
+      const anyIssued = remainingItems.some(
+        (item) => item.status === 'ISSUED' || Number(item.quantityIssued) > 0,
+      );
+      parentIndent.status = allIssued ? 'ISSUED' : anyIssued ? 'PARTIAL' : 'PENDING';
+      await this.mercIndentPendingRepo.save(parentIndent);
+    }
+
+    if (this.notificationsGateway?.server) {
+      this.notificationsGateway.server.emit('notification', {
+        type: 'MERC_INDENT',
+        message: indentDeleted
+          ? `MERC indent ${parentIndent.indentNumber} removed (all items deleted)`
+          : `Line item ${lineItem.name} removed from MERC indent ${parentIndent.indentNumber}`,
+      });
+    }
+
+    return {
+      success: true,
+      message: indentDeleted
+        ? 'Line item deleted. Indent has no remaining items and was removed.'
+        : 'Line item deleted successfully.',
+      indentDeleted,
+      remainingItems: remainingItems.length,
+    };
+  }
+
+  /**
+   * Soft-deletes an entire MERC indent along with all its line items.
+   */
+  async deleteIndent(
+    indentId: string,
+    currentUser?: any,
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    const parentIndent = await this.mercIndentPendingRepo.findOne({
+      where: { id: indentId, isDeleted: false },
+      relations: { lineItems: true },
+    });
+
+    if (!parentIndent) {
+      throw new NotFoundException(`MERC indent "${indentId}" not found or already deleted`);
+    }
+
+    parentIndent.isDeleted = true;
+    parentIndent.status = 'CANCELLED';
+    await this.mercIndentPendingRepo.save(parentIndent);
+
+    // Mark all associated line items as deleted
+    await this.mercIndentLineItemRepo.update(
+      { mercIndentPendingId: indentId },
+      { isDeleted: true },
+    );
+
+    this.logger.log(`Deleted MERC indent "${parentIndent.indentNumber}" (ID: ${indentId}) and all line items by user ${currentUser?.id || 'Unknown'}`);
+
+    if (this.notificationsGateway?.server) {
+      this.notificationsGateway.server.emit('notification', {
+        type: 'MERC_INDENT',
+        message: `MERC indent ${parentIndent.indentNumber} deleted.`,
+      });
+    }
+
+    return {
+      success: true,
+      message: `MERC indent "${parentIndent.indentNumber}" deleted successfully.`,
     };
   }
 }

@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   RefreshCw,
   ChevronRight,
+  Trash2,
 } from 'lucide-react';
 import { APP_CONFIG } from '../../app/config';
 import { mercIndentService } from '../../services/mercIndent.service';
@@ -39,6 +40,34 @@ export function MercIndentIssue() {
   });
 
   const indents: MercIndentSummary[] = Array.isArray(rawIndents) ? rawIndents : [];
+  const [deletingIndentId, setDeletingIndentId] = useState<string | null>(null);
+
+  const handleDeleteIndent = async (indent: MercIndentSummary) => {
+    const details = [
+      indent.indentNumber ? `Indent: ${indent.indentNumber}` : null,
+      indent.poNumber ? `PO: ${indent.poNumber}` : null,
+      indent.customerName ? `Customer: ${indent.customerName}` : null,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete this MERC indent?\n${details}\n\nAll line items in this indent will be removed from the stores queue.`
+    );
+    if (!confirmed) return;
+
+    setDeletingIndentId(indent.id);
+    try {
+      await mercIndentService.deleteMercIndent(indent.id);
+      toast.success(`MERC indent "${indent.indentNumber}" deleted successfully.`);
+      await queryClient.invalidateQueries({ queryKey: ['merc-indents'] });
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to delete MERC indent');
+    } finally {
+      setDeletingIndentId(null);
+    }
+  };
 
   const handleSyncAndRefresh = async () => {
     try {
@@ -188,28 +217,39 @@ export function MercIndentIssue() {
       render: (row) => {
         const isFullyIssued = row?.status === 'ISSUED';
         return (
-          <Button
-            size="sm"
-            variant={isFullyIssued ? 'secondary' : 'primary'}
-            onClick={() => navigate(`/governance/merc-indents/${row.id}`)}
-            className={`flex items-center gap-1.5 text-xs font-semibold ${
-              isFullyIssued
-                ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-            }`}
-          >
-            {isFullyIssued ? (
-              <>
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                View Detail
-              </>
-            ) : (
-              <>
-                View &amp; Issue
-                <ChevronRight className="w-3.5 h-3.5" />
-              </>
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={isFullyIssued ? 'secondary' : 'primary'}
+              onClick={() => navigate(`/governance/merc-indents/${row.id}`)}
+              className={`flex items-center gap-1.5 text-xs font-semibold ${
+                isFullyIssued
+                  ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+              }`}
+            >
+              {isFullyIssued ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                  View Detail
+                </>
+              ) : (
+                <>
+                  View &amp; Issue
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </>
+              )}
+            </Button>
+            <button
+              type="button"
+              onClick={() => handleDeleteIndent(row)}
+              disabled={deletingIndentId === row.id}
+              className="p-1.5 rounded-lg border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:border-red-300 dark:hover:border-red-800 transition-colors cursor-pointer"
+              title="Delete Indent"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         );
       },
     },

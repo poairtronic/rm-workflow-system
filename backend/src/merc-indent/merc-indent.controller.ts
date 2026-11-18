@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Param,
   Req,
@@ -155,6 +156,39 @@ export class MercIndentController {
     @Req() req: any,
   ) {
     return this.mercIndentService.closeMercIndent(id, req.user);
+  }
+
+  @Delete('merc-indents/:id/items/:itemId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.PRODUCTION,
+    UserRole.GENERAL_MANAGER,
+    UserRole.SENIOR_MANAGER,
+  )
+  async deleteLineItem(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Req() req: any,
+  ) {
+    return this.mercIndentService.deleteLineItem(id, itemId, req.user);
+  }
+
+  @Delete('merc-indents/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.PRODUCTION,
+    UserRole.GENERAL_MANAGER,
+    UserRole.SENIOR_MANAGER,
+  )
+  async deleteIndent(
+    @Param('id') id: string,
+    @Req() req: any,
+  ) {
+    return this.mercIndentService.deleteIndent(id, req.user);
   }
 }
 

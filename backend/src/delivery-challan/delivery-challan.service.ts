@@ -949,6 +949,8 @@ export class DeliveryChallanService {
         JOIN merc_indent_pending mip ON mili.merc_indent_pending_id = mip.id
         WHERE UPPER(REGEXP_REPLACE(TRIM(COALESCE(mip.po_number, '')), '\\s+', ' ', 'g')) = $1
           AND mili.merc_item_id = $2
+          AND COALESCE(mili.is_deleted, false) = false
+          AND COALESCE(mip.is_deleted, false) = false
         LIMIT 1;
         `,
         [normPo, mercItemId],
@@ -1422,6 +1424,7 @@ export class DeliveryChallanService {
         '(LOWER(TRIM(p.po_number)) = LOWER(:po) OR LOWER(TRIM(p.layout_number)) = LOWER(:po) OR LOWER(p.po_number) LIKE LOWER(:likePo) OR LOWER(p.layout_number) LIKE LOWER(:likePo) OR LOWER(p.indent_number) LIKE LOWER(:likePo))',
         { po: trimmedPo, likePo: `%${trimmedPo}%` },
       )
+      .andWhere('COALESCE(p.is_deleted, false) = false')
       .getOne();
 
     if (!indent) {
@@ -1431,7 +1434,7 @@ export class DeliveryChallanService {
     // 2. Fetch all merc_indent_line_items for this indent ordered by created_at ASC
     const lineItemRepo = this.getLineItemRepo();
     const lineItems = await lineItemRepo.find({
-      where: { mercIndentPendingId: indent.id },
+      where: { mercIndentPendingId: indent.id, isDeleted: false },
       order: { createdAt: 'ASC' },
     });
 
