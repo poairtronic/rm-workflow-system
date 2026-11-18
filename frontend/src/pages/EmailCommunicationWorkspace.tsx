@@ -179,12 +179,16 @@ export function EmailCommunicationWorkspace() {
     ? metrics.systemHealth === 'HEALTHY'
     : (latestLogSent || (successMs > 0 && successMs >= failureMs) || failedJobs === 0);
 
-  // Recent success rate (based on current operational window)
-  const recentLogs = logs.slice(0, 20);
-  const recentSent = recentLogs.filter(l => l.status === 'SENT').length;
-  const successRate = recentLogs.length > 0
-    ? Math.round((recentSent / recentLogs.length) * 100)
-    : (isHealthy ? 100 : 0);
+  const isPaused = Boolean(metrics?.pausedUntil && new Date(metrics.pausedUntil).getTime() > Date.now());
+  const providerDisplayStatus = isPaused
+    ? `RATE_LIMITED (until ${new Date(metrics!.pausedUntil!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`
+    : (metrics?.providerStatus || (isHealthy ? 'operational' : 'degraded'));
+
+  // Server-side authoritative success rate: sent / (sent + failed)
+  const totalDecided = sentJobs + failedJobs;
+  const successRate = metrics?.successRate !== undefined
+    ? metrics.successRate
+    : (totalDecided > 0 ? Math.round((sentJobs / totalDecided) * 100) : (isHealthy ? 100 : 0));
 
   return (
     <div className="space-y-6 w-full pb-16">
@@ -253,15 +257,15 @@ export function EmailCommunicationWorkspace() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* 1. System Health */}
           <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
-            <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider mb-2 ${isHealthy ? 'text-emerald-600' : 'text-amber-500'}`}>
+            <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider mb-2 ${isPaused ? 'text-amber-500' : isHealthy ? 'text-emerald-600' : 'text-rose-500'}`}>
               <Radio className="w-4 h-4" />
               System Health
             </div>
-            <div className={`text-2xl font-black tracking-tight ${isHealthy ? 'text-emerald-600' : 'text-amber-500'}`}>
-              {isHealthy ? 'HEALTHY' : 'DEGRADED'}
+            <div className={`text-2xl font-black tracking-tight ${isPaused ? 'text-amber-500' : isHealthy ? 'text-emerald-600' : 'text-rose-500'}`}>
+              {isPaused ? 'RATE LIMITED' : isHealthy ? 'HEALTHY' : 'DEGRADED'}
             </div>
             <p className="text-xs text-slate-400 mt-2 font-medium">
-              Provider: <span className="font-semibold text-slate-700">GMAIL-API ({isHealthy ? 'operational' : 'degraded'})</span>
+              Provider: <span className="font-semibold text-slate-700">GMAIL-API ({providerDisplayStatus})</span>
             </p>
           </div>
 

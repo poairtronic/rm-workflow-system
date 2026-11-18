@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException, ForbiddenException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, In } from 'typeorm';
+import { Repository, DataSource, In, MoreThanOrEqual } from 'typeorm';
 import { EmailJob } from './entities/email-job.entity.js';
 import { EmailJobStatus } from './enums/email-job-status.enum.js';
 import { EmailProvider } from './enums/email-provider.enum.js';
@@ -298,6 +298,7 @@ export class EmailQueueService {
    * Evaluates attempts vs maxAttempts to transition to RETRYING or FAILED.
    * Calculates exponential backoff delay capped by maxBackoffSeconds.
    * Supports explicit terminal failure via isTerminal flag.
+   * Handles rate-limit deferrals with Retry-After timestamp parsing and no attempts consumed.
    */
   async markFailed(
     jobId: string,
@@ -306,6 +307,8 @@ export class EmailQueueService {
     retryBackoffSeconds: number = 60,
     isTerminal: boolean = false,
     maxBackoffSeconds: number = 3600,
+    isRateLimited: boolean = false,
+    retryAfterDate: Date | null = null,
   ): Promise<EmailJob> {
     const job = await this.emailJobRepository.findOne({ where: { id: jobId } });
     if (!job) {
@@ -325,7 +328,60 @@ export class EmailQueueService {
       job.attempts = 1;
     }
 
-    if (isTerminal || job.attempts >= job.maxAttempts) {
+    // 1. Detect rate-limit error (HTTP 429, or message matches /rate limit/i)
+    const detectedRateLimit =
+      isRateLimited ||
+      /rate limit/i.test(errorMessage) ||
+      /user-rate limit/i.test(errorMessage) ||
+      /429/i.test(errorMessage);
+
+    if (detectedRateLimit && !isTerminal) {
+      let parsedRetryAfter = retryAfterDate;
+      if (!parsedRetryAfter) {
+        const match = errorMessage.match(/Retry after (\d{4}-\d{2}-\d{2}T[\d:.]+Z)/i);
+        if (match && match[1]) {
+          const parsed = new Date(match[1]);
+          if (!isNaN(parsed.getTime())) {
+            parsedRetryAfter = parsed;
+          }
+        }
+      }
+
+      // Rate-limit deferrals must NOT increment attempts toward maxAttempts.
+      job.attempts = Math.max(0, job.attempts - 1);
+
+      // Cap by job age (EMAIL_MAX_JOB_AGE_HOURS, default 24) instead.
+      const maxJobAgeHours = Number(process.env.EMAIL_MAX_JOB_AGE_HOURS || 24);
+      const createdAtMs = job.createdAt ? new Date(job.createdAt).getTime() : Date.now();
+      const jobAgeMs = Date.now() - createdAtMs;
+
+      if (jobAgeMs > maxJobAgeHours * 60 * 60 * 1000) {
+        job.status = EmailJobStatus.FAILED;
+        job.nextRetryAt = null;
+        job.lastError = `Job expired: exceeded maximum age of ${maxJobAgeHours}h under rate limiting`;
+      } else {
+        job.status = EmailJobStatus.RETRYING;
+        // next_retry_at = max(parsedTime + 5s, existing backoff). Fallback if unparseable: now + 15 min.
+        const baseDelay = Math.max(1, retryBackoffSeconds);
+        const exponent = Math.max(0, job.attempts - 1);
+        const calculatedDelay = Math.min(
+          Math.max(baseDelay, maxBackoffSeconds),
+          baseDelay * Math.pow(2, exponent),
+        );
+        const existingBackoffDate = new Date(Date.now() + calculatedDelay * 1000);
+
+        let parsedTimePlus5s: Date;
+        if (parsedRetryAfter) {
+          parsedTimePlus5s = new Date(parsedRetryAfter.getTime() + 5000);
+        } else {
+          parsedTimePlus5s = new Date(Date.now() + 15 * 60 * 1000);
+        }
+
+        job.nextRetryAt = new Date(
+          Math.max(parsedTimePlus5s.getTime(), existingBackoffDate.getTime()),
+        );
+      }
+    } else if (isTerminal || job.attempts >= job.maxAttempts) {
       job.status = EmailJobStatus.FAILED;
       job.nextRetryAt = null;
     } else {
@@ -340,6 +396,70 @@ export class EmailQueueService {
     }
 
     return await this.emailJobRepository.save(job);
+  }
+
+  /**
+   * Releases an entire batch of claimed jobs back to PENDING when a rate limit is hit.
+   * Decrements attempts so no attempt is consumed, and sets next_retry_at = pausedUntil.
+   */
+  async releaseClaimBatchAfterRateLimit(
+    jobIds: string[],
+    workerId: string,
+    nextRetryAt: Date,
+  ): Promise<void> {
+    if (!jobIds || jobIds.length === 0) return;
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      await queryRunner.query(
+        `
+        UPDATE "email_jobs"
+        SET "status" = $1,
+            "locked_at" = NULL,
+            "locked_by" = NULL,
+            "attempts" = GREATEST(0, "attempts" - 1),
+            "next_retry_at" = $2,
+            "updated_at" = NOW()
+        WHERE "id" = ANY($3) AND "locked_by" = $4
+        `,
+        [EmailJobStatus.PENDING, nextRetryAt, jobIds, workerId],
+      );
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  /**
+   * Retrieves count of SENT email jobs within the last 24 hours.
+   */
+  async getSentCountLast24Hours(): Promise<number> {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    return await this.emailJobRepository.count({
+      where: {
+        status: EmailJobStatus.SENT,
+        sentAt: MoreThanOrEqual(cutoff),
+      },
+    });
+  }
+
+  /**
+   * Retrieves earliest sentAt timestamp among jobs sent within the last 24 hours.
+   */
+  async getEarliestSentInLast24Hours(): Promise<Date | null> {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const earliestJob = await this.emailJobRepository.findOne({
+      where: {
+        status: EmailJobStatus.SENT,
+        sentAt: MoreThanOrEqual(cutoff),
+      },
+      order: { sentAt: 'ASC' },
+    });
+    return earliestJob?.sentAt ? new Date(earliestJob.sentAt) : null;
   }
 
   /**

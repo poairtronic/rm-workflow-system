@@ -10,6 +10,8 @@ export class TestEmailProvider implements IEmailProvider {
   public sentMessages: EmailDeliveryMessage[] = [];
   public shouldFailRetryable: boolean = false;
   public shouldFailNonRetryable: boolean = false;
+  public shouldSimulateRateLimit: boolean = false;
+  public rateLimitRetryAfterDate?: Date;
   public isUnavailable: boolean = false;
   public customErrorMessage?: string;
   public customMessageIdPrefix: string = 'test-msg';
@@ -17,6 +19,18 @@ export class TestEmailProvider implements IEmailProvider {
   private messageCounter: number = 0;
 
   async send(message: EmailDeliveryMessage): Promise<EmailDeliveryResult> {
+    if (this.shouldSimulateRateLimit) {
+      const retryDate = this.rateLimitRetryAfterDate || new Date(Date.now() + 15 * 60 * 1000);
+      const isoStr = retryDate.toISOString();
+      return {
+        success: false,
+        error: this.customErrorMessage || `User-rate limit exceeded. Retry after ${isoStr} (Mail sending)`,
+        retryable: true,
+        isRateLimited: true,
+        retryAfterDate: retryDate,
+      };
+    }
+
     if (this.isUnavailable) {
       return {
         success: false,
@@ -58,6 +72,8 @@ export class TestEmailProvider implements IEmailProvider {
     this.sentMessages = [];
     this.shouldFailRetryable = false;
     this.shouldFailNonRetryable = false;
+    this.shouldSimulateRateLimit = false;
+    this.rateLimitRetryAfterDate = undefined;
     this.isUnavailable = false;
     this.customErrorMessage = undefined;
     this.messageCounter = 0;

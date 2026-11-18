@@ -31,6 +31,9 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
   public retryBackoffSeconds: number = 60;
   public maxRetryBackoffSeconds: number = 3600;
   public shutdownTimeoutMs: number = 10000;
+  public sendIntervalMs: number = 3000;
+  public dailyLimit: number = 400;
+  public pausedUntil: Date | null = null;
 
   private isRunning: boolean = false;
   private isPolling: boolean = false;
@@ -38,6 +41,7 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
   private timerHandle: NodeJS.Timeout | null = null;
   private activeProcessingPromise: Promise<void> | null = null;
   private currentPollIntervalMs: number = 5000;
+  private lastSendTimestamp: number = 0;
 
   constructor(
     private readonly emailQueueService: EmailQueueService,
@@ -83,7 +87,35 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
         this.configService.get('EMAIL_WORKER_SHUTDOWN_TIMEOUT_MS') ||
           this.shutdownTimeoutMs,
       );
+      this.sendIntervalMs = Number(
+        this.configService.get('EMAIL_SEND_INTERVAL_MS') ||
+          process.env.EMAIL_SEND_INTERVAL_MS ||
+          this.sendIntervalMs,
+      );
+      this.dailyLimit = Number(
+        this.configService.get('EMAIL_DAILY_LIMIT') ||
+          process.env.EMAIL_DAILY_LIMIT ||
+          this.dailyLimit,
+      );
       this.currentPollIntervalMs = this.pollIntervalMs;
+    }
+  }
+
+  public getPausedUntil(): Date | null {
+    return this.pausedUntil;
+  }
+
+  public setPausedUntil(until: Date | null): void {
+    this.pausedUntil = until;
+  }
+
+  private async enforcePacing(): Promise<void> {
+    if (this.sendIntervalMs <= 0) return;
+    const now = Date.now();
+    const elapsed = now - this.lastSendTimestamp;
+    if (this.lastSendTimestamp > 0 && elapsed < this.sendIntervalMs) {
+      const waitMs = this.sendIntervalMs - elapsed;
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
     }
   }
 
@@ -169,12 +201,47 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
       return 0;
     }
 
+    // 1. Check Global Rate-Limit Pause
+    if (this.pausedUntil) {
+      if (this.pausedUntil.getTime() > Date.now()) {
+        this.logger.warn(
+          `Worker ${this.workerId} paused due to provider rate limit until ${this.pausedUntil.toISOString()}`,
+        );
+        return 0;
+      } else {
+        this.logger.log(
+          `Worker ${this.workerId} rate-limit pause expired (${this.pausedUntil.toISOString()}). Resuming normal operations.`,
+        );
+        this.pausedUntil = null;
+      }
+    }
+
+    // 2. Check Daily Budget Guard (EMAIL_DAILY_LIMIT, default 400 in last 24h)
+    if (this.dailyLimit > 0) {
+      try {
+        const sentLast24h = await this.emailQueueService.getSentCountLast24Hours();
+        if (sentLast24h >= this.dailyLimit) {
+          const earliest = await this.emailQueueService.getEarliestSentInLast24Hours();
+          const resumeAt = earliest
+            ? new Date(earliest.getTime() + 24 * 60 * 60 * 1000 + 5000)
+            : new Date(Date.now() + 60 * 60 * 1000);
+          this.logger.warn(
+            `Daily email budget reached (${sentLast24h}/${this.dailyLimit} in 24h). Deferring queue until ${resumeAt.toISOString()}`,
+          );
+          this.pausedUntil = resumeAt;
+          return 0;
+        }
+      } catch (budgetErr) {
+        this.logger.warn(`Failed checking daily email budget: ${this.sanitizeLog(String(budgetErr))}`);
+      }
+    }
+
     this.isPolling = true;
     let processedCount = 0;
     let hasClaimedJobs = false;
 
     try {
-      // 1. Recover stale jobs locked by crashed workers
+      // 3. Recover stale jobs locked by crashed workers
       try {
         const recoveredCount = await this.emailQueueService.recoverStaleJobs(
           this.staleThresholdSeconds,
@@ -188,7 +255,7 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
         this.logger.warn(`Stale job recovery failed: ${this.sanitizeLog(String(staleErr))}`);
       }
 
-      // 2. Claim batch of eligible jobs via FOR UPDATE SKIP LOCKED
+      // 4. Claim batch of eligible jobs via FOR UPDATE SKIP LOCKED
       const claimedJobs = await this.emailQueueService.claimJobs(
         this.batchSize,
         this.workerId,
@@ -202,15 +269,47 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
       this.currentPollIntervalMs = this.pollIntervalMs;
       this.logger.log(`Claimed ${claimedJobs.length} email job(s) for worker ${this.workerId}`);
 
-      // 3. Process claimed jobs sequentially within batch
-      for (const job of claimedJobs) {
+      // 5. Process claimed jobs sequentially with pacing delay
+      for (let i = 0; i < claimedJobs.length; i++) {
+        const job = claimedJobs[i];
         if (!this.isRunning) {
           await this.emailQueueService.releaseClaim(job.id, this.workerId);
           continue;
         }
 
-        await this.processSingleJob(job);
+        // Pacing delay (EMAIL_SEND_INTERVAL_MS, default 3000ms)
+        await this.enforcePacing();
+
+        const processResult = await this.processSingleJob(job);
         processedCount++;
+
+        if (processResult?.isRateLimited) {
+          const retryAfter = processResult.retryAfterDate || new Date(Date.now() + 15 * 60 * 1000);
+          const pauseDate = new Date(retryAfter.getTime() + 5000);
+          this.pausedUntil = pauseDate;
+          this.logger.warn(
+            `Rate limit hit on EmailJob ${job.id}. Global worker pause activated until ${pauseDate.toISOString()}`,
+          );
+
+          // Release remaining jobs in this batch back to PENDING (no attempt consumed)
+          const remainingJobs = claimedJobs.slice(i + 1);
+          if (remainingJobs.length > 0) {
+            const remainingIds = remainingJobs.map((j) => j.id);
+            try {
+              await this.emailQueueService.releaseClaimBatchAfterRateLimit(
+                remainingIds,
+                this.workerId,
+                pauseDate,
+              );
+              this.logger.log(
+                `Released ${remainingIds.length} claimed job(s) back to PENDING deferred until ${pauseDate.toISOString()}`,
+              );
+            } catch (releaseErr) {
+              this.logger.error(`Failed releasing claimed jobs on rate limit: ${releaseErr}`);
+            }
+          }
+          break; // Stop processing current batch immediately
+        }
       }
     } catch (err) {
       this.logger.error(`Error in worker pollTick cycle: ${this.sanitizeLog(String(err))}`);
@@ -230,7 +329,11 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
     return processedCount;
   }
 
-  public async processSingleJob(job: EmailJob): Promise<void> {
+  public async processSingleJob(job: EmailJob): Promise<{
+    success: boolean;
+    isRateLimited?: boolean;
+    retryAfterDate?: Date | null;
+  }> {
     this.logger.log(`Processing EmailJob ${job.id} (attempt ${job.attempts}/${job.maxAttempts}) to ${job.recipientEmail}`);
 
     try {
@@ -252,6 +355,7 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
 
       // Step C: Invoke provider abstraction (NO DB transaction held during external call)
       const result = await this.emailProvider.send(deliveryMessage);
+      this.lastSendTimestamp = Date.now();
 
       // Step D: Record result in PostgreSQL
       if (result.success) {
@@ -271,10 +375,17 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
           );
         }
         this.logger.log(`Successfully sent EmailJob ${job.id} (providerMsgId: ${result.providerMessageId || 'N/A'})`);
+        return { success: true };
       } else {
         const isRetryable = result.retryable !== false;
         const errorMsg = this.sanitizeLog(result.error || 'Provider delivery failed');
         const isTerminal = !isRetryable;
+        const isRateLimited = Boolean(
+          result.isRateLimited ||
+          /rate limit/i.test(errorMsg) ||
+          /user-rate limit/i.test(errorMsg) ||
+          /429/i.test(errorMsg),
+        );
 
         await this.emailQueueService.markFailed(
           job.id,
@@ -283,10 +394,12 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
           this.retryBackoffSeconds,
           isTerminal,
           this.maxRetryBackoffSeconds,
+          isRateLimited,
+          result.retryAfterDate,
         );
 
         if (this.auditService) {
-          const auditStatus = (isTerminal || job.attempts >= job.maxAttempts)
+          const auditStatus = (isTerminal || job.attempts >= job.maxAttempts) && !isRateLimited
             ? EmailJobStatus.FAILED
             : EmailJobStatus.RETRYING;
           await this.auditService.recordAttempt(
@@ -295,21 +408,31 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
             auditStatus,
             null,
             errorMsg,
-            null,
+            isRateLimited ? 'RATE_LIMITED' : null,
           );
         }
 
         if (isTerminal) {
           this.logger.warn(`EmailJob ${job.id} permanently failed: ${errorMsg}`);
+        } else if (isRateLimited) {
+          this.logger.warn(`EmailJob ${job.id} deferred due to rate limit: ${errorMsg}`);
         } else {
           this.logger.warn(`EmailJob ${job.id} delivery failed (retryable): ${errorMsg}`);
         }
+
+        return {
+          success: false,
+          isRateLimited,
+          retryAfterDate: result.retryAfterDate,
+        };
       }
     } catch (err) {
+      this.lastSendTimestamp = Date.now();
       const isMalformed = err instanceof MalformedJobException;
       const errorMsg = this.sanitizeLog(
         err instanceof Error ? err.message : String(err),
       );
+      const isRateLimited = /rate limit/i.test(errorMsg) || /429/i.test(errorMsg);
 
       await this.emailQueueService.markFailed(
         job.id,
@@ -318,10 +441,11 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
         this.retryBackoffSeconds,
         isMalformed,
         this.maxRetryBackoffSeconds,
+        isRateLimited,
       );
 
       if (this.auditService) {
-        const auditStatus = (isMalformed || job.attempts >= job.maxAttempts)
+        const auditStatus = (isMalformed || job.attempts >= job.maxAttempts) && !isRateLimited
           ? EmailJobStatus.FAILED
           : EmailJobStatus.RETRYING;
         await this.auditService.recordAttempt(
@@ -330,13 +454,18 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
           auditStatus,
           null,
           errorMsg,
-          isMalformed ? 'MALFORMED_JOB' : 'RUNTIME_ERROR',
+          isMalformed ? 'MALFORMED_JOB' : isRateLimited ? 'RATE_LIMITED' : 'RUNTIME_ERROR',
         );
       }
 
       this.logger.error(
         `Failed processing EmailJob ${job.id} (${isMalformed ? 'MALFORMED/TERMINAL' : 'RUNTIME_ERROR'}): ${errorMsg}`,
       );
+
+      return {
+        success: false,
+        isRateLimited,
+      };
     }
   }
 

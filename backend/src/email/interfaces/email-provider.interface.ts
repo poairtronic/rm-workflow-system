@@ -15,6 +15,8 @@ export interface EmailDeliveryResult {
   providerMessageId?: string;
   error?: string;
   retryable?: boolean;
+  isRateLimited?: boolean;
+  retryAfterDate?: Date | null;
 }
 
 export interface IEmailProvider {

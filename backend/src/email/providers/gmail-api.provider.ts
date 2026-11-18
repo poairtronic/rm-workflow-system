@@ -237,6 +237,26 @@ export class GmailApiProvider implements IEmailProvider {
       const isRetryable = this.determineRetryable(statusCode, error);
       let sanitizedError = this.maskSecrets(rawErrorMessage);
 
+      const codeNum = Number(statusCode);
+      const isRateLimited =
+        codeNum === 429 ||
+        /rate limit/i.test(rawErrorMessage) ||
+        /user-rate limit/i.test(rawErrorMessage);
+
+      let retryAfterDate: Date | null = null;
+      if (isRateLimited) {
+        const match = rawErrorMessage.match(/Retry after (\d{4}-\d{2}-\d{2}T[\d:.]+Z)/i);
+        if (match && match[1]) {
+          const parsed = new Date(match[1]);
+          if (!isNaN(parsed.getTime())) {
+            retryAfterDate = parsed;
+          }
+        }
+        if (!retryAfterDate) {
+          retryAfterDate = new Date(Date.now() + 15 * 60 * 1000);
+        }
+      }
+
       const errDescription = error?.response?.data?.error_description || '';
       const errType = error?.response?.data?.error || '';
       if (
@@ -255,6 +275,8 @@ export class GmailApiProvider implements IEmailProvider {
         success: false,
         error: sanitizedError,
         retryable: isRetryable,
+        isRateLimited,
+        retryAfterDate,
       };
     }
   }

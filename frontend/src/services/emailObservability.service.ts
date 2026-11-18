@@ -7,6 +7,10 @@ export interface EmailQueueObservabilitySummary {
   failed: number;
   sent: number;
   sentToday: number;
+  sentLast24h?: number;
+  dailyLimit?: number;
+  successRate?: number;
+  pausedUntil?: string | null;
   total: number;
   lastSuccessfulSend: {
     timestamp: string | null;
@@ -20,7 +24,7 @@ export interface EmailQueueObservabilitySummary {
     eventType?: string | null;
   } | null;
   systemHealth?: 'HEALTHY' | 'DEGRADED';
-  providerStatus?: 'operational' | 'degraded';
+  providerStatus?: string;
   timestamp: string;
 }
 

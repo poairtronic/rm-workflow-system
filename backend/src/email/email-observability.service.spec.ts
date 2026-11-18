@@ -69,6 +69,8 @@ describe('EmailObservabilityService', () => {
     expect(result.sent).toBe(10);
     expect(result.failed).toBe(1);
     expect(result.pending).toBe(2);
+    expect(result.successRate).toBe(91); // Math.round(10 / (10 + 1) * 100) = 91%
+    expect(result.sentLast24h).toBe(5);
     expect(result.systemHealth).toBeDefined();
   });
 });

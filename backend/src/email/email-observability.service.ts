@@ -1,10 +1,11 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable, Optional, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThanOrEqual } from 'typeorm';
 import { EmailJob } from './entities/email-job.entity.js';
 import { EmailLog } from './entities/email-log.entity.js';
 import { EmailJobStatus } from './enums/email-job-status.enum.js';
 import { EmailAuditService } from './email-audit.service.js';
+import { EmailWorkerService } from './email-worker.service.js';
 
 export interface EmailQueueObservabilitySummary {
   pending: number;
@@ -13,6 +14,10 @@ export interface EmailQueueObservabilitySummary {
   failed: number;
   sent: number;
   sentToday: number;
+  sentLast24h: number;
+  dailyLimit: number;
+  successRate: number;
+  pausedUntil: string | null;
   total: number;
   lastSuccessfulSend: {
     timestamp: string | null;
@@ -26,7 +31,7 @@ export interface EmailQueueObservabilitySummary {
     eventType?: string | null;
   } | null;
   systemHealth: 'HEALTHY' | 'DEGRADED';
-  providerStatus: 'operational' | 'degraded';
+  providerStatus: string;
   timestamp: string;
 }
 
@@ -40,6 +45,9 @@ export class EmailObservabilityService {
     @InjectRepository(EmailLog)
     private readonly emailLogRepository: Repository<EmailLog>,
     @Optional() auditService?: EmailAuditService,
+    @Optional()
+    @Inject(forwardRef(() => EmailWorkerService))
+    private readonly emailWorkerService?: EmailWorkerService,
   ) {
     this.auditService = auditService || new EmailAuditService(this.emailLogRepository);
   }
@@ -107,7 +115,20 @@ export class EmailObservabilityService {
       }
     }
 
-    // 2. Fetch Latest Log (Any Status) to determine true real-time operational state
+    // 2b. Calculate emails sent in the last 24 hours
+    let sentLast24h = 0;
+    try {
+      sentLast24h = await this.emailJobRepository.count({
+        where: {
+          status: EmailJobStatus.SENT,
+          sentAt: MoreThanOrEqual(new Date(Date.now() - 24 * 60 * 60 * 1000)),
+        },
+      });
+    } catch {
+      sentLast24h = summaryMap.sent || 0;
+    }
+
+    // 3. Fetch Latest Log (Any Status) to determine true real-time operational state
     let latestLogStatus: EmailJobStatus | null = null;
     try {
       const latestLog = await this.emailLogRepository.findOne({
@@ -207,8 +228,25 @@ export class EmailObservabilityService {
       (lastSuccessMs > 0 && lastSuccessMs >= lastFailureMs) ||
       summaryMap.failed === 0;
 
-    const systemHealth: 'HEALTHY' | 'DEGRADED' = isHealthy ? 'HEALTHY' : 'DEGRADED';
-    const providerStatus: 'operational' | 'degraded' = isHealthy ? 'operational' : 'degraded';
+    const workerPausedUntil = this.emailWorkerService?.getPausedUntil() || null;
+    const isPaused = Boolean(workerPausedUntil && workerPausedUntil.getTime() > Date.now());
+    const pausedUntilStr = workerPausedUntil ? workerPausedUntil.toISOString() : null;
+
+    let systemHealth: 'HEALTHY' | 'DEGRADED' = isHealthy ? 'HEALTHY' : 'DEGRADED';
+    let providerStatus: string;
+
+    if (isPaused) {
+      providerStatus = `RATE_LIMITED (until ${workerPausedUntil!.toISOString()})`;
+      systemHealth = 'DEGRADED';
+    } else {
+      providerStatus = isHealthy ? 'operational' : 'degraded';
+    }
+
+    // Success rate: sent / (sent + failed) from database-aggregated counts
+    const totalDecided = summaryMap.sent + summaryMap.failed;
+    const successRate = totalDecided > 0
+      ? Math.round((summaryMap.sent / totalDecided) * 100)
+      : (isHealthy ? 100 : 0);
 
     return {
       pending: summaryMap.pending,
@@ -217,6 +255,10 @@ export class EmailObservabilityService {
       failed: summaryMap.failed,
       sent: summaryMap.sent,
       sentToday,
+      sentLast24h,
+      dailyLimit: this.emailWorkerService?.dailyLimit || 400,
+      successRate,
+      pausedUntil: pausedUntilStr,
       total: totalJobs,
       systemHealth,
       providerStatus,
