@@ -49,8 +49,8 @@ export class EmailController {
   @Get('observability')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.GENERAL_MANAGER, UserRole.SENIOR_MANAGER)
-  async getObservability(): Promise<EmailQueueObservabilitySummary> {
-    return await this.emailObservabilityService.getQueueObservability();
+  async getObservability(@Query('tz') tz?: string): Promise<EmailQueueObservabilitySummary> {
+    return await this.emailObservabilityService.getQueueObservability(tz);
   }
 
   /**
@@ -59,8 +59,8 @@ export class EmailController {
   @Get('queue/observability')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.GENERAL_MANAGER, UserRole.SENIOR_MANAGER)
-  async getQueueObservability(): Promise<EmailQueueObservabilitySummary> {
-    return await this.emailObservabilityService.getQueueObservability();
+  async getQueueObservability(@Query('tz') tz?: string): Promise<EmailQueueObservabilitySummary> {
+    return await this.emailObservabilityService.getQueueObservability(tz);
   }
 
   /**

@@ -827,7 +827,10 @@ export const emailCommunicationApi = {
       alert: string | null;
       checkedAt: string;
     }>('/api/email/health'),
-  getObservability: () => api.get<any>('/api/email/observability'),
+  getObservability: (tz?: string) => {
+    const userTz = tz || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'Asia/Kolkata');
+    return api.get<any>(`/api/email/observability?tz=${encodeURIComponent(userTz)}`);
+  },
   getLogs: (params: { status?: string; search?: string; limit?: number; offset?: number } = {}) => {
     const q = new URLSearchParams();
     if (params.status && params.status !== 'ALL') q.append('status', params.status);

@@ -238,6 +238,26 @@ export const EmailObservabilityPage: React.FC = () => {
                 Successfully delivered
               </div>
             </div>
+
+            {/* SENT TODAY (24H) */}
+            <div
+              style={{
+                padding: '20px',
+                borderRadius: '8px',
+                backgroundColor: '#1e293b',
+                border: '1px solid #3b82f6',
+              }}
+            >
+              <div style={{ fontSize: '12px', fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase', marginBottom: '8px' }}>
+                Sent Today (24h)
+              </div>
+              <div style={{ fontSize: '32px', fontWeight: 800, color: '#60a5fa' }}>
+                {metrics.sentToday ?? 0}
+              </div>
+              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+                12:00 AM – 12:00 AM (daily reset)
+              </div>
+            </div>
           </div>
 
           {/* Operational Timings Section */}

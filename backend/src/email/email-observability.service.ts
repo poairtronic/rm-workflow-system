@@ -12,6 +12,7 @@ export interface EmailQueueObservabilitySummary {
   retrying: number;
   failed: number;
   sent: number;
+  sentToday: number;
   total: number;
   lastSuccessfulSend: {
     timestamp: string | null;
@@ -47,7 +48,7 @@ export class EmailObservabilityService {
    * Retrieves high-performance database-aggregated metrics for the email queue.
    * Completely read-only with database-side COUNT and ORDER BY LIMIT 1 queries.
    */
-  async getQueueObservability(): Promise<EmailQueueObservabilitySummary> {
+  async getQueueObservability(clientTimezone?: string): Promise<EmailQueueObservabilitySummary> {
     // 1. Single database-side aggregation query for status counts
     const statusCounts = await this.emailJobRepository
       .createQueryBuilder('job')
@@ -71,6 +72,38 @@ export class EmailObservabilityService {
       const statusKey = (row.status || '').toLowerCase();
       if (statusKey in summaryMap) {
         summaryMap[statusKey] = cnt;
+      }
+    }
+
+    // 2. Calculate emails sent today (from 12:00 AM today to 12:00 AM next day, resetting at midnight)
+    let sentToday = 0;
+    const tz =
+      clientTimezone && typeof clientTimezone === 'string' && /^[a-zA-Z0-9_\/+\-]+$/.test(clientTimezone)
+        ? clientTimezone
+        : 'Asia/Kolkata';
+
+    try {
+      const qb = this.emailJobRepository.createQueryBuilder('job');
+      if (typeof qb?.where === 'function' && typeof qb?.getCount === 'function') {
+        sentToday = await qb
+          .where('job.status = :status', { status: EmailJobStatus.SENT })
+          .andWhere(
+            `COALESCE(job.sent_at, job.created_at) >= (((now() AT TIME ZONE :tz)::date)::timestamp AT TIME ZONE :tz)`,
+            { tz },
+          )
+          .getCount();
+      }
+    } catch {
+      try {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        sentToday = await this.emailJobRepository.count({
+          where: {
+            status: EmailJobStatus.SENT,
+          },
+        });
+      } catch {
+        sentToday = 0;
       }
     }
 
@@ -183,6 +216,7 @@ export class EmailObservabilityService {
       retrying: summaryMap.retrying,
       failed: summaryMap.failed,
       sent: summaryMap.sent,
+      sentToday,
       total: totalJobs,
       systemHealth,
       providerStatus,

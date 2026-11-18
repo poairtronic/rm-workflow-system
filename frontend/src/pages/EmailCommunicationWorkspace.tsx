@@ -18,6 +18,7 @@ import {
   Activity,
   Send,
   X,
+  Calendar,
 } from 'lucide-react';
 
 export function EmailCommunicationWorkspace() {
@@ -248,8 +249,8 @@ export function EmailCommunicationWorkspace() {
         <RoleRulesPanel isReadOnly={currentUser?.role !== 'ADMIN'} />
       ) : (
         <>
-        {/* 4 Stat Cards - Matches Screenshot 1 */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+        {/* 5 Stat Cards - Including 24h Sent Today */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* 1. System Health */}
           <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
             <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider mb-2 ${isHealthy ? 'text-emerald-600' : 'text-amber-500'}`}>
@@ -312,7 +313,21 @@ export function EmailCommunicationWorkspace() {
             </div>
           </div>
 
-          {/* 4. Total Emails */}
+          {/* 4. Sent Today (24h) */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
+            <div className="flex items-center gap-2 text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">
+              <Calendar className="w-4 h-4" />
+              Sent Today (24h)
+            </div>
+            <div className="text-3xl font-black text-blue-600 tracking-tight">
+              {(metrics?.sentToday ?? 0).toLocaleString()}
+            </div>
+            <p className="text-xs text-slate-400 mt-1 font-medium">
+              12:00 AM – 12:00 AM (resets daily)
+            </p>
+          </div>
+
+          {/* 5. Total Emails */}
           <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
             <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">
               <Send className="w-4 h-4" />

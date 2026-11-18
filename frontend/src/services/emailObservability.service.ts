@@ -6,6 +6,7 @@ export interface EmailQueueObservabilitySummary {
   retrying: number;
   failed: number;
   sent: number;
+  sentToday: number;
   total: number;
   lastSuccessfulSend: {
     timestamp: string | null;
@@ -24,7 +25,8 @@ export interface EmailQueueObservabilitySummary {
 }
 
 export const EmailObservabilityService = {
-  async getObservability(): Promise<EmailQueueObservabilitySummary> {
-    return api.get<EmailQueueObservabilitySummary>('/api/email/observability');
+  async getObservability(tz?: string): Promise<EmailQueueObservabilitySummary> {
+    const userTz = tz || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'Asia/Kolkata');
+    return api.get<EmailQueueObservabilitySummary>(`/api/email/observability?tz=${encodeURIComponent(userTz)}`);
   },
 };
