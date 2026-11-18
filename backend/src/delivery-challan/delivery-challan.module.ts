@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DeliveryChallan } from './entities/delivery-challan.entity.js';
 import { DeliveryChallanItem } from './entities/delivery-challan-item.entity.js';
@@ -32,7 +32,7 @@ import { MercIndentLineItem } from '../merc-indent/entities/merc-indent-line-ite
     ]),
     AuthModule,
     NotificationsModule,
-    EmailModule,
+    forwardRef(() => EmailModule),
     FilesModule,
   ],
   controllers: [DeliveryChallanController],

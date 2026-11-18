@@ -15,6 +15,7 @@
 | **Task 2** | **Priority Tagging** | Approved Priority Matrix applied. Core workflows & password reset set to P1; admin test send & real-time stock triggers set to P5; sweeps & digests set to P9. Manual dashboard retry strictly preserves existing priority (P1 stays P1). Unit test in `priority-classification.spec.ts` verifies 100% classification coverage. | **GO** | [email-priority-matrix.md](file:///c:/Users/Admin/OneDrive/Desktop/rm-workflow-system/docs/email-priority-matrix.md) |
 | **Task 3** | **Dev/Prod Quota Isolation & Safety** | Implemented startup guard in `EmailWorkerService`: blocks worker start in non-production when `GMAIL-API` is selected without explicit `ALLOW_REAL_EMAIL_IN_DEV=true`. Added `NODE_ENV` and provider label logging at startup. In production with test provider, triggers critical log error and red dashboard alert banner. Verified by unit tests. | **GO** | [email-env-isolation.md](file:///c:/Users/Admin/OneDrive/Desktop/rm-workflow-system/docs/email-env-isolation.md) |
 | **Task 4** | **First-Run Surge Preview & Discrepancy Reconciliation** | Reconciled 43 vs 82 discrepancy: updated `previewCurrentOpenItemsFirstRun()` to exact live predicates. Reconciled all 82 incident items across 3 modules: generates exactly **10 digest jobs** ($\le 15$), max table rows = 32 ($\le 50$), total dispatch duration = 30 seconds at 3s pacing, consuming only 2.5% daily quota. | **GO** | [digest-first-run-preview.md](file:///c:/Users/Admin/OneDrive/Desktop/rm-workflow-system/docs/digest-first-run-preview.md) |
+| **Task 5** | **Production Startup & ESM Cycle Resolution** | Compiled production boot verification (`npm run build && NODE_ENV=production EMAIL_PROVIDER_TYPE=test node dist/main.js`). Verified zero ESM Temporal Dead Zone / circular dependency crashes (`ReferenceError: Cannot access 'AuthModule' before initialization` resolved via `forwardRef`). Verified `GET /health` and authenticated `GET /api/email/observability` return 200 OK under both `ALERT_DIGEST_MODE=OFF` and `ALERT_DIGEST_MODE=SHADOW`. | **GO** | [startup-crash-fix.md](file:///c:/Users/Admin/OneDrive/Desktop/rm-workflow-system/docs/startup-crash-fix.md) |
 
 ---
 
@@ -95,3 +96,22 @@ flowchart LR
 3. **Observability Verification:**
    - Daily email count drops by >90% (from ~274 jobs/sweep to ~10 jobs/sweep).
    - Rate limit errors remain at **0**.
+
+---
+
+## 4. Mandatory Pre-Push Verification Gate (Local Production Boot Smoke Test)
+
+Before pushing any commit to `origin/main` or deploying to Render, execute this compiled production boot check against a local database:
+
+```bash
+cd backend
+npm run build
+NODE_ENV=production EMAIL_PROVIDER_TYPE=test EMAIL_WORKER_ENABLED=true DATABASE_URL=postgresql://postgres:postgres@localhost:5432/rm_workflow_db node dist/main.js
+```
+
+### Verification Criteria
+1. **Zero ReferenceErrors:** No `Cannot access 'XModule' before initialization` or ESM TDZ errors.
+2. **Clean Initialization:** Logs `Nest application successfully started`.
+3. **Worker Identity Line:** Logs `[EmailWorkerService] EmailWorkerService startup [Provider: TEST, Identity: mock-in-memory, NODE_ENV: production]`.
+4. **Health Endpoint:** `curl -s http://localhost:3000/health` returns HTTP 200 `{"status":"ok",...}`.
+5. **Observability Endpoint:** Authenticated `GET /api/email/observability` returns HTTP 200 with test provider warning banner active.

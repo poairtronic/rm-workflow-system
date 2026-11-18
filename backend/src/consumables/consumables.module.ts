@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { ConsumableRequest } from './entities/consumable-request.entity.js';
@@ -33,7 +33,7 @@ import { FilesModule } from '../files/files.module.js';
       StockTransaction,
     ]),
     NotificationsModule,
-    EmailModule,
+    forwardRef(() => EmailModule),
     FilesModule,
   ],
   controllers: [ConsumablesController],

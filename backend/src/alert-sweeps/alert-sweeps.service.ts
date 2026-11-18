@@ -203,7 +203,7 @@ export class AlertSweepService {
       .where('rm.status = :status', { status: RmRequestStatus.REVIEWED })
       .andWhere('mi.id IS NULL')
       .andWhere('COALESCE(rm.reviewed_at, rm.created_at) <= :cutoff', { cutoff })
-      .orderBy('COALESCE(rm.reviewed_at, rm.created_at)', 'ASC')
+      .orderBy('rm.createdAt', 'ASC')
       .take(20)
       .getMany();
 
@@ -641,7 +641,7 @@ export class AlertSweepService {
           .where('rm.status = :status', { status: RmRequestStatus.REVIEWED })
           .andWhere('mi.id IS NULL')
           .andWhere('COALESCE(rm.reviewed_at, rm.created_at) <= :cutoff', { cutoff })
-          .orderBy('COALESCE(rm.reviewed_at, rm.created_at)', 'ASC');
+          .orderBy('rm.createdAt', 'ASC');
 
         const totalCount = await qb.getCount();
         const sampleRecords = await qb.take(20).getMany();

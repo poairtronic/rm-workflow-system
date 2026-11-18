@@ -60,9 +60,16 @@ import { AlertSweepModule } from './alert-sweeps/alert-sweeps.module.js';
           process.env.DATABASE_URL_DIRECT ||
           process.env.DATABASE_URL ||
           'postgresql://postgres:postgres@localhost:5432/rm_workflow_db';
+        let dbHost = '';
+        try {
+          dbHost = new URL(dbUrl).hostname;
+        } catch {
+          // If URL parsing fails, retain empty dbHost
+        }
+        const isLocalhost = dbHost === 'localhost' || dbHost === '127.0.0.1';
         const isSsl =
           dbUrl.includes('sslmode=require') ||
-          configService.get<string>('NODE_ENV') === 'production';
+          (configService.get<string>('NODE_ENV') === 'production' && !isLocalhost);
 
         return {
           type: 'postgres',
@@ -76,8 +83,7 @@ import { AlertSweepModule } from './alert-sweeps/alert-sweeps.module.js';
             }
             return (
               process.env.TYPEORM_SYNC === 'true' ||
-              dbUrl.includes('localhost') ||
-              dbUrl.includes('127.0.0.1')
+              isLocalhost
             );
           })(),
           ssl: isSsl ? { rejectUnauthorized: false } : false,

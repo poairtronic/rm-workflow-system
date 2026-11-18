@@ -25,7 +25,7 @@ import { EmailModule } from '../email/email.module.js';
       MaterialIssue,
     ]),
     forwardRef(() => NotificationsModule),
-    EmailModule,
+    forwardRef(() => EmailModule),
   ],
   providers: [AlertSweepService],
   exports: [AlertSweepService],
