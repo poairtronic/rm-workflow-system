@@ -1040,6 +1040,9 @@ export class AlertSweepService {
       }
 
       case 'MERC_INDENT_ISSUE_OVERDUE_24H': {
+        if (!this.mercIndentPendingRepo) {
+          return { matchCount: 0, sample: [] };
+        }
         const indents = await this.mercIndentPendingRepo.find({
           where: {
             status: 'PENDING',
@@ -1081,6 +1084,9 @@ export class AlertSweepService {
       }
 
       case 'ECR_MATERIAL_ISSUE_OVERDUE_24H': {
+        if (!this.ecrMaterialPendingRepo) {
+          return { matchCount: 0, sample: [] };
+        }
         const issues = await this.ecrMaterialPendingRepo.find({
           where: {
             status: 'PENDING',
