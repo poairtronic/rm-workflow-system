@@ -10,6 +10,8 @@ import { ConsumableRequest } from '../consumables/entities/consumable-request.en
 import { ConsumableRequestItem, ConsumableItemStatus, ConsumableApprovalStatus } from '../consumables/entities/consumable-request-item.entity.js';
 import { RmRequest, RmRequestStatus } from '../rm/entities/rm-request.entity.js';
 import { MaterialIssue } from '../material-issue/entities/material-issue.entity.js';
+import { MercIndentPending } from '../merc-indent/entities/merc-indent-pending.entity.js';
+import { EcrMaterialPending } from '../ecr-issues/entities/ecr-material-pending.entity.js';
 import { CommunicationService } from '../notifications/communication.service.js';
 import { AlertDigestService, AlertDigestItem } from '../email/alert-digest.service.js';
 
@@ -55,6 +57,22 @@ export const SWEEP_CONFIGS: Record<string, SweepConfigDef> = {
     thresholdKey: 'DC_QC_PENDING_ALERT_HOURS',
     defaultHours: 24,
   },
+  MERC_INDENT_ISSUE_OVERDUE_24H: {
+    eventCode: 'MERC_INDENT_ISSUE_OVERDUE_24H',
+    label: 'MERC Indent Stores Issue Overdue (>24h)',
+    category: 'MERC & ECR Integration',
+    switchKey: 'MERC_INDENT_OVERDUE_ALERTS_ENABLED',
+    thresholdKey: 'MERC_INDENT_OVERDUE_ALERT_HOURS',
+    defaultHours: 24,
+  },
+  ECR_MATERIAL_ISSUE_OVERDUE_24H: {
+    eventCode: 'ECR_MATERIAL_ISSUE_OVERDUE_24H',
+    label: 'ECR Material Stores Issue Overdue (>24h)',
+    category: 'MERC & ECR Integration',
+    switchKey: 'ECR_MATERIAL_OVERDUE_ALERTS_ENABLED',
+    thresholdKey: 'ECR_MATERIAL_OVERDUE_ALERT_HOURS',
+    defaultHours: 24,
+  },
 };
 
 export interface SweepPreviewItem {
@@ -93,6 +111,12 @@ export class AlertSweepService {
     private readonly materialIssueRepo: Repository<MaterialIssue>,
     private readonly communicationService: CommunicationService,
     private readonly dataSource: DataSource,
+    @Optional()
+    @InjectRepository(MercIndentPending)
+    private readonly mercIndentPendingRepo?: Repository<MercIndentPending>,
+    @Optional()
+    @InjectRepository(EcrMaterialPending)
+    private readonly ecrMaterialPendingRepo?: Repository<EcrMaterialPending>,
     @Optional()
     private readonly alertDigestService?: AlertDigestService,
   ) {}
@@ -138,6 +162,8 @@ export class AlertSweepService {
     dcPendingAlerts: number;
     consumablePendingAlerts: number;
     dcQcAlerts: number;
+    mercIndentAlerts: number;
+    ecrMaterialAlerts: number;
   }> {
     this.logger.log('Executing automated hourly overdue alert sweeps...');
 
@@ -145,6 +171,8 @@ export class AlertSweepService {
     let dcPendingAlerts = 0;
     let consumablePendingAlerts = 0;
     let dcQcAlerts = 0;
+    let mercIndentAlerts = 0;
+    let ecrMaterialAlerts = 0;
 
     try {
       materialIssueAlerts = await this.sweepMaterialIssueOverdue();
@@ -170,11 +198,25 @@ export class AlertSweepService {
       this.logger.error(`[DC_QC_PENDING_24H] Sweep error: ${err?.message || err}`);
     }
 
+    try {
+      mercIndentAlerts = await this.sweepMercIndentIssueOverdue();
+    } catch (err: any) {
+      this.logger.error(`[MERC_INDENT_ISSUE_OVERDUE_24H] Sweep error: ${err?.message || err}`);
+    }
+
+    try {
+      ecrMaterialAlerts = await this.sweepEcrMaterialIssueOverdue();
+    } catch (err: any) {
+      this.logger.error(`[ECR_MATERIAL_ISSUE_OVERDUE_24H] Sweep error: ${err?.message || err}`);
+    }
+
     return {
       materialIssueAlerts,
       dcPendingAlerts,
       consumablePendingAlerts,
       dcQcAlerts,
+      mercIndentAlerts,
+      ecrMaterialAlerts,
     };
   }
 
@@ -632,6 +674,173 @@ export class AlertSweepService {
   }
 
   /**
+   * 5. MERC_INDENT_ISSUE_OVERDUE_24H Sweep
+   * MERC Indent pending issue for > threshold hours.
+   */
+  async sweepMercIndentIssueOverdue(): Promise<number> {
+    const config = SWEEP_CONFIGS.MERC_INDENT_ISSUE_OVERDUE_24H;
+    const isEnabled = await this.isSweepEnabled(config);
+    if (!isEnabled || !this.mercIndentPendingRepo) {
+      return 0;
+    }
+
+    const thresholdHours = await this.getThresholdHours(config);
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - thresholdHours * 60 * 60 * 1000);
+    const todayStr = now.toISOString().split('T')[0];
+
+    const overdueIndents = await this.mercIndentPendingRepo.find({
+      where: {
+        status: 'PENDING',
+        isDeleted: false,
+        createdAt: LessThanOrEqual(cutoff),
+      },
+      relations: { lineItems: true },
+      order: { createdAt: 'ASC' },
+      take: 20,
+    });
+
+    const digestMode = this.alertDigestService ? await this.alertDigestService.getMode() : 'OFF';
+    const digestItems: AlertDigestItem[] = [];
+    let dispatchedCount = 0;
+
+    for (const indent of overdueIndents) {
+      const elapsedMs = now.getTime() - new Date(indent.createdAt).getTime();
+      const hoursOverdue = Math.max(thresholdHours, Math.floor(elapsedMs / (1000 * 60 * 60)));
+
+      digestItems.push({
+        entityId: indent.id,
+        entityType: 'MERC_INDENT',
+        itemRef: indent.indentNumber,
+        ageOrOverdue: `${hoursOverdue}h overdue`,
+        ownerOrVendor: indent.customerName || 'MERC',
+        directLink: `/governance/merc-indents/${indent.id}`,
+        metadata: {
+          indentNumber: indent.indentNumber,
+          poNumber: indent.poNumber || 'N/A',
+          customerName: indent.customerName || 'N/A',
+          hoursOverdue,
+          createdAt: indent.createdAt.toISOString(),
+        },
+      });
+
+      if (digestMode === 'OFF' || digestMode === 'SHADOW') {
+        try {
+          await this.communicationService.sendEvent({
+            eventType: 'MERC_INDENT_ISSUE_OVERDUE_24H',
+            entityType: 'MERC_INDENT',
+            entityId: `${indent.id}_overdue_${todayStr}`,
+            metadata: {
+              indentNumber: indent.indentNumber,
+              poNumber: indent.poNumber || 'N/A',
+              customerName: indent.customerName || 'N/A',
+              hoursOverdue,
+              createdAt: indent.createdAt.toISOString(),
+            },
+          });
+          dispatchedCount++;
+        } catch (err: any) {
+          this.logger.error(`Failed to dispatch MERC_INDENT_ISSUE_OVERDUE_24H for indent "${indent.indentNumber}": ${err?.message || err}`);
+        }
+      }
+    }
+
+    if ((digestMode === 'SHADOW' || digestMode === 'ON') && this.alertDigestService && digestItems.length > 0) {
+      const digestJobs = await this.alertDigestService.buildDigests('MERC_INDENT_ISSUE_OVERDUE_24H', digestItems);
+      if (digestMode === 'ON') {
+        dispatchedCount = digestJobs.length;
+      }
+    }
+
+    return dispatchedCount;
+  }
+
+  /**
+   * 6. ECR_MATERIAL_ISSUE_OVERDUE_24H Sweep
+   * ECR Material issue pending for > threshold hours.
+   */
+  async sweepEcrMaterialIssueOverdue(): Promise<number> {
+    const config = SWEEP_CONFIGS.ECR_MATERIAL_ISSUE_OVERDUE_24H;
+    const isEnabled = await this.isSweepEnabled(config);
+    if (!isEnabled || !this.ecrMaterialPendingRepo) {
+      return 0;
+    }
+
+    const thresholdHours = await this.getThresholdHours(config);
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - thresholdHours * 60 * 60 * 1000);
+    const todayStr = now.toISOString().split('T')[0];
+
+    const overdueIssues = await this.ecrMaterialPendingRepo.find({
+      where: {
+        status: 'PENDING',
+        isDeleted: false,
+        createdAt: LessThanOrEqual(cutoff),
+      },
+      order: { createdAt: 'ASC' },
+      take: 20,
+    });
+
+    const digestMode = this.alertDigestService ? await this.alertDigestService.getMode() : 'OFF';
+    const digestItems: AlertDigestItem[] = [];
+    let dispatchedCount = 0;
+
+    for (const issue of overdueIssues) {
+      const elapsedMs = now.getTime() - new Date(issue.createdAt).getTime();
+      const hoursOverdue = Math.max(thresholdHours, Math.floor(elapsedMs / (1000 * 60 * 60)));
+
+      digestItems.push({
+        entityId: issue.id,
+        entityType: 'ECR_ISSUE',
+        itemRef: issue.reportNumber,
+        ageOrOverdue: `${hoursOverdue}h overdue`,
+        ownerOrVendor: issue.component,
+        directLink: `/governance/ecr-issues/${issue.id}`,
+        metadata: {
+          reportNumber: issue.reportNumber,
+          scNumber: issue.scNumber || 'N/A',
+          poNumber: issue.poNumber || 'N/A',
+          component: issue.component,
+          quantityAffected: issue.quantityAffected,
+          hoursOverdue,
+          createdAt: issue.createdAt.toISOString(),
+        },
+      });
+
+      if (digestMode === 'OFF' || digestMode === 'SHADOW') {
+        try {
+          await this.communicationService.sendEvent({
+            eventType: 'ECR_MATERIAL_ISSUE_OVERDUE_24H',
+            entityType: 'ECR_ISSUE',
+            entityId: `${issue.id}_overdue_${todayStr}`,
+            metadata: {
+              reportNumber: issue.reportNumber,
+              scNumber: issue.scNumber || 'N/A',
+              poNumber: issue.poNumber || 'N/A',
+              component: issue.component,
+              quantityAffected: issue.quantityAffected,
+              hoursOverdue,
+              createdAt: issue.createdAt.toISOString(),
+            },
+          });
+          dispatchedCount++;
+        } catch (err: any) {
+          this.logger.error(`Failed to dispatch ECR_MATERIAL_ISSUE_OVERDUE_24H for report "${issue.reportNumber}": ${err?.message || err}`);
+        }
+      }
+    }
+
+    if ((digestMode === 'SHADOW' || digestMode === 'ON') && this.alertDigestService && digestItems.length > 0) {
+      const digestJobs = await this.alertDigestService.buildDigests('ECR_MATERIAL_ISSUE_OVERDUE_24H', digestItems);
+      if (digestMode === 'ON') {
+        dispatchedCount = digestJobs.length;
+      }
+    }
+
+    return dispatchedCount;
+  }
+
+  /**
    * Read-only Preview Method for Admin UI:
    * Returns matching items without sending any email or modifying the watch table.
    * Works regardless of switch ON/OFF status.
@@ -825,6 +1034,90 @@ export class AlertSweepService {
 
         return {
           matchCount: sortedDcs.length,
+          sample,
+          notYetTimedCount,
+        };
+      }
+
+      case 'MERC_INDENT_ISSUE_OVERDUE_24H': {
+        const indents = await this.mercIndentPendingRepo.find({
+          where: {
+            status: 'PENDING',
+            isDeleted: false,
+            createdAt: LessThanOrEqual(cutoff),
+          },
+          order: { createdAt: 'ASC' },
+        });
+
+        const notYetTimedCount = await this.mercIndentPendingRepo.count({
+          where: {
+            status: 'PENDING',
+            isDeleted: false,
+            createdAt: MoreThan(cutoff),
+          },
+        });
+
+        const sample: SweepPreviewItem[] = indents.slice(0, 20).map((ind) => {
+          const hoursPending = Math.floor(
+            (now.getTime() - new Date(ind.createdAt).getTime()) / (1000 * 60 * 60),
+          );
+          return {
+            id: ind.id,
+            referenceNumber: ind.indentNumber,
+            hoursPending,
+            details: {
+              poNumber: ind.poNumber || 'N/A',
+              customer: ind.customerName || 'N/A',
+              createdAt: ind.createdAt,
+            },
+          };
+        });
+
+        return {
+          matchCount: indents.length,
+          sample,
+          notYetTimedCount,
+        };
+      }
+
+      case 'ECR_MATERIAL_ISSUE_OVERDUE_24H': {
+        const issues = await this.ecrMaterialPendingRepo.find({
+          where: {
+            status: 'PENDING',
+            isDeleted: false,
+            createdAt: LessThanOrEqual(cutoff),
+          },
+          order: { createdAt: 'ASC' },
+        });
+
+        const notYetTimedCount = await this.ecrMaterialPendingRepo.count({
+          where: {
+            status: 'PENDING',
+            isDeleted: false,
+            createdAt: MoreThan(cutoff),
+          },
+        });
+
+        const sample: SweepPreviewItem[] = issues.slice(0, 20).map((iss) => {
+          const hoursPending = Math.floor(
+            (now.getTime() - new Date(iss.createdAt).getTime()) / (1000 * 60 * 60),
+          );
+          return {
+            id: iss.id,
+            referenceNumber: iss.reportNumber,
+            hoursPending,
+            details: {
+              scNumber: iss.scNumber || 'N/A',
+              poNumber: iss.poNumber || 'N/A',
+              component: iss.component,
+              quantityAffected: iss.quantityAffected,
+              createdAt: iss.createdAt,
+            },
+          };
+        });
+
+        return {
+          matchCount: issues.length,
           sample,
           notYetTimedCount,
         };

@@ -9,6 +9,8 @@ import { ConsumableRequest } from '../consumables/entities/consumable-request.en
 import { ConsumableRequestItem } from '../consumables/entities/consumable-request-item.entity.js';
 import { RmRequest } from '../rm/entities/rm-request.entity.js';
 import { MaterialIssue } from '../material-issue/entities/material-issue.entity.js';
+import { MercIndentPending } from '../merc-indent/entities/merc-indent-pending.entity.js';
+import { EcrMaterialPending } from '../ecr-issues/entities/ecr-material-pending.entity.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { EmailModule } from '../email/email.module.js';
 
@@ -23,6 +25,8 @@ import { EmailModule } from '../email/email.module.js';
       ConsumableRequestItem,
       RmRequest,
       MaterialIssue,
+      MercIndentPending,
+      EcrMaterialPending,
     ]),
     forwardRef(() => NotificationsModule),
     forwardRef(() => EmailModule),

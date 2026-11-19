@@ -415,7 +415,7 @@ export class EcrIssuesService {
         await this.ecrPendingRepo.save(pending);
         syncedCount++;
         this.logger.log(`[ECR-Sync] Ingested approved report ${r.reportNumber} into ecr_material_pending`);
-      } else if (r.componentsIssued && existing.status !== 'ISSUED') {
+      } else if (!existing.isDeleted && r.componentsIssued && existing.status !== 'ISSUED') {
         existing.status = 'ISSUED';
         await this.ecrPendingRepo.save(existing);
       }
@@ -444,6 +444,7 @@ export class EcrIssuesService {
     }
 
     const records = await this.ecrPendingRepo.find({
+      where: { isDeleted: false },
       order: { createdAt: 'DESC' },
     });
 
@@ -491,7 +492,7 @@ export class EcrIssuesService {
    */
   async getOne(id: string): Promise<EcrIssueDetailResponse> {
     const record = await this.ecrPendingRepo.findOne({
-      where: { id },
+      where: { id, isDeleted: false },
     });
 
     if (!record) {
@@ -884,6 +885,43 @@ export class EcrIssuesService {
       itemsIssued: dto.items.length,
       materialIssueId: savedMaterialIssue.id,
       issuedAt,
+    };
+  }
+
+  /**
+   * Soft-deletes an ECR material pending report.
+   */
+  async deleteEcrIssue(
+    id: string,
+    currentUser?: any,
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    const record = await this.ecrPendingRepo.findOne({
+      where: { id, isDeleted: false },
+    });
+
+    if (!record) {
+      throw new NotFoundException(`ECR material issue record "${id}" not found or already deleted`);
+    }
+
+    record.isDeleted = true;
+    record.status = 'CANCELLED';
+    await this.ecrPendingRepo.save(record);
+
+    this.logger.log(`Deleted ECR report "${record.reportNumber}" (ID: ${id}) by user ${currentUser?.id || 'Unknown'}`);
+
+    if (typeof this.notificationsGateway?.server?.emit === 'function') {
+      this.notificationsGateway.server.emit('notification', {
+        type: 'ECR_ISSUE',
+        message: `ECR report ${record.reportNumber} deleted.`,
+      });
+    }
+
+    return {
+      success: true,
+      message: `ECR report "${record.reportNumber}" deleted successfully.`,
     };
   }
 }

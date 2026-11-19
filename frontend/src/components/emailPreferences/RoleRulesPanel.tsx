@@ -40,6 +40,7 @@ const CATEGORY_ORDER = [
   'INVENTORY',
   'DELIVERY_CHALLAN',
   'CONSUMABLE',
+  'MERC & ECR Integration',
 ];
 
 const CATEGORY_TITLES: Record<string, string> = {
@@ -48,6 +49,7 @@ const CATEGORY_TITLES: Record<string, string> = {
   INVENTORY: 'Inventory & Stock Alerts',
   DELIVERY_CHALLAN: 'Delivery Challan & Inward',
   CONSUMABLE: 'Consumables & PO Requests',
+  'MERC & ECR Integration': 'MERC & ECR Integration',
 };
 
 const ROLE_DISPLAY_ORDER = [
@@ -64,6 +66,8 @@ const SWEEP_ORDER = [
   'DC_PENDING_2_DAYS',
   'CONSUMABLE_PENDING_2_DAYS',
   'DC_QC_PENDING_24H',
+  'MERC_INDENT_ISSUE_OVERDUE_24H',
+  'ECR_MATERIAL_ISSUE_OVERDUE_24H',
 ];
 
 const SWEEP_DESCRIPTIONS: Record<string, string> = {
@@ -75,6 +79,10 @@ const SWEEP_DESCRIPTIONS: Record<string, string> = {
     'Consumable request created and pending fulfillment at any stage within threshold.',
   DC_QC_PENDING_24H:
     'Delivery Challan items inwarded and remaining in quality inspection (QC) within threshold.',
+  MERC_INDENT_ISSUE_OVERDUE_24H:
+    'MERC production indent not issued to production by stores within threshold.',
+  ECR_MATERIAL_ISSUE_OVERDUE_24H:
+    'ECR defect report replacement material not issued to production by stores within threshold.',
 };
 
 export function RoleRulesPanel({ isReadOnly = false }: RoleRulesPanelProps) {

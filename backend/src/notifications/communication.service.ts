@@ -83,6 +83,9 @@ export const PERMITTED_EMAIL_CONFIG: Record<
   CONSUMABLE_APPROVAL_REQUESTED: { allowedRoles: ['SENIOR_MANAGER', 'ADMIN'], recipientType: 'ROLES' },
   CONSUMABLE_APPROVED: { allowedRoles: ['STORES'], recipientType: 'ROLES' },
   CONSUMABLE_REJECTED: { allowedRoles: [], recipientType: 'USER' },
+  // Governance / MERC & ECR Integration Sweeps
+  MERC_INDENT_ISSUE_OVERDUE_24H: { allowedRoles: ['STORES', 'SENIOR_MANAGER', 'ADMIN'], recipientType: 'ROLES' },
+  ECR_MATERIAL_ISSUE_OVERDUE_24H: { allowedRoles: ['STORES', 'SENIOR_MANAGER', 'ADMIN'], recipientType: 'ROLES' },
   // Diagnostic test email for admin verification
   TEST_EMAIL: {
     allowedRoles: ['ADMIN', 'STORES', 'PRODUCTION', 'DESIGNER', 'SENIOR_MANAGER', 'GENERAL_MANAGER'],
@@ -725,6 +728,48 @@ export class CommunicationService {
           actorUserId,
         });
 
+      case 'MERC_INDENT_ISSUE_OVERDUE_24H':
+        return this.orchestrateChannelDelivery({
+          eventType: 'MERC_INDENT_ISSUE_OVERDUE_24H',
+          targetUsers,
+          targetEntity: 'MERC_INDENT',
+          targetId: input.entityId,
+          title: `OVERDUE: MERC Indent Issue Pending (>24h) - ${input.metadata?.indentNumber || input.entityId}`,
+          message: `MERC Indent ${input.metadata?.indentNumber || input.entityId} has been pending stores issue for over ${input.metadata?.hoursOverdue ?? 24} hours without fulfillment.`,
+          templateKey: 'MERC_INDENT_ISSUE_OVERDUE_24H',
+          subject: `[V-SMART] OVERDUE: MERC Indent Stores Issue Pending (>24h) - Indent ${input.metadata?.indentNumber || input.entityId}`,
+          payload: {
+            indentNumber: input.metadata?.indentNumber,
+            poNumber: input.metadata?.poNumber,
+            customerName: input.metadata?.customerName,
+            hoursOverdue: input.metadata?.hoursOverdue,
+            actionUrl: input.metadata?.actionUrl,
+          },
+          actorUserId,
+        });
+
+      case 'ECR_MATERIAL_ISSUE_OVERDUE_24H':
+        return this.orchestrateChannelDelivery({
+          eventType: 'ECR_MATERIAL_ISSUE_OVERDUE_24H',
+          targetUsers,
+          targetEntity: 'ECR_ISSUE',
+          targetId: input.entityId,
+          title: `OVERDUE: ECR Material Issue Pending (>24h) - ${input.metadata?.reportNumber || input.entityId}`,
+          message: `ECR Defect Report ${input.metadata?.reportNumber || input.entityId} material has been pending stores issue for over ${input.metadata?.hoursOverdue ?? 24} hours.`,
+          templateKey: 'ECR_MATERIAL_ISSUE_OVERDUE_24H',
+          subject: `[V-SMART] OVERDUE: ECR Material Stores Issue Pending (>24h) - Report ${input.metadata?.reportNumber || input.entityId}`,
+          payload: {
+            reportNumber: input.metadata?.reportNumber,
+            scNumber: input.metadata?.scNumber,
+            poNumber: input.metadata?.poNumber,
+            component: input.metadata?.component,
+            quantityAffected: input.metadata?.quantityAffected,
+            hoursOverdue: input.metadata?.hoursOverdue,
+            actionUrl: input.metadata?.actionUrl,
+          },
+          actorUserId,
+        });
+
       case 'CONSUMABLE_APPROVAL_REQUESTED':
         return this.orchestrateChannelDelivery({
           eventType: 'CONSUMABLE_APPROVAL_REQUESTED',
@@ -863,7 +908,7 @@ export class CommunicationService {
     // Resolve authorized recipients for this specific email event
     const mode = this.notificationPreferenceService
       ? await this.notificationPreferenceService.getMode()
-      : (process.env.EMAIL_PREFS_V2_MODE?.trim().toUpperCase() as 'OFF' | 'SHADOW' | 'ON') || 'OFF';
+      : (process.env.EMAIL_PREFS_V2_MODE?.trim().toUpperCase() as 'OFF' | 'SHADOW' | 'ON') || 'ON';
 
     const globalEmailEnabled = await this.notificationsService.getGlobalWorkflowEmailEnabled();
     if (!globalEmailEnabled) {

@@ -31,6 +31,10 @@ export const ecrIssuesService = {
       {},
     );
   },
+
+  deleteEcrIssue: async (id: string): Promise<{ success: boolean; message: string }> => {
+    return api.delete<{ success: boolean; message: string }>(`/api/ecr-issues/${id}`);
+  },
 };
 
 export default ecrIssuesService;

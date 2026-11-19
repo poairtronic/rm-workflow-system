@@ -1060,6 +1060,97 @@ export class TemplateService {
         };
       },
     },
+
+    MERC_INDENT_ISSUE_OVERDUE_24H: {
+      key: 'MERC_INDENT_ISSUE_OVERDUE_24H',
+      requiredVars: ['indentNumber'],
+      allowedVars: ['recipientName', 'indentNumber', 'poNumber', 'customerName', 'hoursOverdue', 'createdAt', 'actionUrl'],
+      render: (vars, escape) => {
+        const indent = escape(vars.indentNumber || 'N/A');
+        const po = escape(vars.poNumber || 'N/A');
+        const customer = escape(vars.customerName || 'N/A');
+        const hours = vars.hoursOverdue !== undefined ? vars.hoursOverdue : '24+';
+        const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
+        const htmlName = vars.recipientName ? `<p>Hello <strong>${escape(vars.recipientName)}</strong>,</p>` : '';
+        const baseUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0].trim();
+        const link = vars.actionUrl || `${baseUrl}/governance/merc-indents`;
+        return {
+          subject: `[V-SMART] OVERDUE: MERC Indent Stores Issue Pending (>24h) - Indent ${vars.indentNumber}`,
+          text: `${name}ALERT: MERC Indent ${vars.indentNumber} (PO: ${vars.poNumber || 'N/A'}, Customer: ${vars.customerName || 'N/A'}) has not been issued to Production for over ${hours} hours.\nPlease review and issue material at: ${link}`,
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+              <div style="background: #dc2626; color: white; padding: 16px 24px;">
+                <h2 style="margin: 0; font-size: 18px;">⚠️ MERC Indent Stores Issue Overdue Alert</h2>
+              </div>
+              <div style="padding: 24px;">
+                ${htmlName}
+                <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+                  MERC Indent <strong>${indent}</strong> has been waiting for stores issuance to production for <strong>${hours} hours</strong> without fulfillment.
+                </p>
+                <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 13px; color: #991b1b;">
+                  <p style="margin: 0 0 8px;"><strong>Indent Number:</strong> ${indent}</p>
+                  <p style="margin: 0 0 8px;"><strong>PO Number:</strong> ${po}</p>
+                  <p style="margin: 0 0 8px;"><strong>Customer:</strong> ${customer}</p>
+                  <p style="margin: 0;"><strong>Hours Overdue:</strong> ${hours} hrs</p>
+                </div>
+                <div style="margin-top: 24px; text-align: center;">
+                  <a href="${link}" style="background: #dc2626; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 600; display: inline-block;">
+                    Open MERC Indents &rarr;
+                  </a>
+                </div>
+              </div>
+            </div>
+          `,
+        };
+      },
+    },
+
+    ECR_MATERIAL_ISSUE_OVERDUE_24H: {
+      key: 'ECR_MATERIAL_ISSUE_OVERDUE_24H',
+      requiredVars: ['reportNumber'],
+      allowedVars: ['recipientName', 'reportNumber', 'scNumber', 'poNumber', 'component', 'quantityAffected', 'hoursOverdue', 'createdAt', 'actionUrl'],
+      render: (vars, escape) => {
+        const report = escape(vars.reportNumber || 'N/A');
+        const sc = escape(vars.scNumber || 'N/A');
+        const po = escape(vars.poNumber || 'N/A');
+        const comp = escape(vars.component || 'N/A');
+        const qty = vars.quantityAffected !== undefined ? vars.quantityAffected : 'N/A';
+        const hours = vars.hoursOverdue !== undefined ? vars.hoursOverdue : '24+';
+        const name = vars.recipientName ? `Hello ${escape(vars.recipientName)},\n\n` : '';
+        const htmlName = vars.recipientName ? `<p>Hello <strong>${escape(vars.recipientName)}</strong>,</p>` : '';
+        const baseUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0].trim();
+        const link = vars.actionUrl || `${baseUrl}/governance/ecr-issues`;
+        return {
+          subject: `[V-SMART] OVERDUE: ECR Material Stores Issue Pending (>24h) - Report ${vars.reportNumber}`,
+          text: `${name}ALERT: ECR Defect Report ${vars.reportNumber} for component "${vars.component}" (SC: ${vars.scNumber || 'N/A'}, PO: ${vars.poNumber || 'N/A'}) has not been issued to Production for over ${hours} hours.\nPlease review and issue material at: ${link}`,
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+              <div style="background: #dc2626; color: white; padding: 16px 24px;">
+                <h2 style="margin: 0; font-size: 18px;">⚠️ ECR Material Stores Issue Overdue Alert</h2>
+              </div>
+              <div style="padding: 24px;">
+                ${htmlName}
+                <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+                  ECR Defect Report <strong>${report}</strong> replacement material has been pending stores issuance to production for <strong>${hours} hours</strong>.
+                </p>
+                <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 13px; color: #991b1b;">
+                  <p style="margin: 0 0 8px;"><strong>Report Number:</strong> ${report}</p>
+                  <p style="margin: 0 0 8px;"><strong>Component:</strong> ${comp}</p>
+                  <p style="margin: 0 0 8px;"><strong>Quantity Affected:</strong> ${qty}</p>
+                  <p style="margin: 0 0 8px;"><strong>SC / PO Number:</strong> SC ${sc} / PO ${po}</p>
+                  <p style="margin: 0;"><strong>Hours Overdue:</strong> ${hours} hrs</p>
+                </div>
+                <div style="margin-top: 24px; text-align: center;">
+                  <a href="${link}" style="background: #dc2626; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 600; display: inline-block;">
+                    Open ECR Material Issues &rarr;
+                  </a>
+                </div>
+              </div>
+            </div>
+          `,
+        };
+      },
+    },
   };
 
   /**

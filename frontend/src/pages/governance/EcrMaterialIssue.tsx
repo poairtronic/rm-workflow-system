@@ -92,6 +92,36 @@ export function EcrMaterialIssue() {
   });
 
   // 1.1 Tab Filter State: ALL | OPEN | CLOSED
+  const [deletingReportId, setDeletingReportId] = useState<string | null>(null);
+
+  const handleDeleteReport = async (row: EcrIssuePending) => {
+    const details = [
+      row.reportNumber ? `Report: ${row.reportNumber}` : null,
+      row.scNumber ? `SC: ${row.scNumber}` : null,
+      row.poNumber ? `PO: ${row.poNumber}` : null,
+      row.component ? `Component: ${row.component}` : null,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete this ECR report?\n${details}\n\nThis item will be removed from the stores queue.`
+    );
+    if (!confirmed) return;
+
+    setDeletingReportId(row.id);
+    try {
+      await ecrIssuesService.deleteEcrIssue(row.id);
+      toast.success(`ECR report "${row.reportNumber}" deleted successfully.`);
+      await queryClient.invalidateQueries({ queryKey: ['ecr-issues'] });
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to delete ECR report');
+    } finally {
+      setDeletingReportId(null);
+    }
+  };
+
   const [activeTab, setActiveTab] = useState<'ALL' | 'OPEN' | 'CLOSED'>('ALL');
 
   const openIssues = useMemo(
@@ -484,23 +514,34 @@ export function EcrMaterialIssue() {
       key: 'actions',
       header: 'Action',
       render: (row: EcrIssuePending) => {
-        if (row.status === 'ISSUED') {
-          return (
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="w-4 h-4" />
-              Issued
-            </span>
-          );
-        }
+        const isIssued = row.status === 'ISSUED';
         return (
-          <Button
-            size="sm"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-xs"
-            onClick={() => handleOpenIssueModal(row)}
-          >
-            <Package className="w-3.5 h-3.5 mr-1" />
-            Issue Material
-          </Button>
+          <div className="flex items-center gap-2">
+            {isIssued ? (
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="w-4 h-4" />
+                Issued
+              </span>
+            ) : (
+              <Button
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-xs"
+                onClick={() => handleOpenIssueModal(row)}
+              >
+                <Package className="w-3.5 h-3.5 mr-1" />
+                Issue Material
+              </Button>
+            )}
+            <button
+              type="button"
+              onClick={() => handleDeleteReport(row)}
+              disabled={deletingReportId === row.id}
+              className="p-1.5 rounded-lg border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:border-red-300 dark:hover:border-red-800 transition-colors cursor-pointer"
+              title="Delete Report"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         );
       },
     },

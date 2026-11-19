@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Param,
   Req,
@@ -103,6 +104,22 @@ export class EcrIssuesController {
       role: user?.role,
     };
     return this.ecrIssuesService.issue(id, dto, currentUser);
+  }
+
+  @Delete('ecr-issues/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.PRODUCTION,
+    UserRole.GENERAL_MANAGER,
+    UserRole.SENIOR_MANAGER,
+  )
+  async deleteEcrIssue(
+    @Param('id') id: string,
+    @Req() req: any,
+  ) {
+    return this.ecrIssuesService.deleteEcrIssue(id, req.user);
   }
 }
 

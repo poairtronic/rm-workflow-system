@@ -318,7 +318,10 @@ describe('EcrIssuesService', () => {
 
       const result = await service.getAll();
 
-      expect(mockEcrRepo.find).toHaveBeenCalledWith({ order: { createdAt: 'DESC' } });
+      expect(mockEcrRepo.find).toHaveBeenCalledWith({
+        where: { isDeleted: false },
+        order: { createdAt: 'DESC' },
+      });
       expect(result).toHaveLength(2);
       expect(result[0].id).toBe('ecr-1');
       expect(result[0].currentStock).toBe(40);
@@ -518,6 +521,32 @@ describe('EcrIssuesService', () => {
         materialIssueId: 'mock-tx-uuid-1',
         issuedAt: expect.any(Date),
       });
+    });
+  });
+
+  describe('deleteEcrIssue', () => {
+    it('should throw NotFoundException if record does not exist or already deleted', async () => {
+      mockEcrRepo.findOne.mockResolvedValueOnce(null);
+
+      await expect(service.deleteEcrIssue('missing-id')).rejects.toThrow(NotFoundException);
+    });
+
+    it('should soft-delete record and return success', async () => {
+      const mockRecord = {
+        id: 'ecr-1',
+        reportNumber: 'REP-001',
+        status: 'PENDING',
+        isDeleted: false,
+      };
+      mockEcrRepo.findOne.mockResolvedValueOnce(mockRecord);
+      mockEcrRepo.save.mockResolvedValueOnce({ ...mockRecord, isDeleted: true, status: 'CANCELLED' });
+
+      const result = await service.deleteEcrIssue('ecr-1', { id: 'user-1' });
+
+      expect(mockRecord.isDeleted).toBe(true);
+      expect(mockRecord.status).toBe('CANCELLED');
+      expect(mockEcrRepo.save).toHaveBeenCalledWith(mockRecord);
+      expect(result.success).toBe(true);
     });
   });
 });

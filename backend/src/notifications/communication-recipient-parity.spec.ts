@@ -55,7 +55,11 @@ describe('CommunicationService & Recipient Parity (Phase 2)', () => {
     'CONSUMABLE_APPROVED',
     'CONSUMABLE_REJECTED',
   ];
-  const allConfigurableEvents = [...sixteenEvents, ...phase5ApprovalEvents];
+  const mercEcrOverdueEvents = [
+    'MERC_INDENT_ISSUE_OVERDUE_24H',
+    'ECR_MATERIAL_ISSUE_OVERDUE_24H',
+  ];
+  const allConfigurableEvents = [...sixteenEvents, ...phase5ApprovalEvents, ...mercEcrOverdueEvents];
   const twelveEvents = sixteenEvents;
 
   let commService: CommunicationService;

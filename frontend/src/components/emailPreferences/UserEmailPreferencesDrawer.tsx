@@ -35,6 +35,7 @@ const CATEGORY_ORDER = [
   'INVENTORY',
   'DELIVERY_CHALLAN',
   'CONSUMABLE',
+  'MERC & ECR Integration',
 ];
 
 const CATEGORY_TITLES: Record<string, string> = {
@@ -43,6 +44,7 @@ const CATEGORY_TITLES: Record<string, string> = {
   INVENTORY: 'Inventory & Stock Alerts',
   DELIVERY_CHALLAN: 'Delivery Challan & Inward',
   CONSUMABLE: 'Consumables & PO Requests',
+  'MERC & ECR Integration': 'MERC & ECR Integration',
 };
 
 export function UserEmailPreferencesDrawer({
