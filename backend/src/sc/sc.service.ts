@@ -17,6 +17,9 @@ import { WorkflowNotificationService } from '../notifications/workflow-notificat
 
 @Injectable()
 export class ScService {
+  private cache = new Map<string, { data: SalesOrderComponent[]; timestamp: number }>();
+  private readonly CACHE_TTL_MS = 60 * 1000;
+
   constructor(
     @InjectRepository(SalesOrderComponent)
     private readonly scRepo: Repository<SalesOrderComponent>,
@@ -26,6 +29,27 @@ export class ScService {
     private readonly additionalRequestService: AdditionalRequestService,
     private readonly workflowNotificationService: WorkflowNotificationService,
   ) {}
+
+  clearCache(): void {
+    this.cache.clear();
+  }
+
+  private getCacheKey(query?: {
+    poId?: string;
+    scNumber?: string;
+    status?: ScStatus;
+    search?: string;
+  }): string {
+    if (!query) return '';
+    const poId = query.poId || '';
+    const scNumber = query.scNumber || '';
+    const status = query.status || '';
+    const search = query.search || '';
+    if (!poId && !scNumber && !status && !search) {
+      return '';
+    }
+    return `${poId}|${scNumber}|${status}|${search}`;
+  }
 
   async createSc(dto: CreateScDto) {
     const trimmedScNumber = dto.scNumber.trim();
@@ -60,7 +84,9 @@ export class ScService {
       status: ScStatus.DRAFT,
     });
 
-    return this.scRepo.save(sc);
+    const savedSc = await this.scRepo.save(sc);
+    this.clearCache();
+    return savedSc;
   }
 
   async findAll(query?: {
@@ -69,6 +95,14 @@ export class ScService {
     status?: ScStatus;
     search?: string;
   }) {
+    const cacheKey = this.getCacheKey(query);
+    const cached = this.cache.get(cacheKey);
+    const now = Date.now();
+
+    if (cached && now - cached.timestamp < this.CACHE_TTL_MS) {
+      return cached.data;
+    }
+
     const qb = this.scRepo
       .createQueryBuilder('sc')
       .leftJoinAndSelect('sc.purchaseOrder', 'po')
@@ -96,7 +130,9 @@ export class ScService {
     }
 
     qb.orderBy('sc.createdAt', 'DESC');
-    return qb.getMany();
+    const result = await qb.getMany();
+    this.cache.set(cacheKey, { data: result, timestamp: now });
+    return result;
   }
 
   async findOne(id: string) {
@@ -202,6 +238,8 @@ export class ScService {
       await queryRunner.manager.save(SalesOrderComponent, sc);
       await queryRunner.commitTransaction();
 
+      this.clearCache();
+
       // Post-commit notification for SC_COMPLETED
       try {
         await this.workflowNotificationService.notifyScCompleted({
@@ -252,6 +290,8 @@ export class ScService {
 
       await queryRunner.manager.save(SalesOrderComponent, sc);
       await queryRunner.commitTransaction();
+
+      this.clearCache();
 
       return this.findOne(id);
     } catch (error) {
@@ -393,6 +433,7 @@ export class ScService {
       await queryRunner.query(`DELETE FROM sales_order_components WHERE id = $1`, [id]);
 
       await queryRunner.commitTransaction();
+      this.clearCache();
       return { success: true, message: `SC ${sc.scNumber} deleted successfully.` };
     } catch (err) {
       await queryRunner.rollbackTransaction();
