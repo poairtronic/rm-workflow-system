@@ -23,6 +23,7 @@ import { EditPrIndentModal } from '../components/consumables/EditPrIndentModal';
 import { ConsumableAlertSettingsModal } from '../components/consumables/ConsumableAlertSettingsModal';
 import { consumablesApi, type BinOption } from '../services/consumables.service';
 import type { ConsumableLineItemRecord } from '../types/consumables.types';
+import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 export function matchesPrNumber(itemPrNumber?: string | number | null, query?: string): boolean {
@@ -55,6 +56,7 @@ export function matchesPrNumber(itemPrNumber?: string | number | null, query?: s
 }
 
 export function ConsumablePurchaseStoreWorkspace() {
+  const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'STOCK_QUEUE' | 'PURCHASE_QUEUE'>('STOCK_QUEUE');
 
   // Loading states
@@ -1836,6 +1838,7 @@ export function ConsumablePurchaseStoreWorkspace() {
           date={printModalData.date}
           paymentMode={printModalData.paymentMode}
           items={printModalData.items}
+          verifiedBy={currentUser?.name}
           onPrintConfirmed={() => {
             setPrintModalOpen(false);
             loadData();

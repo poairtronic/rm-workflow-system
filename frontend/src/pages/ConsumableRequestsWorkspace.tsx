@@ -1426,6 +1426,7 @@ export function ConsumableRequestsWorkspace() {
           paymentMode="CASH"
           items={viewingPrItems}
           preparedBy={viewingPrItems[0].requestedBy}
+          verifiedBy={currentUser?.name}
         />
       )}
 

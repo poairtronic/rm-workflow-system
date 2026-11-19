@@ -4,6 +4,7 @@ import { VelanLogo } from '../print/VelanLogo';
 import { Button } from '../ui/Button';
 import type { ConsumableLineItemRecord } from '../../types/consumables.types';
 import { consumablesApi } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 export interface VelanPrPrintModalProps {
   isOpen: boolean;
@@ -64,6 +65,9 @@ export function VelanPrPrintModal({
   onPrintConfirmed,
   itemIds,
 }: VelanPrPrintModalProps) {
+  const { currentUser } = useAuth();
+  const effectiveVerifiedBy = verifiedBy || currentUser?.name || 'Stores In-Charge';
+
   // Prevent page scroll when modal is open
   useEffect(() => {
     if (isOpen) {
@@ -256,12 +260,6 @@ export function VelanPrPrintModal({
         {pages.map((pageItems, pageIdx) => {
           const pageNumber = pageIdx + 1;
           const isLastPage = pageNumber === totalPages;
-          // Fill blank lines on single page up to 6 rows, or up to 3 on last multi-page sheet
-          const emptyRowsCount = totalPages === 1
-            ? Math.max(0, 6 - pageItems.length)
-            : isLastPage
-            ? Math.max(0, 3 - pageItems.length)
-            : 0;
 
           return (
             <div
@@ -323,28 +321,28 @@ export function VelanPrPrintModal({
                   {/* LINE ITEMS TABLE (table-fixed 100% width, no cut-off)     */}
                   {/* ========================================================= */}
                   <div className="border border-black mb-3 overflow-hidden">
-                    <table className="w-full text-left border-collapse text-xs table-fixed" style={{ width: '100%' }}>
+                    <table className="w-full text-left border-collapse text-xs table-fixed" style={{ width: '100%', minHeight: '180px' }}>
                       <thead>
                         <tr className="bg-slate-100 border-b-2 border-black font-bold uppercase tracking-wider text-[11px]">
-                          <th className="py-2 px-1 border-r border-black text-center" style={{ width: '5.5%' }}>
+                          <th className="py-2 px-1 border-r border-black text-center" style={{ width: '5%' }}>
                             S.No.
                           </th>
                           <th className="py-2 px-2.5 border-r border-black" style={{ width: '28%' }}>
                             Description of Goods / Item
                           </th>
-                          <th className="py-2 px-2 border-r border-black text-right" style={{ width: '9.5%' }}>
+                          <th className="py-2 px-2 border-r border-black text-right" style={{ width: '9%' }}>
                             Req. Stock
                           </th>
-                          <th className="py-2 px-2.5 border-r border-black" style={{ width: '25%' }}>
+                          <th className="py-2 px-2.5 border-r border-black" style={{ width: '20%' }}>
                             Supplier / Vendor Details
                           </th>
-                          <th className="py-2 px-2 border-r border-black text-right" style={{ width: '10.5%' }}>
+                          <th className="py-2 px-2 border-r border-black text-right" style={{ width: '10%' }}>
                             Approx Price
                           </th>
-                          <th className="py-2 px-2 border-r border-black" style={{ width: '11%' }}>
+                          <th className="py-2 px-2 border-r border-black" style={{ width: '14%' }}>
                             End User
                           </th>
-                          <th className="py-2 px-2 text-left" style={{ width: '10.5%' }}>
+                          <th className="py-2 px-2 text-left" style={{ width: '14%' }}>
                             Requested By
                           </th>
                         </tr>
@@ -358,12 +356,12 @@ export function VelanPrPrintModal({
                           return (
                             <tr key={item.id || sNo} className="align-top text-[11px]">
                               {/* S.No */}
-                              <td className="py-1.5 px-1 border-r border-black text-center font-mono font-bold" style={{ width: '5.5%' }}>
+                              <td className="py-2 px-1 border-r border-black text-center font-mono font-bold" style={{ width: '5%' }}>
                                 {sNo}
                               </td>
 
                               {/* Description */}
-                              <td className="py-1.5 px-2.5 border-r border-black break-words" style={{ width: '28%' }}>
+                              <td className="py-2 px-2.5 border-r border-black break-words" style={{ width: '28%' }}>
                                 <span className="font-bold text-black block leading-snug">
                                   {item.description}
                                 </span>
@@ -380,7 +378,7 @@ export function VelanPrPrintModal({
                               </td>
 
                               {/* Qty & UOM */}
-                              <td className="py-1.5 px-2 border-r border-black text-right font-mono font-bold whitespace-nowrap tabular-nums" style={{ width: '9.5%' }}>
+                              <td className="py-2 px-2 border-r border-black text-right font-mono font-bold whitespace-nowrap tabular-nums" style={{ width: '9%' }}>
                                 {(() => {
                                   const indentQty = Number(item.purchaseQty ?? item.requestedQty ?? 0);
                                   const prodReqQty = Number(item.requestedQty || 0);
@@ -403,7 +401,7 @@ export function VelanPrPrintModal({
                               </td>
 
                               {/* Supplier / Vendor Details */}
-                              <td className="py-1.5 px-2.5 border-r border-black text-[10.5px] break-words" style={{ width: '25%' }}>
+                              <td className="py-2 px-2.5 border-r border-black text-[10.5px] break-words" style={{ width: '20%' }}>
                                 {isNewVendor ? (
                                   <div className="space-y-0.5 leading-tight">
                                     <span className="font-bold text-black block">
@@ -430,7 +428,7 @@ export function VelanPrPrintModal({
                               </td>
 
                               {/* Approx Price */}
-                              <td className="py-1.5 px-2 border-r border-black text-right font-mono font-bold whitespace-nowrap tabular-nums" style={{ width: '10.5%' }}>
+                              <td className="py-2 px-2 border-r border-black text-right font-mono font-bold whitespace-nowrap tabular-nums" style={{ width: '10%' }}>
                                 {isNewVendor && item.newVendorPrice ? (
                                   `₹${Number(item.newVendorPrice).toFixed(2)}`
                                 ) : item.unitPrice ? (
@@ -441,32 +439,28 @@ export function VelanPrPrintModal({
                               </td>
 
                               {/* End User */}
-                              <td className="py-1.5 px-2 border-r border-black text-[10.5px] break-words" style={{ width: '11%' }}>
+                              <td className="py-2 px-2 border-r border-black text-[10.5px] uppercase font-semibold break-normal" style={{ width: '14%' }}>
                                 {item.endUserInVelan || 'General Plant Use'}
                               </td>
 
                               {/* Requested By */}
-                              <td className="py-1.5 px-2 text-[10.5px] break-words" style={{ width: '10.5%' }}>
+                              <td className="py-2 px-2 text-[10.5px] uppercase font-semibold break-normal" style={{ width: '14%' }}>
                                 {item.requestedBy || 'Production'}
                               </td>
                             </tr>
                           );
                         })}
 
-                        {/* Blank Filler Rows for Physical Pad Layout */}
-                        {Array.from({ length: emptyRowsCount }).map((_, fIdx) => (
-                          <tr key={`filler-${fIdx}`} className="h-7 border-t border-slate-200">
-                            <td className="border-r border-black text-center text-slate-300 font-mono text-[10px]">
-                              {pageItems.length + fIdx + 1}
-                            </td>
-                            <td className="border-r border-black" />
-                            <td className="border-r border-black" />
-                            <td className="border-r border-black" />
-                            <td className="border-r border-black" />
-                            <td className="border-r border-black" />
-                            <td />
-                          </tr>
-                        ))}
+                        {/* Empty stretch row: Has vertical column borders continuing down all the way, but NO horizontal lines or fake row numbers */}
+                        <tr style={{ height: 'auto' }}>
+                          <td className="border-r border-black" style={{ width: '5%' }} />
+                          <td className="border-r border-black" style={{ width: '28%' }} />
+                          <td className="border-r border-black" style={{ width: '9%' }} />
+                          <td className="border-r border-black" style={{ width: '20%' }} />
+                          <td className="border-r border-black" style={{ width: '10%' }} />
+                          <td className="border-r border-black" style={{ width: '14%' }} />
+                          <td style={{ width: '14%' }} />
+                        </tr>
                       </tbody>
 
                       {/* Total Row on Last Page */}
@@ -504,12 +498,15 @@ export function VelanPrPrintModal({
                     <div className="border-2 border-black p-3 sm:p-4 mb-2 bg-slate-50/50">
                       <div className="grid grid-cols-3 gap-6 text-center">
                         {/* Prepared By */}
-                        <div className="border-r border-black pr-4">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-6">
+                        <div className="border-r border-black pr-4 flex flex-col justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-1">
                             Prepared By
                           </span>
+                          <div className="h-10 flex items-center justify-center my-0.5">
+                            {/* Manual signature / sign placeholder */}
+                          </div>
                           <div className="border-t border-black pt-1">
-                            <span className="font-bold text-xs block text-black">
+                            <span className="font-bold text-xs block text-black uppercase">
                               {preparedBy || items[0]?.requestedBy || 'Production User'}
                             </span>
                             <span className="text-[10px] text-slate-500 uppercase tracking-wider block">
@@ -519,30 +516,43 @@ export function VelanPrPrintModal({
                         </div>
 
                         {/* Verified By */}
-                        <div className="border-r border-black pr-4">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-6">
+                        <div className="border-r border-black pr-4 flex flex-col justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-1">
                             Verified By
                           </span>
+                          <div className="h-10 flex items-center justify-center my-0.5">
+                            {/* Verification stamp / sign placeholder */}
+                          </div>
                           <div className="border-t border-black pt-1">
-                            <span className="font-bold text-xs block text-black">
-                              {verifiedBy || 'Stores In-Charge'}
+                            <span className="font-bold text-xs block text-black uppercase">
+                              {effectiveVerifiedBy}
                             </span>
                             <span className="text-[10px] text-slate-500 uppercase tracking-wider block">
-                              Stores Verification & Stock Check
+                              Stores In-Charge • Stores Verification & Stock Check
                             </span>
                           </div>
                         </div>
 
                         {/* Approved By */}
-                        <div>
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-6">
+                        <div className="flex flex-col justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-1">
                             Approved By
                           </span>
+                          <div className="h-10 flex items-center justify-center my-0.5">
+                            <img
+                              src="/images/signatures/amritha-signature.png"
+                              alt="Amritha Signature"
+                              className="h-9 max-h-10 max-w-full object-contain mx-auto mix-blend-multiply"
+                            />
+                          </div>
                           <div className="border-t border-black pt-1">
-                            <span className="font-bold text-xs block text-black">
-                              {approvedBy || 'Plant / Purchase Manager'}
+                            <span className="font-bold text-xs block text-black uppercase">
+                              {approvedBy || 'AMRITHA'}
                             </span>
-                            <span className="text-[10px] text-slate-500 uppercase tracking-wider block">
+                            <span className="text-[10px] text-slate-600 uppercase font-semibold tracking-wider block">
+                              Plant / Purchase Manager
+                            </span>
+                            <span className="text-[9px] text-slate-500 uppercase tracking-wider block">
                               Commercial & Budget Authority
                             </span>
                           </div>
