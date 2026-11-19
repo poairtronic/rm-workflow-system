@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import type { ConsumableLineItemRecord } from '../../types/consumables.types';
 import { consumablesApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { AmrithaSignature } from './AmrithaSignature';
 
 export interface VelanPrPrintModalProps {
   isOpen: boolean;
@@ -502,7 +503,7 @@ export function VelanPrPrintModal({
                           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-1">
                             Prepared By
                           </span>
-                          <div className="h-10 flex items-center justify-center my-0.5">
+                          <div className="h-14 sm:h-16 flex items-center justify-center my-0.5">
                             {/* Manual signature / sign placeholder */}
                           </div>
                           <div className="border-t border-black pt-1">
@@ -520,7 +521,7 @@ export function VelanPrPrintModal({
                           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-1">
                             Verified By
                           </span>
-                          <div className="h-10 flex items-center justify-center my-0.5">
+                          <div className="h-14 sm:h-16 flex items-center justify-center my-0.5">
                             {/* Verification stamp / sign placeholder */}
                           </div>
                           <div className="border-t border-black pt-1">
@@ -538,12 +539,8 @@ export function VelanPrPrintModal({
                           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block mb-1">
                             Approved By
                           </span>
-                          <div className="h-10 flex items-center justify-center my-0.5">
-                            <img
-                              src="/images/signatures/amritha-signature.png"
-                              alt="Amritha Signature"
-                              className="h-9 max-h-10 max-w-full object-contain mx-auto mix-blend-multiply"
-                            />
+                          <div className="h-14 sm:h-16 flex items-center justify-center my-0.5">
+                            <AmrithaSignature className="h-12 sm:h-14 w-auto max-w-full object-contain mx-auto" />
                           </div>
                           <div className="border-t border-black pt-1">
                             <span className="font-bold text-xs block text-black uppercase">
