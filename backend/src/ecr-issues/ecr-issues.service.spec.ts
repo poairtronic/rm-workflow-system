@@ -214,7 +214,7 @@ describe('EcrIssuesService', () => {
 
   describe('receivePending', () => {
     beforeEach(() => {
-      vi.spyOn(service, 'getEcrReportStatus').mockResolvedValue({
+      vi.spyOn(service as any, 'getEcrReportStatus').mockResolvedValue({
         exists: true,
         status: 'APPROVED',
         componentsIssued: false,
