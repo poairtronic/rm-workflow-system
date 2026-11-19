@@ -56,8 +56,22 @@ export class ScController {
     @Query('scNumber') scNumber?: string,
     @Query('status') status?: ScStatus,
     @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
   ) {
-    return this.scService.findAll({ poId, scNumber, status, search });
+    const pageNum = page ? Math.max(1, parseInt(page, 10)) : undefined;
+    const limitNum = limit ? Math.max(1, parseInt(limit, 10)) : 25;
+    const offsetNum = offset !== undefined && offset !== '' ? Math.max(0, parseInt(offset, 10)) : undefined;
+    return this.scService.findAll({
+      poId,
+      scNumber,
+      status,
+      search,
+      page: pageNum,
+      limit: limitNum,
+      offset: offsetNum,
+    });
   }
 
   @Get('test/:id')

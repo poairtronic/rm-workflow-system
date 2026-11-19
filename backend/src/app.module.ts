@@ -55,10 +55,10 @@ import { AlertSweepModule } from './alert-sweeps/alert-sweeps.module.js';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         const dbUrl =
-          configService.get<string>('DATABASE_URL_DIRECT') ||
           configService.get<string>('DATABASE_URL') ||
-          process.env.DATABASE_URL_DIRECT ||
+          configService.get<string>('DATABASE_URL_DIRECT') ||
           process.env.DATABASE_URL ||
+          process.env.DATABASE_URL_DIRECT ||
           'postgresql://postgres:postgres@localhost:5432/rm_workflow_db';
         let dbHost = '';
         try {

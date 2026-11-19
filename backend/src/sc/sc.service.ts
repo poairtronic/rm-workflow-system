@@ -68,14 +68,33 @@ export class ScService {
     scNumber?: string;
     status?: ScStatus;
     search?: string;
+    page?: number;
+    limit?: number;
+    offset?: number;
   }) {
+    const take = query?.limit ?? 25;
+    const skip =
+      query?.offset ??
+      (query?.page && query.page > 0 ? (query.page - 1) * take : 0);
+
     const qb = this.scRepo
       .createQueryBuilder('sc')
       .leftJoinAndSelect('sc.purchaseOrder', 'po')
       .leftJoinAndSelect('po.customer', 'customer')
-      .leftJoinAndSelect('sc.rmRequest', 'rm')
-      .leftJoinAndSelect('rm.items', 'items')
-      .leftJoinAndSelect('sc.rmItems', 'rmItems');
+      .select([
+        'sc.id',
+        'sc.scNumber',
+        'sc.status',
+        'sc.targetQuantity',
+        'sc.productName',
+        'sc.drawingNumber',
+        'sc.poId',
+        'sc.createdAt',
+        'po.id',
+        'po.poNumber',
+        'customer.id',
+        'customer.name',
+      ]);
 
     if (query?.poId) {
       qb.andWhere('sc.poId = :poId', { poId: query.poId });
@@ -96,6 +115,7 @@ export class ScService {
     }
 
     qb.orderBy('sc.createdAt', 'DESC');
+    qb.take(take).skip(skip);
     return qb.getMany();
   }
 
