@@ -603,8 +603,8 @@ export class ConsumablesService implements OnModuleInit {
       }
 
       const trimmedLineDesc = itemDto.lineDescription?.trim();
-      if (trimmedLineDesc && (trimmedLineDesc.length < 3 || trimmedLineDesc.length > 800)) {
-        throw new BadRequestException('Line item description must be between 3 and 800 characters.');
+      if (!trimmedLineDesc || trimmedLineDesc.length < 3 || trimmedLineDesc.length > 800) {
+        throw new BadRequestException('Line item description is required and must be between 3 and 800 characters.');
       }
 
       const lineItem = this.itemRepo.create({
@@ -612,7 +612,7 @@ export class ConsumablesService implements OnModuleInit {
         productId: product.id,
         productCode: product.code || itemDto.productCode || null,
         description: itemDto.description.trim(),
-        lineDescription: trimmedLineDesc || null,
+        lineDescription: trimmedLineDesc,
         uom: itemDto.uom || product.uom || 'NOS',
         isNewProduct,
         itemCategoryTrack,

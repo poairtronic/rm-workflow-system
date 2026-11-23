@@ -235,13 +235,15 @@ export function ConsumableRequestsWorkspace() {
         return;
       }
 
-      // Optional description: if provided, must be between 3 and 800 characters
-      if (row.lineDescription && row.lineDescription.trim().length > 0) {
-        const descLen = row.lineDescription.trim().length;
-        if (descLen < 3 || descLen > 800) {
-          toast.error(`Line #${i + 1}: Description must be between 3 and 800 characters if provided.`);
-          return;
-        }
+      // Mandatory description: must be between 3 and 800 characters
+      const lineDesc = row.lineDescription?.trim();
+      if (!lineDesc) {
+        toast.error(`Line #${i + 1}: Item description is required (min 3 characters).`);
+        return;
+      }
+      if (lineDesc.length < 3 || lineDesc.length > 800) {
+        toast.error(`Line #${i + 1}: Item description must be between 3 and 800 characters.`);
+        return;
       }
     }
 
@@ -257,7 +259,7 @@ export function ConsumableRequestsWorkspace() {
           productId: item.productId ? item.productId : undefined,
           productCode: item.productCode ? item.productCode : undefined,
           description: item.description.trim(),
-          lineDescription: item.lineDescription?.trim() ? item.lineDescription.trim() : undefined,
+          lineDescription: (item.lineDescription || '').trim(),
           uom: item.uom.trim() || 'NOS',
           requestedQty: Number(item.requestedQty || 0),
           stockAvailableAtRequest: Number(item.stockAvailableAtRequest || 0),
@@ -614,22 +616,20 @@ export function ConsumableRequestsWorkspace() {
                   <button
                     type="button"
                     onClick={() => setPaymentMode('CASH')}
-                    className={`py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
-                      paymentMode === 'CASH'
-                        ? 'bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                    }`}
+                    className={`py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${paymentMode === 'CASH'
+                      ? 'bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                      }`}
                   >
                     Cash Purchase
                   </button>
                   <button
                     type="button"
                     onClick={() => setPaymentMode('CREDIT')}
-                    className={`py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
-                      paymentMode === 'CREDIT'
-                        ? 'bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                    }`}
+                    className={`py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${paymentMode === 'CREDIT'
+                      ? 'bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                      }`}
                   >
                     Credit / PO
                   </button>
@@ -731,22 +731,20 @@ export function ConsumableRequestsWorkspace() {
                           <button
                             type="button"
                             onClick={() => handleUpdateRow(row.tempId, { isNewProduct: false })}
-                            className={`px-2.5 py-1 rounded-sm cursor-pointer transition-all ${
-                              !row.isNewProduct
-                                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-semibold shadow-xs'
-                                : 'text-slate-500 hover:text-slate-800'
-                            }`}
+                            className={`px-2.5 py-1 rounded-sm cursor-pointer transition-all ${!row.isNewProduct
+                              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-semibold shadow-xs'
+                              : 'text-slate-500 hover:text-slate-800'
+                              }`}
                           >
                             Existing Catalog Product
                           </button>
                           <button
                             type="button"
                             onClick={() => handleUpdateRow(row.tempId, { isNewProduct: true })}
-                            className={`px-2.5 py-1 rounded-sm cursor-pointer transition-all flex items-center gap-1 ${
-                              row.isNewProduct
-                                ? 'bg-indigo-600 text-white font-semibold shadow-xs'
-                                : 'text-slate-500 hover:text-slate-800'
-                            }`}
+                            className={`px-2.5 py-1 rounded-sm cursor-pointer transition-all flex items-center gap-1 ${row.isNewProduct
+                              ? 'bg-indigo-600 text-white font-semibold shadow-xs'
+                              : 'text-slate-500 hover:text-slate-800'
+                              }`}
                           >
                             <Sparkles className="w-3 h-3" />
                             + New Product (Auto-Create)
@@ -905,18 +903,17 @@ export function ConsumableRequestsWorkspace() {
                       </div>
                     )}
 
-                    {/* Line Item Description Box (Optional, 3 to 800 characters) */}
+                    {/* Line Item Description Box (Mandatory, 3 to 800 characters) */}
                     <div className="pt-1">
                       <div className="flex items-center justify-between mb-1">
                         <label className="block text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">
-                          Description <span className="text-slate-400 font-normal lowercase">(optional, 3–800 chars)</span>
+                          Description <span className="text-rose-500 font-bold">*</span> <span className="text-slate-400 font-normal lowercase">(required, 3–800 chars)</span>
                         </label>
                         <span
-                          className={`text-[10px] font-mono ${
-                            (row.lineDescription?.trim().length || 0) > 0 && (row.lineDescription?.trim().length || 0) < 3
-                              ? 'text-amber-500 font-bold'
-                              : 'text-slate-400'
-                          }`}
+                          className={`text-[10px] font-mono ${row.lineDescription && row.lineDescription.trim().length > 0 && row.lineDescription.trim().length < 3
+                            ? 'text-amber-500 font-bold'
+                            : 'text-slate-400'
+                            }`}
                         >
                           {row.lineDescription?.length || 0} / 800
                         </span>
@@ -924,18 +921,18 @@ export function ConsumableRequestsWorkspace() {
                       <textarea
                         rows={2}
                         maxLength={800}
-                        placeholder="Enter optional description or job details for this line item (min 3 chars if provided)..."
+                        required
+                        placeholder="Enter description or job details for this line item (required, 3–800 chars)..."
                         value={row.lineDescription || ''}
                         onChange={(e) => handleUpdateRow(row.tempId, { lineDescription: e.target.value })}
-                        className={`w-full px-3 py-1.5 text-xs rounded-lg border bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 resize-y transition-colors ${
-                          row.lineDescription && row.lineDescription.trim().length > 0 && row.lineDescription.trim().length < 3
-                            ? 'border-amber-400 dark:border-amber-500 focus:ring-amber-500'
-                            : 'border-slate-200 dark:border-slate-700 focus:ring-indigo-500'
-                        }`}
+                        className={`w-full px-3 py-1.5 text-xs rounded-lg border bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 resize-y transition-colors ${row.lineDescription && row.lineDescription.trim().length > 0 && row.lineDescription.trim().length < 3
+                          ? 'border-amber-400 dark:border-amber-500 focus:ring-amber-500'
+                          : 'border-slate-200 dark:border-slate-700 focus:ring-indigo-500'
+                          }`}
                       />
                       {row.lineDescription && row.lineDescription.trim().length > 0 && row.lineDescription.trim().length < 3 && (
                         <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
-                          Description must be at least 3 characters if provided.
+                          Description must be at least 3 characters.
                         </p>
                       )}
                     </div>
@@ -953,22 +950,20 @@ export function ConsumableRequestsWorkspace() {
                             <button
                               type="button"
                               onClick={() => handleUpdateRow(row.tempId, { isNewVendor: false })}
-                              className={`px-2 py-0.5 rounded-xs cursor-pointer ${
-                                !row.isNewVendor
-                                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold'
-                                  : 'text-amber-900 dark:text-amber-300'
-                              }`}
+                              className={`px-2 py-0.5 rounded-xs cursor-pointer ${!row.isNewVendor
+                                ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold'
+                                : 'text-amber-900 dark:text-amber-300'
+                                }`}
                             >
                               Existing Vendor
                             </button>
                             <button
                               type="button"
                               onClick={() => handleUpdateRow(row.tempId, { isNewVendor: true })}
-                              className={`px-2 py-0.5 rounded-xs cursor-pointer ${
-                                row.isNewVendor
-                                  ? 'bg-amber-600 text-white font-semibold'
-                                  : 'text-amber-900 dark:text-amber-300'
-                              }`}
+                              className={`px-2 py-0.5 rounded-xs cursor-pointer ${row.isNewVendor
+                                ? 'bg-amber-600 text-white font-semibold'
+                                : 'text-amber-900 dark:text-amber-300'
+                                }`}
                             >
                               + New Vendor
                             </button>
@@ -1168,66 +1163,60 @@ export function ConsumableRequestsWorkspace() {
               <button
                 type="button"
                 onClick={() => setStatusFilter('ALL')}
-                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${
-                  statusFilter === 'ALL'
-                    ? 'bg-indigo-600 text-white font-bold'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                }`}
+                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${statusFilter === 'ALL'
+                  ? 'bg-indigo-600 text-white font-bold'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  }`}
               >
                 All Items ({lineItems.length})
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter('READY_FOR_RECEIPT')}
-                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1 ${
-                  statusFilter === 'READY_FOR_RECEIPT'
-                    ? 'bg-emerald-600 text-white font-bold'
-                    : 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200'
-                }`}
+                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1 ${statusFilter === 'READY_FOR_RECEIPT'
+                  ? 'bg-emerald-600 text-white font-bold'
+                  : 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200'
+                  }`}
               >
                 Ready to Receive ({readyForReceiptApprovedCount})
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter('OPEN')}
-                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1 ${
-                  statusFilter === 'OPEN'
-                    ? 'bg-blue-600 text-white font-bold'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                }`}
+                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1 ${statusFilter === 'OPEN'
+                  ? 'bg-blue-600 text-white font-bold'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  }`}
               >
                 Open ({approvedLines.filter((i) => ['OPEN', 'PURCHASE_REQUESTED', 'PURCHASE_RECEIVED', 'READY_FOR_ISSUE', 'PARTIALLY_ISSUED'].includes(i.status)).length})
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter('PENDING_APPROVAL')}
-                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1 ${
-                  statusFilter === 'PENDING_APPROVAL'
-                    ? 'bg-amber-600 text-white font-bold'
-                    : 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-200'
-                }`}
+                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1 ${statusFilter === 'PENDING_APPROVAL'
+                  ? 'bg-amber-600 text-white font-bold'
+                  : 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-200'
+                  }`}
               >
                 Pending Approval ({pendingApprovalCount})
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter('REJECTED')}
-                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1 ${
-                  statusFilter === 'REJECTED'
-                    ? 'bg-rose-600 text-white font-bold'
-                    : 'bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-200'
-                }`}
+                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1 ${statusFilter === 'REJECTED'
+                  ? 'bg-rose-600 text-white font-bold'
+                  : 'bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-200'
+                  }`}
               >
                 Rejected ({rejectedCount})
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter('CLOSED')}
-                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${
-                  statusFilter === 'CLOSED'
-                    ? 'bg-slate-700 text-white font-bold'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                }`}
+                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${statusFilter === 'CLOSED'
+                  ? 'bg-slate-700 text-white font-bold'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  }`}
               >
                 Closed ({closedCount})
               </button>
@@ -1274,11 +1263,10 @@ export function ConsumableRequestsWorkspace() {
                     return (
                       <tr
                         key={item.id}
-                        className={`transition-colors ${
-                          isIssued
-                            ? 'bg-emerald-50/40 dark:bg-emerald-950/15'
-                            : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/40'
-                        }`}
+                        className={`transition-colors ${isIssued
+                          ? 'bg-emerald-50/40 dark:bg-emerald-950/15'
+                          : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/40'
+                          }`}
                       >
                         {/* Request Code */}
                         <td className="py-3 px-3 font-mono font-semibold text-slate-900 dark:text-white">

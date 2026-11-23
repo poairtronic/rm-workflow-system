@@ -9,7 +9,6 @@ import {
   Min,
   MinLength,
   MaxLength,
-  ValidateIf,
   ArrayMinSize,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -27,12 +26,10 @@ export class CreateConsumableRequestItemDto {
   @IsString()
   description!: string;
 
-  @IsOptional()
-  @ValidateIf((o) => typeof o.lineDescription === 'string' && o.lineDescription.trim().length > 0)
-  @IsString()
-  @MinLength(3, { message: 'Line item description must be at least 3 characters if provided' })
+  @IsString({ message: 'Line item description is required' })
+  @MinLength(3, { message: 'Line item description must be at least 3 characters' })
   @MaxLength(800, { message: 'Line item description cannot exceed 800 characters' })
-  lineDescription?: string;
+  lineDescription!: string;
 
   @IsOptional()
   @IsString()

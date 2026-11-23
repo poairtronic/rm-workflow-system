@@ -198,6 +198,7 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
           {
             productId: mockProduct.id,
             description: 'Safety Gloves Nitrile M',
+            lineDescription: 'Safety gloves for grinding bay',
             requestedQty: 10,
             isNewProduct: false,
           },
@@ -243,6 +244,7 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
         items: [
           {
             description: 'Custom End Mill 12mm 4 Flute',
+            lineDescription: 'Custom End Mill required for job #42',
             requestedQty: 5,
             isNewProduct: true,
             isNewVendor: true,
@@ -308,6 +310,7 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
         items: [
           {
             description: 'ARG JET',
+            lineDescription: 'ARG JET requirement for CNC station',
             requestedQty: 134,
             isNewProduct: true,
           },
@@ -346,6 +349,7 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
         items: [
           {
             description: 'HELLO',
+            lineDescription: 'HELLO custom requirement details',
             requestedQty: 10,
             isNewProduct: true,
           },
@@ -1023,10 +1027,29 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
       );
     });
 
-    it('CNS-SVC-031: should reject lineDescription if non-empty but less than 3 characters', async () => {
+    it('CNS-SVC-031: should reject lineDescription if missing or less than 3 characters or exceeds 800', async () => {
       vi.spyOn(productRepo, 'findOne').mockResolvedValue({ id: 'prod-1', name: 'Drill Bit', uom: 'NOS' } as any);
 
-      const reqDto = {
+      // Missing / empty lineDescription
+      const reqDtoMissing = {
+        paymentMode: ConsumablePaymentMode.CASH,
+        requestedBy: 'Ramu',
+        items: [
+          {
+            productId: 'prod-1',
+            description: 'Drill Bit 5mm',
+            requestedQty: 10,
+            lineDescription: '',
+          },
+        ],
+      };
+
+      await expect(service.createRequest(reqDtoMissing)).rejects.toThrow(
+        /Line item description is required and must be between 3 and 800 characters/,
+      );
+
+      // Less than 3 characters
+      const reqDtoShort = {
         paymentMode: ConsumablePaymentMode.CASH,
         requestedBy: 'Ramu',
         items: [
@@ -1039,8 +1062,8 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
         ],
       };
 
-      await expect(service.createRequest(reqDto)).rejects.toThrow(
-        /Line item description must be between 3 and 800 characters/,
+      await expect(service.createRequest(reqDtoShort)).rejects.toThrow(
+        /Line item description is required and must be between 3 and 800 characters/,
       );
     });
   });

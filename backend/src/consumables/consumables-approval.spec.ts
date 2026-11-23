@@ -225,6 +225,7 @@ describe('Phase P2: Consumables Senior Manager Approval Engine', () => {
           items: [
             {
               description: 'Drill Bit 10mm',
+              lineDescription: 'Standard 10mm drill bit for shop floor',
               productId: 'prod-stock-1',
               requestedQty: 2,
             },
@@ -261,8 +262,8 @@ describe('Phase P2: Consumables Senior Manager Approval Engine', () => {
           paymentMode: ConsumablePaymentMode.CASH,
           requestedBy: 'senior-mgr-1',
           items: [
-            { description: 'Drill Bit 10mm', productId: 'prod-stock-1', requestedQty: 2 },
-            { description: 'New Custom Tool', isNewProduct: true, requestedQty: 5 },
+            { description: 'Drill Bit 10mm', lineDescription: 'Drill Bit requirement notes', productId: 'prod-stock-1', requestedQty: 2 },
+            { description: 'New Custom Tool', lineDescription: 'New Custom Tool notes', isNewProduct: true, requestedQty: 5 },
           ],
         },
         'sm-user-uuid',
@@ -299,8 +300,8 @@ describe('Phase P2: Consumables Senior Manager Approval Engine', () => {
           paymentMode: ConsumablePaymentMode.CASH,
           requestedBy: 'operator-1',
           items: [
-            { description: 'Drill Bit 10mm', productId: 'prod-stock-1', requestedQty: 2 }, // Stock: 10 -> STOCK_ITEM
-            { description: 'New Custom Tool', isNewProduct: true, requestedQty: 5 }, // New -> NON_STOCK_OR_NEW
+            { description: 'Drill Bit 10mm', lineDescription: 'Drill Bit stock requirement', productId: 'prod-stock-1', requestedQty: 2 }, // Stock: 10 -> STOCK_ITEM
+            { description: 'New Custom Tool', lineDescription: 'New Custom Tool purchase note', isNewProduct: true, requestedQty: 5 }, // New -> NON_STOCK_OR_NEW
           ],
         },
         'user-uuid-1',

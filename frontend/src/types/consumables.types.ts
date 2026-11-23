@@ -101,7 +101,7 @@ export interface CreateConsumableRequestPayload {
     productId?: string;
     productCode?: string;
     description: string;
-    lineDescription?: string;
+    lineDescription: string;
     uom: string;
     requestedQty: number;
     stockAvailableAtRequest?: number;
