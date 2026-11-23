@@ -602,11 +602,17 @@ export class ConsumablesService implements OnModuleInit {
         }
       }
 
+      const trimmedLineDesc = itemDto.lineDescription?.trim();
+      if (trimmedLineDesc && (trimmedLineDesc.length < 3 || trimmedLineDesc.length > 800)) {
+        throw new BadRequestException('Line item description must be between 3 and 800 characters.');
+      }
+
       const lineItem = this.itemRepo.create({
         requestId: savedRequest.id,
         productId: product.id,
         productCode: product.code || itemDto.productCode || null,
         description: itemDto.description.trim(),
+        lineDescription: trimmedLineDesc || null,
         uom: itemDto.uom || product.uom || 'NOS',
         isNewProduct,
         itemCategoryTrack,
@@ -924,7 +930,7 @@ export class ConsumablesService implements OnModuleInit {
     if (dto.search && dto.search.trim()) {
       const term = `%${dto.search.trim()}%`;
       qb.andWhere(
-        '(item.description ILIKE :term OR item.product_code ILIKE :term OR request.request_code ILIKE :term OR request.requested_by ILIKE :term OR item.requested_by ILIKE :term)',
+        '(item.description ILIKE :term OR item.line_description ILIKE :term OR item.product_code ILIKE :term OR request.request_code ILIKE :term OR request.requested_by ILIKE :term OR item.requested_by ILIKE :term)',
         { term },
       );
     }
@@ -955,6 +961,7 @@ export class ConsumablesService implements OnModuleInit {
         id: item.id,
         requestCode: item.request?.requestCode || null,
         description: item.description,
+        lineDescription: item.lineDescription || null,
         productCode: item.productCode || item.product?.code || null,
         itemCategoryTrack: item.itemCategoryTrack,
         status: item.status,
@@ -1830,7 +1837,7 @@ export class ConsumablesService implements OnModuleInit {
     if (query.search) {
       const term = `%${query.search.trim().toLowerCase()}%`;
       qb.andWhere(
-        '(LOWER(item.description) LIKE :term OR LOWER(item.productCode) LIKE :term OR LOWER(item.vendorName) LIKE :term OR LOWER(request.requestCode) LIKE :term OR LOWER(item.requestedBy) LIKE :term OR LOWER(item.prNumber) LIKE :term)',
+        '(LOWER(item.description) LIKE :term OR LOWER(item.lineDescription) LIKE :term OR LOWER(item.productCode) LIKE :term OR LOWER(item.vendorName) LIKE :term OR LOWER(request.requestCode) LIKE :term OR LOWER(item.requestedBy) LIKE :term OR LOWER(item.prNumber) LIKE :term)',
         { term },
       );
     }

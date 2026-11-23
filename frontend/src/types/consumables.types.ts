@@ -73,6 +73,7 @@ export interface ConsumableItemDraft {
   baseProductName?: string;
   specification?: string;
   description: string;
+  lineDescription?: string;
   uom: string;
   requestedQty: number;
   stockAvailableAtRequest: number;
@@ -100,6 +101,7 @@ export interface CreateConsumableRequestPayload {
     productId?: string;
     productCode?: string;
     description: string;
+    lineDescription?: string;
     uom: string;
     requestedQty: number;
     stockAvailableAtRequest?: number;
@@ -122,6 +124,7 @@ export interface ConsumableLineItemRecord {
   productId: string;
   productCode?: string | null;
   description: string;
+  lineDescription?: string | null;
   uom: string;
   isNewProduct: boolean;
   itemCategoryTrack: ConsumableItemTrack;
@@ -165,6 +168,7 @@ export interface ConsumableApprovalItem {
   id: string;
   requestCode: string | null;
   description: string;
+  lineDescription?: string | null;
   productCode: string | null;
   itemCategoryTrack: ConsumableItemTrack;
   status: ConsumableItemStatus;

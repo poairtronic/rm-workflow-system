@@ -64,6 +64,7 @@ export function ConsumableRequestsWorkspace() {
       baseProductName: '',
       specification: '',
       description: '',
+      lineDescription: '',
       uom: 'NOS',
       requestedQty: 1,
       stockAvailableAtRequest: 0,
@@ -125,6 +126,7 @@ export function ConsumableRequestsWorkspace() {
       baseProductName: '',
       specification: '',
       description: '',
+      lineDescription: '',
       uom: 'NOS',
       requestedQty: 1,
       stockAvailableAtRequest: 0,
@@ -232,6 +234,15 @@ export function ConsumableRequestsWorkspace() {
         toast.error(`Line #${i + 1}: Please enter the New Vendor Name.`);
         return;
       }
+
+      // Optional description: if provided, must be between 3 and 800 characters
+      if (row.lineDescription && row.lineDescription.trim().length > 0) {
+        const descLen = row.lineDescription.trim().length;
+        if (descLen < 3 || descLen > 800) {
+          toast.error(`Line #${i + 1}: Description must be between 3 and 800 characters if provided.`);
+          return;
+        }
+      }
     }
 
     setSubmitting(true);
@@ -246,6 +257,7 @@ export function ConsumableRequestsWorkspace() {
           productId: item.productId ? item.productId : undefined,
           productCode: item.productCode ? item.productCode : undefined,
           description: item.description.trim(),
+          lineDescription: item.lineDescription?.trim() ? item.lineDescription.trim() : undefined,
           uom: item.uom.trim() || 'NOS',
           requestedQty: Number(item.requestedQty || 0),
           stockAvailableAtRequest: Number(item.stockAvailableAtRequest || 0),
@@ -273,6 +285,7 @@ export function ConsumableRequestsWorkspace() {
           baseProductName: '',
           specification: '',
           description: '',
+          lineDescription: '',
           uom: 'NOS',
           requestedQty: 1,
           stockAvailableAtRequest: 0,
@@ -892,6 +905,41 @@ export function ConsumableRequestsWorkspace() {
                       </div>
                     )}
 
+                    {/* Line Item Description Box (Optional, 3 to 800 characters) */}
+                    <div className="pt-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">
+                          Description <span className="text-slate-400 font-normal lowercase">(optional, 3–800 chars)</span>
+                        </label>
+                        <span
+                          className={`text-[10px] font-mono ${
+                            (row.lineDescription?.trim().length || 0) > 0 && (row.lineDescription?.trim().length || 0) < 3
+                              ? 'text-amber-500 font-bold'
+                              : 'text-slate-400'
+                          }`}
+                        >
+                          {row.lineDescription?.length || 0} / 800
+                        </span>
+                      </div>
+                      <textarea
+                        rows={2}
+                        maxLength={800}
+                        placeholder="Enter optional description or job details for this line item (min 3 chars if provided)..."
+                        value={row.lineDescription || ''}
+                        onChange={(e) => handleUpdateRow(row.tempId, { lineDescription: e.target.value })}
+                        className={`w-full px-3 py-1.5 text-xs rounded-lg border bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 resize-y transition-colors ${
+                          row.lineDescription && row.lineDescription.trim().length > 0 && row.lineDescription.trim().length < 3
+                            ? 'border-amber-400 dark:border-amber-500 focus:ring-amber-500'
+                            : 'border-slate-200 dark:border-slate-700 focus:ring-indigo-500'
+                        }`}
+                      />
+                      {row.lineDescription && row.lineDescription.trim().length > 0 && row.lineDescription.trim().length < 3 && (
+                        <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
+                          Description must be at least 3 characters if provided.
+                        </p>
+                      )}
+                    </div>
+
                     {/* Expandable Vendor Context for Non-Stock or New Products */}
                     {isOutOfStock && (
                       <div className="p-3.5 rounded-lg border border-amber-200 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-950/20 space-y-2.5">
@@ -1261,6 +1309,11 @@ export function ConsumableRequestsWorkspace() {
                           <span className="text-[11px] text-slate-400">
                             {item.uom} {item.isNewProduct ? '• (New Product)' : ''}
                           </span>
+                          {item.lineDescription && (
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 italic break-words line-clamp-2" title={item.lineDescription}>
+                              Note: {item.lineDescription}
+                            </p>
+                          )}
                         </td>
 
                         {/* End User */}

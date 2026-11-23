@@ -10,6 +10,7 @@ import { SeedConsumablesApprovalSystemModule1794300002000 } from './migrations/1
 import { SeedConsumableApprovalEmailEvents1794400000000 } from './migrations/1794400000000-SeedConsumableApprovalEmailEvents.js';
 import { AddIsDeletedToEcrMaterialPending1794500000000 } from './migrations/1794500000000-AddIsDeletedToEcrMaterialPending.js';
 import { SeedMercAndEcrOverdueEmailEvents1794600000000 } from './migrations/1794600000000-SeedMercAndEcrOverdueEmailEvents.js';
+import { AddLineDescriptionToConsumableRequestItems1794700000000 } from './migrations/1794700000000-AddLineDescriptionToConsumableRequestItems.js';
 
 try {
   dns.setServers(['8.8.8.8', '1.1.1.1']);
@@ -62,6 +63,11 @@ export const CRITICAL_MIGRATIONS = [
     name: 'SeedMercAndEcrOverdueEmailEvents1794600000000',
     timestamp: 1794600000000,
     MigrationClass: SeedMercAndEcrOverdueEmailEvents1794600000000,
+  },
+  {
+    name: 'AddLineDescriptionToConsumableRequestItems1794700000000',
+    timestamp: 1794700000000,
+    MigrationClass: AddLineDescriptionToConsumableRequestItems1794700000000,
   },
 ];
 

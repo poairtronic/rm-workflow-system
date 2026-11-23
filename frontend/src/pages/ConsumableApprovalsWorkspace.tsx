@@ -554,13 +554,21 @@ export const ConsumableApprovalsWorkspace: React.FC = () => {
 
                       {/* Description & Product Code */}
                       <td className="py-3 px-4 max-w-xs">
-                        <p className="font-semibold text-slate-900 dark:text-white truncate">
+                        <p className="font-semibold text-slate-900 dark:text-white">
                           {item.description}
                         </p>
                         {item.productCode && (
                           <p className="text-[10px] text-slate-400 font-mono truncate">
                             {item.productCode}
                           </p>
+                        )}
+                        {item.lineDescription && (
+                          <div className="mt-1.5 p-2 rounded-md bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300">
+                            <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 block mb-0.5">
+                              Description / Note:
+                            </span>
+                            <p className="whitespace-pre-wrap break-words">{item.lineDescription}</p>
+                          </div>
                         )}
                       </td>
 

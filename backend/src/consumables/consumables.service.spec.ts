@@ -987,6 +987,62 @@ describe('Phase 24.2: Consumables Service Business Logic & Concurrency Test Suit
 
       await expect(service.deleteRequest('req-issued', 'user-admin-uuid')).rejects.toThrow(BadRequestException);
     });
+
+    it('CNS-SVC-030: should accept optional lineDescription between 3 and 800 characters and save it', async () => {
+      vi.spyOn(balanceRepo, 'find').mockResolvedValue([]);
+      vi.spyOn(productRepo, 'findOne').mockResolvedValue({ id: 'prod-1', name: 'Drill Bit', uom: 'NOS' } as any);
+      vi.spyOn(service, 'findOneRequest').mockResolvedValue({
+        id: 'cr-uuid-1',
+        requestCode: 'CR-2026-0001',
+        items: [
+          {
+            id: 'item-1',
+            lineDescription: 'Specific HSS cobalt coated for CNC lathe bay 4',
+          } as ConsumableRequestItem,
+        ],
+      } as ConsumableRequest);
+
+      const reqDto = {
+        paymentMode: ConsumablePaymentMode.CASH,
+        requestedBy: 'Ramu',
+        items: [
+          {
+            productId: 'prod-1',
+            description: 'Drill Bit 5mm',
+            requestedQty: 10,
+            lineDescription: 'Specific HSS cobalt coated for CNC lathe bay 4',
+          },
+        ],
+      };
+
+      await service.createRequest(reqDto);
+      expect(itemRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lineDescription: 'Specific HSS cobalt coated for CNC lathe bay 4',
+        }),
+      );
+    });
+
+    it('CNS-SVC-031: should reject lineDescription if non-empty but less than 3 characters', async () => {
+      vi.spyOn(productRepo, 'findOne').mockResolvedValue({ id: 'prod-1', name: 'Drill Bit', uom: 'NOS' } as any);
+
+      const reqDto = {
+        paymentMode: ConsumablePaymentMode.CASH,
+        requestedBy: 'Ramu',
+        items: [
+          {
+            productId: 'prod-1',
+            description: 'Drill Bit 5mm',
+            requestedQty: 10,
+            lineDescription: 'ab', // < 3 chars
+          },
+        ],
+      };
+
+      await expect(service.createRequest(reqDto)).rejects.toThrow(
+        /Line item description must be between 3 and 800 characters/,
+      );
+    });
   });
 });
 

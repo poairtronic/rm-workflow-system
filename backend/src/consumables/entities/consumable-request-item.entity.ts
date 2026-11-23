@@ -68,6 +68,9 @@ export class ConsumableRequestItem {
   @Column({ type: 'text' })
   description!: string;
 
+  @Column({ name: 'line_description', type: 'text', nullable: true })
+  lineDescription?: string | null;
+
   @Column({ type: 'varchar', length: 50, default: 'NOS' })
   uom!: string;
 
