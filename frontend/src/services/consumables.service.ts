@@ -161,6 +161,7 @@ export const consumablesApi = {
     search?: string;
     approvedOnly?: boolean;
     approvalStatus?: ConsumableApprovalStatus;
+    limit?: number;
   }): Promise<ConsumableLineItemRecord[]> {
     const q = new URLSearchParams();
     if (params?.track) q.append('track', params.track);
@@ -168,6 +169,7 @@ export const consumablesApi = {
     if (params?.search) q.append('search', params.search);
     if (params?.approvedOnly) q.append('approvedOnly', 'true');
     if (params?.approvalStatus) q.append('approvalStatus', params.approvalStatus);
+    q.append('limit', String(params?.limit || 1000));
 
     const queryStr = q.toString() ? `?${q.toString()}` : '';
     const res = await api.get<any>(`/api/consumables/line-items${queryStr}`);

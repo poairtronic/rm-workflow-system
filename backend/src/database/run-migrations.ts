@@ -11,6 +11,7 @@ import { SeedConsumableApprovalEmailEvents1794400000000 } from './migrations/179
 import { AddIsDeletedToEcrMaterialPending1794500000000 } from './migrations/1794500000000-AddIsDeletedToEcrMaterialPending.js';
 import { SeedMercAndEcrOverdueEmailEvents1794600000000 } from './migrations/1794600000000-SeedMercAndEcrOverdueEmailEvents.js';
 import { AddLineDescriptionToConsumableRequestItems1794700000000 } from './migrations/1794700000000-AddLineDescriptionToConsumableRequestItems.js';
+import { ResetPr1ToPurchaseRequested1794800000000 } from './migrations/1794800000000-ResetPr1ToPurchaseRequested.js';
 
 try {
   dns.setServers(['8.8.8.8', '1.1.1.1']);
@@ -68,6 +69,11 @@ export const CRITICAL_MIGRATIONS = [
     name: 'AddLineDescriptionToConsumableRequestItems1794700000000',
     timestamp: 1794700000000,
     MigrationClass: AddLineDescriptionToConsumableRequestItems1794700000000,
+  },
+  {
+    name: 'ResetPr1ToPurchaseRequested1794800000000',
+    timestamp: 1794800000000,
+    MigrationClass: ResetPr1ToPurchaseRequested1794800000000,
   },
 ];
 

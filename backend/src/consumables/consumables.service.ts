@@ -1845,7 +1845,7 @@ export class ConsumablesService implements OnModuleInit {
     qb.orderBy('item.createdAt', 'DESC');
 
     const page = query.page || 1;
-    const limit = query.limit || 50;
+    const limit = query.limit || 500;
     qb.skip((page - 1) * limit).take(limit);
 
     const [items, total] = await qb.getManyAndCount();
