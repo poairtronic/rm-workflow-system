@@ -432,12 +432,16 @@ export function MercIndentIssueDetail() {
       const res = await mercIndentService.deleteMercLineItem(indent.id, item.id);
       if (res.indentDeleted) {
         toast.success('Line item deleted. Indent has no remaining items and was removed.');
-        await queryClient.invalidateQueries({ queryKey: ['merc-indents'] });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['merc-indents'] }),
+          queryClient.invalidateQueries({ queryKey: ['merc-pos-list'] }),
+        ]);
         navigate('/governance/merc-indents');
       } else {
         toast.success(`Line item "${item.name}" deleted successfully.`);
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ['merc-indents'] }),
+          queryClient.invalidateQueries({ queryKey: ['merc-pos-list'] }),
           refetch(),
         ]);
       }

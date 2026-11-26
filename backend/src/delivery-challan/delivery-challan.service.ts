@@ -1393,20 +1393,22 @@ export class DeliveryChallanService {
     const qb = pendingRepo
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.lineItems', 'lineItems')
+      .where('COALESCE(p.is_deleted, false) = false')
+      .andWhere('(p.status IS NULL OR p.status != :cancelledStatus)', { cancelledStatus: 'CANCELLED' })
       .orderBy('p.createdAt', 'DESC');
 
     if (search && search.trim()) {
       const s = search.trim();
-      qb.where(
+      qb.andWhere(
         '(LOWER(p.po_number) LIKE LOWER(:s) OR LOWER(p.layout_number) LIKE LOWER(:s) OR LOWER(p.indent_number) LIKE LOWER(:s) OR LOWER(p.customer_name) LIKE LOWER(:s))',
         { s: `%${s}%` },
       );
     }
 
-    const records = await qb.take(50).getMany();
+    const records = await qb.take(100).getMany();
 
     return records
-      .filter((r) => Boolean((r.poNumber && r.poNumber.trim()) || (r.layoutNumber && r.layoutNumber.trim())))
+      .filter((r) => Boolean((r.poNumber && r.poNumber.trim()) || (r.layoutNumber && r.layoutNumber.trim()) || (r.indentNumber && r.indentNumber.trim())))
       .map((r) => ({
         id: r.id,
         poNumber: r.poNumber || r.layoutNumber || r.indentNumber,
@@ -1414,7 +1416,7 @@ export class DeliveryChallanService {
         layoutNumber: r.layoutNumber,
         indentNumber: r.indentNumber,
         customerName: r.customerName,
-        lineItemCount: r.lineItems?.length ?? 0,
+        lineItemCount: (r.lineItems || []).filter((li) => !li.isDeleted).length,
       }));
   }
 
@@ -1429,10 +1431,12 @@ export class DeliveryChallanService {
     const indent = await pendingRepo
       .createQueryBuilder('p')
       .where(
-        '(LOWER(TRIM(p.po_number)) = LOWER(:po) OR LOWER(TRIM(p.layout_number)) = LOWER(:po) OR LOWER(p.po_number) LIKE LOWER(:likePo) OR LOWER(p.layout_number) LIKE LOWER(:likePo) OR LOWER(p.indent_number) LIKE LOWER(:likePo))',
+        '(LOWER(TRIM(p.po_number)) = LOWER(:po) OR LOWER(TRIM(p.layout_number)) = LOWER(:po) OR LOWER(TRIM(p.indent_number)) = LOWER(:po) OR LOWER(p.po_number) LIKE LOWER(:likePo) OR LOWER(p.layout_number) LIKE LOWER(:likePo) OR LOWER(p.indent_number) LIKE LOWER(:likePo))',
         { po: trimmedPo, likePo: `%${trimmedPo}%` },
       )
       .andWhere('COALESCE(p.is_deleted, false) = false')
+      .andWhere('(p.status IS NULL OR p.status != :cancelledStatus)', { cancelledStatus: 'CANCELLED' })
+      .orderBy('p.createdAt', 'DESC')
       .getOne();
 
     if (!indent) {

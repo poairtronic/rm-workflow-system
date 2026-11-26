@@ -56,7 +56,8 @@ export function DcTypeSpl() {
   const { data: mercPosList = [] } = useQuery({
     queryKey: ['merc-pos-list'],
     queryFn: () => deliveryChallanApi.getMercPos(),
-    staleTime: 30000,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   // Click outside listener for PO dropdowns
@@ -79,18 +80,16 @@ export function DcTypeSpl() {
   const getMatchingPos = (qStr: string) => {
     const q = qStr.trim().toLowerCase();
     if (!q) {
-      return (mercPosList as any[]).slice(0, 8);
+      return mercPosList as any[];
     }
-    return (mercPosList as any[])
-      .filter((p: any) => {
-        const matchPo = p.actualPoNumber && p.actualPoNumber.toLowerCase().includes(q);
-        const matchDisplay = p.poNumber && p.poNumber.toLowerCase().includes(q);
-        const matchLayout = p.layoutNumber && p.layoutNumber.toLowerCase().includes(q);
-        const matchIndent = p.indentNumber && p.indentNumber.toLowerCase().includes(q);
-        const matchCustomer = p.customerName && p.customerName.toLowerCase().includes(q);
-        return matchPo || matchDisplay || matchLayout || matchIndent || matchCustomer;
-      })
-      .slice(0, 10);
+    return (mercPosList as any[]).filter((p: any) => {
+      const matchPo = p.actualPoNumber && p.actualPoNumber.toLowerCase().includes(q);
+      const matchDisplay = p.poNumber && p.poNumber.toLowerCase().includes(q);
+      const matchLayout = p.layoutNumber && p.layoutNumber.toLowerCase().includes(q);
+      const matchIndent = p.indentNumber && p.indentNumber.toLowerCase().includes(q);
+      const matchCustomer = p.customerName && p.customerName.toLowerCase().includes(q);
+      return matchPo || matchDisplay || matchLayout || matchIndent || matchCustomer;
+    });
   };
 
   // Dispatch group & items state

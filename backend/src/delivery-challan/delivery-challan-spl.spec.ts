@@ -78,11 +78,46 @@ describe('Special Process Delivery Challan (Type 3) Service', () => {
     service = module.get<DeliveryChallanService>(DeliveryChallanService);
   });
 
+  describe('getMercPos', () => {
+    it('returns active MERC POs excluding deleted line items and deleted indents', async () => {
+      const mockRecords = [
+        {
+          id: 'indent-1',
+          poNumber: 'PO 730',
+          layoutNumber: null,
+          indentNumber: 'AGIPL-26-08-10-174',
+          customerName: 'SPR EMF',
+          isDeleted: false,
+          status: 'PENDING',
+          lineItems: [
+            { id: 'li-1', isDeleted: false },
+            { id: 'li-2', isDeleted: true },
+          ],
+        },
+      ];
+
+      mockPendingRepo.createQueryBuilder.mockReturnValue({
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        take: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue(mockRecords),
+      });
+
+      const result = await service.getMercPos();
+      expect(result).toHaveLength(1);
+      expect(result[0].poNumber).toBe('PO 730');
+      expect(result[0].lineItemCount).toBe(1); // excluding deleted line item
+    });
+  });
+
   describe('getMercPoItems', () => {
     it('throws NotFoundException if PO does not exist in MERC indents', async () => {
       mockPendingRepo.createQueryBuilder.mockReturnValue({
         where: vi.fn().mockReturnThis(),
         andWhere: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
         getOne: vi.fn().mockResolvedValue(null),
       });
 
@@ -123,6 +158,7 @@ describe('Special Process Delivery Challan (Type 3) Service', () => {
       mockPendingRepo.createQueryBuilder.mockReturnValue({
         where: vi.fn().mockReturnThis(),
         andWhere: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
         getOne: vi.fn().mockResolvedValue(mockIndent),
       });
 

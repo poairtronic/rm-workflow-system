@@ -60,7 +60,10 @@ export function MercIndentIssue() {
     try {
       await mercIndentService.deleteMercIndent(indent.id);
       toast.success(`MERC indent "${indent.indentNumber}" deleted successfully.`);
-      await queryClient.invalidateQueries({ queryKey: ['merc-indents'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['merc-indents'] }),
+        queryClient.invalidateQueries({ queryKey: ['merc-pos-list'] }),
+      ]);
       refetch();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || 'Failed to delete MERC indent');
