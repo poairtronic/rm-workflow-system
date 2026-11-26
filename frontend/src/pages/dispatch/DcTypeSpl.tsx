@@ -27,7 +27,16 @@ import type {
   CreateSplDcPayload,
   AvailableStockProduct,
   ProductLockConflict,
+  MercPoLineItem,
 } from '../../types/delivery-challan.dto';
+
+export interface PoSlot {
+  id: string;
+  poNumber: string;
+  loading: boolean;
+  poData: MercPoItemsResponse | null;
+  showDropdown: boolean;
+}
 
 export function DcTypeSpl() {
   const navigate = useNavigate();
@@ -37,12 +46,11 @@ export function DcTypeSpl() {
   const [expectedReturnDate, setExpectedReturnDate] = useState('');
   const [remarks, setRemarks] = useState('HT AND RETURN');
 
-  // PO selection state
-  const [poNumber, setPoNumber] = useState('');
-  const [loadingPo, setLoadingPo] = useState(false);
-  const [poData, setPoData] = useState<MercPoItemsResponse | null>(null);
-  const [showPoDropdown, setShowPoDropdown] = useState(false);
-  const poDropdownRef = useRef<HTMLDivElement>(null);
+  // Multi-PO selection state
+  const [poSlots, setPoSlots] = useState<PoSlot[]>([
+    { id: 'slot-1', poNumber: '', loading: false, poData: null, showDropdown: false },
+  ]);
+  const poSlotsContainerRef = useRef<HTMLDivElement>(null);
 
   // Fetch available MERC POs for autocomplete suggestions
   const { data: mercPosList = [] } = useQuery({
@@ -51,32 +59,39 @@ export function DcTypeSpl() {
     staleTime: 30000,
   });
 
-  // Click outside listener for PO dropdown
+  // Click outside listener for PO dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (poDropdownRef.current && !poDropdownRef.current.contains(event.target as Node)) {
-        setShowPoDropdown(false);
+      if (
+        poSlotsContainerRef.current &&
+        !poSlotsContainerRef.current.contains(event.target as Node)
+      ) {
+        setPoSlots((prev) =>
+          prev.map((s) => (s.showDropdown ? { ...s, showDropdown: false } : s))
+        );
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filter available POs matching input
-  const matchingPos = useMemo(() => {
-    const q = poNumber.trim().toLowerCase();
+  // Filter available POs matching input for a given search query
+  const getMatchingPos = (qStr: string) => {
+    const q = qStr.trim().toLowerCase();
     if (!q) {
       return (mercPosList as any[]).slice(0, 8);
     }
-    return (mercPosList as any[]).filter((p: any) => {
-      const matchPo = p.actualPoNumber && p.actualPoNumber.toLowerCase().includes(q);
-      const matchDisplay = p.poNumber && p.poNumber.toLowerCase().includes(q);
-      const matchLayout = p.layoutNumber && p.layoutNumber.toLowerCase().includes(q);
-      const matchIndent = p.indentNumber && p.indentNumber.toLowerCase().includes(q);
-      const matchCustomer = p.customerName && p.customerName.toLowerCase().includes(q);
-      return matchPo || matchDisplay || matchLayout || matchIndent || matchCustomer;
-    }).slice(0, 10);
-  }, [mercPosList, poNumber]);
+    return (mercPosList as any[])
+      .filter((p: any) => {
+        const matchPo = p.actualPoNumber && p.actualPoNumber.toLowerCase().includes(q);
+        const matchDisplay = p.poNumber && p.poNumber.toLowerCase().includes(q);
+        const matchLayout = p.layoutNumber && p.layoutNumber.toLowerCase().includes(q);
+        const matchIndent = p.indentNumber && p.indentNumber.toLowerCase().includes(q);
+        const matchCustomer = p.customerName && p.customerName.toLowerCase().includes(q);
+        return matchPo || matchDisplay || matchLayout || matchIndent || matchCustomer;
+      })
+      .slice(0, 10);
+  };
 
   // Dispatch group & items state
   const [processName, setProcessName] = useState('');
@@ -102,8 +117,9 @@ export function DcTypeSpl() {
     setGeneratedDc(null);
     setLockConflicts([]);
     setShowLockModal(false);
-    setPoNumber('');
-    setPoData(null);
+    setPoSlots([
+      { id: 'slot-1', poNumber: '', loading: false, poData: null, showDropdown: false },
+    ]);
     setItems([]);
     setProcessName('');
     setTargetProcess('');
@@ -157,53 +173,149 @@ export function DcTypeSpl() {
     }
   }, [vendorId, targetProcess, slaList]);
 
-  // Fetch MERC PO Items
-  const handleFetchPoItems = async (explicitPo?: string) => {
-    const targetPo = (explicitPo !== undefined ? explicitPo : poNumber).trim();
+  // Update PO input text for a slot
+  const updateSlotPoNumber = (slotId: string, val: string) => {
+    setPoSlots((prev) =>
+      prev.map((s) => (s.id === slotId ? { ...s, poNumber: val, showDropdown: true } : s))
+    );
+  };
+
+  const updateSlotDropdown = (slotId: string, show: boolean) => {
+    setPoSlots((prev) =>
+      prev.map((s) => (s.id === slotId ? { ...s, showDropdown: show } : s))
+    );
+  };
+
+  // Add another PO search slot
+  const handleAddPoSlot = () => {
+    setPoSlots((prev) => [
+      ...prev,
+      {
+        id: `slot-${Date.now()}`,
+        poNumber: '',
+        loading: false,
+        poData: null,
+        showDropdown: false,
+      },
+    ]);
+  };
+
+  // Remove a PO slot and its items
+  const handleRemovePoSlot = (slotId: string) => {
+    const slot = poSlots.find((s) => s.id === slotId);
+    const targetPo = slot?.poData?.poNumber;
+    if (targetPo) {
+      setItems((prev) => prev.filter((it) => it.poNumber !== targetPo));
+    }
+    setPoSlots((prev) => prev.filter((s) => s.id !== slotId));
+    toast.success('Removed PO search');
+  };
+
+  // Clear a PO slot
+  const handleClearPoSlot = (slotId: string) => {
+    const slot = poSlots.find((s) => s.id === slotId);
+    const targetPo = slot?.poData?.poNumber;
+    if (targetPo) {
+      setItems((prev) => prev.filter((it) => it.poNumber !== targetPo));
+    }
+    setPoSlots((prev) =>
+      prev.map((s) =>
+        s.id === slotId ? { ...s, poNumber: '', poData: null, showDropdown: false } : s
+      )
+    );
+  };
+
+  // Fetch MERC PO Items for a specific slot
+  const handleFetchPoItems = async (slotId: string, explicitPo?: string) => {
+    const slot = poSlots.find((s) => s.id === slotId);
+    if (!slot) return;
+    const targetPo = (explicitPo !== undefined ? explicitPo : slot.poNumber).trim();
     if (!targetPo) {
       toast.error('Please enter a PO Number or Layout Number');
       return;
     }
 
-    setLoadingPo(true);
-    setShowPoDropdown(false);
+    // Duplicate check
+    const duplicateSlot = poSlots.find(
+      (s) => s.id !== slotId && s.poData?.poNumber?.toUpperCase() === targetPo.toUpperCase()
+    );
+    if (duplicateSlot) {
+      toast.error(`PO ${targetPo} is already loaded in another search slot.`);
+      return;
+    }
+
+    setPoSlots((prev) =>
+      prev.map((s) => (s.id === slotId ? { ...s, loading: true, showDropdown: false } : s))
+    );
+
     try {
       const data = await deliveryChallanApi.getMercPoItems(targetPo);
-      setPoData(data);
-
-      // If user typed partial e.g. 1340, update input to the resolved full PO number
-      if (data.poNumber && data.poNumber !== targetPo) {
-        setPoNumber(data.poNumber);
-      }
-
-      // PO items start empty so the user can select individual products from the dropdown
-      setItems([]);
+      setPoSlots((prev) =>
+        prev.map((s) =>
+          s.id === slotId
+            ? {
+                ...s,
+                loading: false,
+                poNumber: data.poNumber || targetPo,
+                poData: data,
+                showDropdown: false,
+              }
+            : s
+        )
+      );
       toast.success(`Loaded PO ${data.poNumber} (${data.lineItems?.length || 0} product(s) available)`);
     } catch (err: any) {
-      setPoData(null);
-      setItems([]);
+      setPoSlots((prev) =>
+        prev.map((s) => (s.id === slotId ? { ...s, loading: false, poData: null } : s))
+      );
       const msg = err.response?.data?.message || err.message || 'PO not found in MERC indents';
       toast.error(msg);
-    } finally {
-      setLoadingPo(false);
     }
   };
 
-  // PO line items that have not yet been added to the dispatch list
-  const availablePoLineItems = useMemo(() => {
-    if (!poData?.lineItems) return [];
-    const addedMercItemIds = new Set(
-      items
-        .filter((i) => !i.isExtraItem && i.mercItemId)
-        .map((i) => i.mercItemId)
+  const handleSelectPo = (slotId: string, item: any) => {
+    const selectedPo = item.actualPoNumber || item.poNumber || item.layoutNumber;
+    setPoSlots((prev) =>
+      prev.map((s) => (s.id === slotId ? { ...s, poNumber: selectedPo } : s))
     );
-    return poData.lineItems.filter((line) => !addedMercItemIds.has(line.mercItemId));
-  }, [poData?.lineItems, items]);
+    handleFetchPoItems(slotId, selectedPo);
+  };
+
+  // PO line items across all loaded POs that have not yet been added to the dispatch list
+  const availablePoLineItems = useMemo(() => {
+    const addedKeys = new Set(
+      items
+        .filter((i) => !i.isExtraItem && i.mercItemId && i.poNumber)
+        .map((i) => `${i.poNumber}::${i.mercItemId}`)
+    );
+
+    const list: Array<{
+      poNumber: string;
+      indentNumber: string;
+      customerName: string | null;
+      line: MercPoLineItem;
+    }> = [];
+
+    for (const slot of poSlots) {
+      if (!slot.poData?.lineItems) continue;
+      for (const line of slot.poData.lineItems) {
+        const key = `${slot.poData.poNumber}::${line.mercItemId}`;
+        if (!addedKeys.has(key)) {
+          list.push({
+            poNumber: slot.poData.poNumber,
+            indentNumber: slot.poData.indentNumber,
+            customerName: slot.poData.customerName,
+            line,
+          });
+        }
+      }
+    }
+    return list;
+  }, [poSlots, items]);
 
   // Options for PO product dropdown SearchSelect
   const poProductOptions = useMemo(() => {
-    if (!poData?.lineItems) return [];
-    return availablePoLineItems.map((line) => {
+    return availablePoLineItems.map(({ poNumber, indentNumber, line }) => {
       const lock = line.lock;
       const itemCap = lock?.cap ?? lock?.baseline ?? null;
       const isLockedOut = Boolean(lock && itemCap !== null && (lock?.available ?? 0) <= 0);
@@ -223,17 +335,20 @@ export function DcTypeSpl() {
       }
 
       return {
-        id: line.mercItemId,
-        primary: line.poPartLabel || `${poData.poNumber} - ${line.name}`,
-        secondary: `[${typeLabel}] ${qtyLabel}${desc ? ` • ${desc}` : ''}${lockNote}`,
+        id: `${poNumber}::${line.mercItemId}`,
+        primary: `[${poNumber}] ${line.name}`,
+        secondary: `[${typeLabel}] ${qtyLabel}${desc ? ` • ${desc}` : ''} • Indent: ${indentNumber}${lockNote}`,
       };
     });
-  }, [poData, availablePoLineItems]);
+  }, [availablePoLineItems]);
 
-  // Add a product from the MERC PO line items
-  const handleAddPoItem = (mercItemId: string) => {
-    if (!poData?.lineItems) return;
-    const line = poData.lineItems.find((l) => l.mercItemId === mercItemId);
+  // Add a product from any loaded MERC PO
+  const handleAddPoItem = (compositeId: string) => {
+    const [targetPo, targetMercItemId] = compositeId.split('::');
+    const slot = poSlots.find((s) => s.poData?.poNumber === targetPo);
+    if (!slot?.poData?.lineItems) return;
+
+    const line = slot.poData.lineItems.find((l) => l.mercItemId === targetMercItemId);
     if (!line) return;
 
     const lock = line.lock;
@@ -256,9 +371,10 @@ export function DcTypeSpl() {
     }
 
     const newItem: SplDcItem = {
-      poPartLabel: line.poPartLabel || `${poData.poNumber} - ${line.name}`,
+      poPartLabel: `${targetPo} - ${line.name}`,
       mercItemId: line.mercItemId,
       partNo: line.name || '',
+      poNumber: targetPo,
       dispatchedQty: defaultQty,
       batchNo: '',
       description: [line.material, line.shape].filter(Boolean).join(' ') || '',
@@ -269,14 +385,58 @@ export function DcTypeSpl() {
     };
 
     setItems((prev) => [...prev, newItem]);
-    toast.success(`Added ${newItem.poPartLabel}`);
+    toast.success(`Added [${targetPo}] ${line.name}`);
   };
 
-  const handleSelectPo = (item: any) => {
-    const selectedPo = item.actualPoNumber || item.poNumber || item.layoutNumber;
-    setPoNumber(selectedPo);
-    setShowPoDropdown(false);
-    handleFetchPoItems(selectedPo);
+  // Add all available items from a specific loaded PO slot
+  const handleAddAllFromSlot = (slotId: string) => {
+    const slot = poSlots.find((s) => s.id === slotId);
+    if (!slot?.poData?.lineItems) return;
+
+    const targetPo = slot.poData.poNumber;
+    const existingMercIds = new Set(
+      items.filter((it) => it.poNumber === targetPo).map((it) => it.mercItemId)
+    );
+
+    const newItems: SplDcItem[] = [];
+    for (const line of slot.poData.lineItems) {
+      if (existingMercIds.has(line.mercItemId)) continue;
+
+      const lock = line.lock;
+      const itemCap = lock?.cap ?? lock?.baseline ?? null;
+      const isLockedOut = Boolean(lock && itemCap !== null && (lock?.available ?? 0) <= 0);
+      const hasPartialLock = Boolean(
+        lock && itemCap !== null && lock.available > 0 && lock.available < itemCap
+      );
+
+      let defaultQty = line.quantityRequired > 0 ? Number(line.quantityRequired) : 1;
+      if (isLockedOut) {
+        defaultQty = 0;
+      } else if (hasPartialLock && lock && defaultQty > lock.available) {
+        defaultQty = lock.available;
+      }
+
+      newItems.push({
+        poPartLabel: `${targetPo} - ${line.name}`,
+        mercItemId: line.mercItemId,
+        partNo: line.name || '',
+        poNumber: targetPo,
+        dispatchedQty: defaultQty,
+        batchNo: '',
+        description: [line.material, line.shape].filter(Boolean).join(' ') || '',
+        isExtraItem: false,
+        itemType: line.itemType,
+        lock: line.lock,
+        isSelected: !isLockedOut,
+      });
+    }
+
+    if (newItems.length > 0) {
+      setItems((prev) => [...prev, ...newItems]);
+      toast.success(`Added ${newItems.length} products from ${targetPo}`);
+    } else {
+      toast('All products from this PO are already added');
+    }
   };
 
   // Update item field
@@ -296,11 +456,31 @@ export function DcTypeSpl() {
     setItems((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // Active loaded PO slots
+  const activeLoadedSlots = useMemo(() => poSlots.filter((s) => s.poData !== null), [poSlots]);
+  const primaryPo = activeLoadedSlots[0]?.poData?.poNumber || '';
+
+  // All distinct PO numbers across active items and slots
+  const allSelectedPoNumbers = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach((it) => {
+      if (it.poNumber) set.add(it.poNumber);
+    });
+    activeLoadedSlots.forEach((s) => {
+      if (s.poData?.poNumber) set.add(s.poData.poNumber);
+    });
+    return Array.from(set);
+  }, [items, activeLoadedSlots]);
+
+  const combinedPoNumber = allSelectedPoNumbers.join(', ');
+
   // Add extra item from stock
   const addExtraItem = (product: AvailableStockProduct) => {
+    const targetPo = primaryPo || 'STOCK';
     const extraItem: SplDcItem = {
-      poPartLabel: `${poNumber.trim()} - ${product.productName}`,
-      partNo: '', // user enters manually
+      poPartLabel: `${targetPo} - ${product.productName}`,
+      partNo: '',
+      poNumber: targetPo,
       dispatchedQty: 1,
       isExtraItem: true,
       productId: product.productId,
@@ -312,21 +492,36 @@ export function DcTypeSpl() {
     toast.success(`Added ${product.productName} as extra item`);
   };
 
+  // Available stock products combined across loaded slots
+  const combinedStockProducts = useMemo(() => {
+    const map = new Map<string, AvailableStockProduct>();
+    for (const slot of activeLoadedSlots) {
+      if (slot.poData?.availableStockProducts) {
+        for (const p of slot.poData.availableStockProducts) {
+          if (!map.has(p.productId)) {
+            map.set(p.productId, p);
+          }
+        }
+      }
+    }
+    return Array.from(map.values());
+  }, [activeLoadedSlots]);
+
   // Filter available stock products for picker modal
   const filteredStockProducts = useMemo(() => {
-    if (!poData?.availableStockProducts) return [];
     const term = stockSearch.toLowerCase().trim();
-    if (!term) return poData.availableStockProducts;
-    return poData.availableStockProducts.filter((p) =>
-      p.productName.toLowerCase().includes(term) ||
-      p.productId.toLowerCase().includes(term)
+    if (!term) return combinedStockProducts;
+    return combinedStockProducts.filter(
+      (p) =>
+        p.productName.toLowerCase().includes(term) ||
+        p.productId.toLowerCase().includes(term)
     );
-  }, [poData?.availableStockProducts, stockSearch]);
+  }, [combinedStockProducts, stockSearch]);
 
   // Form validity check
   const isFormValid = useMemo(() => {
     if (!vendorId) return false;
-    if (!poNumber.trim()) return false;
+    if (!activeLoadedSlots.length) return false;
     if (!expectedReturnDate) return false;
 
     const activeItems = items.filter((item) => {
@@ -343,7 +538,7 @@ export function DcTypeSpl() {
       if (item.isExtraItem && !item.partNo?.trim()) return false;
     }
     return true;
-  }, [vendorId, poNumber, expectedReturnDate, items]);
+  }, [vendorId, activeLoadedSlots, expectedReturnDate, items]);
 
   // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -363,7 +558,7 @@ export function DcTypeSpl() {
           clientConflicts.push({
             dcType: 'SPL_PROCESS',
             scNumber: null,
-            poNumber: poNumber.trim(),
+            poNumber: item.poNumber || primaryPo,
             productLabel: item.poPartLabel,
             requestedQty: Number(item.dispatchedQty),
             availableQty: item.lock.available,
@@ -383,10 +578,17 @@ export function DcTypeSpl() {
     setIsSubmitting(true);
     const payload: CreateSplDcPayload = {
       vendorId,
-      poNumber: poNumber.trim(),
-      mercIndentId: poData?.mercIndentId,
-      mercIndentNumber: poData?.indentNumber,
-      layoutNumber: poData?.layoutNumber ?? undefined,
+      poNumber: combinedPoNumber || primaryPo,
+      mercIndentId: activeLoadedSlots[0]?.poData?.mercIndentId,
+      mercIndentNumber: activeLoadedSlots
+        .map((s) => s.poData?.indentNumber)
+        .filter(Boolean)
+        .join(', '),
+      layoutNumber:
+        activeLoadedSlots
+          .map((s) => s.poData?.layoutNumber)
+          .filter(Boolean)
+          .join(', ') || undefined,
       expectedReturnDate: expectedReturnDate || undefined,
       remarks: remarks?.trim() || undefined,
       dispatchGroups: [
@@ -397,6 +599,7 @@ export function DcTypeSpl() {
             poPartLabel: item.poPartLabel.trim(),
             mercItemId: item.mercItemId,
             partNo: item.partNo?.trim() || item.poPartLabel.trim(),
+            poNumber: item.poNumber || primaryPo,
             dispatchedQty: Number(item.dispatchedQty),
             batchNo: item.batchNo?.trim() || undefined,
             description: item.description?.trim() || undefined,
@@ -413,7 +616,7 @@ export function DcTypeSpl() {
       toast.success(`SPL DC ${result.dcNumber} created successfully!`);
       // Open print preview in a new window/tab immediately
       window.open(`/dispatch/delivery-challan/${result.id}/print`, '_blank');
-      // Scroll to top so the print card and options are immediately visible
+      // Scroll to top
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
       const errorData = err?.response?.data;
@@ -460,7 +663,10 @@ export function DcTypeSpl() {
               <CheckCircle2 className="w-6 h-6 text-purple-600 mt-0.5 shrink-0" />
               <div>
                 <h3 className="text-sm font-bold text-purple-950 flex items-center gap-2">
-                  Delivery Challan Generated: <span className="font-mono text-purple-700 bg-white px-2.5 py-0.5 rounded-md border border-purple-200 shadow-2xs">{generatedDc.dcNumber}</span>
+                  Delivery Challan Generated:{' '}
+                  <span className="font-mono text-purple-700 bg-white px-2.5 py-0.5 rounded-md border border-purple-200 shadow-2xs">
+                    {generatedDc.dcNumber}
+                  </span>
                 </h3>
                 <p className="text-xs text-purple-800 mt-1">
                   Special Process (SPL) external dispatch is authorized and tracked in the DC Movement WIP ledger.
@@ -583,132 +789,214 @@ export function DcTypeSpl() {
           </div>
         </div>
 
-        {/* Section 2: PO Selection */}
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-          <h2 className="text-[15px] font-semibold text-slate-900 mb-4 uppercase tracking-wide border-b border-slate-100 pb-3">
-            MERC Purchase Order Selection
-          </h2>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            PO Number or Layout Number *
-          </label>
-          <div ref={poDropdownRef} className="relative max-w-xl">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  className="w-full h-10 pl-3.5 pr-8 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent uppercase font-medium shadow-2xs"
-                  placeholder="Type PO # or Layout # (e.g. 13, 1340, or AGIPL PO)..."
-                  value={poNumber}
-                  onFocus={() => setShowPoDropdown(true)}
-                  onChange={(e) => {
-                    setPoNumber(e.target.value);
-                    setShowPoDropdown(true);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleFetchPoItems();
-                    } else if (e.key === 'Escape') {
-                      setShowPoDropdown(false);
-                    }
-                  }}
-                />
-                {poNumber && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPoNumber('');
-                      setPoData(null);
-                      setItems([]);
-                    }}
-                    className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => handleFetchPoItems()}
-                disabled={!poNumber.trim() || loadingPo}
-                className="inline-flex items-center justify-center gap-2 px-5 h-10 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0 shadow-xs cursor-pointer"
-              >
-                {loadingPo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                {loadingPo ? 'Loading...' : 'Fetch Items'}
-              </button>
+        {/* Section 2: MERC Purchase Order Selection (Supports Multiple POs) */}
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-3">
+            <div>
+              <h2 className="text-[15px] font-semibold text-slate-900 uppercase tracking-wide">
+                MERC Purchase Order Selection
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Select one or more MERC Purchase Orders to include in this Delivery Challan.
+              </p>
             </div>
-
-            {/* Autocomplete Suggestions Dropdown */}
-            {showPoDropdown && matchingPos.length > 0 && (
-              <div className="absolute left-0 right-0 top-11 z-30 mt-1 max-h-72 overflow-y-auto bg-white rounded-xl shadow-xl border border-slate-200 divide-y divide-slate-100">
-                <div className="px-3 py-1.5 bg-slate-50 text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center justify-between">
-                  <span>Available MERC Purchase Orders ({matchingPos.length})</span>
-                  <span className="text-[10px] text-slate-400 font-normal">Click to auto-load items</span>
-                </div>
-                {matchingPos.map((posItem: any) => (
-                  <div
-                    key={posItem.id}
-                    onClick={() => handleSelectPo(posItem)}
-                    className="p-3 hover:bg-blue-50/70 transition-colors cursor-pointer group flex flex-col gap-1"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-bold text-xs text-slate-900 group-hover:text-primary font-mono">
-                        {posItem.actualPoNumber || posItem.poNumber}
-                      </span>
-                      {posItem.layoutNumber && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono">
-                          Layout: {posItem.layoutNumber}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 text-[11px] text-slate-500">
-                      {posItem.customerName && (
-                        <span>Customer: <strong className="text-slate-700">{posItem.customerName}</strong></span>
-                      )}
-                      <span>Indent: <strong className="text-slate-700">{posItem.indentNumber}</strong></span>
-                      <span className="text-blue-600 font-medium">({posItem.lineItemCount} items)</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={handleAddPoSlot}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-xs font-bold rounded-lg transition-colors cursor-pointer self-start sm:self-auto shadow-2xs"
+            >
+              <Plus className="w-4 h-4 text-blue-600" />
+              Add Another PO
+            </button>
           </div>
 
-          {/* Show PO details after fetch */}
-          {poData && (
-            <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-lg flex flex-wrap items-center gap-8 text-sm text-slate-700">
-              <div>
-                <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold block">
-                  Indent Number
-                </span>
-                <span className="font-semibold text-slate-900">{poData.indentNumber}</span>
-              </div>
-              <div>
-                <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold block">
-                  Customer
-                </span>
-                <span className="font-medium text-slate-900">{poData.customerName ?? '—'}</span>
-              </div>
-              <div>
-                <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold block">
-                  Layout Number
-                </span>
-                <span className="font-mono text-slate-900">{poData.layoutNumber ?? '—'}</span>
-              </div>
-              <div>
-                <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold block">
-                  PO Products Available
-                </span>
-                <span className="font-semibold text-blue-700">{poData.lineItems?.length ?? 0}</span>
-              </div>
-              <div>
-                <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold block">
-                  Selected For Dispatch
-                </span>
-                <span className="font-semibold text-emerald-700">{items.length}</span>
-              </div>
-            </div>
-          )}
+          {/* List of PO Slots */}
+          <div ref={poSlotsContainerRef} className="space-y-6">
+            {poSlots.map((slot, index) => {
+              const matchingPos = getMatchingPos(slot.poNumber);
+              const poItemsCount = items.filter(
+                (it) => it.poNumber === slot.poData?.poNumber
+              ).length;
+
+              return (
+                <div
+                  key={slot.id}
+                  className={
+                    index > 0
+                      ? 'pt-6 border-t border-slate-200 space-y-4'
+                      : 'space-y-4'
+                  }
+                >
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-semibold text-slate-800">
+                      PO Number or Layout Number {poSlots.length > 1 ? `(#${index + 1})` : ''} *
+                    </label>
+                    {index > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePoSlot(slot.id)}
+                        className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700 font-medium hover:bg-red-50 px-2 py-1 rounded transition-colors cursor-pointer"
+                        title="Remove this PO search"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Remove PO
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="relative max-w-2xl">
+                    <div className="flex flex-wrap sm:flex-nowrap gap-2">
+                      <div className="relative flex-1 min-w-[240px]">
+                        <input
+                          type="text"
+                          className="w-full h-10 pl-3.5 pr-8 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent uppercase font-medium shadow-2xs"
+                          placeholder="Type PO # or Layout # (e.g. 730, 1368, or AGIPL PO)..."
+                          value={slot.poNumber}
+                          onFocus={() => updateSlotDropdown(slot.id, true)}
+                          onChange={(e) => updateSlotPoNumber(slot.id, e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleFetchPoItems(slot.id);
+                            } else if (e.key === 'Escape') {
+                              updateSlotDropdown(slot.id, false);
+                            }
+                          }}
+                        />
+                        {slot.poNumber && (
+                          <button
+                            type="button"
+                            onClick={() => handleClearPoSlot(slot.id)}
+                            className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleFetchPoItems(slot.id)}
+                        disabled={!slot.poNumber.trim() || slot.loading}
+                        className="inline-flex items-center justify-center gap-2 px-5 h-10 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0 shadow-xs cursor-pointer"
+                      >
+                        {slot.loading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Search className="w-4 h-4" />
+                        )}
+                        {slot.loading ? 'Loading...' : 'Fetch Items'}
+                      </button>
+
+                      {index === poSlots.length - 1 && (
+                        <button
+                          type="button"
+                          onClick={handleAddPoSlot}
+                          className="inline-flex items-center justify-center gap-1.5 px-4 h-10 bg-slate-50 border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-colors shrink-0 shadow-2xs cursor-pointer"
+                          title="Add another PO search bar below"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-primary" />
+                          Add Another PO
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Autocomplete Suggestions Dropdown for this slot */}
+                    {slot.showDropdown && matchingPos.length > 0 && (
+                      <div className="absolute left-0 right-0 top-11 z-30 mt-1 max-h-72 overflow-y-auto bg-white rounded-xl shadow-xl border border-slate-200 divide-y divide-slate-100">
+                        <div className="px-3 py-1.5 bg-slate-50 text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                          <span>Available MERC Purchase Orders ({matchingPos.length})</span>
+                          <span className="text-[10px] text-slate-400 font-normal">Click to auto-load</span>
+                        </div>
+                        {matchingPos.map((posItem: any) => (
+                          <div
+                            key={posItem.id}
+                            onClick={() => handleSelectPo(slot.id, posItem)}
+                            className="p-3 hover:bg-blue-50/70 transition-colors cursor-pointer group flex flex-col gap-1"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-bold text-xs text-slate-900 group-hover:text-primary font-mono">
+                                {posItem.actualPoNumber || posItem.poNumber}
+                              </span>
+                              {posItem.layoutNumber && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono">
+                                  Layout: {posItem.layoutNumber}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 text-[11px] text-slate-500">
+                              {posItem.customerName && (
+                                <span>
+                                  Customer: <strong className="text-slate-700">{posItem.customerName}</strong>
+                                </span>
+                              )}
+                              <span>
+                                Indent: <strong className="text-slate-700">{posItem.indentNumber}</strong>
+                              </span>
+                              <span className="text-blue-600 font-medium">({posItem.lineItemCount} items)</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Summary Bar for this loaded PO */}
+                  {slot.poData && (
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg flex flex-wrap items-center justify-between gap-4 text-sm text-slate-700">
+                      <div className="flex flex-wrap items-center gap-6 sm:gap-8">
+                        <div>
+                          <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold block">
+                            PO Number
+                          </span>
+                          <span className="font-bold text-blue-900 font-mono text-base">{slot.poData.poNumber}</span>
+                        </div>
+                        <div>
+                          <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold block">
+                            Indent Number
+                          </span>
+                          <span className="font-semibold text-slate-900">{slot.poData.indentNumber}</span>
+                        </div>
+                        <div>
+                          <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold block">
+                            Customer
+                          </span>
+                          <span className="font-medium text-slate-900">{slot.poData.customerName ?? '—'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold block">
+                            Layout Number
+                          </span>
+                          <span className="font-mono text-slate-900">{slot.poData.layoutNumber ?? '—'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold block">
+                            PO Products Available
+                          </span>
+                          <span className="font-semibold text-blue-700">{slot.poData.lineItems?.length ?? 0}</span>
+                        </div>
+                        <div>
+                          <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold block">
+                            Selected For Dispatch
+                          </span>
+                          <span className="font-semibold text-emerald-700">{poItemsCount}</span>
+                        </div>
+                      </div>
+
+                      {/* Quick Add All Available Items for this PO */}
+                      <button
+                        type="button"
+                        onClick={() => handleAddAllFromSlot(slot.id)}
+                        className="px-3 py-1.5 bg-white border border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer shrink-0"
+                      >
+                        + Add All {slot.poData.lineItems?.length || 0} Products
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Section 3: Dispatch Group & Items */}
@@ -768,14 +1056,14 @@ export function DcTypeSpl() {
               <div>
                 <h3 className="text-sm font-bold text-slate-800">Items Payload</h3>
                 <p className="text-xs text-slate-500">
-                  Select products from the PO or add extra stock parts to dispatch.
+                  Select products from any loaded PO or add extra stock parts to dispatch.
                 </p>
               </div>
-              {poData && (
+              {activeLoadedSlots.length > 0 && (
                 <div className="text-xs font-medium text-slate-600 bg-white px-3 py-1 rounded-md border border-slate-200 shadow-2xs">
                   <span>Selected: <strong className="text-blue-600">{items.length}</strong></span>
                   <span className="mx-2 text-slate-300">|</span>
-                  <span>Available in PO: <strong className="text-slate-800">{availablePoLineItems.length}</strong></span>
+                  <span>Available Across POs: <strong className="text-slate-800">{availablePoLineItems.length}</strong></span>
                 </div>
               )}
             </div>
@@ -785,17 +1073,17 @@ export function DcTypeSpl() {
               <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
                 <div className="flex-1 min-w-0">
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Select Product from PO {poData?.poNumber ? `(${poData.poNumber})` : ''}
+                    Select Product from Loaded POs {combinedPoNumber ? `(${combinedPoNumber})` : ''}
                   </label>
                   <SearchSelect
                     value=""
                     onChange={(selectedId) => handleAddPoItem(selectedId)}
-                    disabled={!poData || availablePoLineItems.length === 0}
+                    disabled={activeLoadedSlots.length === 0 || availablePoLineItems.length === 0}
                     placeholder={
-                      !poData
+                      activeLoadedSlots.length === 0
                         ? 'Fetch a PO order first to select products...'
                         : availablePoLineItems.length === 0
-                        ? `All ${poData.lineItems?.length || 0} PO products added`
+                        ? `All products from loaded POs have been added`
                         : `Choose product to dispatch (${availablePoLineItems.length} available)...`
                     }
                     searchPlaceholder="Search product by name, material, or part #..."
@@ -807,8 +1095,8 @@ export function DcTypeSpl() {
                   <button
                     type="button"
                     onClick={() => setShowStockPicker(true)}
-                    disabled={!poData}
-                    title={!poData ? 'Please fetch a PO first to enable extra stock items' : ''}
+                    disabled={activeLoadedSlots.length === 0}
+                    title={activeLoadedSlots.length === 0 ? 'Please fetch a PO first to enable extra stock items' : ''}
                     className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 h-11 sm:h-9 px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-xl sm:rounded-lg hover:bg-slate-50 hover:border-slate-400 transition-colors shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <Plus className="w-4 h-4 text-primary" />
@@ -816,7 +1104,7 @@ export function DcTypeSpl() {
                   </button>
                 </div>
               </div>
-              {!poData && (
+              {activeLoadedSlots.length === 0 && (
                 <p className="mt-2 text-[11px] text-slate-400 italic">
                   * Enter a PO number above and click &quot;Fetch Items&quot; to load products into the dropdown.
                 </p>
@@ -826,7 +1114,7 @@ export function DcTypeSpl() {
             {items.length === 0 ? (
               <div className="text-center py-10 text-slate-500 text-sm bg-white rounded-lg border border-dashed border-slate-200">
                 <Boxes className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                {poData ? (
+                {activeLoadedSlots.length > 0 ? (
                   <>
                     <p className="font-medium text-slate-700">No products selected for dispatch yet.</p>
                     <p className="text-xs text-slate-400 mt-1">
@@ -856,9 +1144,12 @@ export function DcTypeSpl() {
                       lock.available > 0 &&
                       lock.available < itemCap,
                   );
-                  const blockingDcsSummary = lock?.blockingDcs && lock.blockingDcs.length > 0
-                    ? lock.blockingDcs.map((d: any) => `${d.dcNumber} (${d.pendingQty} pending)`).join(', ')
-                    : 'Open DC';
+                  const blockingDcsSummary =
+                    lock?.blockingDcs && lock.blockingDcs.length > 0
+                      ? lock.blockingDcs
+                          .map((d: any) => `${d.dcNumber} (${d.pendingQty} pending)`)
+                          .join(', ')
+                      : 'Open DC';
                   const singleBlockingDc = lock?.blockingDcs?.[0]?.dcNumber || 'Open DC';
                   const isSelected = item.isSelected !== false && !isLockedOut;
 
@@ -891,6 +1182,13 @@ export function DcTypeSpl() {
                               S.No. {String(index + 1).padStart(2, '0')}
                             </span>
                           </label>
+
+                          {/* Respective PO Badge */}
+                          {item.poNumber && (
+                            <span className="px-2.5 py-0.5 text-[11px] font-bold font-mono rounded bg-slate-900 text-white shadow-2xs">
+                              {item.poNumber}
+                            </span>
+                          )}
 
                           <span
                             className={`px-2 py-0.5 text-[11px] font-semibold rounded ${
@@ -953,7 +1251,7 @@ export function DcTypeSpl() {
                             }`}
                           />
                           <p className="mt-0.5 text-[10px] text-slate-400">
-                            Printed as Part No / Particulars on DC (e.g. PO123 - BASE PLATE)
+                            Printed as Part No / Particulars on DC (e.g. {item.poNumber || 'PO'} - {item.partNo || 'PART'})
                           </p>
                         </div>
 
@@ -1077,7 +1375,7 @@ export function DcTypeSpl() {
                 <button
                   type="button"
                   onClick={() => setShowStockPicker(false)}
-                  className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+                  className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1140,7 +1438,7 @@ export function DcTypeSpl() {
         <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 sticky bottom-0 bg-white/95 backdrop-blur-sm -mx-4 -mb-4 px-4 py-3 sm:static sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:m-0 z-10">
           {!isFormValid && (
             <span className="text-xs text-amber-600 sm:mr-4 font-medium text-center sm:text-left">
-              Please select Vendor, Return Date, fetch a PO, and ensure all items have Quantity &gt; 0.
+              Please select Vendor, Return Date, fetch at least one PO, and select products for dispatch.
             </span>
           )}
           <button
@@ -1169,4 +1467,3 @@ export function DcTypeSpl() {
 }
 
 export default DcTypeSpl;
-

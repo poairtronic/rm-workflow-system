@@ -968,7 +968,10 @@ export class DeliveryChallanService {
           FROM delivery_challan_items dci
           JOIN delivery_challans dc ON dci.challan_id = dc.id
           WHERE dc.type = 'SPL_PROCESS'
-            AND UPPER(REGEXP_REPLACE(TRIM(COALESCE(dc.po_number, '')), '\\s+', ' ', 'g')) = $1
+            AND (
+              UPPER(REGEXP_REPLACE(TRIM(COALESCE(dc.po_number, '')), '\\s+', ' ', 'g')) = $1
+              OR UPPER(dc.po_number) LIKE '%' || $1 || '%'
+            )
             AND dci.merc_item_id = $2
             AND (dci.is_extra_item IS NOT TRUE)
           ORDER BY dci.created_at ASC, dci.id ASC
@@ -1009,7 +1012,10 @@ export class DeliveryChallanService {
         FROM delivery_challan_items dci
         JOIN delivery_challans dc ON dci.challan_id = dc.id
         WHERE dc.type = 'SPL_PROCESS'
-          AND UPPER(REGEXP_REPLACE(TRIM(COALESCE(dc.po_number, '')), '\\s+', ' ', 'g')) = $1
+          AND (
+            UPPER(REGEXP_REPLACE(TRIM(COALESCE(dc.po_number, '')), '\\s+', ' ', 'g')) = $1
+            OR UPPER(dc.po_number) LIKE '%' || $1 || '%'
+          )
           AND dci.merc_item_id = $2
           AND (dci.is_extra_item IS NOT TRUE)
           AND dc.status NOT IN ('CLOSED', 'RETURNED')
@@ -1530,7 +1536,7 @@ export class DeliveryChallanService {
       for (const group of dto.dispatchGroups) {
         for (const item of group.items) {
           lockItems.push({
-            poNumber: dto.poNumber,
+            poNumber: item.poNumber || dto.poNumber,
             mercItemId: item.mercItemId || null,
             poPartLabel: item.poPartLabel || item.partNo || null,
             partNumber: item.partNo || null,
@@ -1546,13 +1552,21 @@ export class DeliveryChallanService {
         queryRunner.manager,
       );
 
+      // Collect all unique PO numbers across all items and header
+      const itemPoNumbers = dto.dispatchGroups
+        .flatMap((g) => g.items)
+        .map((it) => it.poNumber)
+        .filter((p): p is string => Boolean(p && p.trim()));
+      const uniquePos = Array.from(new Set([dto.poNumber, ...itemPoNumbers].filter(Boolean)));
+      const resolvedPoNumber = uniquePos.join(', ');
+
       // 3. Create delivery_challans record
       const challan = queryRunner.manager.create(DeliveryChallan, {
         challanNumber,
         type: DeliveryChallanType.SPL_PROCESS,
         vendorId: dto.vendorId,
         status: DeliveryChallanStatus.OPEN,
-        poNumber: dto.poNumber,
+        poNumber: resolvedPoNumber,
         layoutNumber: dto.layoutNumber ?? null,
         mercIndentId: dto.mercIndentId ?? null,
         mercIndentNumber: dto.mercIndentNumber ?? null,

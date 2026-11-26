@@ -271,6 +271,7 @@ export interface SplDcItem {
   poPartLabel: string;
   mercItemId?: string;
   partNo: string;
+  poNumber?: string;
   dispatchedQty: number;
   batchNo?: string;
   description?: string;

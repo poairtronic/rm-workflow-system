@@ -44,6 +44,10 @@ export class SplDcItemDto {
   @IsString()
   @IsOptional()
   productId?: string; // RM product ID (for extra items)
+
+  @IsString()
+  @IsOptional()
+  poNumber?: string; // Respective PO number for this item (for multi-PO DCs)
 }
 
 export class SplDispatchGroupDto {

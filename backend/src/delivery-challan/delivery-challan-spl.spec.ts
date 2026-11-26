@@ -82,6 +82,7 @@ describe('Special Process Delivery Challan (Type 3) Service', () => {
     it('throws NotFoundException if PO does not exist in MERC indents', async () => {
       mockPendingRepo.createQueryBuilder.mockReturnValue({
         where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
         getOne: vi.fn().mockResolvedValue(null),
       });
 
@@ -121,6 +122,7 @@ describe('Special Process Delivery Challan (Type 3) Service', () => {
 
       mockPendingRepo.createQueryBuilder.mockReturnValue({
         where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
         getOne: vi.fn().mockResolvedValue(mockIndent),
       });
 
