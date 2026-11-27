@@ -36,6 +36,8 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
   public dailyLimit: number = 400;
   public priorityReserve: number = 100;
   public pausedUntil: Date | null = null;
+  private readonly idleMaxIntervalMs: number =
+    Number(process.env.EMAIL_WORKER_IDLE_MAX_MS) || 60000;
 
   private isRunning: boolean = false;
   private isPolling: boolean = false;
@@ -177,6 +179,10 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
       }
     }
 
+    if (typeof this.emailQueueService?.registerWakeCallback === 'function') {
+      this.emailQueueService.registerWakeCallback(() => this.wakeImmediately());
+    }
+
     if (this.isEnabled) {
       this.logger.log(`Initializing EmailWorkerService [ID: ${this.workerId}]`);
       this.start(true);
@@ -228,6 +234,13 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
 
   public isWorkerPolling(): boolean {
     return this.isPolling;
+  }
+
+  public wakeImmediately(): void {
+    if (!this.isRunning) return;
+    this.currentPollIntervalMs = this.pollIntervalMs;
+    if (this.isPolling) return;
+    this.scheduleNextTick(0);
   }
 
   private scheduleNextTick(delayMs: number): void {
@@ -382,7 +395,7 @@ export class EmailWorkerService implements OnModuleInit, OnApplicationShutdown {
         if (!hasClaimedJobs) {
           this.currentPollIntervalMs = Math.min(
             this.currentPollIntervalMs * 2,
-            60000,
+            this.idleMaxIntervalMs,
           );
         }
       }

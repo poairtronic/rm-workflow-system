@@ -36,6 +36,11 @@ export const PERMITTED_EMAIL_EVENT_TYPES = new Set([
 @Injectable()
 export class EmailQueueService {
   private readonly logger = new Logger(EmailQueueService.name);
+  private wakeWorker?: () => void;
+
+  public registerWakeCallback(cb: () => void): void {
+    this.wakeWorker = cb;
+  }
   private readonly templateResolver = new TemplateResolver();
   private readonly emailIdempotencyService: EmailIdempotencyService;
 
@@ -152,7 +157,13 @@ export class EmailQueueService {
     });
 
     try {
-      return await this.emailJobRepository.save(job);
+      const saved = await this.emailJobRepository.save(job);
+      try {
+        this.wakeWorker?.();
+      } catch {
+        // never block enqueue
+      }
+      return saved;
     } catch (err: any) {
       if (
         err?.code === '23505' ||

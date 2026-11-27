@@ -153,10 +153,22 @@ export function useNotifications(options?: UseNotificationsOptions) {
     if (!isAuthenticated || !options?.pollIntervalMs) return;
 
     const interval = setInterval(() => {
+      if (document.hidden) return;
       fetchNotifications(page, filter, typeFilter);
     }, options.pollIntervalMs);
 
-    return () => clearInterval(interval);
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchNotifications(page, filter, typeFilter);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [isAuthenticated, fetchNotifications, page, filter, typeFilter, options?.pollIntervalMs]);
 
   const markAsRead = async (notificationId: string) => {

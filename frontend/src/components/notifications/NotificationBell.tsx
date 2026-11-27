@@ -21,7 +21,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigateTa
     setPage,
     markAsRead,
     markAllAsRead,
-  } = useNotifications({ pollIntervalMs: 60000 }); // Polling every 60s (gentle, non-aggressive)
+  } = useNotifications({ pollIntervalMs: 900000 }); // Polling every 15m (gentle fallback; real-time via Socket.IO)
 
   const togglePanel = () => {
     setIsOpen((prev) => !prev);
