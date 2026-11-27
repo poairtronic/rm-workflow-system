@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authApi } from '../services/api';
+import { authApi, api } from '../services/api';
 import toast from 'react-hot-toast';
 
 export type UserRole = 'ADMIN' | 'DESIGNER' | 'STORES' | 'PRODUCTION' | 'SENIOR_MANAGER' | 'GENERAL_MANAGER';
@@ -37,16 +37,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const initializeAuth = async () => {
+      api.setAuthReady(false);
       const storedToken = localStorage.getItem('rm_access_token');
       console.log('INIT AUTH: storedToken =', !!storedToken);
       if (storedToken) {
         try {
+          api.scheduleProactiveRefresh(storedToken);
           const res = await authApi.getMe();
           console.log('INIT AUTH: getMe success:', res.user?.role);
           setCurrentUser(res.user);
-          setToken(storedToken);
+          setToken(localStorage.getItem('rm_access_token') || storedToken);
         } catch (e: any) {
           console.log('INIT AUTH: getMe error:', e?.message || e);
+          api.clearProactiveRefresh();
           localStorage.removeItem('rm_access_token');
           localStorage.removeItem('rm_refresh_token');
           setCurrentUser(null);
@@ -57,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
       }
+      api.setAuthReady(true);
       setIsLoading(false);
     };
 
@@ -101,11 +105,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
+    let channel: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      channel = new BroadcastChannel('rm_auth_sync');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'TOKEN_REFRESHED' && event.data?.accessToken) {
+          setToken(event.data.accessToken);
+        } else if (event.data?.type === 'AUTH_LOGOUT') {
+          setCurrentUser(null);
+          setToken(null);
+          navigate('/login', { replace: true });
+        }
+      };
+    }
+
     return () => {
       window.removeEventListener('auth:unauthorized', handleUnauthorized);
       window.removeEventListener('focus', handleFocusOrVisible);
       window.removeEventListener('auth:refresh', handleFocusOrVisible);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      channel?.close();
     };
   }, [navigate]); // exclude location.pathname to avoid re-running
 
@@ -117,6 +136,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.refreshToken) {
         localStorage.setItem('rm_refresh_token', response.refreshToken);
       }
+      api.scheduleProactiveRefresh(response.token);
+      api.setAuthReady(true);
       setCurrentUser(response.user);
       setToken(response.token);
       return response.user;
@@ -148,6 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Ignore network errors on logout
     } finally {
+      api.clearProactiveRefresh();
       localStorage.removeItem('rm_access_token');
       localStorage.removeItem('rm_refresh_token');
       setCurrentUser(null);

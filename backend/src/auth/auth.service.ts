@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
   Inject,
@@ -30,6 +31,9 @@ export interface TokenUser {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+  private readonly refreshGraceWindowMs = 20_000;
+
   constructor(
     private readonly jwtService: JwtService,
     @InjectRepository(User)
@@ -42,6 +46,24 @@ export class AuthService {
     private readonly emailQueueService: EmailQueueService,
     private readonly configService: ConfigService,
   ) {}
+
+  getRefreshExpiryMs(): number {
+    const raw = (this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d').trim();
+    const match = /^(\d+)([smhd])$/i.exec(raw);
+    if (!match) return 7 * 24 * 60 * 60 * 1000;
+    const val = Number(match[1]);
+    const unit = match[2].toLowerCase();
+    const mult = unit === 's' ? 1000 : unit === 'm' ? 60_000 : unit === 'h' ? 3_600_000 : 86_400_000;
+    return val * mult;
+  }
+
+  private hashRefreshToken(rawToken: string): string {
+    const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET');
+    if (refreshSecret && refreshSecret !== 'test') {
+      return crypto.createHmac('sha256', refreshSecret).update(rawToken).digest('hex');
+    }
+    return crypto.createHash('sha256').update(rawToken).digest('hex');
+  }
 
   async validateUserCredentials(email: string, pass: string): Promise<User> {
     const user = await this.userRepository.findOne({
@@ -93,12 +115,12 @@ export class AuthService {
   ): Promise<{ accessToken: string; refreshToken: string; user: TokenUser }> {
     const { accessToken } = this.signToken(user);
     const rawRefreshToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(rawRefreshToken).digest('hex');
+    const tokenHash = this.hashRefreshToken(rawRefreshToken);
 
     const tokenRecord = this.refreshTokenRepository.create({
       userId: user.userId,
       tokenHash,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() + this.getRefreshExpiryMs()),
       isRevoked: false,
       deviceInfo: deviceInfo || null,
     });
@@ -115,47 +137,89 @@ export class AuthService {
     rawRefreshToken: string,
     deviceInfo?: string,
   ): Promise<{ accessToken: string; refreshToken: string; user: TokenUser }> {
-    if (!rawRefreshToken || typeof rawRefreshToken !== 'string') {
-      throw new UnauthorizedException('Refresh token is required');
+    if (!rawRefreshToken || typeof rawRefreshToken !== 'string' || !rawRefreshToken.trim()) {
+      this.logger.warn('[AuthRefresh] Rejected refresh: missing refresh token/cookie');
+      throw new UnauthorizedException({
+        statusCode: 401,
+        code: 'REFRESH_INVALID',
+        message: 'Refresh token is required',
+      });
     }
 
-    const tokenHash = crypto.createHash('sha256').update(rawRefreshToken.trim()).digest('hex');
+    const tokenHash = this.hashRefreshToken(rawRefreshToken.trim());
     const tokenRecord = await this.refreshTokenRepository.findOne({
       where: { tokenHash },
       relations: { user: { role: true } },
     });
 
     if (!tokenRecord) {
-      throw new UnauthorizedException('Invalid refresh token');
+      this.logger.warn('[AuthRefresh] Rejected refresh: token hash not found (signature/hash mismatch or unknown)');
+      throw new UnauthorizedException({
+        statusCode: 401,
+        code: 'REFRESH_INVALID',
+        message: 'Invalid refresh token',
+      });
     }
 
-    // Reuse Detection: If someone attempts to use an already revoked token,
-    // revoke all active tokens for this user as a safeguard
-    if (tokenRecord.isRevoked) {
+    const updatedAgeMs = tokenRecord.updatedAt
+      ? Date.now() - new Date(tokenRecord.updatedAt).getTime()
+      : Number.POSITIVE_INFINITY;
+    const withinGraceWindow =
+      tokenRecord.isRevoked &&
+      Boolean(tokenRecord.replacedByToken) &&
+      updatedAgeMs <= this.refreshGraceWindowMs;
+
+    // Reuse Detection: tolerate a short grace window (~20s) for concurrent/retried rotations
+    if (tokenRecord.isRevoked && !withinGraceWindow) {
+      this.logger.warn(
+        `[AuthRefresh] Rejected refresh: revoked token reused outside grace window for user ${tokenRecord.userId}`,
+      );
       await this.refreshTokenRepository.update(
         { userId: tokenRecord.userId },
         { isRevoked: true },
       );
-      throw new UnauthorizedException('Revoked refresh token reused. All sessions terminated.');
+      throw new UnauthorizedException({
+        statusCode: 401,
+        code: 'REFRESH_INVALID',
+        message: 'Revoked refresh token reused. All sessions terminated.',
+      });
+    }
+
+    if (withinGraceWindow) {
+      this.logger.log(
+        `[AuthRefresh] Grace window hit (${Math.round(updatedAgeMs)}ms) for user ${tokenRecord.userId}; issuing fresh pair without revoking sessions`,
+      );
     }
 
     if (new Date() > tokenRecord.expiresAt) {
       tokenRecord.isRevoked = true;
       await this.refreshTokenRepository.save(tokenRecord);
-      throw new UnauthorizedException('Refresh token expired');
+      this.logger.warn(`[AuthRefresh] Rejected refresh: token expired for user ${tokenRecord.userId}`);
+      throw new UnauthorizedException({
+        statusCode: 401,
+        code: 'TOKEN_EXPIRED',
+        message: 'Refresh token expired',
+      });
     }
 
     if (!tokenRecord.user || !tokenRecord.user.isActive) {
-      throw new UnauthorizedException('User account is inactive or deleted');
+      this.logger.warn(`[AuthRefresh] Rejected refresh: user ${tokenRecord.userId} inactive or deleted`);
+      throw new UnauthorizedException({
+        statusCode: 401,
+        code: 'REFRESH_INVALID',
+        message: 'User account is inactive or deleted',
+      });
     }
 
     // Revoke old token and rotate
     const newRawRefreshToken = crypto.randomBytes(32).toString('hex');
-    const newTokenHash = crypto.createHash('sha256').update(newRawRefreshToken).digest('hex');
+    const newTokenHash = this.hashRefreshToken(newRawRefreshToken);
 
-    tokenRecord.isRevoked = true;
-    tokenRecord.replacedByToken = newTokenHash;
-    await this.refreshTokenRepository.save(tokenRecord);
+    if (!tokenRecord.isRevoked) {
+      tokenRecord.isRevoked = true;
+      tokenRecord.replacedByToken = newTokenHash;
+      await this.refreshTokenRepository.save(tokenRecord);
+    }
 
     const roleName = (tokenRecord.user.role?.name || UserRole.DESIGNER) as UserRole;
     const tokenUser: TokenUser = {
@@ -170,7 +234,7 @@ export class AuthService {
     const newRecord = this.refreshTokenRepository.create({
       userId: tokenUser.userId,
       tokenHash: newTokenHash,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() + this.getRefreshExpiryMs()),
       isRevoked: false,
       deviceInfo: deviceInfo || tokenRecord.deviceInfo,
     });
@@ -188,7 +252,7 @@ export class AuthService {
     if (!rawRefreshToken || typeof rawRefreshToken !== 'string') {
       return false;
     }
-    const tokenHash = crypto.createHash('sha256').update(rawRefreshToken.trim()).digest('hex');
+    const tokenHash = this.hashRefreshToken(rawRefreshToken.trim());
     const tokenRecord = await this.refreshTokenRepository.findOne({
       where: { tokenHash },
     });

@@ -7,20 +7,106 @@ export { extractErrorMessage };
 class ApiClient {
   private baseUrl: string;
 
-  private isRefreshing = false;
-  private refreshSubscribers: Array<(token: string | null) => void> = [];
+  private refreshPromise: Promise<string | null> | null = null;
+  private proactiveTimer: ReturnType<typeof setTimeout> | null = null;
+  private authChannel: BroadcastChannel | null = null;
+  private authReady = false;
+  private authReadyPromise: Promise<void> = Promise.resolve();
+  private resolveAuthReady: (() => void) | null = null;
+  private unauthorizedDispatched = false;
 
   constructor() {
     this.baseUrl = APP_CONFIG.apiBaseUrl;
+    if (typeof BroadcastChannel !== 'undefined') {
+      this.authChannel = new BroadcastChannel('rm_auth_sync');
+      this.authChannel.onmessage = (event) => {
+        if (event.data?.type === 'TOKEN_REFRESHED' && event.data?.accessToken) {
+          localStorage.setItem('rm_access_token', event.data.accessToken);
+          if (event.data.refreshToken) {
+            localStorage.setItem('rm_refresh_token', event.data.refreshToken);
+          }
+          this.unauthorizedDispatched = false;
+          this.scheduleProactiveRefresh(event.data.accessToken);
+        } else if (event.data?.type === 'AUTH_LOGOUT') {
+          this.clearProactiveRefresh();
+        }
+      };
+    }
+    const existing = localStorage.getItem('rm_access_token');
+    if (existing) {
+      this.scheduleProactiveRefresh(existing);
+    }
   }
 
-  private onRefreshed(token: string | null) {
-    this.refreshSubscribers.forEach((cb) => cb(token));
-    this.refreshSubscribers = [];
+  setAuthReady(ready: boolean) {
+    if (!ready) {
+      if (!this.resolveAuthReady) {
+        this.authReadyPromise = new Promise<void>((resolve) => {
+          this.resolveAuthReady = resolve;
+        });
+      }
+      this.authReady = false;
+    } else {
+      this.authReady = true;
+      if (this.resolveAuthReady) {
+        this.resolveAuthReady();
+        this.resolveAuthReady = null;
+      }
+      this.authReadyPromise = Promise.resolve();
+    }
   }
 
-  private addRefreshSubscriber(cb: (token: string | null) => void) {
-    this.refreshSubscribers.push(cb);
+  private decodeJwtExpMs(token: string): number | null {
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return null;
+      const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(atob(base64));
+      return typeof payload?.exp === 'number' ? payload.exp * 1000 : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private isTokenExpiringSoon(token: string, thresholdMs = 60_000): boolean {
+    const expMs = this.decodeJwtExpMs(token);
+    if (!expMs) return false;
+    return expMs - Date.now() <= thresholdMs;
+  }
+
+  clearProactiveRefresh() {
+    if (this.proactiveTimer) {
+      clearTimeout(this.proactiveTimer);
+      this.proactiveTimer = null;
+    }
+  }
+
+  scheduleProactiveRefresh(token: string) {
+    this.clearProactiveRefresh();
+    const expMs = this.decodeJwtExpMs(token);
+    if (!expMs) return;
+    const delayMs = Math.max(0, expMs - Date.now() - 60_000);
+    if (delayMs > 0 && delayMs < 2_147_483_647) {
+      this.proactiveTimer = setTimeout(() => {
+        if (localStorage.getItem('rm_access_token')) {
+          this.refreshAccessToken(token).catch(() => {});
+        }
+      }, delayMs);
+    }
+  }
+
+  private clearAuthStorageAndNotifyOnce() {
+    this.clearProactiveRefresh();
+    localStorage.removeItem('rm_access_token');
+    localStorage.removeItem('rm_refresh_token');
+    if (!this.unauthorizedDispatched) {
+      this.unauthorizedDispatched = true;
+      this.authChannel?.postMessage({ type: 'AUTH_LOGOUT' });
+      window.dispatchEvent(new Event('auth:unauthorized'));
+      setTimeout(() => {
+        this.unauthorizedDispatched = false;
+      }, 3000);
+    }
   }
 
   private getHeaders(): HeadersInit {
@@ -45,17 +131,20 @@ class ApiClient {
     );
   }
 
-  private async tryRefreshToken(): Promise<string | null> {
-    const storedRefreshToken = localStorage.getItem('rm_refresh_token');
-    if (!storedRefreshToken) {
-      return null;
+  private async executeRefreshRequest(failedToken?: string | null): Promise<string | null> {
+    const currentAccess = localStorage.getItem('rm_access_token');
+    // Another tab already refreshed the access token while we waited for the lock
+    if (failedToken && currentAccess && currentAccess !== failedToken && !this.isTokenExpiringSoon(currentAccess, 15_000)) {
+      return currentAccess;
     }
 
+    const storedRefreshToken = localStorage.getItem('rm_refresh_token');
     try {
       const response = await fetch(`${this.baseUrl}/api/auth/refresh`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: storedRefreshToken }),
+        body: JSON.stringify(storedRefreshToken ? { refreshToken: storedRefreshToken } : {}),
       });
 
       if (!response.ok) {
@@ -63,15 +152,45 @@ class ApiClient {
       }
 
       const data = await response.json();
-      if (data?.accessToken && data?.refreshToken) {
+      if (data?.accessToken) {
         localStorage.setItem('rm_access_token', data.accessToken);
-        localStorage.setItem('rm_refresh_token', data.refreshToken);
+        if (data.refreshToken) {
+          localStorage.setItem('rm_refresh_token', data.refreshToken);
+        }
+        this.unauthorizedDispatched = false;
+        this.scheduleProactiveRefresh(data.accessToken);
+        this.authChannel?.postMessage({
+          type: 'TOKEN_REFRESHED',
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+        });
         return data.accessToken;
       }
       return null;
     } catch {
       return null;
     }
+  }
+
+  private refreshAccessToken(failedToken?: string | null): Promise<string | null> {
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    const runWithCrossTabLock = async (): Promise<string | null> => {
+      if (typeof navigator !== 'undefined' && navigator.locks?.request) {
+        return navigator.locks.request('rm_auth_refresh', async () => {
+          return this.executeRefreshRequest(failedToken);
+        });
+      }
+      return this.executeRefreshRequest(failedToken);
+    };
+
+    this.refreshPromise = runWithCrossTabLock().finally(() => {
+      this.refreshPromise = null;
+    });
+
+    return this.refreshPromise;
   }
 
   private async handleError(response: Response, endpoint: string, method: string, silent = false): Promise<never> {
@@ -120,91 +239,88 @@ class ApiClient {
   }
 
   private async safeFetch(url: string, options: RequestInit & { silent?: boolean }): Promise<Response> {
-    try {
-      return await fetch(url, options);
-    } catch (err: any) {
-      const isConnError =
-        err?.name === 'TypeError' ||
-        err?.message?.includes('fetch') ||
-        err?.message?.includes('Failed to fetch') ||
-        err?.message?.includes('NetworkError');
-      const msg = isConnError
-        ? 'Cannot connect to backend server. Please verify the API is running.'
-        : (err?.message || 'Network request failed');
-      if (!options?.silent) {
-        toast.error(msg, { id: 'network-connection-refused' });
+    const method = (options.method || 'GET').toUpperCase();
+    const maxAttempts = method === 'GET' ? 2 : 1; // Retry idempotent GET once on Render cold-start network error/timeout
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await fetch(url, { ...options, credentials: 'include' });
+      } catch (err: any) {
+        const isConnError =
+          err?.name === 'TypeError' ||
+          err?.name === 'AbortError' ||
+          err?.message?.includes('fetch') ||
+          err?.message?.includes('Failed to fetch') ||
+          err?.message?.includes('NetworkError');
+
+        if (attempt < maxAttempts && isConnError) {
+          await new Promise((r) => setTimeout(r, 1500));
+          continue;
+        }
+
+        const msg = isConnError
+          ? 'Cannot connect to backend server. Please verify the API is running.'
+          : (err?.message || 'Network request failed');
+        if (!options?.silent) {
+          toast.error(msg, { id: 'network-connection-refused' });
+        }
+        throw new Error(msg);
       }
-      throw new Error(msg);
     }
+    throw new Error('Network request failed');
   }
 
   private async requestWithRetry<T>(
     endpoint: string,
     options: RequestInit & { silent?: boolean },
     responseType: 'json' | 'blob' = 'json',
-    isRetry = false,
+    _retry = false,
   ): Promise<T> {
+    const isAuthEndpoint = this.isAuthRoute(endpoint) || endpoint.includes('/auth/me');
+    if (!this.authReady && !isAuthEndpoint) {
+      await this.authReadyPromise;
+    }
+
+    // Proactive refresh ~60s before access token expiry
+    if (!_retry && !this.isAuthRoute(endpoint)) {
+      const currentToken = localStorage.getItem('rm_access_token');
+      if (currentToken && this.isTokenExpiringSoon(currentToken, 60_000)) {
+        const refreshed = await this.refreshAccessToken(currentToken);
+        if (refreshed) {
+          options = {
+            ...options,
+            headers: {
+              ...(options.headers as Record<string, string>),
+              Authorization: `Bearer ${refreshed}`,
+            },
+          };
+        }
+      }
+    }
+
+    const usedToken = (options.headers as Record<string, string>)?.Authorization?.replace(/^Bearer\s+/i, '') || null;
     const response = await this.safeFetch(`${this.baseUrl}${endpoint}`, options);
 
-    if (response.status === 401 && !isRetry && !this.isAuthRoute(endpoint)) {
-      if (this.isRefreshing) {
-        return new Promise<T>((resolve, reject) => {
-          this.addRefreshSubscriber(async (newToken) => {
-            if (newToken) {
-              try {
-                const retryHeaders: HeadersInit = {
-                  ...(options.headers as Record<string, string>),
-                  Authorization: `Bearer ${newToken}`,
-                };
-                const retryRes = await this.safeFetch(`${this.baseUrl}${endpoint}`, {
-                  ...options,
-                  headers: retryHeaders,
-                });
-                if (!retryRes.ok) {
-                  await this.handleError(retryRes, endpoint, options.method || 'GET', options.silent);
-                }
-                if (responseType === 'blob') {
-                  resolve((await retryRes.blob()) as any);
-                } else {
-                  resolve(await this.parseResponseBody<T>(retryRes));
-                }
-              } catch (err) {
-                reject(err);
-              }
-            } else {
-              window.dispatchEvent(new Event('auth:unauthorized'));
-              reject(new Error('Session expired'));
-            }
-          });
-        });
-      }
-
-      this.isRefreshing = true;
-      const newToken = await this.tryRefreshToken();
-      this.isRefreshing = false;
-      this.onRefreshed(newToken);
+    if (response.status === 401 && !_retry && !this.isAuthRoute(endpoint)) {
+      const newToken = await this.refreshAccessToken(usedToken);
 
       if (newToken) {
         const retryHeaders: HeadersInit = {
           ...(options.headers as Record<string, string>),
           Authorization: `Bearer ${newToken}`,
         };
-        const retryRes = await this.safeFetch(`${this.baseUrl}${endpoint}`, {
-          ...options,
-          headers: retryHeaders,
-        });
-        if (!retryRes.ok) {
-          await this.handleError(retryRes, endpoint, options.method || 'GET', options.silent);
-        }
-        if (responseType === 'blob') {
-          return (await retryRes.blob()) as any;
-        }
-        return this.parseResponseBody<T>(retryRes);
+        return this.requestWithRetry<T>(
+          endpoint,
+          { ...options, headers: retryHeaders },
+          responseType,
+          true,
+        );
       } else {
-        localStorage.removeItem('rm_access_token');
-        localStorage.removeItem('rm_refresh_token');
-        window.dispatchEvent(new Event('auth:unauthorized'));
-        await this.handleError(response, endpoint, options.method || 'GET', options.silent);
+        this.clearAuthStorageAndNotifyOnce();
+        const err: any = new Error('Session expired');
+        err.status = 401;
+        err.response = { status: 401, data: { code: 'REFRESH_INVALID' } };
+        throw err;
       }
     }
 

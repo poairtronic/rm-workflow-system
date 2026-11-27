@@ -5,12 +5,16 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   Post,
   Patch,
   Query,
   Req,
+  Res,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AuthService } from './auth.service.js';
@@ -25,13 +29,60 @@ import { UpdateProfileDto } from './dto/update-profile.dto.js';
 import { DevTokenDto } from './dto/dev-token.dto.js';
 import { PermissionsService } from '../permissions/permissions.service.js';
 
+const REFRESH_COOKIE_NAME = 'rm_refresh_token';
+
 @ApiTags('auth')
 @Controller('api/auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly permissionsService: PermissionsService,
   ) {}
+
+  private isCrossSiteSecure(req: any): boolean {
+    return (
+      process.env.NODE_ENV === 'production' ||
+      Boolean(req?.secure) ||
+      req?.headers?.['x-forwarded-proto'] === 'https'
+    );
+  }
+
+  private extractRefreshCookie(req: any): string | undefined {
+    const cookieHeader = req?.headers?.cookie;
+    if (!cookieHeader || typeof cookieHeader !== 'string') return undefined;
+    for (const part of cookieHeader.split(';')) {
+      const idx = part.indexOf('=');
+      if (idx === -1) continue;
+      const key = part.slice(0, idx).trim();
+      if (key === REFRESH_COOKIE_NAME) {
+        return decodeURIComponent(part.slice(idx + 1).trim());
+      }
+    }
+    return undefined;
+  }
+
+  private setRefreshCookie(res: Response, req: any, token: string): void {
+    const secure = this.isCrossSiteSecure(req);
+    res.cookie(REFRESH_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure,
+      sameSite: secure ? 'none' : 'lax',
+      path: '/api/auth',
+      maxAge: this.authService.getRefreshExpiryMs(),
+    });
+  }
+
+  private clearRefreshCookie(res: Response, req: any): void {
+    const secure = this.isCrossSiteSecure(req);
+    res.clearCookie(REFRESH_COOKIE_NAME, {
+      httpOnly: true,
+      secure,
+      sameSite: secure ? 'none' : 'lax',
+      path: '/api/auth',
+    });
+  }
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: 'Authenticate user with email and password' })
@@ -39,9 +90,10 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid credentials or inactive account.' })
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() loginDto: LoginDto, @Req() req: any) {
+  async login(@Body() loginDto: LoginDto, @Req() req: any, @Res({ passthrough: true }) res: Response) {
     const userAgent = req?.headers ? req.headers['user-agent'] : undefined;
     const result = await this.authService.login(loginDto, userAgent);
+    this.setRefreshCookie(res, req, result.refreshToken);
     let effectiveModules: string[] = [];
     let permissionsMap: Record<string, string> = {};
     try {
@@ -67,9 +119,19 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid, expired, or revoked refresh token.' })
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(@Body() dto: RefreshTokenDto, @Req() req: any) {
+  async refresh(@Body() dto: RefreshTokenDto, @Req() req: any, @Res({ passthrough: true }) res: Response) {
     const userAgent = req?.headers ? req.headers['user-agent'] : undefined;
-    const result = await this.authService.rotateRefreshToken(dto.refreshToken, userAgent);
+    const rawToken = dto?.refreshToken || this.extractRefreshCookie(req);
+    if (!rawToken) {
+      this.logger.warn('[AuthController.refresh] Missing refresh token in both body and httpOnly cookie');
+      throw new UnauthorizedException({
+        statusCode: 401,
+        code: 'REFRESH_INVALID',
+        message: 'Refresh token cookie or payload is missing',
+      });
+    }
+    const result = await this.authService.rotateRefreshToken(rawToken, userAgent);
+    this.setRefreshCookie(res, req, result.refreshToken);
     let effectiveModules: string[] = [];
     let permissionsMap: Record<string, string> = {};
     try {
@@ -94,10 +156,12 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Logged out successfully.' })
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout(@Body() dto: LogoutDto) {
-    if (dto?.refreshToken) {
-      await this.authService.revokeRefreshToken(dto.refreshToken);
+  async logout(@Body() dto: LogoutDto, @Req() req: any, @Res({ passthrough: true }) res: Response) {
+    const rawToken = dto?.refreshToken || this.extractRefreshCookie(req);
+    if (rawToken) {
+      await this.authService.revokeRefreshToken(rawToken);
     }
+    this.clearRefreshCookie(res, req);
     return {
       success: true,
       message: 'Logged out successfully',

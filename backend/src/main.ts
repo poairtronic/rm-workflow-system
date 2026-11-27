@@ -88,21 +88,23 @@ async function bootstrap() {
       next();
     });
 
-    // Parse allowed origins flexibly
+    // Parse allowed origins flexibly (exact origins only, no wildcard)
     const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
       .split(',')
-      .map((o) => o.trim());
+      .map((o) => o.trim())
+      .filter((o) => o && o !== '*');
 
     app.enableCors({
       origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-        // Allow requests with no origin (like mobile apps, curl, or server-to-server) or matching origins / *.onrender.com
         if (!origin || allowedOrigins.includes(origin)) {
           callback(null, true);
         } else {
-          callback(null, false);
+          callback(new Error(`CORS blocked for origin: ${origin}`), false);
         }
       },
       credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     });
     app.useGlobalPipes(
       new ValidationPipe({

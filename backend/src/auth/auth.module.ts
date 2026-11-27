@@ -24,12 +24,17 @@ import { EmailModule } from '../email/email.module.js';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const secret = configService.get<string>('JWT_SECRET');
-        if (!secret) throw new Error('JWT_SECRET environment variable is not configured');
+        const secret =
+          configService.get<string>('JWT_ACCESS_SECRET') ||
+          configService.get<string>('JWT_SECRET');
+        if (!secret) {
+          throw new Error('JWT_ACCESS_SECRET or JWT_SECRET environment variable is not configured');
+        }
+        const expiresIn = (configService.get<string>('JWT_ACCESS_EXPIRES_IN') || '15m') as any;
         return {
           secret,
           signOptions: {
-            expiresIn: '7d',
+            expiresIn,
           },
         };
       },

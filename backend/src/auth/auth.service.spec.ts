@@ -218,6 +218,33 @@ describe('AuthService', () => {
     );
   });
 
+  it('should tolerate concurrent refresh within 20s grace window without revoking all sessions', async () => {
+    const rawToken = 'e'.repeat(64);
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    mockRefreshTokenRepo.findOne.mockResolvedValue({
+      id: 'token-grace',
+      userId: 'user-1',
+      tokenHash,
+      expiresAt: new Date(Date.now() + 1000000),
+      isRevoked: true,
+      replacedByToken: 'f'.repeat(64),
+      updatedAt: new Date(Date.now() - 2000), // 2 seconds ago (within 20s grace)
+      user: {
+        id: 'user-1',
+        name: 'Grace User',
+        email: 'grace@airtronic.com',
+        isActive: true,
+        role: { name: 'STORES' },
+      },
+    });
+
+    const result = await authService.rotateRefreshToken(rawToken);
+    expect(result.accessToken).toBe('mock-token-for-user-1');
+    expect(result.refreshToken).toBeDefined();
+    expect(mockRefreshTokenRepo.update).not.toHaveBeenCalled();
+  });
+
   it('should reject rotation if refresh token is expired', async () => {
     const rawToken = 'c'.repeat(64);
     const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
