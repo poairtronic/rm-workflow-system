@@ -21,6 +21,7 @@ import type { ExportColumn } from '../utils/exportUtils';
 import { VelanPrPrintModal } from '../components/consumables/VelanPrPrintModal';
 import { EditPrIndentModal } from '../components/consumables/EditPrIndentModal';
 import { ConsumableAlertSettingsModal } from '../components/consumables/ConsumableAlertSettingsModal';
+import { AttachmentBadge, AttachmentViewerModal } from '../components/consumables';
 import { consumablesApi, type BinOption } from '../services/consumables.service';
 import type { ConsumableLineItemRecord } from '../types/consumables.types';
 import { useAuth } from '../contexts/AuthContext';
@@ -81,6 +82,7 @@ export function ConsumablePurchaseStoreWorkspace() {
 
   // PR Print Modal State
   const [printModalOpen, setPrintModalOpen] = useState(false);
+  const [viewerItem, setViewerItem] = useState<{ id: string; title: string } | null>(null);
   const [printModalData, setPrintModalData] = useState<{
     prNumber: string;
     items: ConsumableLineItemRecord[];
@@ -1304,6 +1306,10 @@ export function ConsumablePurchaseStoreWorkspace() {
                               <span className="font-semibold text-slate-900 dark:text-white leading-snug">
                                 {item.description}
                               </span>
+                              <AttachmentBadge
+                                count={item.attachmentCount}
+                                onClick={() => setViewerItem({ id: item.id, title: item.description })}
+                              />
                               {item.isNewProduct && (
                                 <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800">
                                   Auto-Created
@@ -1853,6 +1859,13 @@ export function ConsumablePurchaseStoreWorkspace() {
         isOpen={alertSettingsModalOpen}
         onClose={() => setAlertSettingsModalOpen(false)}
         onSaved={loadData}
+      />
+
+      <AttachmentViewerModal
+        isOpen={Boolean(viewerItem)}
+        lineItemId={viewerItem?.id ?? null}
+        itemTitle={viewerItem?.title}
+        onClose={() => setViewerItem(null)}
       />
 
       {/* ============================================================ */}

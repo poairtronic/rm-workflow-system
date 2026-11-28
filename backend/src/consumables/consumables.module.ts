@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { ConsumableRequest } from './entities/consumable-request.entity.js';
 import { ConsumableRequestItem } from './entities/consumable-request-item.entity.js';
+import { ConsumableLineAttachment } from './entities/consumable-line-attachment.entity.js';
 import { Product } from '../inventory/entities/product.entity.js';
 import { ProductCategory } from '../inventory/entities/product-category.entity.js';
 import { ProductFamily } from '../inventory/entities/product-family.entity.js';
@@ -16,6 +17,7 @@ import { SystemSetting } from '../notifications/entities/system-setting.entity.j
 
 import { ConsumablesService } from './consumables.service.js';
 import { ConsumablesBatchNotificationService } from './consumables-batch-notification.service.js';
+import { ConsumableAttachmentsService } from './consumable-attachments.service.js';
 import { ConsumablesController } from './consumables.controller.js';
 
 import { NotificationsModule } from '../notifications/notifications.module.js';
@@ -29,6 +31,7 @@ import { AuditModule } from '../audit/audit.module.js';
     TypeOrmModule.forFeature([
       ConsumableRequest,
       ConsumableRequestItem,
+      ConsumableLineAttachment,
       Product,
       ProductCategory,
       ProductFamily,
@@ -46,8 +49,8 @@ import { AuditModule } from '../audit/audit.module.js';
     AuditModule,
   ],
   controllers: [ConsumablesController],
-  providers: [ConsumablesService, PdfGeneratorService, ConsumablesBatchNotificationService],
-  exports: [ConsumablesService, ConsumablesBatchNotificationService],
+  providers: [ConsumablesService, ConsumableAttachmentsService, PdfGeneratorService, ConsumablesBatchNotificationService],
+  exports: [ConsumablesService, ConsumableAttachmentsService, ConsumablesBatchNotificationService],
 })
 export class ConsumablesModule {}
 

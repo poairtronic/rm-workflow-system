@@ -50,6 +50,7 @@ import { SystemSetting } from '../notifications/entities/system-setting.entity.j
 import { AlertDigestService, AlertDigestItem } from '../email/alert-digest.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { ConsumablesBatchNotificationService } from './consumables-batch-notification.service.js';
+import { ConsumableAttachmentsService } from './consumable-attachments.service.js';
 
 export const STANDARD_CONSUMABLE_ITEMS: string[] = [
   'Gloves',
@@ -172,6 +173,7 @@ export class ConsumablesService implements OnModuleInit {
     @Optional() private readonly configService?: ConfigService,
     @Optional() private readonly auditService?: AuditService,
     @Optional() private readonly batchNotificationService?: ConsumablesBatchNotificationService,
+    @Optional() private readonly attachmentsService?: ConsumableAttachmentsService,
   ) {}
 
   /**
@@ -951,6 +953,9 @@ export class ConsumablesService implements OnModuleInit {
       .take(pageSize);
 
     const [items, total] = await qb.getManyAndCount();
+    const attachmentCounts = this.attachmentsService
+      ? await this.attachmentsService.getAttachmentCountsByLineIds(items.map((i) => i.id))
+      : new Map<string, number>();
 
     const mapped = items.map((item) => {
       const unitPrice = item.unitPrice != null ? Number(item.unitPrice) : null;
@@ -985,6 +990,7 @@ export class ConsumablesService implements OnModuleInit {
         rejectedAt: item.rejectedAt,
         rejectionReason: item.rejectionReason,
         approvalBatchId: item.approvalBatchId,
+        attachmentCount: attachmentCounts.get(item.id) ?? 0,
       };
     });
 
@@ -1610,6 +1616,9 @@ export class ConsumablesService implements OnModuleInit {
       }
 
       const requestId = item.requestId;
+      const attachmentPaths = this.attachmentsService
+        ? await this.attachmentsService.getStoragePathsForLineItems([item.id])
+        : [];
 
       // Delete the line item
       await queryRunner.manager.delete(ConsumableRequestItem, { id: item.id });
@@ -1627,6 +1636,10 @@ export class ConsumablesService implements OnModuleInit {
       }
 
       await queryRunner.commitTransaction();
+
+      if (this.attachmentsService && attachmentPaths.length > 0) {
+        await this.attachmentsService.cleanupStoragePaths(attachmentPaths);
+      }
 
       this.logger.log(
         `[CONSUMABLES-DELETE] Line item "${item.description}" (${id}) deleted successfully. Request deleted: ${requestDeleted}`,
@@ -1751,10 +1764,19 @@ export class ConsumablesService implements OnModuleInit {
       }
 
       const count = request.items?.length || 0;
+      const itemIds = (request.items || []).map((it) => it.id);
+      const attachmentPaths = this.attachmentsService
+        ? await this.attachmentsService.getStoragePathsForLineItems(itemIds)
+        : [];
+
       await queryRunner.manager.delete(ConsumableRequestItem, { requestId: request.id });
       await queryRunner.manager.delete(ConsumableRequest, { id: request.id });
 
       await queryRunner.commitTransaction();
+
+      if (this.attachmentsService && attachmentPaths.length > 0) {
+        await this.attachmentsService.cleanupStoragePaths(attachmentPaths);
+      }
 
       this.logger.log(
         `[CONSUMABLES-DELETE] Request "${request.requestCode}" (${id}) and ${count} line item(s) deleted.`,
@@ -1849,6 +1871,14 @@ export class ConsumablesService implements OnModuleInit {
     qb.skip((page - 1) * limit).take(limit);
 
     const [items, total] = await qb.getManyAndCount();
+    if (this.attachmentsService && items.length > 0) {
+      const attachmentCounts = await this.attachmentsService.getAttachmentCountsByLineIds(
+        items.map((i) => i.id),
+      );
+      for (const item of items) {
+        (item as any).attachmentCount = attachmentCounts.get(item.id) ?? 0;
+      }
+    }
 
     // Auto-resolve binId for items that don't have an explicit bin assigned yet
     const missingBinProductIds = items

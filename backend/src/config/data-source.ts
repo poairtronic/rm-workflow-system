@@ -79,6 +79,7 @@ import { RefreshToken } from '../auth/entities/refresh-token.entity.js';
 import { PasswordResetToken } from '../auth/entities/password-reset-token.entity.js';
 import { ConsumableRequest } from '../consumables/entities/consumable-request.entity.js';
 import { ConsumableRequestItem } from '../consumables/entities/consumable-request-item.entity.js';
+import { ConsumableLineAttachment } from '../consumables/entities/consumable-line-attachment.entity.js';
 import { MercIndentPending } from '../merc-indent/entities/merc-indent-pending.entity.js';
 import { MercIndentLineItem } from '../merc-indent/entities/merc-indent-line-item.entity.js';
 import { EcrMaterialPending } from '../ecr-issues/entities/ecr-material-pending.entity.js';
@@ -147,6 +148,7 @@ export const ALL_ENTITIES = [
   DcReworkItem,
   ConsumableRequest,
   ConsumableRequestItem,
+  ConsumableLineAttachment,
   MercIndentPending,
   MercIndentLineItem,
   EcrMaterialPending,

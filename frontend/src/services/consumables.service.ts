@@ -12,6 +12,7 @@ import type {
   BulkApproveResponse,
   BulkRejectResponse,
   ConsumableApprovalConfig,
+  ConsumableLineAttachmentDto,
 } from '../types/consumables.types';
 
 export interface BinOption {
@@ -188,6 +189,7 @@ export const consumablesApi = {
       binId: i.binId || i.bin?.id || null,
       binCode: i.binCode || i.bin?.code || null,
       vendorName: i.vendorName || i.vendor?.name || null,
+      attachmentCount: Number(i.attachmentCount || 0),
     }));
   },
 
@@ -360,6 +362,32 @@ export const consumablesApi = {
    */
   async bulkReject(itemIds: string[], rejectionReason: string): Promise<BulkRejectResponse> {
     return api.post<BulkRejectResponse>('/api/consumables/approvals/bulk-reject', { itemIds, rejectionReason });
+  },
+
+  async uploadLineAttachment(
+    lineId: string,
+    file: File,
+    originalSizeBytes: number,
+  ): Promise<ConsumableLineAttachmentDto> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('originalSizeBytes', String(originalSizeBytes));
+    return api.upload<ConsumableLineAttachmentDto>(
+      `/api/consumables/lines/${lineId}/attachments`,
+      formData,
+    );
+  },
+
+  async getLineAttachments(lineId: string): Promise<ConsumableLineAttachmentDto[]> {
+    return api.get<ConsumableLineAttachmentDto[]>(
+      `/api/consumables/lines/${lineId}/attachments`,
+    );
+  },
+
+  async deleteAttachment(attachmentId: string): Promise<{ success: boolean; deletedId: string }> {
+    return api.delete<{ success: boolean; deletedId: string }>(
+      `/api/consumables/attachments/${attachmentId}`,
+    );
   },
 };
 

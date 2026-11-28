@@ -25,6 +25,7 @@ import type {
   ConsumableApprovalConfig,
 } from '../types/consumables.types';
 import { RejectReasonModal } from '../components/consumables/RejectReasonModal';
+import { AttachmentBadge, AttachmentViewerModal } from '../components/consumables';
 import { PageHeader } from '../components/ui/PageHeader';
 
 type ApprovalTab = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -34,6 +35,7 @@ export const ConsumableApprovalsWorkspace: React.FC = () => {
 
   // Tab & Filter States
   const [activeTab, setActiveTab] = useState<ApprovalTab>('PENDING');
+  const [viewerItem, setViewerItem] = useState<{ id: string; title: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [trackFilter, setTrackFilter] = useState<ConsumableItemTrack | 'ALL'>('ALL');
   const [fromDate, setFromDate] = useState('');
@@ -554,9 +556,15 @@ export const ConsumableApprovalsWorkspace: React.FC = () => {
 
                       {/* Description & Product Code */}
                       <td className="py-3 px-4 max-w-xs">
-                        <p className="font-semibold text-slate-900 dark:text-white">
-                          {item.description}
-                        </p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="font-semibold text-slate-900 dark:text-white">
+                            {item.description}
+                          </p>
+                          <AttachmentBadge
+                            count={item.attachmentCount}
+                            onClick={() => setViewerItem({ id: item.id, title: item.description })}
+                          />
+                        </div>
                         {item.productCode && (
                           <p className="text-[10px] text-slate-400 font-mono truncate">
                             {item.productCode}
@@ -777,6 +785,13 @@ export const ConsumableApprovalsWorkspace: React.FC = () => {
           uom: item.uom,
         }))}
         isSubmitting={rejectMutation.isPending}
+      />
+
+      <AttachmentViewerModal
+        isOpen={Boolean(viewerItem)}
+        lineItemId={viewerItem?.id ?? null}
+        itemTitle={viewerItem?.title}
+        onClose={() => setViewerItem(null)}
       />
     </div>
   );

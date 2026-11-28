@@ -21,11 +21,12 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { consumablesApi } from '../services/consumables.service';
-import { VelanPrPrintModal } from '../components/consumables';
+import { VelanPrPrintModal, AttachmentUploader } from '../components/consumables';
 import { matchesPrNumber } from './ConsumablePurchaseStoreWorkspace';
 import {
   type ConsumableItemDraft,
   type ConsumableLineItemRecord,
+  type LocalLineAttachment,
   type ProductCatalogItem,
   type VendorOption,
   type ConsumablePaymentMode,
@@ -36,6 +37,10 @@ import toast from 'react-hot-toast';
 export function ConsumableRequestsWorkspace() {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'BUILDER' | 'TRACKER'>('BUILDER');
+  const [pendingAttachmentUpload, setPendingAttachmentUpload] = useState<{
+    requestCode: string;
+    rows: Array<{ lineItemId: string; description: string; attachments: LocalLineAttachment[] }>;
+  } | null>(null);
 
   // Loading states
   const [submitting, setSubmitting] = useState(false);
@@ -274,8 +279,60 @@ export function ConsumableRequestsWorkspace() {
         })),
       };
 
-      await consumablesApi.createRequest(payload);
-      toast.success('Consumable request submitted successfully!');
+      const createdRequest = await consumablesApi.createRequest(payload);
+      const createdItems: Array<{ id: string; description?: string }> = createdRequest?.items || [];
+
+      const rowsWithAttachments = draftItems
+        .map((row, idx) => ({
+          lineItemId: createdItems[idx]?.id || '',
+          description: row.description.trim(),
+          attachments: row.attachments || [],
+        }))
+        .filter((r) => r.attachments.length > 0 && r.lineItemId);
+
+      let hasUploadFailures = false;
+      if (rowsWithAttachments.length > 0) {
+        const updatedRows = await Promise.all(
+          rowsWithAttachments.map(async (r) => {
+            const nextAtts: LocalLineAttachment[] = [];
+            for (const att of r.attachments) {
+              try {
+                const uploaded = await consumablesApi.uploadLineAttachment(
+                  r.lineItemId,
+                  att.file,
+                  att.originalSizeBytes,
+                );
+                nextAtts.push({
+                  ...att,
+                  uploadStatus: 'uploaded',
+                  uploadedAttachmentId: uploaded.id,
+                  uploadError: undefined,
+                });
+              } catch (uploadErr: any) {
+                hasUploadFailures = true;
+                nextAtts.push({
+                  ...att,
+                  uploadStatus: 'error',
+                  uploadError: uploadErr?.message || 'Upload failed',
+                });
+              }
+            }
+            return { ...r, attachments: nextAtts };
+          }),
+        );
+
+        if (hasUploadFailures) {
+          setPendingAttachmentUpload({
+            requestCode: createdRequest?.requestCode || 'Request',
+            rows: updatedRows,
+          });
+          toast.error('Request submitted, but some attachments failed to upload. You can retry below.');
+        } else {
+          toast.success('Consumable request and attachments submitted successfully!');
+        }
+      } else {
+        toast.success('Consumable request submitted successfully!');
+      }
 
       // Reset form
       setDraftItems([
@@ -292,13 +349,16 @@ export function ConsumableRequestsWorkspace() {
           requestedQty: 1,
           stockAvailableAtRequest: 0,
           isNewVendor: false,
+          attachments: [],
         },
       ]);
       setRemarks('');
 
       // Refresh tracking queue and lookups so newly created products & vendors are immediately in dropdown
       await Promise.all([loadLookups(), loadLineItems()]);
-      setActiveTab('TRACKER');
+      if (!hasUploadFailures) {
+        setActiveTab('TRACKER');
+      }
     } catch (err: any) {
       toast.error(err?.message || 'Failed to submit consumable request');
     } finally {
@@ -937,6 +997,17 @@ export function ConsumableRequestsWorkspace() {
                       )}
                     </div>
 
+                    {/* Line Item Attachments (Optional, client-compressed) */}
+                    <div>
+                      <AttachmentUploader
+                        attachments={row.attachments || []}
+                        onChange={(nextAttachments) =>
+                          handleUpdateRow(row.tempId, { attachments: nextAttachments })
+                        }
+                        disabled={submitting}
+                      />
+                    </div>
+
                     {/* Expandable Vendor Context for Non-Stock or New Products */}
                     {isOutOfStock && (
                       <div className="p-3.5 rounded-lg border border-amber-200 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-950/20 space-y-2.5">
@@ -1114,6 +1185,130 @@ export function ConsumableRequestsWorkspace() {
             </div>
           </Card>
         </form>
+      )}
+
+      {pendingAttachmentUpload && (
+        <Card className="p-4 border-amber-300 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/20 space-y-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h3 className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                Pending Attachment Uploads ({pendingAttachmentUpload.requestCode})
+              </h3>
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                Your consumable request is already submitted. Retry failed file uploads below.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setPendingAttachmentUpload(null);
+                setActiveTab('TRACKER');
+              }}
+            >
+              Done &amp; View Tracker
+            </Button>
+          </div>
+          <div className="space-y-2">
+            {pendingAttachmentUpload.rows.map((r) => (
+              <div
+                key={r.lineItemId}
+                className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 space-y-1.5"
+              >
+                <div className="text-xs font-semibold text-slate-900 dark:text-white">
+                  {r.description}
+                </div>
+                <AttachmentUploader
+                  attachments={r.attachments}
+                  onChange={() => {}}
+                  disabled
+                  onRetryUpload={async (localId) => {
+                    const target = r.attachments.find((a) => a.localId === localId);
+                    if (!target) return;
+                    setPendingAttachmentUpload((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            rows: prev.rows.map((row) =>
+                              row.lineItemId === r.lineItemId
+                                ? {
+                                    ...row,
+                                    attachments: row.attachments.map((a) =>
+                                      a.localId === localId
+                                        ? { ...a, uploadStatus: 'uploading', uploadError: undefined }
+                                        : a,
+                                    ),
+                                  }
+                                : row,
+                            ),
+                          }
+                        : prev,
+                    );
+                    try {
+                      const uploaded = await consumablesApi.uploadLineAttachment(
+                        r.lineItemId,
+                        target.file,
+                        target.originalSizeBytes,
+                      );
+                      setPendingAttachmentUpload((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              rows: prev.rows.map((row) =>
+                                row.lineItemId === r.lineItemId
+                                  ? {
+                                      ...row,
+                                      attachments: row.attachments.map((a) =>
+                                        a.localId === localId
+                                          ? {
+                                              ...a,
+                                              uploadStatus: 'uploaded',
+                                              uploadedAttachmentId: uploaded.id,
+                                              uploadError: undefined,
+                                            }
+                                          : a,
+                                      ),
+                                    }
+                                  : row,
+                              ),
+                            }
+                          : prev,
+                      );
+                      toast.success(`Uploaded "${target.fileName}"`);
+                      await loadLineItems();
+                    } catch (err: any) {
+                      setPendingAttachmentUpload((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              rows: prev.rows.map((row) =>
+                                row.lineItemId === r.lineItemId
+                                  ? {
+                                      ...row,
+                                      attachments: row.attachments.map((a) =>
+                                        a.localId === localId
+                                          ? {
+                                              ...a,
+                                              uploadStatus: 'error',
+                                              uploadError: err?.message || 'Upload failed',
+                                            }
+                                          : a,
+                                      ),
+                                    }
+                                  : row,
+                              ),
+                            }
+                          : prev,
+                      );
+                      toast.error(err?.message || `Retry failed for "${target.fileName}"`);
+                    }
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </Card>
       )}
 
       {/* ============================================================ */}

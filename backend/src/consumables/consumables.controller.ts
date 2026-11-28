@@ -12,10 +12,16 @@ import {
   Res,
   Optional,
   ParseUUIDPipe,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import 'multer';
 import type { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ConsumablesService } from './consumables.service.js';
+import { ConsumableAttachmentsService } from './consumable-attachments.service.js';
 import { PdfGeneratorService } from '../reports/pdf/pdf-generator.service.js';
 import { CreateConsumableRequestDto } from './dto/create-consumable-request.dto.js';
 import { ReceiveConsumablePurchaseDto } from './dto/receive-consumable-purchase.dto.js';
@@ -40,6 +46,7 @@ import { UserRole } from '../auth/enums/role.enum.js';
 export class ConsumablesController {
   constructor(
     private readonly consumablesService: ConsumablesService,
+    private readonly attachmentsService: ConsumableAttachmentsService,
     @Optional() private readonly pdfGeneratorService?: PdfGeneratorService,
   ) {}
 
@@ -473,6 +480,98 @@ export class ConsumablesController {
   @ApiOperation({ summary: 'Manually trigger immediate Consumables SLA and Fulfillment check & alert sweep' })
   async checkSlaAlerts() {
     return this.consumablesService.checkAndAlertConsumableSlas();
+  }
+
+  /**
+   * Upload a compressed attachment for a consumable line item.
+   */
+  @Post('lines/:lineId/attachments')
+  @Roles(
+    UserRole.PRODUCTION,
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+  )
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 2 * 1024 * 1024 },
+    }),
+  )
+  @ApiOperation({ summary: 'Upload a compressed attachment for a consumable line item' })
+  async uploadLineAttachment(
+    @Param('lineId', ParseUUIDPipe) lineId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('originalSizeBytes') originalSizeBytes: string | undefined,
+    @Req() req: any,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded.');
+    }
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    const origBytes = Number(originalSizeBytes || file.size || 0);
+    return this.attachmentsService.uploadAttachment(lineId, file, origBytes, userId);
+  }
+
+  /**
+   * List attachments with short-lived signed URLs for a consumable line item.
+   */
+  @Get('lines/:lineId/attachments')
+  @Roles(
+    UserRole.PRODUCTION,
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+    UserRole.DESIGNER,
+  )
+  @ApiOperation({ summary: 'List attachments and signed URLs for a consumable line item' })
+  async listLineAttachments(@Param('lineId', ParseUUIDPipe) lineId: string) {
+    return this.attachmentsService.getAttachmentsForLine(lineId);
+  }
+
+  /**
+   * Delete a consumable line attachment (uploader or Admin, only before SM approval).
+   */
+  @Delete('attachments/:id')
+  @Roles(
+    UserRole.PRODUCTION,
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+  )
+  @ApiOperation({ summary: 'Delete a consumable line attachment before SM approval' })
+  async deleteLineAttachment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: any,
+  ) {
+    const userId = req.user?.userId || req.user?.id || req.user?.sub;
+    const userRole = req.user?.role;
+    return this.attachmentsService.deleteAttachment(id, userId, userRole);
+  }
+
+  /**
+   * Local dev fallback endpoint to serve an attachment when Supabase is not configured.
+   */
+  @Get('attachments/:id/raw')
+  @Roles(
+    UserRole.PRODUCTION,
+    UserRole.STORES,
+    UserRole.ADMIN,
+    UserRole.SENIOR_MANAGER,
+    UserRole.GENERAL_MANAGER,
+    UserRole.DESIGNER,
+  )
+  @ApiOperation({ summary: 'Serve local fallback attachment file' })
+  async getLocalAttachmentRaw(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ) {
+    const { buffer, mimeType, fileName } = await this.attachmentsService.getLocalFileBuffer(id);
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(fileName)}"`);
+    res.send(buffer);
   }
 }
 

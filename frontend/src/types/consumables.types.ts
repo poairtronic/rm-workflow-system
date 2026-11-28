@@ -65,6 +65,30 @@ export const STANDARD_CONSUMABLE_ITEMS: string[] = [
   'Blue Tube',
 ];
 
+export interface LocalLineAttachment {
+  localId: string;
+  file: File;
+  fileName: string;
+  mimeType: string;
+  originalSizeBytes: number;
+  storedSizeBytes: number;
+  uploadStatus: 'pending' | 'uploading' | 'uploaded' | 'error';
+  uploadError?: string;
+  uploadedAttachmentId?: string;
+}
+
+export interface ConsumableLineAttachmentDto {
+  id: string;
+  lineItemId: string;
+  fileName: string;
+  mimeType: string;
+  originalSizeBytes: number;
+  storedSizeBytes: number;
+  uploadedBy: string | null;
+  createdAt: string;
+  signedUrl: string;
+}
+
 export interface ConsumableItemDraft {
   tempId: string;
   isNewProduct: boolean;
@@ -86,6 +110,7 @@ export interface ConsumableItemDraft {
   newVendorAddress?: string;
   newVendorMobile?: string;
   newVendorPrice?: number;
+  attachments?: LocalLineAttachment[];
 }
 
 export interface CreateConsumableRequestPayload {
@@ -158,6 +183,7 @@ export interface ConsumableLineItemRecord {
   rejectedAt?: string | null;
   rejectionReason?: string | null;
   approvalBatchId?: string | null;
+  attachmentCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -188,6 +214,7 @@ export interface ConsumableApprovalItem {
   rejectedAt: string | null;
   rejectionReason: string | null;
   approvalBatchId: string | null;
+  attachmentCount?: number;
 }
 
 export interface ConsumableApprovalQueryParams {
