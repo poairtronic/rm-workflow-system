@@ -72,6 +72,7 @@ export interface AttachmentDto {
 export class ConsumableAttachmentsService {
   private readonly logger = new Logger(ConsumableAttachmentsService.name);
   private supabaseClient: SupabaseClient | null = null;
+  private bucketVerified = false;
   private readonly localFallbackDir = path.resolve(
     process.cwd(),
     'uploads',
@@ -108,12 +109,36 @@ export class ConsumableAttachmentsService {
     }
   }
 
+  private async ensureBucketExists(): Promise<void> {
+    if (!this.supabaseClient || this.bucketVerified) return;
+    try {
+      const { error: getErr } = await this.supabaseClient.storage.getBucket(BUCKET_NAME);
+      if (!getErr) {
+        this.bucketVerified = true;
+        return;
+      }
+      const { error: createErr } = await this.supabaseClient.storage.createBucket(BUCKET_NAME, {
+        public: false,
+        fileSizeLimit: 2 * 1024 * 1024,
+        allowedMimeTypes: Array.from(ALLOWED_MIME_TYPES),
+      });
+      if (createErr && !createErr.message?.toLowerCase().includes('already exists')) {
+        this.logger.warn(`Could not auto-create bucket ${BUCKET_NAME}: ${createErr.message}`);
+      } else {
+        this.bucketVerified = true;
+      }
+    } catch (err: any) {
+      this.logger.warn(`Bucket verification warning for ${BUCKET_NAME}: ${err?.message || err}`);
+    }
+  }
+
   private async uploadToStorage(
     filePath: string,
     buffer: Buffer,
     mimeType: string,
   ): Promise<void> {
     if (this.supabaseClient) {
+      await this.ensureBucketExists();
       const { error } = await this.supabaseClient.storage
         .from(BUCKET_NAME)
         .upload(filePath, buffer, {
